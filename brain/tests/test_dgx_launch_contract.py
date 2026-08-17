@@ -1356,6 +1356,21 @@ fi
         )
         self.assertEqual(parser.returncode, 0, msg=parser.stderr or parser.stdout)
 
+    def test_local_registration_bootstrap_survives_powershell_quoting(self) -> None:
+        script = (self.script_root / "New-RcqV2Registration.ps1").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("python -I", script.replace("& $python -I", "python -I"))
+        self.assertIn("-I -c", script)
+        self.assertIn("$bootstrap = @'", script)
+        self.assertIn("runpy.run_module", script)
+        self.assertIn("irene_brain.evaluation.rcq_v2_registration", script)
+        self.assertNotRegex(
+            script,
+            r"\$bootstrap = '[^']*\[[^\]]*\"irene_brain",
+            "a PowerShell single-quoted -c one-liner cannot keep Python double quotes",
+        )
+
     def test_isolated_python_bootstrap_ignores_startup_hooks(self) -> None:
         python_path = self._git_bash_path(Path(sys.executable))
         body = f"""

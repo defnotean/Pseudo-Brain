@@ -54,7 +54,22 @@ if (Test-Path -LiteralPath $registration) {
 }
 
 $python = Get-DgxApplication -Name 'python'
-$bootstrap = 'import runpy,sys;source=sys.argv[1];root=sys.argv[2];config=sys.argv[3];sys.path.insert(0,source);sys.argv=["irene_brain.evaluation.rcq_v2_registration","--training-release-root",root,"--config",config];runpy.run_module("irene_brain.evaluation.rcq_v2_registration",run_name="__main__")'
+# Windows PowerShell strips double quotes from an unquoted -c one-liner, which
+# turns the module name into a NameError. A single-quoted here-string keeps the
+# Python quotes intact and still runs under python -I.
+$bootstrap = @'
+import runpy, sys
+source, root, config = sys.argv[1], sys.argv[2], sys.argv[3]
+sys.path.insert(0, source)
+sys.argv = [
+    "irene_brain.evaluation.rcq_v2_registration",
+    "--training-release-root",
+    root,
+    "--config",
+    config,
+]
+runpy.run_module("irene_brain.evaluation.rcq_v2_registration", run_name="__main__")
+'@
 if ($PlanOnly) {
     Write-Host 'PLAN action=create-target-blind-rcq-v2-registration output=registrations/rcq-v2-reference-v1.json isolated_python=-I'
     return
