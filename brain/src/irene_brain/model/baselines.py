@@ -156,6 +156,20 @@ REACTIVE_IDENTITY = ArchitectureVariantIdentity(
     ),
 )
 
+SERIAL_DEPTH_IDENTITY = ArchitectureVariantIdentity(
+    schema_version=1,
+    variant_id="irene.thought_field.serial_depth.v1",
+    latent_topology="32_factorized_slots_x_3_registers",
+    peer_routing=True,
+    thought_workspace_writes=True,
+    pooled_recurrent_input=False,
+    matching_role="approximate_flop_matched_serial_depth_control",
+    limitations=(
+        "Twelve untied serial blocks replace four tied blocks over three cycles; block applications match but parameters do not.",
+        "Single-cycle execution produces two anytime exits instead of four.",
+    ),
+)
+
 
 class NoCommunicationSlotBaseline(IreneBrainModel):
     """Full slot model with both current-cycle communication paths severed."""
@@ -235,6 +249,24 @@ class ReactiveSlotBaseline(IreneBrainModel):
             state=None,
             **kwargs,
         )
+
+
+class SerialDepthSlotBaseline(IreneBrainModel):
+    """Untied serial depth with the reference's block-application count.
+
+    The reference ties four blocks across three cognitive cycles (twelve
+    block applications). This control runs twelve untied blocks in one cycle,
+    matching sequential block FLOPs while removing weight tying and anytime
+    exits beyond the first. Because the serial stack replaces recurrence,
+    routing is permitted from the first block onward.
+    """
+
+    architecture_identity = SERIAL_DEPTH_IDENTITY
+    architecture_variant_id = SERIAL_DEPTH_IDENTITY.variant_id
+
+    def _communication_policy(self, cycle: int) -> tuple[bool, bool]:
+        del cycle
+        return True, True
 
 
 class MonolithicRecurrentBaseline(IreneBrainModel):
@@ -485,6 +517,8 @@ __all__ = [
     "RESET_STATE_IDENTITY",
     "ReactiveSlotBaseline",
     "ResetStateSlotBaseline",
+    "SERIAL_DEPTH_IDENTITY",
+    "SerialDepthSlotBaseline",
     "allocated_parameter_counts",
     "architecture_manifest_entry",
     "build_architecture_manifest",

@@ -22,6 +22,7 @@ from irene_brain.model.baselines import (  # noqa: E402
     REACTIVE_IDENTITY,
     REFERENCE_IDENTITY,
     RESET_STATE_IDENTITY,
+    SERIAL_DEPTH_IDENTITY,
     build_architecture_manifest,
 )
 from irene_brain.project_paths import resolve_workspace_path  # noqa: E402
@@ -34,6 +35,7 @@ from irene_brain.training.factory import (  # noqa: E402
     build_thesis_parameter_matched_monolithic_model,
     build_thesis_reactive_model,
     build_thesis_reset_slots_model,
+    build_thesis_serial_depth_model,
 )
 
 
@@ -62,6 +64,11 @@ REGISTRATIONS = {
         "configs/training/baseline-stagea-reactive.toml",
         "irene_brain.training.factory:build_thesis_reactive_model",
         build_thesis_reactive_model,
+    ),
+    SERIAL_DEPTH_IDENTITY.variant_id: (
+        "configs/training/baseline-stagea-serial-depth.toml",
+        "irene_brain.training.factory:build_thesis_serial_depth_model",
+        build_thesis_serial_depth_model,
     ),
     MONOLITHIC_IDENTITY.variant_id: (
         "configs/training/baseline-stagea-monolithic-same-width.toml",

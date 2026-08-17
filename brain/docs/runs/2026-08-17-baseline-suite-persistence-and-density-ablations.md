@@ -33,22 +33,33 @@ parameters each, identical state dicts, identical persistent-state bytes):
    belief, working memory, and thoughts all reseed every step — a pure
    reactive policy at the exact reference parameter budget with zero
    disconnected parameters.
+4. **`irene.thought_field.serial_depth.v1`** (§28 "A deeper serial model
+   with matched FLOPs"). `SerialDepthSlotBaseline` runs twelve untied serial
+   blocks in one cognitive cycle, matching the reference's twelve tied block
+   applications (four blocks × three cycles) while removing weight tying.
+   Routing is permitted from the first block because serial depth replaces
+   recurrence. This is a FLOP-matched, **not** parameter-matched control:
+   untied depth costs 75,849,558 trainable parameters (+155.6%), and
+   single-cycle execution yields two anytime exits instead of four. Its
+   comparison regime stays `verified: false` until a device calibration
+   artifact exists, same as the same-width monolith.
 
 Each variant has its own factory
 (`build_thesis_reset_slots_model`, `build_thesis_dense_routing_model`,
-`build_thesis_reactive_model`) and Stage-A-matched recipe
-(`baseline-stagea-reset-slots.toml`,
-`baseline-stagea-dense-communication.toml`, `baseline-stagea-reactive.toml`),
+`build_thesis_reactive_model`, `build_thesis_serial_depth_model`) and
+Stage-A-matched recipe (`baseline-stagea-reset-slots.toml`,
+`baseline-stagea-dense-communication.toml`, `baseline-stagea-reactive.toml`,
+`baseline-stagea-serial-depth.toml`),
 byte-identical to the no-communication recipe except run name and factory.
 
 ## Intentional source freeze
 
 The change touched matched implementation files (`torch_model.py`,
-`brain_cell.py`, `baselines.py`, `factory.py`) and added three manifest
+`brain_cell.py`, `baselines.py`, `factory.py`) and added four manifest
 variants, so the architecture manifest was regenerated deliberately:
 
-- Previous live digest: `eb46988b178d593da6f98f6b99273fd2e791dd62e35f9bcef719c03958d4bb2a`
-- New live digest: `8a41131e4284b9501864e4f30b4b518f161b2f884043de1255f7d251180ecf4d`
+- Previous live digest: `8a41131e4284b9501864e4f30b4b518f161b2f884043de1255f7d251180ecf4d`
+- New live digest: `78ba9cfc1eb56782609f586ac7f3ef393a7fb6ddd6f017546861c3e92d0bb0e2`
 - `MANIFEST_IDENTITY=new_comparison`
 
 The historical first-matched campaign pin `52bba6a9…` and every earlier live
@@ -56,16 +67,19 @@ digest stay bound to their own trees; nothing is rewritten.
 
 ## Verification
 
-- `tests/test_matched_baselines.py`: 9 tests, including the new
+- `tests/test_matched_baselines.py`: 10 tests, including the new
   `test_reset_slots_ignore_incoming_thought_state` (incoming thought state and
   ages provably cannot influence any output; allocated parameters exactly
   match the reference; 1,155 disconnected lifecycle parameters),
   `test_dense_routing_reaches_every_other_slot` (cycle-1+ routing diagnostics
   cover exactly the K−1 off-diagonal peers per slot with weights summing to
-  one; allocated parameters exactly match), and
+  one; allocated parameters exactly match),
   `test_reactive_control_ignores_every_incoming_state_field` (a poisoned
   belief/working-memory/thought state produces bit-identical outputs to a
-  fresh state).
+  fresh state), and
+  `test_serial_depth_matches_block_applications_without_tying` (untied serial
+  depth adds exactly one tied-block parameter set per removed cycle, routes
+  from the first block, and yields two anytime exits).
 - `tests/test_multithought_core.py`,
   `tests/test_first_matched_campaign_preregistration.py`,
   `tests/test_rcq_v3_recipe.py`, `tests/test_rcq_v3_lineage.py`: green — the

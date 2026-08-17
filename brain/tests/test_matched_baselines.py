@@ -26,12 +26,14 @@ if torch is not None:
         REACTIVE_IDENTITY,
         REFERENCE_IDENTITY,
         RESET_STATE_IDENTITY,
+        SERIAL_DEPTH_IDENTITY,
         DenseCommunicationSlotBaseline,
         MonolithicRecurrentBaseline,
         NoCommunicationSlotBaseline,
         ParameterMatchedMonolithicBaseline,
         ReactiveSlotBaseline,
         ResetStateSlotBaseline,
+        SerialDepthSlotBaseline,
         allocated_parameter_counts,
         build_architecture_manifest,
     )
@@ -98,6 +100,7 @@ class MatchedBaselineTests(unittest.TestCase):
             RESET_STATE_IDENTITY,
             DENSE_COMMUNICATION_IDENTITY,
             REACTIVE_IDENTITY,
+            SERIAL_DEPTH_IDENTITY,
         )
         self.assertEqual(len({item.variant_id for item in identities}), len(identities))
         self.assertEqual(len({item.sha256 for item in identities}), len(identities))
@@ -303,6 +306,50 @@ class MatchedBaselineTests(unittest.TestCase):
         )
         self.assertTrue(torch.isfinite(fresh.action.control).all())
 
+    def test_serial_depth_matches_block_applications_without_tying(self) -> None:
+        assert torch is not None
+        reference_config = self.slot_config()
+        serial_config = replace(
+            reference_config,
+            cognitive_cycles=1,
+            brain_cell_blocks=(
+                reference_config.cognitive_cycles * reference_config.brain_cell_blocks
+            ),
+        )
+        torch.manual_seed(11)
+        reference = IreneBrainModel(reference_config, input_resolution=(8, 8))
+        torch.manual_seed(11)
+        serial = SerialDepthSlotBaseline(serial_config, input_resolution=(8, 8))
+        reference_counts = allocated_parameter_counts(reference)
+        serial_counts = allocated_parameter_counts(serial)
+        # Untied depth: one extra block per removed cycle, everything else equal.
+        reference_block_parameters = sum(
+            parameter.numel()
+            for name, parameter in reference.named_parameters()
+            if name.startswith("brain_cell.blocks.")
+        )
+        self.assertEqual(
+            serial_counts["trainable"] - reference_counts["trainable"],
+            reference_block_parameters * (reference_config.cognitive_cycles - 1),
+        )
+        self.assertEqual(serial_counts["architecturally_disconnected_trainable"], 0)
+
+        pixels, control, elapsed = self.inputs()
+        serial.eval()
+        with torch.no_grad():
+            output = serial(pixels, control, elapsed)
+        self.assertEqual(len(output.anytime_actions), 2)
+        self.assertEqual(output.diagnostics.cycles_completed, 1)
+        # Serial depth replaces recurrence, so even the first (and only) cycle
+        # routes sparsely to the configured number of neighbors.
+        thoughtlets = reference_config.thoughtlets
+        for indices in output.diagnostics.routing_indices:
+            self.assertEqual(
+                indices.shape,
+                (1, thoughtlets, reference_config.routed_neighbors),
+            )
+        self.assertTrue(torch.isfinite(output.action.control).all())
+
     def test_monolithic_control_runs_with_one_finite_recurrent_latent(self) -> None:
         assert torch is not None
         model = MonolithicRecurrentBaseline(
@@ -415,6 +462,7 @@ class MatchedBaselineTests(unittest.TestCase):
                 RESET_STATE_IDENTITY,
                 DENSE_COMMUNICATION_IDENTITY,
                 REACTIVE_IDENTITY,
+                SERIAL_DEPTH_IDENTITY,
             )
         }
         entries = {entry["variant_id"]: entry for entry in manifest["variants"]}
@@ -455,6 +503,7 @@ class MatchedBaselineTests(unittest.TestCase):
             0,
         )
         self.assertEqual(entries[REACTIVE_IDENTITY.variant_id]["allocated_parameters"]["trainable"], 29_674_318)
+        self.assertEqual(entries[SERIAL_DEPTH_IDENTITY.variant_id]["allocated_parameters"]["trainable"], 75_849_558)
 
 
 if __name__ == "__main__":

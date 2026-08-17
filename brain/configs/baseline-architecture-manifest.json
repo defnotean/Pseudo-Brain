@@ -37,19 +37,19 @@
     }
   },
   "implementation": {
-    "source_bundle_sha256": "13e84bac635fe32d4780975d4759c3b3d3ad45b1e713b0806caa9a82e95fe50e",
+    "source_bundle_sha256": "cf6db1653424144bf224b9577d093e2f0dd1ff76e5d4c29e6fd0410bcbd131b8",
     "source_files": {
       "src/irene_brain/model/actuator.py": "d2dad5e74a6fdce1c63cdd84f71508b90989eb9fecfdea1a192b4d82c2aad5ea",
-      "src/irene_brain/model/baselines.py": "ea35bcf706c906f456e9f306803b8a0602512c7db57aea92d7fc3c1cd946aa3d",
+      "src/irene_brain/model/baselines.py": "1af853f42e663772330b991b490d88f421da651aafb962186de78f23162ce179",
       "src/irene_brain/model/brain_cell.py": "ab755df7e8551366c91c47ab08aec6e4b067fa282b9f957751bbbb06f66cb955",
       "src/irene_brain/model/sensory.py": "bd7ae52907076f9eb19b9fa24a8ddc85abffb9cfee9577ee6a8af11898330dca",
       "src/irene_brain/model/spec.py": "d6c718fa4ee8ff2e031f30746d490603e2a4aac3a31d124bdef1d7c2c2148cf5",
       "src/irene_brain/model/torch_model.py": "102caf0ead1895a913ed1031811596fb69f09839bd571bc2529ea5117f15409b",
-      "src/irene_brain/training/factory.py": "190ebffea5c583b06442653633e6d5feb87cd46c5a3a8bef5a8fd43a6fe4044a",
+      "src/irene_brain/training/factory.py": "30182b842a1cef3d72ffe71fe832005638b752810a2239e8befeb2efa29f484e",
       "src/irene_brain/training/objective.py": "4c3068d62122c930f5c42acb5acf2b5853d7b85d21de77f91949f29c7d6f355e"
     }
   },
-  "manifest_sha256": "8a41131e4284b9501864e4f30b4b518f161b2f884043de1255f7d251180ecf4d",
+  "manifest_sha256": "78ba9cfc1eb56782609f586ac7f3ef393a7fb6ddd6f017546861c3e92d0bb0e2",
   "reference_variant_id": "irene.thought_field.routed.v1",
   "schema_version": 1,
   "variants": [
@@ -402,6 +402,56 @@
       },
       "variant_id": "irene.thought_field.routed.v1",
       "variant_identity_sha256": "dedb079de66dda87fe40fdfefc101b9b788facc278121faa97d6d2e08cbc845e"
+    },
+    {
+      "absolute_trainable_parameter_delta_fraction": 1.5560674385170368,
+      "allocated_parameters": {
+        "architecturally_connected_trainable": 75849558,
+        "architecturally_disconnected_trainable": 0,
+        "total": 75849558,
+        "trainable": 75849558
+      },
+      "identity": {
+        "latent_topology": "32_factorized_slots_x_3_registers",
+        "limitations": [
+          "Twelve untied serial blocks replace four tied blocks over three cycles; block applications match but parameters do not.",
+          "Single-cycle execution produces two anytime exits instead of four."
+        ],
+        "matching_role": "approximate_flop_matched_serial_depth_control",
+        "peer_routing": true,
+        "pooled_recurrent_input": false,
+        "schema_version": 1,
+        "thought_workspace_writes": true,
+        "variant_id": "irene.thought_field.serial_depth.v1"
+      },
+      "model_class": "irene_brain.model.baselines.SerialDepthSlotBaseline",
+      "model_factory": "irene_brain.training.factory:build_thesis_serial_depth_model",
+      "persistent_state": {
+        "batch_size": 1,
+        "bytes": 129024,
+        "bytes_per_element": 2,
+        "elements": 64512,
+        "thought_elements": 36864
+      },
+      "shape_controls": {
+        "aggregate_retrieved_tokens": 64,
+        "attention_heads": 8,
+        "brain_cell_blocks": 12,
+        "cognitive_cycles": 1,
+        "core_width": 384,
+        "registers_per_thoughtlet": 3,
+        "retrieved_entries_per_thoughtlet": 2,
+        "routed_neighbors": 2,
+        "thoughtlets": 32
+      },
+      "trainable_parameter_delta_from_reference": 46175240,
+      "training_recipe": {
+        "canonical_config_sha256": "72ced8a17f9deae15681db84a6584f132030f57ae9897714ca5c4ac824c89c0c",
+        "path": "configs/training/baseline-stagea-serial-depth.toml",
+        "raw_sha256": "e35fe6e45a56fa72021e58006dac622db475476afe373c8c2c3ba9320b55ff6c"
+      },
+      "variant_id": "irene.thought_field.serial_depth.v1",
+      "variant_identity_sha256": "a2e8df946d055727984d018d20582c59eda9f35bf60cc19401681626544dcc68"
     }
   ]
 }

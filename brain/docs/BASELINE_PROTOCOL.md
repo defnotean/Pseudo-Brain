@@ -29,6 +29,7 @@ not rewrite the file to keep an old claim current.
 | `irene.thought_field.reset_slots.v1` | Persistence ablation: incoming thought state is discarded and slots reseed from sensors and belief every step | 29,674,318 | 129,024 bytes |
 | `irene.thought_field.dense_routing.v1` | Dense-communication ablation: unrestricted all-to-all softmax routing instead of sparse top-k | 29,674,318 | 129,024 bytes |
 | `irene.thought_field.reactive.v1` | Reactive control: no state crosses steps; belief, working memory, and thoughts reseed every forward | 29,674,318 | 129,024 bytes |
+| `irene.thought_field.serial_depth.v1` | FLOP-matched serial-depth control: twelve untied serial blocks in one cycle replace four tied blocks over three cycles | 75,849,558 | 129,024 bytes |
 | `irene.monolithic_gru.same_width.v1` | Same-width pooled GRU control for hardware-calibrated latency/FLOP comparisons | 27,890,250 | 56,064 bytes |
 | `irene.monolithic_gru.parameter_matched.v1` | Width-396 pooled GRU control selected by nearest parameter count | 29,643,900 | 57,816 bytes |
 
@@ -57,7 +58,11 @@ same projections on an all-to-all softmax instead of the sparse top-k, and
 the reactive control reseeds every state field at the forward boundary. All
 three slot ablations are exact-allocated-parameter controls by construction;
 none is part of the registered parameter-matched comparison pair, which
-remains the isolated-slot and width-396 monolithic controls.
+remains the isolated-slot and width-396 monolithic controls. The serial-depth
+model is deliberately **not** parameter-matched: untying the tied block
+across twelve serial applications costs 155.6% more parameters, so it joins
+the same-width monolith in the latency/FLOP regime, which stays unverified
+until a device calibration artifact exists.
 
 The monolithic models are intentionally conventional bottlenecks: external
 sources are pooled into one GRU latent while perception, belief, memory, world,

@@ -29,7 +29,7 @@ action, and not an architecture-superiority claim.
 |---|---|---|
 | 0 | Source lives in this Git repository and on private GitHub | Done. `defnotean/Pseudo-Brain`, branch `defnotean/pseudo-brain` |
 | 1 | Write operator documentation and freeze tooling | Done |
-| 2 | Freeze implementation source and regenerate the matched-baseline architecture manifest | Done. Live digest `8a41131e…` (2026-08-17 baseline-suite extension: reset-slot, dense-routing, and reactive ablations). Historical `f4e9b355…`, `eb46988b…`, `5decb402…`, `30d4c119…`, and first-matched pin `52bba6a9…` unchanged. |
+| 2 | Freeze implementation source and regenerate the matched-baseline architecture manifest | Done. Live digest `78ba9cfc…` (2026-08-17 baseline-suite extension: reset-slot, dense-routing, reactive, and serial-depth ablations). Historical `8a41131e…`, `f4e9b355…`, `eb46988b…`, `5decb402…`, `30d4c119…`, and first-matched pin `52bba6a9…` unchanged. |
 | 3 | Run local CPU-only tests, including the regenerated manifest identity | Done. 299 tests passed, one expected POSIX skip. |
 | 4 | Build the create-once, target-blind RCQ-v2 registration and record its SHA-256 | Live v2 `6cc98739c78499a990a4b3480524c48dd49243c1e3c63094977a9a917df49690`. Historical v1 `33f7900c…` preserved. Copy the live digest off-repo. |
 | 5 | DGX preflight and immutable release sync | Done for live release `r20260817t021531z-7a2967ebec60`. Historical v1 release stays unused for training. |

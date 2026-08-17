@@ -14,6 +14,7 @@ from ..model.baselines import (
     ParameterMatchedMonolithicBaseline,
     ReactiveSlotBaseline,
     ResetStateSlotBaseline,
+    SerialDepthSlotBaseline,
 )
 from ..model.spec import ThoughtFieldConfig
 from ..model.torch_model import IreneBrainModel
@@ -147,6 +148,26 @@ def build_thesis_reactive_model(
     return _identity_pixel_grid(model)
 
 
+def build_thesis_serial_depth_model(
+    config: TrainingConfig,
+) -> SerialDepthSlotBaseline:
+    _require_config(config)
+    reference = ThoughtFieldConfig.thesis_mvp()
+    # Twelve untied serial blocks replace four tied blocks over three cycles:
+    # the same block-application count with no weight tying across depth.
+    model_config = replace(
+        reference,
+        cognitive_cycles=1,
+        brain_cell_blocks=reference.cognitive_cycles * reference.brain_cell_blocks,
+    )
+    model = SerialDepthSlotBaseline(
+        model_config,
+        input_resolution=(64, 64),
+        plan_steps=3,
+    )
+    return _identity_pixel_grid(model)
+
+
 def build_thesis_monolithic_model(
     config: TrainingConfig,
 ) -> MonolithicRecurrentBaseline:
@@ -185,4 +206,5 @@ __all__ = [
     "build_thesis_parameter_matched_monolithic_model",
     "build_thesis_reactive_model",
     "build_thesis_reset_slots_model",
+    "build_thesis_serial_depth_model",
 ]
