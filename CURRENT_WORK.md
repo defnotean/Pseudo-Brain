@@ -32,8 +32,9 @@ action, and not an architecture-superiority claim.
 | 2 | Freeze implementation source and regenerate the matched-baseline architecture manifest | Done. Live digest `30d4c119…`. Historical campaign pin `52bba6a9…` unchanged. |
 | 3 | Run local CPU-only tests, including the regenerated manifest identity | Done. 294 tests passed, one expected POSIX skip. |
 | 4 | Build the create-once, target-blind RCQ-v2 registration and record its SHA-256 | Done. `33f7900c1d71b5e363de5a6b7ca921120f486b315241384d906d209a5e02fce0`. Copy that digest off-repo. |
-| 5 | DGX preflight and immutable release sync | Releases `r20260817t012309z-c07f1a23ca35` and `r20260817t013316z-4dcad4af91bb` are historical only. Re-sync after both launcher-test fixes. |
-| 6 | Trusted pretraining pin, then RCQ smoke, then staging canary | Unused pins `cee1cb76…` and `04608d70…` discarded; smoke never receipted. New pin required. |
+| 5 | DGX preflight and immutable release sync | Done for live release `r20260817t013858z-db1f586ef3a0`. Earlier unused releases stay historical. |
+| 6 | Trusted pretraining pin, then RCQ smoke, then staging canary | Pin `dbcb6afc…` and smoke passed. Staging canary failed frozen-stage `action_outputs_sha256` invariance. Stop. |
+| 7 | Pinned 2,048-update reference train on seed 1702 | Do not start. Canary did not pass. |
 | 7 | Pinned 2,048-update reference train on seed 1702 | Only if smoke and canary pass |
 | 8 | Preclaim, independent review, final authorization, one-shot TEST | Only if both development gates pass |
 

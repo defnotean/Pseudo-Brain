@@ -241,6 +241,11 @@ namespace.
   pin and sync a new release. Do not chmod the installed release. The
   2026-08-16 unused pins are that case:
   [runs/2026-08-16-rcq-v2-unused-pretraining-pin-discard.md](./runs/2026-08-16-rcq-v2-unused-pretraining-pin-discard.md).
+- **Staging canary fails frozen-stage invariance.** After update 1 the value-head
+  transition requires bit-identical action outputs. A mismatch stops the
+  campaign. Do not start the 2,048-update reference. The 2026-08-16 canary is
+  that case:
+  [runs/2026-08-16-rcq-v2-smoke-pass-canary-invariance-fail.md](./runs/2026-08-16-rcq-v2-smoke-pass-canary-invariance-fail.md).
 
 ## What to copy down at each gate
 

@@ -66,6 +66,8 @@ the source-tree hasher would fail closed.
   pin, RCQ smoke, and staging canary all agree with this SHA-256.
 - The first two Spark pins are unused. See
   [2026-08-16-rcq-v2-unused-pretraining-pin-discard.md](./2026-08-16-rcq-v2-unused-pretraining-pin-discard.md).
-  Keep this registration SHA; sync a new release and publish a new pin.
+  Keep this registration SHA. The later pin passed smoke and failed the
+  staging canary:
+  [2026-08-16-rcq-v2-smoke-pass-canary-invariance-fail.md](./2026-08-16-rcq-v2-smoke-pass-canary-invariance-fail.md).
 
 Next operator step: [OPERATOR_GUIDE.md](../OPERATOR_GUIDE.md) step 3.

@@ -65,14 +65,10 @@ rejection branches are OS-independent.
 
 ## What must happen next
 
-1. Empty `qualification-pins/rcq-v2-reference-v1/` (remove `pretraining.json`
-   after `chmod u+w`; leave the parent lock file).
-2. Sync a **new** immutable release that includes both test fixes and the same
-   registration file.
-3. Require remote read-back of registration SHA-256 `33f7900c…`.
-4. Publish a **new** pretraining pin bound to the new `RELEASE_ID`.
-5. Re-run pin-bound RCQ smoke, then the staging canary.
-6. Start the 2,048-update reference only if both pass.
+The launcher-test discards above are complete. Live follow-up is
+[2026-08-16-rcq-v2-smoke-pass-canary-invariance-fail.md](./2026-08-16-rcq-v2-smoke-pass-canary-invariance-fail.md):
+smoke passed on a later pin; staging canary failed; do not start the
+2,048-update reference.
 
 Do not open sealed TEST ranges. Do not rerun final-once. Do not point generic
 train/smoke wrappers at the RCQ reference config.
