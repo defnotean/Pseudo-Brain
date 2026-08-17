@@ -57,10 +57,13 @@ sequences, not 98,304 independent examples.
 | `value-head-only` | `[1536, 2048)` | Exactly `model.value_per_thought.bias` and `.weight` | Reset AdamW and scheduler, LR `3e-4`, weight decay `0`, no warmup; value weight `1`, all other loss weights `0` | `rcq_v2_value_development_v1` at 2,048 |
 
 The successful transition captures hashes of every non-value state tensor, all
-action outputs at every exit, and recurrent-state outputs. Stage 2 must preserve
-those hashes exactly in the same registered runtime. This makes action
-invariance a structural consequence of the freeze mask and an audited runtime
-fact; it does not show that thoughts caused the action.
+action outputs at every exit, and recurrent-state outputs. Captures run in eval
+plus `torch.inference_mode()` with `requires_grad` cleared, then restore the
+live freeze mask. Stage 2 must preserve those hashes exactly in the same
+registered runtime. This makes action invariance a structural consequence of
+the freeze mask and an audited runtime fact; it does not show that thoughts
+caused the action. On CUDA, leaving `requires_grad` attached during the capture
+selects different eval kernels and is not a weight change.
 
 ## Development gates
 

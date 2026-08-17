@@ -1719,9 +1719,7 @@ class Schema3TorchSystemTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "do not exist"):
             self._system(invalid)
 
-    def test_real_smoke_joint_update_can_emit_stage_checkpoint_state(self) -> None:
-        """Exercise optimizer coverage with the production model/objective graph."""
-
+    def _cpu_canary_system(self) -> tuple[object, object, object]:
         registered = load_training_config(
             _BRAIN_ROOT
             / "configs"
@@ -1758,6 +1756,12 @@ class Schema3TorchSystemTests(unittest.TestCase):
         )
         system = TorchTrainingSystem(objective, config)
         source = MovingShapesBatchSource(config.dataset)
+        return config, system, source
+
+    def test_real_smoke_joint_update_can_emit_stage_checkpoint_state(self) -> None:
+        """Exercise optimizer coverage with the production model/objective graph."""
+
+        _config, system, source = self._cpu_canary_system()
         batch = next(
             source.iter_batches(
                 split="train",
@@ -1781,6 +1785,39 @@ class Schema3TorchSystemTests(unittest.TestCase):
 
         self.assertEqual(state["stage_index"], 0)
         self.assertEqual(state["stage_local_optimizer_step"], 1)
+
+    def test_real_smoke_value_head_transition_keeps_cpu_action_invariance(self) -> None:
+        """The Spark canary failed this exact transition; CPU must still be bit-identical."""
+
+        config, system, source = self._cpu_canary_system()
+        train = next(
+            source.iter_batches(
+                split="train",
+                epoch=0,
+                start_batch=0,
+                batch_size=1,
+                max_batches=1,
+            )
+        )
+        validation = tuple(
+            source.iter_batches(
+                split="validation",
+                epoch=0,
+                start_batch=0,
+                batch_size=1,
+                max_batches=source.batches_per_epoch(split="validation", batch_size=1),
+            )
+        )
+        self.assertTrue(validation)
+        system.train_optimizer_step((train,))
+        system.transition_to_stage(
+            1,
+            invariance_batches=validation,
+            entry_gate_report_sha256=_NULL_SHA256,
+            entry_gate_passed=True,
+            entry_gate_step=config.stages[0].end_optimizer_step,
+        )
+        self.assertEqual(system.active_stage_index, 1)
 
 
 class Schema3TrainerBoundaryTests(unittest.TestCase):

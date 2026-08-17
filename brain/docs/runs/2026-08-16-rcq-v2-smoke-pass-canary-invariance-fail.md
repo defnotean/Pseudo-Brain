@@ -75,3 +75,7 @@ Do not chmod the installed release. Do not open TEST. Do not edit
 reference-config fix is a new qualification. A canary-only retry still needs
 a new immutable release and a new create-only pin because this canary run id
 is consumed.
+
+Diagnosis (2026-08-16): CUDA selects different eval kernels after the freeze
+mask flips `requires_grad`, even though non-value weights are bit-identical.
+See [2026-08-16-rcq-v2-canary-invariance-diagnosis.md](./2026-08-16-rcq-v2-canary-invariance-diagnosis.md).

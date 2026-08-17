@@ -4,11 +4,10 @@ Updated: 2026-08-16
 
 ## Current campaign: RCQ-v2
 
-Status: target-blind registration kept. Live Spark pin
-`dbcb6afc798c18121491af6688933b039d81f80e0ff8baf0de060cd7494b113b` passed
-pin-bound smoke and failed the staging canary on frozen-stage
-`action_outputs_sha256` invariance. No qualification run or final TEST has
-been launched.
+Status: v1 Spark pin passed smoke and failed the staging canary. The failure
+is CUDA kernel selection on `requires_grad` flips, not a model result. A
+capture fix is confirmed on GB10 and requires a newly named qualification.
+No final TEST has been launched.
 
 RCQ-v2 asks whether the existing single model can learn a state-conditioned
 W/A/S/D policy and a useful value estimate on synthetic moving-shapes, for one
@@ -34,9 +33,11 @@ path. CUDA backward passed both times. Record:
 [docs/runs/2026-08-16-rcq-v2-unused-pretraining-pin-discard.md](./docs/runs/2026-08-16-rcq-v2-unused-pretraining-pin-discard.md).
 
 The third pin (`dbcb6afc…`, release `r20260817t013858z-db1f586ef3a0`) passed
-smoke and failed the staging canary. Record:
-[docs/runs/2026-08-16-rcq-v2-smoke-pass-canary-invariance-fail.md](./docs/runs/2026-08-16-rcq-v2-smoke-pass-canary-invariance-fail.md).
-Do not start the 2,048-update reference on that pin.
+smoke and failed the staging canary. Diagnosis:
+[docs/runs/2026-08-16-rcq-v2-canary-invariance-diagnosis.md](./docs/runs/2026-08-16-rcq-v2-canary-invariance-diagnosis.md).
+Do not start the 2,048-update reference on that pin. The capture fix changes
+`source_tree_sha256`; keep `registrations/rcq-v2-reference-v1.json` and start a
+newly named qualification.
 
 The matched-baseline architecture manifest at
 `configs/baseline-architecture-manifest.json` was regenerated as an intentional

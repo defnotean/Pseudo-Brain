@@ -924,9 +924,15 @@ class TorchTrainingSystem:
         sequence_count = 0
         timestep_count = 0
         was_training = self.objective.training
+        saved_requires_grad = tuple(
+            (parameter, bool(parameter.requires_grad))
+            for parameter in self.objective.parameters()
+        )
         self.objective.train(False)
         try:
-            with torch.no_grad():
+            for parameter, _flag in saved_requires_grad:
+                parameter.requires_grad_(False)
+            with torch.inference_mode():
                 for raw_batch in batches:
                     if not isinstance(raw_batch, TrajectoryBatch):
                         raise ValueError(
@@ -1006,12 +1012,15 @@ class TorchTrainingSystem:
                     batch_count += 1
                     sequence_count += batch.batch_size
         finally:
+            for parameter, flag in saved_requires_grad:
+                parameter.requires_grad_(flag)
             self.objective.train(was_training)
         return {
             "schema_version": 1,
-            # The audit bypasses AMP but intentionally retains the registered
-            # runtime's CUDA TF32 policy. Its claim is same-runtime bit identity,
-            # not an IEEE-float32 numerical rerun.
+            # Captures run in eval + inference_mode with requires_grad cleared
+            # so CUDA kernel selection cannot follow the live freeze mask. The
+            # audit still uses the registered runtime TF32 policy and claims
+            # same-runtime bit identity, not an IEEE-float32 numerical rerun.
             "evaluation_precision": "same_runtime_no_autocast_v1",
             "batch_count": batch_count,
             "sequence_count": sequence_count,
