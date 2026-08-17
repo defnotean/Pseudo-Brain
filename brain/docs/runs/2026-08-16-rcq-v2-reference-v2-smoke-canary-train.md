@@ -126,16 +126,29 @@ Fourth checkpoint at optimizer step 1,024 (~82 minutes after launch):
 | Validation positive-key recall | 0.988 |
 | Validation continuous-outside-deadzone (logged mean) | 3.71 |
 
-The validation slice is the open development namespace, not sealed TEST.
-These logger lines are not the development gate. Exact 0.84 has been above
-the 0.80 floor on the last two eval dumps, and recall rose from 0.93 to 0.99.
-That recall gain came with more movement false positives and opposite-key
-conflicts. Continuous outputs are still leaving the `[-0.05, 0.05]` deadzone,
-so the official step-1,536 report can still fail quiescence even if WASD exact
-stays high.
+Fifth checkpoint at optimizer step 1,280 (~103 minutes after launch):
 
-Host disk is about 550 GiB free after the non-3.8 weight cleanup. Do not chmod
+| Item | Value |
+|---|---|
+| Checkpoint | `step-00001280.pt` (338 MiB) |
+| Checkpoint SHA-256 | `d36a6def9d0da23afe7d170856ed902e8a8a90c23d3a986eb9cfa14ccd682d60` |
+| Train loss | 0.131 |
+| Train movement exact match | 0.854 |
+| Validation loss | 0.100 |
+| Validation movement exact match | 0.900 |
+| Validation previous-control exact | 0.696 |
+| Validation positive-key recall | 0.954 |
+| Validation continuous-outside-deadzone (logged mean) | 7.08 |
+
+The validation slice is the open development namespace, not sealed TEST.
+These logger lines are not the development gate. Exact 0.90 and recall 0.95
+are above the 0.80 / 0.90 floors on that eval dump. False positives and
+opposite-key conflicts dropped versus step 1,024. Continuous outputs are
+still leaving the `[-0.05, 0.05]` deadzone, and that logged mean rose to
+7.08, so the official step-1,536 report can still fail quiescence even if
+WASD exact stays high.
+
+Host disk is about 549 GiB free after the non-3.8 weight cleanup. Do not chmod
 installed releases writable. Do not open TEST. Resume only with
-`Resume-DgxRcqV2Reference.ps1 -AcknowledgeDetached`. Next checkpoints are
-1,280 then the entry gate at 1,536. Failure there is terminal for this
-candidate.
+`Resume-DgxRcqV2Reference.ps1 -AcknowledgeDetached`. The next checkpoint is
+the entry gate at 1,536. Failure there is terminal for this candidate.

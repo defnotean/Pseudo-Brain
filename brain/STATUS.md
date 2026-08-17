@@ -6,8 +6,8 @@ Updated: 2026-08-16
 
 Status: live qualification is `rcq_v2_reference_v2`. Smoke and staging canary
 passed on pin `adf79ccc…`. The 2,048-update reference is running detached and
-has written checkpoint `step-00001024.pt`. Logged development movement exact
-match is 0.84 versus the 0.80 entry floor; that logger line is not the
+has written checkpoint `step-00001280.pt`. Logged development movement exact
+match is 0.90 versus the 0.80 entry floor; that logger line is not the
 official gate report. No final TEST has been launched.
 
 RCQ-v2 asks whether the existing single model can learn a state-conditioned
