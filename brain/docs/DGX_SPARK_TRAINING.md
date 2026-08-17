@@ -339,6 +339,19 @@ metric lines from `metrics.jsonl`, checkpoint names, and the last 80 log lines:
   -RunId 'phase1-train-001'
 ```
 
+Console-less caveat observed 2026-08-17: Windows OpenSSH `ssh.exe` under
+`C:\Windows\System32\OpenSSH` silently produces no output when launched from
+an agent harness without an attached console, so every wrapper that resolves
+ssh through `Get-DgxApplication` fails at target resolution in that
+environment. Do not edit the frozen wrappers to work around this. For
+read-only status polling only, an equivalent probe is any working OpenSSH
+client piping `brain/scripts/dgx/_remote_dispatch.sh` to the same remote
+invocation (`/usr/bin/env -i PATH=/usr/sbin:/usr/bin /bin/bash -p -s --
+status <workdir> <run-id>`) with the same `-T -o BatchMode=yes
+StrictHostKeyChecking=yes` flags. Production actions (sync, pin, smoke,
+canary, start, resume, preclaim, final-once, verify) must still run through
+the pinned wrappers from a console-attached terminal.
+
 Logs and checkpoints are retrieved separately into a destination that must not
 already exist. The remote probe resolves a canonical workspace-contained path
 and rejects linked or special files anywhere in recursive artifact trees before
