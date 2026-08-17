@@ -16,6 +16,8 @@ step-1,536 checkpoint terminal: no resume, no tuning, no retry under this
 registration. Final TEST was never opened and stays sealed. Any next attempt
 needs a newly preregistered experiment. Record:
 [docs/runs/2026-08-16-rcq-v2-reference-v2-smoke-canary-train.md](./docs/runs/2026-08-16-rcq-v2-reference-v2-smoke-canary-train.md).
+Post-mortem failure mechanics (quiescence tail, W/S opposite conflicts):
+[docs/runs/2026-08-17-rcq-v2-entry-gate-failure-diagnosis.md](./docs/runs/2026-08-17-rcq-v2-entry-gate-failure-diagnosis.md).
 
 RCQ-v2 asks whether the existing single model can learn a state-conditioned
 W/A/S/D policy and a useful value estimate on synthetic moving-shapes, for one
