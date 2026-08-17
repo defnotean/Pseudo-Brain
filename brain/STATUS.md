@@ -1,14 +1,21 @@
 # Implementation status
 
-Updated: 2026-08-16
+Updated: 2026-08-17
 
 ## Current campaign: RCQ-v2
 
-Status: live qualification is `rcq_v2_reference_v2`. Smoke and staging canary
-passed on pin `adf79ccc…`. The 2,048-update reference is running detached and
-has written checkpoint `step-00001280.pt`. Logged development movement exact
-match is 0.90 versus the 0.80 entry floor; that logger line is not the
-official gate report. No final TEST has been launched.
+Status: live qualification `rcq_v2_reference_v2` is **terminally failed**. The
+2,048-update reference stopped at optimizer step 1,536 when the frozen
+`rcq_v2_development_v1` entry gate failed on the open development slice: nine
+opposite-direction conflicts (limit seven) and 875 continuous outputs outside
+the [-0.05, 0.05] deadzone (limit zero). Every action-volume check passed
+(1,422/1,536 movement exact, 402/467 changed exact, 0.976 recall, 64 movement
+false positives, zero off-support outputs). The canonical failed report
+(`development-gate-step-00001536.json`, SHA-256 `6e1bcdec…`) makes the
+step-1,536 checkpoint terminal: no resume, no tuning, no retry under this
+registration. Final TEST was never opened and stays sealed. Any next attempt
+needs a newly preregistered experiment. Record:
+[docs/runs/2026-08-16-rcq-v2-reference-v2-smoke-canary-train.md](./docs/runs/2026-08-16-rcq-v2-reference-v2-smoke-canary-train.md).
 
 RCQ-v2 asks whether the existing single model can learn a state-conditioned
 W/A/S/D policy and a useful value estimate on synthetic moving-shapes, for one
@@ -43,7 +50,9 @@ passed. Record:
 Keep the live registration SHA. Do not rebuild it.
 
 Live v2 pin `adf79ccc…` (release `r20260817t021531z-7a2967ebec60`) passed
-smoke and the staging canary. The 2,048-update reference is running. Record:
+smoke and the staging canary. The 2,048-update reference then failed the
+frozen step-1,536 development entry gate (opposite-direction conflicts 9 > 7;
+continuous outputs outside the deadzone 875 ≠ 0) and is terminal. Record:
 [docs/runs/2026-08-16-rcq-v2-reference-v2-smoke-canary-train.md](./docs/runs/2026-08-16-rcq-v2-reference-v2-smoke-canary-train.md).
 Spark disk cleanup of non-3.8 weights:
 [docs/runs/2026-08-16-spark-non-3.8-model-cleanup.md](./docs/runs/2026-08-16-spark-non-3.8-model-cleanup.md).

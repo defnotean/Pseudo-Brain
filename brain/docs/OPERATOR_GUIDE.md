@@ -6,6 +6,11 @@ value identities, and legal stopping rules are in
 [DGX_SPARK_TRAINING.md](DGX_SPARK_TRAINING.md). The campaign checklist is
 [CURRENT_WORK.md](../../CURRENT_WORK.md).
 
+The live `rcq_v2_reference_v2` reference on seed 1702 already failed the
+step-1,536 development entry gate. Do not start or resume that run. A later
+attempt needs a newly named qualification. Record:
+[runs/2026-08-16-rcq-v2-reference-v2-smoke-canary-train.md](runs/2026-08-16-rcq-v2-reference-v2-smoke-canary-train.md).
+
 Run every command from the Git top-level of this repository unless a snippet
 says otherwise.
 

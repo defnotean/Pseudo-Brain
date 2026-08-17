@@ -1,9 +1,10 @@
 # RCQ-v2 live qualification smoke, canary, and reference start (2026-08-16)
 
 Status: pin-bound smoke passed. Staging canary passed, including the schema-3
-value-head transition invariance receipt. The 2,048-update reference is
-running detached on Spark. TEST was not opened. This is not an RCQ competency
-result.
+value-head transition invariance receipt. The 2,048-update reference ran
+detached on Spark and stopped at optimizer step 1,536: the frozen development
+entry gate **failed**, which is terminal for this candidate. TEST was not
+opened. This is not an RCQ competency result.
 
 ## Live identities
 
@@ -149,6 +150,57 @@ still leaving the `[-0.05, 0.05]` deadzone, and that logged mean rose to
 WASD exact stays high.
 
 Host disk is about 549 GiB free after the non-3.8 weight cleanup. Do not chmod
-installed releases writable. Do not open TEST. Resume only with
-`Resume-DgxRcqV2Reference.ps1 -AcknowledgeDetached`. The next checkpoint is
-the entry gate at 1,536. Failure there is terminal for this candidate.
+installed releases writable. Do not open TEST.
+
+## Terminal outcome: entry gate failed at step 1,536 (2026-08-17 UTC)
+
+At optimizer step 1,536 the trainer wrote `step-00001536.pt`, evaluated the
+frozen `rcq_v2_development_v1` entry gate on the full 256-sequence development
+slice (1,536 scored decisions), and exited with
+`stop_reason: development_gate_failed`. Stage 2 (value-head-only) never
+started. This candidate is terminal: no resume, no tuning, no retry, and no
+parallel run under this registration. Final TEST stays sealed with
+`sealed_test_examples_opened: 0`.
+
+Terminal identities:
+
+| Item | Value |
+|---|---|
+| Gate report | `development-gate-step-00001536.json` |
+| Gate report SHA-256 | `6e1bcdec69949e1b1e43f271ebf300f07a39e25318790aa82de99c5b641e7724` |
+| Gate | `rcq_v2_development_v1`, schema 1, `passed: false` |
+| Terminal checkpoint | `step-00001536.pt` (stage-0 terminal, 338 MiB) |
+| Checkpoint SHA-256 | `56cbf6d34325582ca4d68a3b6620193effe37825cb59f67f057f9c656c770fb2` |
+| `checkpoints/latest.json` SHA-256 | `c2e7b046bc0a4e6aa22180b0f5c1101c5db9fdee7931e24db8dbeb55aed12cf7` (points at `step-00001536.pt`, schema 1) |
+| `metrics.jsonl` SHA-256 | `10d7faa18912fd89bef2ecab1622245247bd550acf863997755be6d83a96302e` (31 rows) |
+
+Canonical gate checks (1,536 scored development decisions):
+
+| Check | Observed | Requirement | Result |
+|---|---|---|---|
+| movement exact | 1,422 | >= 1,229/1,536 (0.80) | pass |
+| changed movement exact | 402 | >= 234/467 (0.50) | pass |
+| sample-macro positive-key recall | 0.97624 | >= 0.90 | pass |
+| movement false-positive keys | 64 | <= 230 | pass |
+| opposite-direction conflicts | 9 | <= 7 | **fail** |
+| non-movement keyboard false positives | 0 | = 0 | pass |
+| predicted-active buttons outside W/A/S/D (296 channels) | 0 | = 0 | pass |
+| off-support target buttons | 0 | = 0 | pass |
+| nonzero continuous targets | 0 | = 0 | pass |
+| continuous outputs outside the [-0.05, 0.05] deadzone | 875 | = 0 of 16,896 | **fail** |
+
+Final logged train row (step 1,536): loss 0.0887, action loss 0.0664, value
+loss 0.2141, movement exact 0.875. Final logged development row: loss 0.0742,
+action loss 0.0440, value loss 0.2928, movement exact 0.9258. The action
+metrics stayed above their floors at the gate; the candidate failed on nine
+opposite-direction W/A/S/D conflicts and 875 continuous outputs outside the
+quiescence deadzone, both hard requirements of the frozen gate. The entry
+report's `value_loss` 0.2928 is recorded context only; it has no pass/fail
+role in stage 1, and the stage-2 value-completion gate never ran.
+
+Consequences, per the frozen protocol: the canonical failed entry report makes
+the step-1,536 checkpoint terminal, so `Resume-DgxRcqV2Reference.ps1` refuses
+it; do not tune or warm-start from this candidate; do not preclaim; do not
+open sealed TEST ranges. Seed 1702 did not qualify as the RCQ-v2 reference
+candidate. Any next attempt is a newly preregistered experiment with its own
+registration, release, and pin.
