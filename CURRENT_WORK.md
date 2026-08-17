@@ -28,9 +28,9 @@ action, and not an architecture-superiority claim.
 | Step | What it is | Status |
 |---|---|---|
 | 0 | Source lives in this Git repository and on private GitHub | Done. `defnotean/Pseudo-Brain`, branch `defnotean/pseudo-brain` |
-| 1 | Write operator documentation and freeze tooling | In progress on this pass |
-| 2 | Freeze implementation source and regenerate the matched-baseline architecture manifest | Next |
-| 3 | Run local CPU-only tests, including the regenerated manifest identity | After step 2 |
+| 1 | Write operator documentation and freeze tooling | Done |
+| 2 | Freeze implementation source and regenerate the matched-baseline architecture manifest | Done. Live digest `30d4c119…`. Historical campaign pin `52bba6a9…` unchanged. |
+| 3 | Run local CPU-only tests, including the regenerated manifest identity | Done. 294 tests passed, one expected POSIX skip. |
 | 4 | Build the create-once, target-blind RCQ-v2 registration and record its SHA-256 | After tests pass |
 | 5 | DGX preflight and immutable release sync | After registration. No local GPU. |
 | 6 | Trusted pretraining pin, then RCQ smoke, then staging canary | After sync |

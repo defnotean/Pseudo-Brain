@@ -14,6 +14,13 @@ reference candidate did not pass the prerequisite competence gate, so treating
 those recipes as the first 8-seed campaign would preregister a study that cannot
 answer the intended architecture question.
 
+The live checked-in file `configs/baseline-architecture-manifest.json` is a
+later source freeze (digest
+`30d4c119795a3c967e0f1251787cf5fb7effce8d02b814224b4383c40d783fc7` as of
+2026-08-16). That live digest is a new comparison identity. It does **not**
+authorize this campaign. See
+[runs/2026-08-16-baseline-architecture-manifest-freeze.md](./runs/2026-08-16-baseline-architecture-manifest-freeze.md).
+
 Before a campaign may be registered:
 
 1. Reference Candidate Qualification must pass under its own frozen gate.

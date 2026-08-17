@@ -14,11 +14,19 @@ architecture superiority. Read [CURRENT_WORK.md](../CURRENT_WORK.md) and
 [docs/OPERATOR_GUIDE.md](./docs/OPERATOR_GUIDE.md) before [docs/RCQ_V2_PROTOCOL.md](./docs/RCQ_V2_PROTOCOL.md).
 
 The matched-baseline architecture manifest at
-`configs/baseline-architecture-manifest.json` is a separate identity used by
-architecture-comparison tests. It was stale relative to
-`src/irene_brain/training/objective.py` and must be regenerated as an
-intentional freeze before those tests, or the full play-safe suite, can pass.
-That freeze does not open TEST and does not start DGX training.
+`configs/baseline-architecture-manifest.json` was regenerated as an intentional
+local freeze on 2026-08-16. Live digest
+`30d4c119795a3c967e0f1251787cf5fb7effce8d02b814224b4383c40d783fc7`. The
+historical first-matched campaign pin `52bba6a9…` is unchanged and that
+campaign stays blocked. Record:
+[docs/runs/2026-08-16-baseline-architecture-manifest-freeze.md](./docs/runs/2026-08-16-baseline-architecture-manifest-freeze.md).
+The freeze does not open TEST and does not start DGX training.
+
+Local play-safe verification after the freeze: every isolated test module
+passed (294 tests, one expected POSIX skip in the trusted-final suite, about
+47 seconds, CPU-only). The first-matched campaign remains fail-closed on its
+historical 500-step pin. The play-safe runner now sets `PYTHONDONTWRITEBYTECODE`
+so later tests cannot leave `__pycache__` in the registered source tree.
 
 Historical Stage A DGX runs below remain valid failures. They are not a
 starting checkpoint for RCQ-v2.
@@ -65,8 +73,9 @@ Implemented:
 
 Verified:
 
-- All 178 tests pass locally in isolated CPU-only processes, including the real
-  PyTorch forward/backward, sparse-action, multi-thought, and checkpoint tests.
+- All isolated play-safe modules pass locally in CPU-only processes, including
+  the real PyTorch forward/backward, sparse-action, multi-thought, checkpoint,
+  launcher-contract, and RCQ-v2 tests (294 tests, one expected POSIX skip).
 - All 161 tests present in the latest immutable DGX release passed in its
   bounded CUDA smoke container. The additional local tests landed afterward.
 - The latest isolated local safe run completed in 18.6 seconds.

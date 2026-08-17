@@ -35,6 +35,8 @@ parameters and write the architecture identity, and it does not train.
 
 The test runner:
 
+- Sets PYTHONDONTWRITEBYTECODE so tests cannot leave `__pycache__` in the
+  registered source tree.
 - Sets CUDA_VISIBLE_DEVICES to -1.
 - Limits common numerical runtimes to one thread.
 - Marks the process below normal priority.

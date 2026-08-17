@@ -149,8 +149,14 @@ class FirstMatchedCampaignPreregistrationTests(unittest.TestCase):
         actual = sha256(contract.canonical_json(manifest).encode("utf-8")).hexdigest()
         self.assertEqual(actual, recorded)
         self.assertEqual(
-            recorded,
+            builder.HISTORICAL_ARCHITECTURE_MANIFEST_SHA256,
             "52bba6a9b723dda51da18d2842c5eaf360453db011e7f97bbb066e4034905421",
+        )
+        self.assertNotEqual(
+            recorded,
+            builder.HISTORICAL_ARCHITECTURE_MANIFEST_SHA256,
+            "the live freeze is a new comparison identity; it must not reuse the "
+            "historical 500-step campaign pin",
         )
         with self.assertRaisesRegex(builder.CampaignBlockedError, "2048-step"):
             builder.build_campaign_artifacts()

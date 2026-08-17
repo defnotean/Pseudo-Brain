@@ -11,6 +11,7 @@ if (-not (Test-Path -LiteralPath $pythonPath)) {
     throw "Python 3.11 was not found at the configured machine path: $pythonPath"
 }
 
+$env:PYTHONDONTWRITEBYTECODE = '1'
 $env:CUDA_VISIBLE_DEVICES = '-1'
 $env:OMP_NUM_THREADS = '1'
 $env:MKL_NUM_THREADS = '1'
