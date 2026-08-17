@@ -53,7 +53,10 @@ class RecipeFieldConfigurationTests(unittest.TestCase):
         self.assertNotIn("opposite_key_pair_weight", canonical)
         self.assertNotIn("continuous_output_squash", canonical)
         for path in sorted((BRAIN_ROOT / "configs" / "training").glob("*.toml")):
-            if path.stem == "dgx-rcq-v3-reference-candidate":
+            if path.stem in {
+                "dgx-rcq-v3-reference-candidate",
+                "dgx-rcq-v3-reference",
+            }:
                 continue
             loaded = load_training_config(path)
             self.assertEqual(

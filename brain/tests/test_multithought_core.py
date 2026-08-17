@@ -58,9 +58,11 @@ class ObjectiveConfigurationTests(unittest.TestCase):
             if name in {
                 "dgx-stagea-action-overfit",
                 "dgx-stagea-action-overfit-b",
-                # The unregistered v3 review candidate intentionally carries
-                # non-default recipe fields; test_rcq_v3_recipe pins them.
+                # The v3 review candidate and the frozen v3 registered recipe
+                # intentionally carry non-default recipe fields;
+                # test_rcq_v3_recipe pins both.
                 "dgx-rcq-v3-reference-candidate",
+                "dgx-rcq-v3-reference",
             }:
                 continue
             self.assertEqual(

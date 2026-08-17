@@ -33,6 +33,10 @@ _RCQ_V2_SEALED_TEST_START = 3_145_728
 _RCQ_V2_DONOR_TEST_START = 3_146_240
 _RCQ_V2_SEALED_TEST_END = 3_147_264
 _RCQ_V2_CLAIMED_TEST_CAPABILITY = object()
+_RCQ_V3_SEALED_TEST_START = 4_194_304
+_RCQ_V3_DONOR_TEST_START = 4_194_816
+_RCQ_V3_SEALED_TEST_END = 4_195_840
+_RCQ_V3_CLAIMED_TEST_CAPABILITY = object()
 
 
 class DatasetSplit(str, Enum):
@@ -61,6 +65,19 @@ def _overlaps_rcq_v2_sealed_test_range(config: MovingShapesDatasetConfig) -> boo
         config.split is DatasetSplit.TEST
         and config.seed_offset < _RCQ_V2_SEALED_TEST_END
         and end > _RCQ_V2_SEALED_TEST_START
+    )
+
+
+def _overlaps_rcq_v3_sealed_test_range(config: MovingShapesDatasetConfig) -> bool:
+    """Return target-blind range overlap without constructing a dataset."""
+
+    if not isinstance(config, MovingShapesDatasetConfig):
+        raise ValueError("config must be a MovingShapesDatasetConfig")
+    end = config.seed_offset + config.sequence_count
+    return (
+        config.split is DatasetSplit.TEST
+        and config.seed_offset < _RCQ_V3_SEALED_TEST_END
+        and end > _RCQ_V3_SEALED_TEST_START
     )
 
 
@@ -476,6 +493,13 @@ class MovingShapesSequenceDataset(Sequence[MovingShapesSequence]):
             raise PermissionError(
                 "sealed RCQ-v2 TEST ranges require the post-claim dataset factory"
             )
+        if (
+            _overlaps_rcq_v3_sealed_test_range(config)
+            and _sealed_test_capability is not _RCQ_V3_CLAIMED_TEST_CAPABILITY
+        ):
+            raise PermissionError(
+                "sealed RCQ-v3 TEST ranges require the post-claim dataset factory"
+            )
         self.config = config
         self.manifest_sha256 = dataset_manifest_sha256(config)
 
@@ -633,6 +657,40 @@ def _claimed_rcq_v2_test_dataset(
     return MovingShapesSequenceDataset(
         config,
         _sealed_test_capability=_RCQ_V2_CLAIMED_TEST_CAPABILITY,
+    )
+
+
+def _claimed_rcq_v3_test_dataset(
+    config: MovingShapesDatasetConfig,
+) -> MovingShapesSequenceDataset:
+    """Construct one exact RCQ-v3 TEST slice after the trusted durable claim.
+
+    This private capability prevents ordinary dataset/test code from
+    accidentally opening the sealed recipient, donor, or guard namespace. The
+    trusted evaluator remains responsible for verifying and publishing the
+    canonical claim before it calls this factory.
+    """
+
+    if not isinstance(config, MovingShapesDatasetConfig):
+        raise ValueError("config must be a MovingShapesDatasetConfig")
+    if (
+        config.split is not DatasetSplit.TEST
+        or (config.seed_offset, config.sequence_count)
+        not in {
+            (_RCQ_V3_SEALED_TEST_START, 512),
+            (_RCQ_V3_DONOR_TEST_START, 512),
+        }
+        or config.sequence_length != 8
+        or config.hazard_count != 3
+        or config.tick_period_ns != 16_666_667
+        or config.discount != 0.99
+    ):
+        raise PermissionError(
+            "the claimed RCQ-v3 factory accepts only an exact registered TEST slice"
+        )
+    return MovingShapesSequenceDataset(
+        config,
+        _sealed_test_capability=_RCQ_V3_CLAIMED_TEST_CAPABILITY,
     )
 
 
