@@ -188,8 +188,11 @@ Near-term slices, each independently committable and test-covered:
    ([runs/2026-08-17-baseline-suite-persistence-and-density-ablations.md](runs/2026-08-17-baseline-suite-persistence-and-density-ablations.md)).
    Still missing from §28: fixed multi-horizon no-persistence heads,
    matched-cost ensemble,
-   recurrent world-model actor, task specialist, and the diagnostic
-   random/scripted/oracle policies.
+   recurrent world-model actor, and task specialist. The §28 diagnostic
+   policies (no-op, random, scripted chaser, privileged oracle) are
+   implemented for the closed-loop evaluator in
+   `evaluation/diagnostic_policies.py`
+   ([runs/2026-08-17-diagnostic-policies.md](runs/2026-08-17-diagnostic-policies.md)).
 5. **Phase 0B capture/control harness** (runtime/capture, runtime/controls,
    watchdog, kill switch; behind explicit arming).
 6. **Closed-loop evaluator**. Implemented for the in-repo world:

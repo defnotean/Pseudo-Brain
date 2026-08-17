@@ -23,7 +23,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from hashlib import sha256
 import json
-from typing import Mapping, Sequence
+from typing import Callable, Mapping, Sequence
 
 from ..runtime.clock import ManualClock
 from ..runtime.continuous import (
@@ -36,7 +36,8 @@ from ..types import ActionEnvelope, GenericControl, Observation, StepOutcome
 
 
 _DEADZONE = 0.05
-_MOVEMENT_KEYS = (22, 4, 26, 7)  # W, A, S, D HID usage identifiers.
+# HID usage identifiers in W, A, S, D bit order (matches MovingShapesEnv._KEY_BITS).
+_MOVEMENT_KEYS = (26, 4, 22, 7)
 _NANOSECONDS_PER_SECOND = 1_000_000_000
 
 
@@ -147,6 +148,54 @@ class _EventCountingEnvironment:
         return outcome
 
 
+def _control_stats(
+    keys: Sequence[int],
+    mouse_buttons: Sequence[int],
+    gamepad_buttons: Sequence[int],
+    continuous: Sequence[float],
+) -> dict[str, int | float]:
+    movement = [key for key in keys if key in _MOVEMENT_KEYS]
+    movement_set = set(movement)
+    opposite_conflicts = int(
+        (26 in movement_set and 22 in movement_set)  # W and S together
+        or (4 in movement_set and 7 in movement_set)  # A and D together
+    )
+    outside_deadzone = sum(
+        1 for value in continuous if abs(float(value)) > _DEADZONE
+    )
+    return {
+        "active_button_count": len(keys) + len(mouse_buttons) + len(gamepad_buttons),
+        "movement_mask": sum(1 << bit for bit in range(4) if _MOVEMENT_KEYS[bit] in movement_set),
+        "non_movement_key_count": len([key for key in keys if key not in _MOVEMENT_KEYS]),
+        "mouse_button_count": len(mouse_buttons),
+        "gamepad_button_count": len(gamepad_buttons),
+        "opposite_conflict": opposite_conflicts,
+        "continuous_outside_deadzone": outside_deadzone,
+        "continuous_max_abs": max(
+            (abs(float(value)) for value in continuous), default=0.0
+        ),
+    }
+
+
+def control_audit_stats(control: GenericControl) -> dict[str, int | float]:
+    """Return the decode-style audit stats for an already-formed control.
+
+    Non-model decision sources (the diagnostic policies) produce a
+    ``GenericControl`` directly; this helper fills the same stat fields the
+    model decode produces so diagnostic and model episode reports stay
+    column-comparable. Continuous channels are structurally zero here.
+    """
+
+    if not isinstance(control, GenericControl):
+        raise TypeError("control must be a GenericControl")
+    return _control_stats(
+        control.keys_down,
+        control.mouse_buttons,
+        control.gamepad_buttons,
+        (),
+    )
+
+
 def decode_closed_loop_control(
     button_logits: Sequence[float],
     continuous: Sequence[float],
@@ -175,27 +224,7 @@ def decode_closed_loop_control(
     keys = tuple(index for index in active if index < 256)
     mouse_buttons = tuple(index - 256 for index in active if 256 <= index < 264)
     gamepad_buttons = tuple(index - 267 for index in active if index >= 267)
-    movement = [key for key in keys if key in _MOVEMENT_KEYS]
-    movement_set = set(movement)
-    opposite_conflicts = int(
-        (22 in movement_set and 26 in movement_set)
-        or (4 in movement_set and 7 in movement_set)
-    )
-    outside_deadzone = sum(
-        1 for value in continuous if abs(float(value)) > _DEADZONE
-    )
-    stats: dict[str, int | float] = {
-        "active_button_count": len(active),
-        "movement_mask": sum(1 << bit for bit in range(4) if _MOVEMENT_KEYS[bit] in movement_set),
-        "non_movement_key_count": len([key for key in keys if key not in _MOVEMENT_KEYS]),
-        "mouse_button_count": len(mouse_buttons),
-        "gamepad_button_count": len(gamepad_buttons),
-        "opposite_conflict": opposite_conflicts,
-        "continuous_outside_deadzone": outside_deadzone,
-        "continuous_max_abs": max(
-            (abs(float(value)) for value in continuous), default=0.0
-        ),
-    }
+    stats = _control_stats(keys, mouse_buttons, gamepad_buttons, continuous)
     control = GenericControl(
         keys_down=keys,
         mouse_buttons=mouse_buttons,
@@ -299,20 +328,24 @@ class ClosedLoopPlayReport:
         return sha256(self.canonical_json.encode("utf-8")).hexdigest()
 
 
-def run_closed_loop_episode(
-    model: object,
+# A decision source maps (observation, seconds since the previous decision)
+# to a control, decode-style audit stats, and an optional value estimate.
+_DecisionFn = Callable[
+    ["Observation", float],
+    "tuple[GenericControl, Mapping[str, int | float], float | None]",
+]
+
+
+def _run_episode_core(
     *,
     seed: int,
     config: ClosedLoopPlayConfig,
-    device: object,
+    decide: _DecisionFn,
+    on_environment: Callable[[object], None] | None = None,
 ) -> ClosedLoopEpisodeReport:
-    """Play one deterministic closed-loop moving-shapes episode."""
-
-    import torch
+    """Run one deterministic closed-loop episode for any decision source."""
 
     from ..environments.moving_shapes import MovingShapesEnv
-    from ..training.batches import control_to_vector
-    from ..training.objective import _rgb_tensor, deterministic_eval_thought_noise
 
     environment = _EventCountingEnvironment(
         MovingShapesEnv(
@@ -322,18 +355,11 @@ def run_closed_loop_episode(
         )
     )
     environment._environment.reset(seed)
+    if on_environment is not None:
+        on_environment(environment._environment)
     clock = ManualClock(frequency_hz=_NANOSECONDS_PER_SECOND)
     driver = ContinuousDriver(environment, clock, start_tick=clock.now_ticks())
 
-    thought_noise = deterministic_eval_thought_noise(
-        thoughtlets=model.config.thoughtlets,
-        width=model.config.core_width,
-        batch_size=1,
-        device=device,
-    )
-    resolution = getattr(model, "input_resolution", None)
-
-    state = None
     action_sequence = 0
     decisions_submitted = 0
     rejections: dict[str, int] = {}
@@ -346,102 +372,69 @@ def run_closed_loop_episode(
     value_count = 0
     previous_observation_elapsed_ns: int | None = None
 
-    with torch.no_grad():
-        while not driver.halted:
-            observation = driver.poll_latest_observation()
-            if observation.frame_id >= config.max_ticks:
-                break
-            elapsed_ns = observation.elapsed_ns
-            if previous_observation_elapsed_ns is None:
-                elapsed_seconds = 0.0
-            else:
-                elapsed_seconds = (
-                    elapsed_ns - previous_observation_elapsed_ns
-                ) / _NANOSECONDS_PER_SECOND
-            previous_observation_elapsed_ns = elapsed_ns
+    while not driver.halted:
+        observation = driver.poll_latest_observation()
+        if observation.frame_id >= config.max_ticks:
+            break
+        elapsed_ns = observation.elapsed_ns
+        if previous_observation_elapsed_ns is None:
+            elapsed_seconds = 0.0
+        else:
+            elapsed_seconds = (
+                elapsed_ns - previous_observation_elapsed_ns
+            ) / _NANOSECONDS_PER_SECOND
+        previous_observation_elapsed_ns = elapsed_ns
 
-            pixels = _rgb_tensor(
-                (observation.rgb,), device=device, resolution=resolution
-            )
-            previous = torch.tensor(
-                [control_to_vector(observation.previous_control)],
-                dtype=torch.float32,
-                device=device,
-            )
-            elapsed = torch.tensor(
-                [elapsed_seconds], dtype=torch.float32, device=device
-            )
-            created_tick = clock.now_ticks()
-            output = model(
-                pixels,
-                previous,
-                elapsed,
-                state,
-                thought_noise=thought_noise,
-            )
-            state = output.next_state.detach()
-            logits = output.action.button_logits[0].float().cpu()
-            continuous_values = output.action.control[0].float().cpu()
-            if not (
-                bool(torch.isfinite(logits).all())
-                and bool(torch.isfinite(continuous_values).all())
-            ):
-                raise RuntimeError("model produced non-finite closed-loop outputs")
-            from ..training.batches import CONTINUOUS_TARGET_INDICES
-
-            control, stats = decode_closed_loop_control(
-                logits.tolist(),
-                [
-                    float(continuous_values[index])
-                    for index in CONTINUOUS_TARGET_INDICES
-                ],
-            )
-            value_sum += float(output.value[0].float().cpu())
+        control, stats, value = decide(observation, elapsed_seconds)
+        if value is not None:
+            value_sum += value
             value_count += 1
-            mask_histogram[stats["movement_mask"]] = (
-                mask_histogram.get(stats["movement_mask"], 0) + 1
-            )
-            opposite_conflicts += int(stats["opposite_conflict"])
-            non_movement_activations += int(stats["non_movement_key_count"])
-            outside_deadzone += int(stats["continuous_outside_deadzone"])
-            continuous_max_abs = max(
-                continuous_max_abs, float(stats["continuous_max_abs"])
-            )
+        mask_histogram[int(stats["movement_mask"])] = (
+            mask_histogram.get(int(stats["movement_mask"]), 0) + 1
+        )
+        opposite_conflicts += int(stats["opposite_conflict"])
+        non_movement_activations += int(stats["non_movement_key_count"])
+        outside_deadzone += int(stats["continuous_outside_deadzone"])
+        continuous_max_abs = max(
+            continuous_max_abs, float(stats["continuous_max_abs"])
+        )
 
-            # Simulated inference latency: the world keeps running while the
-            # model "computes", so a slow model submits against newer frames.
-            clock.advance_ns(config.inference_latency_ns)
-            ready_tick = clock.now_ticks()
-            action_sequence += 1
-            envelope = ActionEnvelope(
-                action_sequence=action_sequence,
-                source_frame_id=observation.frame_id,
-                model_state_version=action_sequence,
-                created_qpc=created_tick,
-                ready_qpc=ready_tick,
-                submit_deadline_qpc=(
-                    ready_tick + config.submit_deadline_slack_ns
-                ),
-                expires_qpc=(
-                    ready_tick
-                    + config.submit_deadline_slack_ns
-                    + config.expiry_slack_ns
-                ),
-                control=control,
-            )
-            try:
-                driver.submit_action(envelope)
-            except PostAdvanceValueError as error:
-                reason = str(error).split(":", 1)[0]
-                rejections[reason] = rejections.get(reason, 0) + 1
-            except PostAdvanceRuntimeError:
-                break
-            else:
-                decisions_submitted += 1
+        # Simulated inference latency: the world keeps running while the
+        # decision source "computes", so a slow source submits against newer
+        # frames.
+        created_tick = clock.now_ticks()
+        clock.advance_ns(config.inference_latency_ns)
+        ready_tick = clock.now_ticks()
+        action_sequence += 1
+        envelope = ActionEnvelope(
+            action_sequence=action_sequence,
+            source_frame_id=observation.frame_id,
+            model_state_version=action_sequence,
+            created_qpc=created_tick,
+            ready_qpc=ready_tick,
+            submit_deadline_qpc=(
+                ready_tick + config.submit_deadline_slack_ns
+            ),
+            expires_qpc=(
+                ready_tick
+                + config.submit_deadline_slack_ns
+                + config.expiry_slack_ns
+            ),
+            control=control,
+        )
+        try:
+            driver.submit_action(envelope)
+        except PostAdvanceValueError as error:
+            reason = str(error).split(":", 1)[0]
+            rejections[reason] = rejections.get(reason, 0) + 1
+        except PostAdvanceRuntimeError:
+            break
+        else:
+            decisions_submitted += 1
 
-            next_decision_tick = created_tick + config.decision_interval_ns
-            if clock.now_ticks() < next_decision_tick:
-                clock.set_ticks(next_decision_tick)
+        next_decision_tick = created_tick + config.decision_interval_ns
+        if clock.now_ticks() < next_decision_tick:
+            clock.set_ticks(next_decision_tick)
 
     return ClosedLoopEpisodeReport(
         episode_seed=seed,
@@ -459,6 +452,107 @@ def run_closed_loop_episode(
         continuous_outside_deadzone=outside_deadzone,
         continuous_max_abs=continuous_max_abs,
         mean_value=value_sum / value_count if value_count else 0.0,
+    )
+
+
+def run_closed_loop_episode(
+    model: object,
+    *,
+    seed: int,
+    config: ClosedLoopPlayConfig,
+    device: object,
+) -> ClosedLoopEpisodeReport:
+    """Play one deterministic closed-loop moving-shapes episode."""
+
+    import torch
+
+    from ..training.batches import CONTINUOUS_TARGET_INDICES, control_to_vector
+    from ..training.objective import _rgb_tensor, deterministic_eval_thought_noise
+
+    thought_noise = deterministic_eval_thought_noise(
+        thoughtlets=model.config.thoughtlets,
+        width=model.config.core_width,
+        batch_size=1,
+        device=device,
+    )
+    resolution = getattr(model, "input_resolution", None)
+    state: list[object | None] = [None]
+
+    def decide(
+        observation: Observation, elapsed_seconds: float
+    ) -> tuple[GenericControl, Mapping[str, int | float], float | None]:
+        pixels = _rgb_tensor(
+            (observation.rgb,), device=device, resolution=resolution
+        )
+        previous = torch.tensor(
+            [control_to_vector(observation.previous_control)],
+            dtype=torch.float32,
+            device=device,
+        )
+        elapsed = torch.tensor(
+            [elapsed_seconds], dtype=torch.float32, device=device
+        )
+        with torch.no_grad():
+            output = model(
+                pixels,
+                previous,
+                elapsed,
+                state[0],
+                thought_noise=thought_noise,
+            )
+        state[0] = output.next_state.detach()
+        logits = output.action.button_logits[0].float().cpu()
+        continuous_values = output.action.control[0].float().cpu()
+        if not (
+            bool(torch.isfinite(logits).all())
+            and bool(torch.isfinite(continuous_values).all())
+        ):
+            raise RuntimeError("model produced non-finite closed-loop outputs")
+        control, stats = decode_closed_loop_control(
+            logits.tolist(),
+            [
+                float(continuous_values[index])
+                for index in CONTINUOUS_TARGET_INDICES
+            ],
+        )
+        return control, stats, float(output.value[0].float().cpu())
+
+    return _run_episode_core(seed=seed, config=config, decide=decide)
+
+
+def run_policy_closed_loop_episode(
+    policy: object,
+    *,
+    seed: int,
+    config: ClosedLoopPlayConfig,
+) -> ClosedLoopEpisodeReport:
+    """Play one closed-loop episode for a non-model diagnostic policy.
+
+    The policy contract lives in ``evaluation/diagnostic_policies.py``:
+    ``reset(episode_seed)`` reseeds per episode, ``act(observation)`` returns
+    a ``GenericControl``, and policies declaring ``uses_privileged_state``
+    receive the environment through ``bind(environment)`` after reset. The
+    timing, deadline, and rejection mechanics are identical to the model
+    path, so diagnostic and model rows are directly comparable.
+    """
+
+    for attribute in ("reset", "act"):
+        if not callable(getattr(policy, attribute, None)):
+            raise TypeError(f"policy must define {attribute}()")
+    policy.reset(seed)
+
+    def bind(environment: object) -> None:
+        if getattr(policy, "uses_privileged_state", False):
+            policy.bind(environment)
+
+    def decide(
+        observation: Observation, elapsed_seconds: float
+    ) -> tuple[GenericControl, Mapping[str, int | float], float | None]:
+        control = policy.act(observation)
+        return control, control_audit_stats(control), None
+
+    return _run_episode_core(
+        seed=seed, config=config, decide=decide, on_environment=bind
     )
 
 
@@ -499,7 +593,9 @@ __all__ = [
     "ClosedLoopEpisodeReport",
     "ClosedLoopPlayConfig",
     "ClosedLoopPlayReport",
+    "control_audit_stats",
     "decode_closed_loop_control",
     "evaluate_closed_loop_play",
     "run_closed_loop_episode",
+    "run_policy_closed_loop_episode",
 ]

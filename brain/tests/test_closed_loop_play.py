@@ -43,9 +43,9 @@ class DecodeClosedLoopControlTests(unittest.TestCase):
         self.assertEqual(stats["active_button_count"], 1)
 
     def test_movement_mask_and_opposite_conflict(self) -> None:
-        # W (22) and S (26) are opposites; A (4) without D (7) is not a conflict.
+        # W (26) and S (22) are opposites; A (4) without D (7) is not a conflict.
         _, stats = decode_closed_loop_control(
-            _packed_logits(22, 26, 4), [0.0] * 11
+            _packed_logits(26, 22, 4), [0.0] * 11
         )
         self.assertEqual(stats["opposite_conflict"], 1)
         self.assertEqual(stats["movement_mask"], 0b0111)

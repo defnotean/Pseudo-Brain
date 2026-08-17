@@ -109,6 +109,11 @@ stale-frame rejections, and the RCQ-v2 action-path failure modes). It is
 exploratory evidence tooling, not a qualification component; no checkpoint
 is qualified to be measured by it yet. Record:
 [docs/runs/2026-08-17-closed-loop-play-evaluator.md](./docs/runs/2026-08-17-closed-loop-play-evaluator.md).
+The PLAN.md §28 diagnostic policies (no-op, random movement, pixel-only
+scripted chaser, privileged-state oracle) are implemented for that evaluator
+in `src/irene_brain/evaluation/diagnostic_policies.py`, giving every future
+closed-loop model row a floor, reference, and ceiling. Record:
+[docs/runs/2026-08-17-diagnostic-policies.md](./docs/runs/2026-08-17-diagnostic-policies.md).
 
 Local play-safe verification after the live v2 registration: every isolated
 test module passed (299 tests, one expected POSIX skip in the trusted-final
