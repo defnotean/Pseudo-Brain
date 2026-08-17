@@ -161,7 +161,11 @@ PLAN.md §20 defines the ladder; the work items in this repo are:
    occlusion is implemented (`environments/occlusion.py`, moving-shapes
    mechanics under a fog-of-war view radius;
    [runs/2026-08-17-occlusion-world.md](runs/2026-08-17-occlusion-world.md));
-   keys/doors remains.
+   keys/doors is implemented (`environments/keys_doors.py`, key → door →
+   target planning on the maze;
+   [runs/2026-08-17-keys-doors-world.md](runs/2026-08-17-keys-doors-world.md)).
+   All four named successor worlds are done; what remains is branch-DAG data
+   generation at scale and registered splits.
 2. **External open worlds** (license-cleared): XLand-MiniGrid, Craftax,
    Procgen — adapters behind `environments/protocol.py`, lifetime recording,
    held-out generator families.
