@@ -232,12 +232,13 @@ fi
             "assert_trusted_host_runtime",
             "required command '$1' is not root-owned",
             "required command '$1' is group/other writable",
-            "/usr/bin/env -i PATH=/usr/sbin:/usr/bin /bin/bash -p --noprofile --norc -s --",
+            "/usr/bin/env -i PATH=/usr/sbin:/usr/bin /bin/bash -p -s --",
             "-e PATH=/usr/sbin:/usr/bin",
             "--noprofile --norc -c",
         ):
             with self.subTest(required=required):
                 self.assertIn(required, self.remote + self.common)
+        self.assertNotIn("-p --noprofile", self.remote + self.common)
         self.assertNotIn("#!/usr/bin/env bash", self.remote)
         self.assertNotIn('"$image_id" -lc "$container_script"', self.remote)
 
@@ -298,8 +299,8 @@ fi
             environment["PYTHONSTARTUP"] = str(python_hook)
             environment["PYTHONPATH"] = str(hostile)
             environment["PYTHONHOME"] = str(hostile)
-            # Git Bash rejects combining -p with GNU long options. Linux DGX
-            # uses both; this local check covers privileged BASH_ENV ignoring.
+            # GNU bash 5.2 on the Spark, like Git Bash, rejects combining -p
+            # with GNU long options. Privileged -p already ignores BASH_ENV.
             hardened = subprocess.run(
                 [
                     bash,

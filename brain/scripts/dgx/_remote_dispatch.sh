@@ -3039,7 +3039,7 @@ EOF
             tmux has-session -t "$session" 2>/dev/null && fail session_exists "tmux session '$session' already exists"
             printf -v detached_command '%q ' \
                 /usr/bin/env -i PATH=/usr/sbin:/usr/bin HOME=/nonexistent \
-                /bin/bash -p --noprofile --norc "$job_path"
+                /bin/bash -p -- "$job_path"
             tmux new-session -d \
                 -e BASH_ENV= -e ENV= -e PYTHONHOME= -e PYTHONPATH= \
                 -e PATH=/usr/sbin:/usr/bin -e HOME=/nonexistent \
@@ -3344,7 +3344,7 @@ EOF
                 fail session_exists "tmux session '$session' already exists"
             printf -v detached_command '%q ' \
                 /usr/bin/env -i PATH=/usr/sbin:/usr/bin HOME=/nonexistent \
-                /bin/bash -p --noprofile --norc "$job_path"
+                /bin/bash -p -- "$job_path"
             tmux new-session -d \
                 -e BASH_ENV= -e ENV= -e PYTHONHOME= -e PYTHONPATH= \
                 -e PATH=/usr/sbin:/usr/bin -e HOME=/nonexistent \

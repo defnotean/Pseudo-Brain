@@ -91,7 +91,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\brain\scripts\dgx\New-RcqV
 ## Step 3. Remote preflight, then sync
 
 These are short foreground SSH checks. They never pull Docker images and never
-use the workstation GPU.
+use the workstation GPU. The wrapper invokes remote `/bin/bash -p -s` because
+Spark GNU bash 5.2 rejects combining `-p` with `--noprofile`/`--norc`.
 
 ```powershell
 & .\brain\scripts\dgx\Invoke-DgxPreflight.ps1 `

@@ -51,8 +51,11 @@ wrappers accept `~/projects/irene-brain`, only when the caller supplies
 and contain no write or migration operation. Local artifact destinations are
 anchored inside the Pseudo-Brain repository.
 
-Remote dispatch runs under `/bin/bash -p` with `PATH=/usr/sbin:/usr/bin`,
-`env -i`, and `--noprofile --norc`. Production Python uses `python3 -I`.
+Remote dispatch runs under `/bin/bash -p` with `PATH=/usr/sbin:/usr/bin` and
+`env -i`. GNU bash 5.2 on the Spark rejects combining `-p` with `--noprofile`
+or `--norc`; privileged `-p` already ignores `BASH_ENV`. Container entrypoints
+that are not privileged still use `--noprofile --norc -c`. Production Python
+uses `python3 -I`.
 No script pulls images, reads secret `.env` files, accepts arbitrary remote
 commands, stops services, launches systemd units, or invokes a local
 accelerator. See [DGX_SPARK_TRAINING.md](../../docs/DGX_SPARK_TRAINING.md) and

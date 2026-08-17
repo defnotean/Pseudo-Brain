@@ -313,7 +313,7 @@ function Invoke-DgxRemoteScript {
     )
     $scriptContent |
         & $TargetInfo.SshPath @sshArguments $TargetInfo.Target `
-            '/usr/bin/env -i PATH=/usr/sbin:/usr/bin /bin/bash -p --noprofile --norc -s --' `
+            '/usr/bin/env -i PATH=/usr/sbin:/usr/bin /bin/bash -p -s --' `
             @RemoteArguments
     if ($LASTEXITCODE -ne 0) {
         throw "Remote DGX action '$($RemoteArguments[0])' failed with exit code $LASTEXITCODE."
