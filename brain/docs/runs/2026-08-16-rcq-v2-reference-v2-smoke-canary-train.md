@@ -85,10 +85,57 @@ First checkpoint at optimizer step 256 (~24 minutes after launch):
 | Validation loss | 0.485 |
 | Validation movement exact match | 0.247 |
 
-That validation slice is the open development namespace, not sealed TEST.
-These numbers are not a development gate. The entry gate remains step 1,536.
+Second checkpoint at optimizer step 512 (~42 minutes after launch):
+
+| Item | Value |
+|---|---|
+| Checkpoint | `step-00000512.pt` (338 MiB) |
+| Checkpoint SHA-256 | `00001fcab2de0791668cff60fd5538463b5bca2e11264e42e83ba7a01b5274d1` |
+| Train loss | 0.218 |
+| Train movement exact match | 0.688 |
+| Validation loss | 0.203 |
+| Validation movement exact match | 0.721 |
+| Validation previous-control exact | 0.696 |
+| Validation positive-key recall | 0.860 |
+
+Third checkpoint at optimizer step 768 (~62 minutes after launch):
+
+| Item | Value |
+|---|---|
+| Checkpoint | `step-00000768.pt` (338 MiB) |
+| Checkpoint SHA-256 | `3543bf9521205cd14ee34b78106a4b62ae33fc3fe63c13609432a2e78f99b348` |
+| Train loss | 0.169 |
+| Train movement exact match | 0.833 |
+| Validation loss | 0.124 |
+| Validation movement exact match | 0.842 |
+| Validation previous-control exact | 0.696 |
+| Validation positive-key recall | 0.928 |
+| Validation continuous-outside-deadzone (logged mean) | 3.22 |
+
+Fourth checkpoint at optimizer step 1,024 (~82 minutes after launch):
+
+| Item | Value |
+|---|---|
+| Checkpoint | `step-00001024.pt` (338 MiB) |
+| Checkpoint SHA-256 | `d5436e2681942f583c45be5c96af96285bb0d1dfca844369ac9f8af5d0b21fcd` |
+| Train loss | 0.207 |
+| Train movement exact match | 0.708 |
+| Validation loss | 0.139 |
+| Validation movement exact match | 0.842 |
+| Validation previous-control exact | 0.696 |
+| Validation positive-key recall | 0.988 |
+| Validation continuous-outside-deadzone (logged mean) | 3.71 |
+
+The validation slice is the open development namespace, not sealed TEST.
+These logger lines are not the development gate. Exact 0.84 has been above
+the 0.80 floor on the last two eval dumps, and recall rose from 0.93 to 0.99.
+That recall gain came with more movement false positives and opposite-key
+conflicts. Continuous outputs are still leaving the `[-0.05, 0.05]` deadzone,
+so the official step-1,536 report can still fail quiescence even if WASD exact
+stays high.
 
 Host disk is about 550 GiB free after the non-3.8 weight cleanup. Do not chmod
 installed releases writable. Do not open TEST. Resume only with
-`Resume-DgxRcqV2Reference.ps1 -AcknowledgeDetached`. The entry gate is at
-optimizer step 1,536. Failure there is terminal for this candidate.
+`Resume-DgxRcqV2Reference.ps1 -AcknowledgeDetached`. Next checkpoints are
+1,280 then the entry gate at 1,536. Failure there is terminal for this
+candidate.
