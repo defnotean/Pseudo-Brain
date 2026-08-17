@@ -1,61 +1,73 @@
-# Unused RCQ-v2 pretraining pin discard (2026-08-16)
+# Unused RCQ-v2 pretraining pin discards (2026-08-16)
 
-Status: operational discard. This is not a model result, not a development-gate
-failure, and not permission to open TEST.
+Status: operational discards. These are not model results, not development-gate
+failures, and not permission to open TEST.
 
-The first Spark preflight, immutable release, and create-only pretraining pin
-completed. Pin-bound RCQ smoke then failed inside an isolated launcher test
-that tried to edit a copy of the immutable release. CUDA backward had already
-passed. No smoke receipt, no staging canary, no reference run, and no TEST
-construction exist for that pin.
+Two create-only Spark pins were published and then discarded because pin-bound
+smoke died in isolated tests that only fail on the immutable Linux release.
+CUDA backward passed both times. No smoke receipt, no staging canary, no
+reference run, and no TEST construction exist for either pin.
 
-## Why the pin cannot be reused
-
-`qualification-pins/rcq-v2-reference-v1/` is create-only. The pin binds one
-`RELEASE_ID`. Smoke runs tests from that frozen release, so a test fix is
-invisible until a new release is synced. A new release needs a new pin. The
-unused pin file is therefore discarded rather than overwritten.
-
-This discard does **not** rebuild the target-blind registration. The failure
-was in `brain/tests/test_dgx_launch_contract.py`. `source_tree_sha256`, the
-evaluator bundle, the RCQ training TOML, and
-`registrations/rcq-v2-reference-v1.json` are unchanged. Keep
+Keep registration SHA-256
 `33f7900c1d71b5e363de5a6b7ca921120f486b315241384d906d209a5e02fce0`.
+`source_tree_sha256`, the evaluator bundle, and the RCQ training TOML did not
+change. Do not rebuild the registration.
 
-## Discarded identities
+## Why the pins cannot be reused
+
+`qualification-pins/rcq-v2-reference-v1/` is create-only. Each pin binds one
+`RELEASE_ID`. Smoke runs tests from that frozen release, so a test fix is
+invisible until a new release is synced. A new release needs a new pin. Unused
+pin files are discarded rather than overwritten. Installed unused releases and
+their smoke logs stay on the host. Do not chmod those releases writable.
+
+## Unused pin 1 — read-only evaluator copy
+
+Release `r20260817t012309z-c07f1a23ca35`. Smoke log
+`/home/defnotean/projects/pseudo-brain/logs/smoke-r20260817t012309z-c07f1a23ca35-20260817T012705Z.log`.
+
+`test_resume_preflight_refuses_terminal_failed_stage_gates` copied `irene_brain`
+with `shutil.copytree`, which preserved immutable-release mode `444`, then
+called `Path.write_text` on `evaluation/rcq_v2.py`. Local Windows checkouts are
+writable, so play-safe did not see this.
+
+The test now `chmod`s copied files `0600` and directories `0700` before
+mutating the evaluator.
 
 | Item | Value |
 |---|---|
-| Registration SHA-256 (kept) | `33f7900c1d71b5e363de5a6b7ca921120f486b315241384d906d209a5e02fce0` |
-| `source_tree_sha256` (kept) | `03a579c88965aea6fa31bcad2084ab69e98d824ac6c8ebfd5e2263f1cd4c0260` |
-| Unused release | `r20260817t012309z-c07f1a23ca35` |
 | Unused archive SHA-256 | `c07f1a23ca35224652fa02ec10f1b9b1ea5b5e5ca816907a3e750d703a6f37e6` |
-| Cached image ID | `sha256:177a406d7cb2a11338bcd8c67ab7590b330799cdc5a3193ac0ca40728ea2501b` |
 | Unused pin file SHA-256 | `cee1cb7676e2eae00c58236b8eda2e00d3495bb20b212c8ff62ca4c90ec1333b` |
 | Unused pin semantic SHA-256 | `bd207cb38bae32139a43d31dd20106e4c01c927ca8fbb0d9f733eccf352072c7` |
 | Pin created UTC | `2026-08-17T01:26:48Z` |
-| Smoke log | `/home/defnotean/projects/pseudo-brain/logs/smoke-r20260817t012309z-c07f1a23ca35-20260817T012705Z.log` |
 
-The installed unused release and its smoke log stay on the host as historical
-artifacts. Do not chmod that release writable. Do not treat it as the current
-campaign pin.
+## Unused pin 2 — OS-dependent absolute checkpoint path
 
-## Test bug
+Release `r20260817t013316z-4dcad4af91bb`. Smoke log
+`/home/defnotean/projects/pseudo-brain/logs/smoke-r20260817t013316z-4dcad4af91bb-20260817T013428Z.log`.
 
-`test_resume_preflight_refuses_terminal_failed_stage_gates` copied
-`irene_brain` into `/tmp` with `shutil.copytree`, which preserved the
-immutable-release mode `444`. It then called `Path.write_text` on
-`evaluation/rcq_v2.py`. Local Windows checkouts are writable, so play-safe
-did not see this. The Spark smoke did.
+The resume-preflight copy now passes. Smoke then failed in
+`test_binder_rejects_noninteger_schema_and_unsafe_checkpoint_paths`. The case
+used `str((checkpoint_root / "absolute.pt").resolve())`. On Windows that string
+contains backslashes and raises `POSIX relative`. On Linux it is a POSIX
+absolute path and raises `checkpoint_path must stay beneath checkpoint_root`.
 
-The test now copies that tree and then `chmod`s files `0600` and directories
-`0700` before mutating the evaluator. That is a launcher-test fix only.
+The test now uses fixed strings `/tmp/absolute.pt` and `C:\outside.pt` so both
+rejection branches are OS-independent.
+
+| Item | Value |
+|---|---|
+| Unused archive SHA-256 | `4dcad4af91bb904393f6c83ffdeca5e0149d43d4ec67e2b0011736df718dc253` |
+| Unused pin file SHA-256 | `04608d704329422f7eef45f846ed45c97cceb344c87d51b532bab5a0b4ee5f96` |
+| Unused pin semantic SHA-256 | `8da8ab64adae14c1fde1d6b30759b7169390b4268586efca2e0ef299d5d287da` |
+| Pin created UTC | `2026-08-17T01:33:52Z` |
+| Cached image ID (both pins) | `sha256:177a406d7cb2a11338bcd8c67ab7590b330799cdc5a3193ac0ca40728ea2501b` |
 
 ## What must happen next
 
 1. Empty `qualification-pins/rcq-v2-reference-v1/` (remove `pretraining.json`
    after `chmod u+w`; leave the parent lock file).
-2. Sync a **new** immutable release that includes the test fix and the same
+2. Sync a **new** immutable release that includes both test fixes and the same
    registration file.
 3. Require remote read-back of registration SHA-256 `33f7900c…`.
 4. Publish a **new** pretraining pin bound to the new `RELEASE_ID`.

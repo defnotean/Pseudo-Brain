@@ -235,11 +235,12 @@ namespace.
   old `[1048576, 1049088)` band is already dead for that reason.
 - **Continuing after a failed frozen gate.** Diagnose or preregister a new
   experiment. Do not treat a failed candidate as a warm start.
-- **Smoke dies writing onto a copied immutable release.** Isolated tests run
-  from a `chmod a-w` tree. Copies used for mutation must be made writable
-  after copy; do not chmod the installed release. If smoke never receipted,
-  discard the unused pin and sync a new release. The 2026-08-16 first pin is
-  that case: [runs/2026-08-16-rcq-v2-unused-pretraining-pin-discard.md](./runs/2026-08-16-rcq-v2-unused-pretraining-pin-discard.md).
+- **Smoke dies on a launcher test that only fails in the Linux release.**
+  Isolated tests run from a `chmod a-w` tree, and Windows play-safe can miss
+  POSIX path or mode behavior. If smoke never receipted, discard the unused
+  pin and sync a new release. Do not chmod the installed release. The
+  2026-08-16 unused pins are that case:
+  [runs/2026-08-16-rcq-v2-unused-pretraining-pin-discard.md](./runs/2026-08-16-rcq-v2-unused-pretraining-pin-discard.md).
 
 ## What to copy down at each gate
 

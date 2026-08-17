@@ -325,7 +325,8 @@ class FirstMatchedCampaignPreregistrationTests(unittest.TestCase):
             (True, "checkpoint.pt", "schema_version"),
             (1.0, "checkpoint.pt", "schema_version"),
             (1, "../outside.pt", "beneath checkpoint_root"),
-            (1, str((checkpoint_root / "absolute.pt").resolve()), "POSIX relative"),
+            (1, "/tmp/absolute.pt", "beneath checkpoint_root"),
+            (1, r"C:\outside.pt", "POSIX relative"),
         )
         for schema_version, checkpoint_path, message in cases:
             spec = self._binding_spec_path(

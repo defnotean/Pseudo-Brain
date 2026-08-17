@@ -25,11 +25,11 @@ Keep a copy of that SHA-256 outside this repository. Do not edit the
 registration file. If source or the RCQ training config changes, start a new
 qualification instead.
 
-The first Spark pin (`cee1cb7676e2eae00c58236b8eda2e00d3495bb20b212c8ff62ca4c90ec1333b`,
-release `r20260817t012309z-c07f1a23ca35`) is unused. Isolated smoke died in
-`test_resume_preflight_refuses_terminal_failed_stage_gates` while writing onto a
-mode-`444` copy of the immutable release. CUDA backward had already passed.
-Record: [docs/runs/2026-08-16-rcq-v2-unused-pretraining-pin-discard.md](./docs/runs/2026-08-16-rcq-v2-unused-pretraining-pin-discard.md).
+Two unused Spark pins (`cee1cb76…` then `04608d70…`) were discarded after
+pin-bound smoke died in isolated tests that only fail on the immutable Linux
+release: a mode-`444` evaluator copy, then an OS-dependent absolute checkpoint
+path. CUDA backward passed both times. Record:
+[docs/runs/2026-08-16-rcq-v2-unused-pretraining-pin-discard.md](./docs/runs/2026-08-16-rcq-v2-unused-pretraining-pin-discard.md).
 A launcher-test-only fix does not change `source_tree_sha256` and does not
 rebuild the registration. It still requires a new immutable release and a new
 create-only pin.

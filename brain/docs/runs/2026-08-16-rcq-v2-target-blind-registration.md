@@ -64,8 +64,8 @@ the source-tree hasher would fail closed.
 - Do not point generic `Start-DgxBrainTraining.ps1` at this config or run id.
 - Do not start the 2,048-update reference until preflight, sync, pretraining
   pin, RCQ smoke, and staging canary all agree with this SHA-256.
-- The first Spark pin for release `r20260817t012309z-c07f1a23ca35` is unused.
-  See [2026-08-16-rcq-v2-unused-pretraining-pin-discard.md](./2026-08-16-rcq-v2-unused-pretraining-pin-discard.md).
+- The first two Spark pins are unused. See
+  [2026-08-16-rcq-v2-unused-pretraining-pin-discard.md](./2026-08-16-rcq-v2-unused-pretraining-pin-discard.md).
   Keep this registration SHA; sync a new release and publish a new pin.
 
 Next operator step: [OPERATOR_GUIDE.md](../OPERATOR_GUIDE.md) step 3.
