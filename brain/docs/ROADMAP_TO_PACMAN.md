@@ -158,7 +158,10 @@ PLAN.md §20 defines the ladder; the work items in this repo are:
    junction choice is implemented (`environments/junction.py`, a seeded
    perfect-maze world with BFS shortest-path chasers;
    [runs/2026-08-17-junction-world.md](runs/2026-08-17-junction-world.md));
-   occlusion and keys/doors remain.
+   occlusion is implemented (`environments/occlusion.py`, moving-shapes
+   mechanics under a fog-of-war view radius;
+   [runs/2026-08-17-occlusion-world.md](runs/2026-08-17-occlusion-world.md));
+   keys/doors remains.
 2. **External open worlds** (license-cleared): XLand-MiniGrid, Craftax,
    Procgen — adapters behind `environments/protocol.py`, lifetime recording,
    held-out generator families.

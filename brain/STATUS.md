@@ -124,6 +124,11 @@ The junction-choice rung is also implemented:
 `src/irene_brain/environments/junction.py` (a seeded perfect-maze world with
 BFS shortest-path chasers and the same snapshot/render rigor). Record:
 [docs/runs/2026-08-17-junction-world.md](./docs/runs/2026-08-17-junction-world.md).
+The occlusion rung is also implemented:
+`src/irene_brain/environments/occlusion.py` (moving-shapes mechanics under a
+fog-of-war view radius; the direct world-level test of the persistent-state
+thesis). Record:
+[docs/runs/2026-08-17-occlusion-world.md](./docs/runs/2026-08-17-occlusion-world.md).
 
 Local play-safe verification after the live v2 registration: every isolated
 test module passed (299 tests, one expected POSIX skip in the trusted-final
