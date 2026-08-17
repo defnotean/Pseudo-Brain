@@ -28,6 +28,7 @@ no caller-selected workspace, release, image, config, run, or checkpoint:
 - `Invoke-DgxRcqV2FinalOnce.ps1`: one-shot TEST claim/evaluation. No identity arguments.
 - `Test-DgxRcqV2FinalReceipt.ps1`: read-only receipt verification. No identity arguments.
 - `New-RcqV2Registration.ps1`: local target-blind registration builder before release sync.
+  It runs isolated `python -I -B` against `../run_rcq_v2_registration.py`.
 
 The plain-language campaign checklist is
 [CURRENT_WORK.md](../../../CURRENT_WORK.md). The ordered operator commands are

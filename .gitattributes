@@ -1,0 +1,4 @@
+# Create-once scientific identities must keep exact LF bytes on every checkout.
+# Windows core.autocrlf must not rewrite these files, or their SHA-256 pins break.
+registrations/*.json text eol=lf
+brain/configs/baseline-architecture-manifest.json text eol=lf

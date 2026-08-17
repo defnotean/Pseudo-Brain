@@ -54,28 +54,18 @@ if (Test-Path -LiteralPath $registration) {
 }
 
 $python = Get-DgxApplication -Name 'python'
-# Windows PowerShell strips double quotes from an unquoted -c one-liner, which
-# turns the module name into a NameError. A single-quoted here-string keeps the
-# Python quotes intact and still runs under python -I.
-$bootstrap = @'
-import runpy, sys
-source, root, config = sys.argv[1], sys.argv[2], sys.argv[3]
-sys.path.insert(0, source)
-sys.argv = [
-    "irene_brain.evaluation.rcq_v2_registration",
-    "--training-release-root",
-    root,
-    "--config",
-    config,
-]
-runpy.run_module("irene_brain.evaluation.rcq_v2_registration", run_name="__main__")
-'@
+$helper = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..\run_rcq_v2_registration.py')).Path
+$helperItem = Get-Item -LiteralPath $helper -Force
+if (($helperItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+    throw 'The isolated registration helper is a reparse point.'
+}
 if ($PlanOnly) {
-    Write-Host 'PLAN action=create-target-blind-rcq-v2-registration output=registrations/rcq-v2-reference-v1.json isolated_python=-I'
+    Write-Host 'PLAN action=create-target-blind-rcq-v2-registration output=registrations/rcq-v2-reference-v1.json isolated_python=-I-B helper=brain/scripts/run_rcq_v2_registration.py'
     return
 }
 
-& $python -I -c $bootstrap $sourceRoot $repoRoot $config
+$env:PYTHONDONTWRITEBYTECODE = '1'
+& $python -I -B $helper $sourceRoot $repoRoot $config
 if ($LASTEXITCODE -ne 0) {
     throw "Target-blind RCQ-v2 registration failed with exit code $LASTEXITCODE."
 }

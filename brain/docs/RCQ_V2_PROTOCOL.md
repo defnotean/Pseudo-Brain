@@ -1,9 +1,10 @@
 # Reference Candidate Qualification v2 protocol and runbook
 
-Status: implementation-ready protocol. No qualification run or final TEST has
-been launched. The canonical registration and its external SHA-256 pin must be
-created from the final frozen local source/configuration tree, then included in
-the immutable synced release before training begins.
+Status: implementation-ready protocol. The 2026-08-16 target-blind registration
+is published at `registrations/rcq-v2-reference-v1.json` with SHA-256
+`33f7900c1d71b5e363de5a6b7ca921120f486b315241384d906d209a5e02fce0`. No
+qualification run or final TEST has been launched. If source or configuration
+changes after that pin, make a new release and a new registration instead.
 
 If you are executing the campaign rather than auditing thresholds, start with
 [CURRENT_WORK.md](../../CURRENT_WORK.md) and

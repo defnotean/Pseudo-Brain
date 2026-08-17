@@ -1360,16 +1360,15 @@ fi
         script = (self.script_root / "New-RcqV2Registration.ps1").read_text(
             encoding="utf-8"
         )
-        self.assertIn("python -I", script.replace("& $python -I", "python -I"))
-        self.assertIn("-I -c", script)
-        self.assertIn("$bootstrap = @'", script)
-        self.assertIn("runpy.run_module", script)
-        self.assertIn("irene_brain.evaluation.rcq_v2_registration", script)
-        self.assertNotRegex(
-            script,
-            r"\$bootstrap = '[^']*\[[^\]]*\"irene_brain",
-            "a PowerShell single-quoted -c one-liner cannot keep Python double quotes",
-        )
+        helper = self.brain_root / "scripts" / "run_rcq_v2_registration.py"
+        self.assertTrue(helper.is_file())
+        helper_text = helper.read_text(encoding="utf-8")
+        self.assertIn("runpy.run_module", helper_text)
+        self.assertIn("irene_brain.evaluation.rcq_v2_registration", helper_text)
+        self.assertIn("run_rcq_v2_registration.py", script)
+        self.assertIn("-I -B", script)
+        self.assertNotIn("-c $bootstrap", script)
+        self.assertNotIn('python -I -c', script)
 
     def test_isolated_python_bootstrap_ignores_startup_hooks(self) -> None:
         python_path = self._git_bash_path(Path(sys.executable))

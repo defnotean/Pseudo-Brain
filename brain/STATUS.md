@@ -4,14 +4,25 @@ Updated: 2026-08-16
 
 ## Current campaign: RCQ-v2
 
-Status: local freeze and operator documentation in progress. No qualification
-run, registration, or final TEST has been launched.
+Status: target-blind registration published; DGX preflight and sync are next.
+No qualification run or final TEST has been launched.
 
 RCQ-v2 asks whether the existing single model can learn a state-conditioned
 W/A/S/D policy and a useful value estimate on synthetic moving-shapes, for one
 seed, under a frozen recipe. A later pass would not be closed-loop gameplay or
 architecture superiority. Read [CURRENT_WORK.md](../CURRENT_WORK.md) and
 [docs/OPERATOR_GUIDE.md](./docs/OPERATOR_GUIDE.md) before [docs/RCQ_V2_PROTOCOL.md](./docs/RCQ_V2_PROTOCOL.md).
+
+Create-once registration:
+
+- File: `registrations/rcq-v2-reference-v1.json`
+- SHA-256: `33f7900c1d71b5e363de5a6b7ca921120f486b315241384d906d209a5e02fce0`
+- `sealed_test_examples_opened`: 0
+- Record: [docs/runs/2026-08-16-rcq-v2-target-blind-registration.md](./docs/runs/2026-08-16-rcq-v2-target-blind-registration.md)
+
+Keep a copy of that SHA-256 outside this repository. Do not edit the
+registration file. If source or the RCQ training config changes, start a new
+qualification instead.
 
 The matched-baseline architecture manifest at
 `configs/baseline-architecture-manifest.json` was regenerated as an intentional

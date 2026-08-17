@@ -60,6 +60,11 @@ The builder hashes source and configuration. It derives dataset *geometry*
 manifests only. It must report `sealed_test_examples_opened: 0`. It must not
 instantiate a sequence dataset.
 
+Windows PowerShell strips double quotes from ``python -c`` payloads, so the
+wrapper does not use an inline bootstrap. It runs isolated ``python -I -B``
+against `brain/scripts/run_rcq_v2_registration.py`, which rewrites ``sys.path``
+and ``sys.argv`` and then executes the target-blind builder.
+
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\brain\scripts\dgx\New-RcqV2Registration.ps1
 ```
@@ -70,9 +75,12 @@ Expected outputs:
 - Printed line: `REGISTRATION_SHA256=<64 lowercase hex>`
 - Printed line: `EXTERNAL_PIN_REQUIRED=true`
 
-Copy the SHA-256 into a note that is not this repository and not
-`brain/runs/`. Replacement is forbidden: if the file already exists, delete
-nothing; start a newly named qualification instead.
+The 2026-08-16 freeze already published that file. Its digest is
+`33f7900c1d71b5e363de5a6b7ca921120f486b315241384d906d209a5e02fce0`. Copy that
+value into a note that is not this repository and not `brain/runs/`. See
+[runs/2026-08-16-rcq-v2-target-blind-registration.md](./runs/2026-08-16-rcq-v2-target-blind-registration.md).
+Replacement is forbidden: if the file already exists, delete nothing; start a
+newly named qualification instead.
 
 `PlanOnly` prints the intended action without writing:
 
