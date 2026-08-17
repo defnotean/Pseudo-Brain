@@ -70,8 +70,17 @@ def build_smoke_model(config: TrainingConfig) -> IreneBrainModel:
 
 def build_thesis_model(config: TrainingConfig) -> IreneBrainModel:
     _require_config(config)
+    model_config = ThoughtFieldConfig.thesis_mvp()
+    if config.objective.continuous_output_squash == "deadzone_tanh":
+        model_config = replace(
+            model_config,
+            actuator=replace(
+                model_config.actuator,
+                continuous_squash="deadzone_tanh",
+            ),
+        )
     model = IreneBrainModel(
-        ThoughtFieldConfig.thesis_mvp(),
+        model_config,
         input_resolution=(64, 64),
         plan_steps=3,
     )

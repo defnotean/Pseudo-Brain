@@ -1500,6 +1500,9 @@ def _objective(config: TrainingConfig) -> object:
         value_weight=config.objective.value_weight,
         world_weight=config.objective.world_weight,
         diversity_weight=config.objective.diversity_weight,
+        deadzone_hinge_weight=config.objective.continuous_deadzone_hinge_weight,
+        deadzone_hinge_margin=config.objective.continuous_deadzone_hinge_margin,
+        opposite_pair_weight=config.objective.opposite_key_pair_weight,
     )
 
 

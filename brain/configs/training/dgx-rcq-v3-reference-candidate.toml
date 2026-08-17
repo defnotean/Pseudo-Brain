@@ -1,0 +1,131 @@
+# RCQ-v3 reference CANDIDATE. Not registered, not launchable, and not a frozen
+# recipe. This file encodes the proposed post-v2 recipe choices from
+# brain/docs/ROADMAP_TO_PACMAN.md so the owner can review exact values before
+# any v3 preregistration exists:
+#
+# - D1(a) continuous_deadzone_hinge_weight/margin: explicit hinge penalty on
+#   continuous outputs beyond 0.04, inside the frozen 0.05 deadzone.
+# - D1(b) continuous_output_squash = "deadzone_tanh": the actuator readout
+#   bounds every continuous channel to the inclusive deadzone by construction.
+# - D2(c)  opposite_key_pair_weight: mutual-exclusion penalty on the W/S and
+#   A/D sigmoid co-activation products, keeping the 296-button geometry.
+#
+# D2(b) (categorical movement geometry) is deliberately not encoded: it would
+# change the registered action geometry and every downstream invariant.
+# Penalty magnitudes are candidate values awaiting owner sign-off. Stage 2
+# keeps action_weight 0, which disables both penalties during the value stage.
+schema_version = 3
+
+[run]
+name = "dgx-rcq-v3-reference-candidate"
+seed = 1702
+model_factory = "irene_brain.training.factory:build_thesis_model"
+max_optimizer_steps = 2048
+
+[dataset]
+kind = "moving_shapes"
+train_sequences = 8192
+validation_sequences = 256
+test_sequences = 512
+sequence_length = 8
+burn_in_steps = 2
+seed_offset = 1048576
+hazard_count = 3
+tick_period_ns = 16666667
+discount = 0.99
+
+[optimization]
+batch_size = 1
+gradient_accumulation_steps = 8
+learning_rate = 0.0001
+weight_decay = 0.01
+max_gradient_norm = 1.0
+warmup_steps = 20
+scheduler_kind = "constant_after_warmup"
+
+[objective]
+action_loss_kind = "support_aware_calibrated_v1"
+button_support_control_indices = [4, 7, 22, 26]
+button_support_weight = 0.8
+button_background_weight = 0.2
+button_background_tail_mix = 0.9
+button_background_tail_temperature = 0.1
+continuous_action_weight = 0.25
+action_weight = 1.0
+value_weight = 0.1
+world_weight = 0.1
+diversity_weight = 0.05
+continuous_deadzone_hinge_weight = 0.5
+continuous_deadzone_hinge_margin = 0.04
+opposite_key_pair_weight = 0.25
+continuous_output_squash = "deadzone_tanh"
+
+[[stages]]
+index = 0
+name = "joint"
+start_optimizer_step = 0
+end_optimizer_step = 1536
+trainable_parameters = ["*"]
+reset_optimizer = true
+learning_rate = 0.0001
+weight_decay = 0.01
+max_gradient_norm = 1.0
+warmup_steps = 20
+scheduler_kind = "constant_after_warmup"
+action_weight = 1.0
+value_weight = 0.1
+world_weight = 0.1
+diversity_weight = 0.05
+transition_gate = "rcq_v2_development_v1"
+completion_gate = "none"
+invariance_audit = "none"
+
+[[stages]]
+index = 1
+name = "value-head-only"
+start_optimizer_step = 1536
+end_optimizer_step = 2048
+trainable_parameters = [
+  "model.value_per_thought.bias",
+  "model.value_per_thought.weight",
+]
+reset_optimizer = true
+learning_rate = 0.0003
+weight_decay = 0.0
+max_gradient_norm = 1.0
+warmup_steps = 0
+scheduler_kind = "constant_after_warmup"
+action_weight = 0.0
+value_weight = 1.0
+world_weight = 0.0
+diversity_weight = 0.0
+transition_gate = "none"
+completion_gate = "rcq_v2_value_development_v1"
+invariance_audit = "nonvalue_action_state_v1"
+
+[precision]
+device = "cuda"
+mode = "bfloat16"
+allow_tf32 = true
+
+[determinism]
+enabled = true
+num_workers = 0
+compile_model = false
+
+[logging]
+log_every_steps = 64
+evaluate_every_steps = 256
+validation_batches = 256
+checkpoint_every_steps = 256
+keep_last_checkpoints = 9
+
+[resources]
+allow_gpu = true
+allow_capture = false
+allow_hid_output = false
+allow_background_threads = false
+allow_network = false
+allow_subprocess = false
+write_artifacts = true
+cpu_threads = 8

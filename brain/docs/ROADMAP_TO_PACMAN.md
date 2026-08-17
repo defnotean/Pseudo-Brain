@@ -68,6 +68,18 @@ any v3 training update, or they are worthless.
 | D4 | Seed and slices | New seed or reuse 1702 — either is defensible; freeze the choice. Final TEST ranges: fresh unused ranges from the reserved 2^21 namespace family; v2's sealed/retired ranges stay untouched forever. |
 | D5 | Thresholds | Keep v2's frozen thresholds unchanged unless D2(b) changes geometry. Lowering a threshold because v2 failed is forbidden. |
 
+**Implementation status (2026-08-17):** D1(a), D1(b), and D2(c) are
+implemented and config-gated with defaults off
+([runs/2026-08-17-rcq-v3-recipe-options.md](runs/2026-08-17-rcq-v3-recipe-options.md)).
+The squash bound is 0.046875 (exactly representable, strictly inside the 0.05
+deadzone in float32 and bfloat16). D2(b) was rejected as a geometry change.
+The concrete review candidate is
+`configs/training/dgx-rcq-v3-reference-candidate.toml` (hinge 0.5 @ margin
+0.04, pair penalty 0.25, squash on — proposed values, not yet signed off).
+Still pending before any v3 training: owner sign-off on the candidate values
+plus D3–D5, and new registration/launcher machinery for a new qualification
+identity.
+
 ### 2.2 RCQ-v3 execution checklist (mirrors the proven v2 sequence)
 
 1. Implement D1/D2 in `irene_brain` behind the config, with unit tests:

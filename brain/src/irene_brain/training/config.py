@@ -25,6 +25,18 @@ _FACTORY = re.compile(
 )
 _PARAMETER_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_.]*\Z")
 
+# Recipe fields introduced after the first RCQ-v2 registration. They are
+# optional in TOML and omitted from the canonical JSON while they hold these
+# defaults, so every historical configuration hash stays byte-identical. Any
+# non-default value becomes part of the configuration identity, which is how a
+# future qualification binds its redesigned recipe.
+OBJECTIVE_OPTIONAL_DEFAULTS: dict[str, object] = {
+    "continuous_deadzone_hinge_weight": 0.0,
+    "continuous_deadzone_hinge_margin": 0.04,
+    "opposite_key_pair_weight": 0.0,
+    "continuous_output_squash": "none",
+}
+
 
 def _table(value: object, *, name: str) -> Mapping[str, Any]:
     if not isinstance(value, Mapping):
@@ -210,6 +222,10 @@ class ObjectiveConfig:
     value_weight: float = 0.1
     world_weight: float = 0.1
     diversity_weight: float = 0.05
+    continuous_deadzone_hinge_weight: float = 0.0
+    continuous_deadzone_hinge_margin: float = 0.04
+    opposite_key_pair_weight: float = 0.0
+    continuous_output_squash: str = "none"
 
     def __post_init__(self) -> None:
         action_loss_kind = _string(
@@ -309,6 +325,44 @@ class ObjectiveConfig:
                 minimum=0.0,
             )
             object.__setattr__(self, name, normalized)
+        object.__setattr__(
+            self,
+            "continuous_deadzone_hinge_weight",
+            _number(
+                self.continuous_deadzone_hinge_weight,
+                name="objective.continuous_deadzone_hinge_weight",
+                minimum=0.0,
+            ),
+        )
+        hinge_margin = _number(
+            self.continuous_deadzone_hinge_margin,
+            name="objective.continuous_deadzone_hinge_margin",
+            minimum=0.0,
+        )
+        if hinge_margin >= 0.05:
+            raise ValueError(
+                "objective.continuous_deadzone_hinge_margin must stay inside the "
+                "0.05 deadzone"
+            )
+        object.__setattr__(self, "continuous_deadzone_hinge_margin", hinge_margin)
+        object.__setattr__(
+            self,
+            "opposite_key_pair_weight",
+            _number(
+                self.opposite_key_pair_weight,
+                name="objective.opposite_key_pair_weight",
+                minimum=0.0,
+            ),
+        )
+        squash = _string(
+            self.continuous_output_squash,
+            name="objective.continuous_output_squash",
+        )
+        if squash not in {"none", "deadzone_tanh"}:
+            raise ValueError(
+                "objective.continuous_output_squash must be none or deadzone_tanh"
+            )
+        object.__setattr__(self, "continuous_output_squash", squash)
 
 
 @dataclass(frozen=True, slots=True)
@@ -789,6 +843,9 @@ class TrainingConfig:
         result["objective"]["button_support_control_indices"] = list(
             self.objective.button_support_control_indices
         )
+        for key, default in OBJECTIVE_OPTIONAL_DEFAULTS.items():
+            if result["objective"].get(key) == default:
+                del result["objective"][key]
         return result
 
     @property
@@ -917,6 +974,22 @@ class TrainingConfig:
             ),
         }
         for name, fields in expected.items():
+            if name == "objective":
+                optional = frozenset(OBJECTIVE_OPTIONAL_DEFAULTS)
+                unknown = sorted(set(tables[name]) - set(fields) - set(optional))
+                missing = sorted(set(fields) - set(tables[name]))
+                if unknown or missing:
+                    details: list[str] = []
+                    if missing:
+                        details.append(f"missing fields: {', '.join(missing)}")
+                    if unknown:
+                        details.append(f"unknown fields: {', '.join(unknown)}")
+                    raise ValueError(f"objective: {'; '.join(details)}")
+                tables[name] = {
+                    **OBJECTIVE_OPTIONAL_DEFAULTS,
+                    **tables[name],
+                }
+                continue
             _exact_fields(tables[name], name=name, required=fields)
         stages: tuple[TrainingStageConfig, ...] = ()
         if schema_version == 3:

@@ -56,6 +56,9 @@ class ThoughtFieldObjective(nn.Module):
         value_weight: float = 0.1,
         world_weight: float = 0.1,
         diversity_weight: float = 0.05,
+        deadzone_hinge_weight: float = 0.0,
+        deadzone_hinge_margin: float = 0.04,
+        opposite_pair_weight: float = 0.0,
     ) -> None:
         super().__init__()
         self.model = model
@@ -93,6 +96,17 @@ class ThoughtFieldObjective(nn.Module):
         self.value_weight = _positive_weight(value_weight, "value_weight")
         self.world_weight = _positive_weight(world_weight, "world_weight")
         self.diversity_weight = _positive_weight(diversity_weight, "diversity_weight")
+        self.deadzone_hinge_weight = _positive_weight(
+            deadzone_hinge_weight,
+            "deadzone_hinge_weight",
+        )
+        if not (0.0 <= deadzone_hinge_margin < 0.05):
+            raise ValueError("deadzone_hinge_margin must be inside the 0.05 deadzone")
+        self.deadzone_hinge_margin = float(deadzone_hinge_margin)
+        self.opposite_pair_weight = _positive_weight(
+            opposite_pair_weight,
+            "opposite_pair_weight",
+        )
         self.register_buffer(
             "button_target_indices",
             torch.tensor(BUTTON_TARGET_INDICES, dtype=torch.long),
@@ -253,6 +267,10 @@ class ThoughtFieldObjective(nn.Module):
                     background_tail_mix=self.button_background_tail_mix,
                     background_tail_temperature=self.button_background_tail_temperature,
                     continuous_weight=self.continuous_action_weight,
+                    deadzone_hinge_weight=self.deadzone_hinge_weight,
+                    deadzone_hinge_margin=self.deadzone_hinge_margin,
+                    opposite_pair_weight=self.opposite_pair_weight,
+                    movement_key_indices=self.movement_key_indices,
                 )
                 for prediction in output.anytime_actions
             )
@@ -621,6 +639,10 @@ def _structured_action_loss(
     background_tail_mix: float = 0.9,
     background_tail_temperature: float = 0.1,
     continuous_weight: float = 0.25,
+    deadzone_hinge_weight: float = 0.0,
+    deadzone_hinge_margin: float = 0.04,
+    opposite_pair_weight: float = 0.0,
+    movement_key_indices: Tensor | None = None,
 ) -> Tensor:
     button_target = target.index_select(1, button_indices)
     button_logits = prediction.button_logits.float()
@@ -649,9 +671,33 @@ def _structured_action_loss(
         prediction.gamepad_axis_mean.float(),
         target[:, 299:307],
     )
-    return button_loss + continuous_weight * (
+    loss = button_loss + continuous_weight * (
         mouse_loss + scroll_loss + gamepad_axis_loss
     )
+    if deadzone_hinge_weight > 0.0:
+        continuous_prediction = torch.cat(
+            (
+                prediction.mouse_mean.float(),
+                prediction.scroll_mean.float(),
+                prediction.gamepad_axis_mean.float(),
+            ),
+            dim=1,
+        )
+        hinge = (continuous_prediction.abs() - deadzone_hinge_margin).clamp_min(0.0)
+        loss = loss + deadzone_hinge_weight * hinge.mean()
+    if opposite_pair_weight > 0.0:
+        if movement_key_indices is None or tuple(movement_key_indices.shape) != (4,):
+            raise ValueError(
+                "opposite_pair_weight requires movement_key_indices in W, A, S, D order"
+            )
+        movement_logits = button_logits[:, :256].index_select(1, movement_key_indices)
+        probabilities = torch.sigmoid(movement_logits)
+        # _MOVEMENT_KEYS order is W, A, S, D: opposite pairs are (W, S) and (A, D).
+        coactivation = probabilities[:, 0] * probabilities[:, 2] + (
+            probabilities[:, 1] * probabilities[:, 3]
+        )
+        loss = loss + opposite_pair_weight * coactivation.mean()
+    return loss
 
 
 def _legacy_sparse_button_loss(button_logits: Tensor, button_target: Tensor) -> Tensor:

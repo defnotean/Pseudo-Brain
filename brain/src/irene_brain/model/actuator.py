@@ -10,6 +10,18 @@ from torch.nn import functional as F
 
 from .spec import ActuatorQuerySpec
 
+CONTINUOUS_DEADZONE_LIMIT = 0.05
+# Strictly-inside squash bound: exactly representable in float32/bfloat16
+# (1.5 * 2**-5), so a saturated tanh can never round above the frozen 0.05
+# deadzone in any evaluation precision.
+SQUASH_LIMIT = 0.046875
+
+
+def _deadzone_tanh(raw: Tensor) -> Tensor:
+    """Bound a continuous control strictly inside the +/-0.05 deadzone."""
+
+    return SQUASH_LIMIT * torch.tanh(raw / SQUASH_LIMIT)
+
 
 @dataclass(frozen=True, slots=True)
 class ActionPrediction:
@@ -116,12 +128,29 @@ class DirectActuatorReadout(nn.Module):
         )
         mouse_features = features[:, mouse_button_end:mouse_axis_end].flatten(1)
         mouse_zero_logit = self.mouse_zero(mouse_features)
-        mouse_mean = raw_signal[:, mouse_button_end:mouse_axis_end]
+        squash = self.actuator.continuous_squash == "deadzone_tanh"
+        if squash:
+            # Structural quiescence: every continuous channel stays inside the
+            # inclusive +/-0.05 deadzone by construction, so a zero-target
+            # continuous head can never emit a live mouse/scroll/axis impulse.
+            mouse_mean = _deadzone_tanh(raw_signal[:, mouse_button_end:mouse_axis_end])
+            scroll_mean = _deadzone_tanh(raw_signal[:, mouse_axis_end:scroll_end])
+            gamepad_axis_mean = _deadzone_tanh(
+                raw_signal[:, gamepad_button_end:gamepad_axis_end]
+            )
+        else:
+            mouse_mean = raw_signal[:, mouse_button_end:mouse_axis_end]
+            scroll_mean = raw_signal[:, mouse_axis_end:scroll_end]
+            gamepad_axis_mean = torch.tanh(
+                raw_signal[:, gamepad_button_end:gamepad_axis_end]
+            )
         mouse_log_scale = raw_scale[:, mouse_button_end:mouse_axis_end]
-        scroll_mean = raw_signal[:, mouse_axis_end:scroll_end]
-        gamepad_axis_mean = torch.tanh(raw_signal[:, gamepad_button_end:gamepad_axis_end])
         gamepad_axis_log_scale = raw_scale[:, gamepad_button_end:gamepad_axis_end]
         control = raw_signal.clone()
+        if squash:
+            control[:, mouse_button_end:scroll_end] = torch.cat(
+                (mouse_mean, scroll_mean), dim=1
+            )
         control[:, gamepad_button_end:gamepad_axis_end] = gamepad_axis_mean
 
         thought_attention = state_attention[

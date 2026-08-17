@@ -58,6 +58,7 @@ class ActuatorQuerySpec:
     scroll_axes: int = 1
     gamepad_buttons: int = 32
     gamepad_axes: int = 8
+    continuous_squash: str = "none"
 
     def __post_init__(self) -> None:
         fixed_dimensions = {
@@ -72,6 +73,8 @@ class ActuatorQuerySpec:
             value = _positive_int(getattr(self, name), name=name)
             if value != expected:
                 raise ValueError(f"{name} is fixed at {expected} actuator queries")
+        if self.continuous_squash not in {"none", "deadzone_tanh"}:
+            raise ValueError("continuous_squash must be none or deadzone_tanh")
 
     @property
     def total_queries(self) -> int:

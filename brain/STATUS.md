@@ -18,6 +18,12 @@ needs a newly preregistered experiment. Record:
 [docs/runs/2026-08-16-rcq-v2-reference-v2-smoke-canary-train.md](./docs/runs/2026-08-16-rcq-v2-reference-v2-smoke-canary-train.md).
 Post-mortem failure mechanics (quiescence tail, W/S opposite conflicts):
 [docs/runs/2026-08-17-rcq-v2-entry-gate-failure-diagnosis.md](./docs/runs/2026-08-17-rcq-v2-entry-gate-failure-diagnosis.md).
+The v3 recipe options (deadzone hinge, structural squash, opposite-key pair
+penalty) are implemented and config-gated with defaults off; the unregistered
+review candidate is `configs/training/dgx-rcq-v3-reference-candidate.toml`.
+Record: [docs/runs/2026-08-17-rcq-v3-recipe-options.md](./docs/runs/2026-08-17-rcq-v3-recipe-options.md).
+Roadmap and pending owner decisions:
+[docs/ROADMAP_TO_PACMAN.md](./docs/ROADMAP_TO_PACMAN.md).
 
 RCQ-v2 asks whether the existing single model can learn a state-conditioned
 W/A/S/D policy and a useful value estimate on synthetic moving-shapes, for one
@@ -68,11 +74,14 @@ Do not start the 2,048-update reference on that pin. The capture fix changed
 
 The matched-baseline architecture manifest at
 `configs/baseline-architecture-manifest.json` was regenerated as an intentional
-local freeze on 2026-08-16. Live digest
-`30d4c119795a3c967e0f1251787cf5fb7effce8d02b814224b4383c40d783fc7`. The
+local freeze on 2026-08-16 and again on 2026-08-17 when the RCQ-v3 recipe
+options changed the matched implementation files. Live digest
+`5decb402bc9ba68a8b8a80317d09f05458b4aa9584dab81a9d3b8575409f49e7` (previous
+`30d4c119…`; both are explicit `new_comparison` identities). The
 historical first-matched campaign pin `52bba6a9…` is unchanged and that
-campaign stays blocked. Record:
-[docs/runs/2026-08-16-baseline-architecture-manifest-freeze.md](./docs/runs/2026-08-16-baseline-architecture-manifest-freeze.md).
+campaign stays blocked. Records:
+[docs/runs/2026-08-16-baseline-architecture-manifest-freeze.md](./docs/runs/2026-08-16-baseline-architecture-manifest-freeze.md),
+[docs/runs/2026-08-17-rcq-v3-recipe-options.md](./docs/runs/2026-08-17-rcq-v3-recipe-options.md).
 The freeze does not open TEST and does not start DGX training.
 
 Local play-safe verification after the live v2 registration: every isolated

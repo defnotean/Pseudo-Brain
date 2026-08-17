@@ -6,7 +6,11 @@ import tempfile
 import unittest
 
 from irene_brain.model.spec import ThoughtFieldConfig
-from irene_brain.training.config import ObjectiveConfig, load_training_config
+from irene_brain.training.config import (
+    OBJECTIVE_OPTIONAL_DEFAULTS,
+    ObjectiveConfig,
+    load_training_config,
+)
 
 
 BRAIN_ROOT = Path(__file__).resolve().parents[1]
@@ -54,6 +58,9 @@ class ObjectiveConfigurationTests(unittest.TestCase):
             if name in {
                 "dgx-stagea-action-overfit",
                 "dgx-stagea-action-overfit-b",
+                # The unregistered v3 review candidate intentionally carries
+                # non-default recipe fields; test_rcq_v3_recipe pins them.
+                "dgx-rcq-v3-reference-candidate",
             }:
                 continue
             self.assertEqual(
@@ -65,10 +72,15 @@ class ObjectiveConfigurationTests(unittest.TestCase):
                     diversity_weight=0.05,
                 ),
             )
+            expected_objective = {
+                key: value
+                for key, value in asdict(config.objective).items()
+                if OBJECTIVE_OPTIONAL_DEFAULTS.get(key, key) != value
+            }
             self.assertEqual(
                 config.to_dict()["objective"],
                 {
-                    **asdict(config.objective),
+                    **expected_objective,
                     "button_support_control_indices": [4, 7, 22, 26],
                 },
             )
@@ -107,7 +119,11 @@ class ObjectiveConfigurationTests(unittest.TestCase):
         self.assertEqual(
             overfit.to_dict()["objective"],
             {
-                **asdict(overfit.objective),
+                **{
+                    key: value
+                    for key, value in asdict(overfit.objective).items()
+                    if OBJECTIVE_OPTIONAL_DEFAULTS.get(key, key) != value
+                },
                 "button_support_control_indices": [4, 7, 22, 26],
             },
         )
