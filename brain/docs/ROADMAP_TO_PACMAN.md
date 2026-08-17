@@ -165,7 +165,12 @@ PLAN.md §20 defines the ladder; the work items in this repo are:
    target planning on the maze;
    [runs/2026-08-17-keys-doors-world.md](runs/2026-08-17-keys-doors-world.md)).
    All four named successor worlds are done; what remains is branch-DAG data
-   generation at scale and registered splits.
+   generation at scale and registered splits. The five worlds are covered by
+   one canonical cross-world diagnostic matrix
+   (`evaluation/cross_world_matrix.py`;
+   [runs/2026-08-17-cross-world-diagnostic-matrix.md](runs/2026-08-17-cross-world-diagnostic-matrix.md))
+   that already discriminates pursuit pressure, maze planning, occlusion
+   memory, and key/door sequencing.
 2. **External open worlds** (license-cleared): XLand-MiniGrid, Craftax,
    Procgen — adapters behind `environments/protocol.py`, lifetime recording,
    held-out generator families.

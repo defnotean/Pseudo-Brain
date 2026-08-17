@@ -133,6 +133,12 @@ The keys/doors rung completes the named in-repo ladder:
 `src/irene_brain/environments/keys_doors.py` (key → door → target planning
 on the seeded maze, with key possession deliberately unrendered). Record:
 [docs/runs/2026-08-17-keys-doors-world.md](./docs/runs/2026-08-17-keys-doors-world.md).
+A canonical cross-world diagnostic matrix
+(`src/irene_brain/evaluation/cross_world_matrix.py`) now covers all five
+worlds × the three non-privileged diagnostic policies in one SHA-256-pinned
+evidence record, and it already discriminates pursuit pressure, maze
+planning, occlusion memory, and key/door sequencing. Record:
+[docs/runs/2026-08-17-cross-world-diagnostic-matrix.md](./docs/runs/2026-08-17-cross-world-diagnostic-matrix.md).
 
 Local play-safe verification after the live v2 registration: every isolated
 test module passed (299 tests, one expected POSIX skip in the trusted-final
