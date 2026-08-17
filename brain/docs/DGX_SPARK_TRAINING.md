@@ -329,7 +329,8 @@ after that boundary attributable without rewriting the old metric stream.
 ### 7. Status and artifact retrieval
 
 Status is one snapshot, not a background monitor. It reports the tmux/container
-state, `MemAvailable`, `nvidia-smi`, and the last 80 log lines:
+state, `MemAvailable`, free disk, `nvidia-smi`, the latest train/validation
+metric lines from `metrics.jsonl`, checkpoint names, and the last 80 log lines:
 
 ```powershell
 & .\brain\scripts\dgx\Get-DgxBrainTrainingStatus.ps1 `

@@ -6,8 +6,8 @@ Updated: 2026-08-16
 
 Status: live qualification is `rcq_v2_reference_v2`. Smoke and staging canary
 passed on pin `adf79ccc…`. The 2,048-update reference is running detached and
-has logged through optimizer step 64. Spark disk is about 552 GiB free after
-removing non-3.8 weights. No final TEST has been launched.
+has written checkpoint `step-00000256.pt`. Spark disk is about 550 GiB free.
+No final TEST has been launched.
 
 RCQ-v2 asks whether the existing single model can learn a state-conditioned
 W/A/S/D policy and a useful value estimate on synthetic moving-shapes, for one

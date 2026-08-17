@@ -1077,6 +1077,10 @@ fi
         self.assertIn("assert_safe_artifact_tree", self.remote)
         self.assertIn(r"\! -type d \! -type f", self.remote)
         self.assertIn("artifact_path=%s", self.remote)
+        self.assertIn("summarize_training_progress", self.remote)
+        self.assertIn("--- latest metrics ---", self.remote)
+        self.assertIn("metrics.jsonl", self.remote)
+        self.assertIn("disk_available_gib=%s", self.remote)
         self.assertIn("$canonicalRemotePath", retrieval)
         self.assertIn("one canonical, absolute artifact path", retrieval)
 

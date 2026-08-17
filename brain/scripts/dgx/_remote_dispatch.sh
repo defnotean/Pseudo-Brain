@@ -183,6 +183,78 @@ available_memory_gib() {
     printf '%s\n' "$((available_kib / 1024 / 1024))"
 }
 
+report_available_disk_gib() {
+    local workspace="$1"
+    local probe available_kib
+    probe="$(find_disk_probe "$workspace")"
+    available_kib="$(df -Pk -- "$probe" | awk 'NR == 2 {print $4}')"
+    [[ "$available_kib" =~ ^[0-9]+$ ]] || fail disk_probe_failed 'could not read available disk space'
+    printf '%s\n' "$((available_kib / 1024 / 1024))"
+}
+
+summarize_training_progress() {
+    local run_dir="$1"
+    local metrics checkpoints names
+    metrics="$run_dir/metrics.jsonl"
+    checkpoints="$run_dir/checkpoints"
+    if [[ -e "$metrics" || -L "$metrics" ]]; then
+        assert_safe_regular_file "$metrics" "$run_dir" 'metrics stream'
+        metrics="$DGX_SAFE_PATH"
+        printf '%s\n' '--- latest metrics ---'
+        python3 -I - "$metrics" <<'PY' || fail artifact_read_failed 'could not summarize metrics'
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+latest = {}
+count = 0
+with path.open("r", encoding="utf-8") as handle:
+    for raw in handle:
+        line = raw.strip()
+        if not line:
+            continue
+        record = json.loads(line)
+        count += 1
+        split = record.get("split")
+        if split in ("train", "validation"):
+            latest[split] = record
+print(f"metrics_rows={count}")
+for split in ("train", "validation"):
+    prefix = f"latest_{split}"
+    record = latest.get(split)
+    if not isinstance(record, dict):
+        print(f"{prefix}=absent")
+        continue
+    metrics = record.get("metrics")
+    if not isinstance(metrics, dict):
+        metrics = {}
+    loss = metrics.get("total_loss", metrics.get("loss"))
+    print(f"{prefix}_step={record.get('step')}")
+    print(f"{prefix}_loss={loss}")
+    print(f"{prefix}_action_loss={metrics.get('action_loss')}")
+    print(f"{prefix}_value_loss={metrics.get('value_loss')}")
+    print(f"{prefix}_movement_exact_match={metrics.get('movement_exact_match')}")
+    print(f"{prefix}_stage_index={metrics.get('stage_index')}")
+PY
+    else
+        printf 'metrics=not-created\n'
+    fi
+    if [[ -e "$checkpoints" || -L "$checkpoints" ]]; then
+        assert_safe_directory_path "$checkpoints" "$run_dir" 'checkpoint directory'
+        checkpoints="$DGX_SAFE_PATH"
+        printf '%s\n' '--- checkpoints ---'
+        names="$(find "$checkpoints" -maxdepth 1 -type f -name 'step-*.pt' -printf '%f\n' | LC_ALL=C sort)"
+        if [[ -z "$names" ]]; then
+            printf 'checkpoints=none\n'
+        else
+            printf '%s\n' "$names"
+        fi
+    else
+        printf 'checkpoints=not-created\n'
+    fi
+}
+
 check_memory_gib() {
     local minimum_gib="$1"
     local container_limit_gib="${2:-0}"
@@ -3379,7 +3451,9 @@ EOF
         fi
         docker ps --filter "name=^/${runtime_prefix}-${run_id}$" --format 'container={{.Names}} status={{.Status}}'
         printf 'memory_available_gib=%s\n' "$(available_memory_gib)"
+        printf 'disk_available_gib=%s\n' "$(report_available_disk_gib "$workspace")"
         nvidia-smi
+        summarize_training_progress "$run_dir"
         log_path="$workspace/logs/${run_id}.log"
         if [[ -e "$log_path" || -L "$log_path" ]]; then
             assert_safe_regular_file "$log_path" "$workspace/logs" 'training log'

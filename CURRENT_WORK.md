@@ -34,7 +34,7 @@ action, and not an architecture-superiority claim.
 | 4 | Build the create-once, target-blind RCQ-v2 registration and record its SHA-256 | Live v2 `6cc98739c78499a990a4b3480524c48dd49243c1e3c63094977a9a917df49690`. Historical v1 `33f7900c…` preserved. Copy the live digest off-repo. |
 | 5 | DGX preflight and immutable release sync | Done for live release `r20260817t021531z-7a2967ebec60`. Historical v1 release stays unused for training. |
 | 6 | Trusted pretraining pin, then RCQ smoke, then staging canary | Done on pin `adf79ccc…`. Smoke and canary both passed. First v2 pin `2847e786…` is unused. |
-| 7 | Pinned 2,048-update reference train on seed 1702 | Running detached as `dgx-rcq-v2-reference-seed-1702`. Past step 64. Entry gate is step 1,536. Spark disk is about 552 GiB free after removing non-3.8 weights. |
+| 7 | Pinned 2,048-update reference train on seed 1702 | Running. First checkpoint `step-00000256.pt`. Entry gate is step 1,536. Spark disk about 550 GiB free. |
 | 8 | Newly named qualification after the invariance capture fix | Done. Live file `registrations/rcq-v2-reference-v2.json`. Do not edit v1. |
 | 9 | Preclaim, independent review, final authorization, one-shot TEST | Only after this qualification's development gates pass |
 

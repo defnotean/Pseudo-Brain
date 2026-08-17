@@ -74,8 +74,21 @@ canary receipts agreed with the pin.
 - `max_optimizer_steps`: 2048, precision bfloat16, two stages
 - Status about 18 seconds after launch: tmux running, container up, GPU busy
 
-Host disk was 21 GiB free at canary and 20 GiB free at launch (gate is 20).
-Watch remaining disk. Do not chmod installed releases writable. Do not open
-TEST. Resume only with `Resume-DgxRcqV2Reference.ps1 -AcknowledgeDetached`.
-The entry gate is at optimizer step 1,536. Failure there is terminal for this
-candidate.
+First checkpoint at optimizer step 256 (~24 minutes after launch):
+
+| Item | Value |
+|---|---|
+| Checkpoint | `step-00000256.pt` (338 MiB) |
+| Checkpoint SHA-256 | `95f607675808ea0f012edc4738443192d7835197a54f78a0c405d4b007d6d426` |
+| Train loss | 0.489 |
+| Train movement exact match | 0.229 |
+| Validation loss | 0.485 |
+| Validation movement exact match | 0.247 |
+
+That validation slice is the open development namespace, not sealed TEST.
+These numbers are not a development gate. The entry gate remains step 1,536.
+
+Host disk is about 550 GiB free after the non-3.8 weight cleanup. Do not chmod
+installed releases writable. Do not open TEST. Resume only with
+`Resume-DgxRcqV2Reference.ps1 -AcknowledgeDetached`. The entry gate is at
+optimizer step 1,536. Failure there is terminal for this candidate.
