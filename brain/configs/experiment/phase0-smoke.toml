@@ -1,0 +1,27 @@
+[experiment]
+name = "phase0-smoke"
+seed = 7
+steps = 1000
+branch_roots = 20
+branches_per_root = 4
+device = "cpu"
+allow_gpu = false
+allow_capture = false
+allow_hid_output = false
+allow_background_threads = false
+allow_network = false
+allow_subprocess = false
+cpu_threads = 1
+
+[environment]
+family = "moving_shapes"
+width = 16
+height = 16
+render_width = 16
+render_height = 16
+tick_hz = 60
+
+[runtime]
+mode = "deterministic"
+record_video = false
+write_artifacts = false

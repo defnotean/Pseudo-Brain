@@ -1,0 +1,583 @@
+"""First trainable PyTorch implementation of the Irene thought-field model.
+
+Importing this module requires PyTorch.  The parent :mod:`irene_brain.model`
+package keeps this import lazy so deterministic Phase 0 tooling remains usable
+without a machine-learning runtime installed.
+"""
+
+from __future__ import annotations
+
+import math
+from dataclasses import dataclass, replace
+
+import torch
+from torch import Tensor, nn
+from torch.nn import functional as F
+
+from .actuator import ActionPrediction, DirectActuatorReadout
+from .brain_cell import BrainCell, ContinuousTimeBlend, ResidualCrossAttention
+from .sensory import PixelEncoder
+from .spec import ThoughtFieldConfig
+
+
+_THOUGHT_IDENTITY_SEED = 0x1A2B3C4D
+
+
+def deterministic_thought_identity_codes(*, thoughtlets: int, width: int) -> Tensor:
+    """Build one fixed Gaussian identity code per thought slot.
+
+    A private CPU generator keeps model construction and inference from
+    advancing PyTorch's global RNG stream.  The returned codes are ordinary
+    buffers, not per-slot trainable parameters.
+    """
+
+    if any(type(value) is not int or value < 1 for value in (thoughtlets, width)):
+        raise ValueError("thoughtlets and width must be positive integers")
+    generator = torch.Generator(device="cpu")
+    generator.manual_seed(_THOUGHT_IDENTITY_SEED)
+    return torch.randn(
+        thoughtlets,
+        width,
+        generator=generator,
+        dtype=torch.float32,
+        device="cpu",
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class BrainState:
+    """Persistent state carried between observations without gradient updates."""
+
+    belief: Tensor
+    working_memory: Tensor
+    thoughts: Tensor
+    goal_context: Tensor
+    thought_age_seconds: Tensor
+
+    def detach(self) -> BrainState:
+        return replace(
+            self,
+            belief=self.belief.detach(),
+            working_memory=self.working_memory.detach(),
+            thoughts=self.thoughts.detach(),
+            goal_context=self.goal_context.detach(),
+            thought_age_seconds=self.thought_age_seconds.detach(),
+        )
+
+    def to(self, *args: object, **kwargs: object) -> BrainState:
+        return replace(
+            self,
+            belief=self.belief.to(*args, **kwargs),
+            working_memory=self.working_memory.to(*args, **kwargs),
+            thoughts=self.thoughts.to(*args, **kwargs),
+            goal_context=self.goal_context.to(*args, **kwargs),
+            thought_age_seconds=self.thought_age_seconds.to(*args, **kwargs),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class ThoughtPredictions:
+    focus_logits: Tensor
+    horizon_logits: Tensor
+    candidate_action_logits: Tensor
+    future_embedding: Tensor
+    occurrence_logits: Tensor
+    log_variance: Tensor
+    urgency: Tensor
+    utility: Tensor
+    lifecycle_logits: Tensor
+    memory_write_logits: Tensor
+
+
+@dataclass(frozen=True, slots=True)
+class ModelDiagnostics:
+    routing_indices: tuple[Tensor, ...]
+    routing_weights: tuple[Tensor, ...]
+    thought_summaries: Tensor
+    thought_cosine_similarity: Tensor
+    actuator_thought_attention: Tensor
+    applied_expire_probability: Tensor
+    cycles_completed: int
+    uses_pooled_integration_token: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class ModelOutput:
+    action: ActionPrediction
+    anytime_actions: tuple[ActionPrediction, ...]
+    value: Tensor
+    world: ThoughtPredictions
+    next_state: BrainState
+    diagnostics: ModelDiagnostics
+
+
+class ThoughtPredictionHead(nn.Module):
+    def __init__(self, *, width: int, actuator_queries: int) -> None:
+        super().__init__()
+        self.focus_query = nn.Linear(width, width, bias=False)
+        self.horizon = nn.Linear(width, 6)
+        self.candidate_action = nn.Linear(width, actuator_queries)
+        self.future = nn.Linear(width, width)
+        self.occurrence = nn.Linear(width, 1)
+        self.log_variance = nn.Linear(width, 1)
+        self.urgency = nn.Linear(width, 1)
+        self.utility = nn.Linear(width, 1)
+        self.lifecycle = nn.Linear(width, 3)
+        self.memory_write = nn.Linear(width, 1)
+
+    def forward(self, thoughts: Tensor, sensors: Tensor, belief: Tensor) -> ThoughtPredictions:
+        summaries = thoughts.mean(dim=2)
+        focus_targets = torch.cat((sensors, belief), dim=1)
+        focus_logits = torch.matmul(
+            self.focus_query(summaries),
+            focus_targets.transpose(-1, -2),
+        ) / math.sqrt(summaries.shape[-1])
+        return ThoughtPredictions(
+            focus_logits=focus_logits,
+            horizon_logits=self.horizon(summaries),
+            candidate_action_logits=self.candidate_action(summaries),
+            future_embedding=self.future(summaries),
+            occurrence_logits=self.occurrence(summaries).squeeze(-1),
+            log_variance=self.log_variance(summaries).squeeze(-1).clamp(-8.0, 8.0),
+            urgency=torch.sigmoid(self.urgency(summaries).squeeze(-1)),
+            utility=self.utility(summaries).squeeze(-1),
+            lifecycle_logits=self.lifecycle(summaries),
+            memory_write_logits=self.memory_write(summaries).squeeze(-1),
+        )
+
+
+class IreneBrainModel(nn.Module):
+    """Streaming one-checkpoint model with persistent parallel thoughtlets.
+
+    ``BrainCell`` is instantiated exactly once and called repeatedly, tying all
+    recurrent weights across cognitive cycles. Thoughtlets are a batch axis of
+    that shared cell, not separately parameterized experts.
+    """
+
+    architecture_variant_id = "irene.thought_field.routed.v1"
+    architecture_variant_schema = 1
+
+    def _build_brain_cell(self, *, width: int) -> nn.Module:
+        return BrainCell(
+            width=width,
+            heads=self.config.attention_heads,
+            routed_neighbors=self.config.routed_neighbors,
+            blocks=self.config.brain_cell_blocks,
+        )
+
+    def _communication_policy(self, cycle: int) -> tuple[bool, bool]:
+        """Return peer-routing and thought-to-workspace permissions for a cycle."""
+
+        return cycle > 0, True
+
+    def __init__(
+        self,
+        config: ThoughtFieldConfig | None = None,
+        *,
+        input_resolution: tuple[int, int] = (32, 32),
+        plan_steps: int = 3,
+    ) -> None:
+        super().__init__()
+        self.config = config if config is not None else ThoughtFieldConfig.smoke()
+        if (
+            not isinstance(input_resolution, tuple)
+            or len(input_resolution) != 2
+            or any(
+                isinstance(side, bool) or not isinstance(side, int) or side < 8
+                for side in input_resolution
+            )
+        ):
+            raise ValueError("input_resolution must contain two integer sides of at least 8")
+        self.input_resolution = input_resolution
+        width = self.config.core_width
+
+        self.pixel_encoder = PixelEncoder(
+            width=width,
+            sensor_tokens=self.config.sensor_tokens,
+        )
+        self.control_encoder = nn.Sequential(
+            nn.Linear(self.config.actuator.total_queries, width),
+            nn.LayerNorm(width),
+            nn.SiLU(),
+        )
+        self.time_encoder = nn.Sequential(
+            nn.Linear(1, width),
+            nn.SiLU(),
+            nn.Linear(width, width),
+            nn.LayerNorm(width),
+        )
+        self.initial_belief = nn.Parameter(
+            torch.empty(1, self.config.belief_tokens, width)
+        )
+        self.initial_working_memory = nn.Parameter(
+            torch.empty(1, self.config.working_memory_tokens, width)
+        )
+        self.initial_thought_registers = nn.Parameter(
+            torch.empty(1, 1, self.config.registers_per_thoughtlet, width)
+        )
+        self.initial_goal_context = nn.Parameter(
+            torch.empty(1, self.config.goal_context_tokens, width)
+        )
+        self.register_buffer(
+            "_thought_identity_codes",
+            deterministic_thought_identity_codes(
+                thoughtlets=self.config.thoughtlets,
+                width=width,
+            ),
+            persistent=False,
+        )
+        self.noise_projection = nn.Linear(width, width, bias=False)
+        self.seed_attention = ResidualCrossAttention(
+            width=width,
+            heads=self.config.attention_heads,
+        )
+        self.ingest_attention = ResidualCrossAttention(
+            width=width,
+            heads=self.config.attention_heads,
+        )
+        self.ingest_blend = ContinuousTimeBlend(width)
+
+        # This is intentionally one object. The forward loop calls it C times.
+        self.brain_cell = self._build_brain_cell(width=width)
+        self.actuator = DirectActuatorReadout(
+            width=width,
+            heads=self.config.attention_heads,
+            actuator=self.config.actuator,
+            plan_steps=plan_steps,
+        )
+        self.thought_predictions = ThoughtPredictionHead(
+            width=width,
+            actuator_queries=self.config.actuator.total_queries,
+        )
+        self.value_per_thought = nn.Linear(width, 1)
+        self._reset_parameters()
+
+    def _reset_parameters(self) -> None:
+        for parameter in (
+            self.initial_belief,
+            self.initial_working_memory,
+            self.initial_thought_registers,
+            self.initial_goal_context,
+        ):
+            nn.init.trunc_normal_(parameter, std=0.02)
+
+    @property
+    def actuator_queries(self) -> int:
+        return self.config.actuator.total_queries
+
+    def _resolve_thought_noise(
+        self,
+        *,
+        batch_size: int,
+        device: torch.device,
+        dtype: torch.dtype,
+        thought_noise: Tensor | None,
+    ) -> Tensor:
+        expected = (batch_size, self.config.thoughtlets, self.config.core_width)
+        if thought_noise is None:
+            return self._thought_identity_codes.to(device=device, dtype=dtype).unsqueeze(
+                0
+            ).expand(batch_size, -1, -1)
+        if tuple(thought_noise.shape) != expected:
+            raise ValueError(f"thought_noise must have shape {expected}")
+        return thought_noise.to(device=device, dtype=dtype)
+
+    def initial_state(
+        self,
+        batch_size: int,
+        *,
+        device: torch.device | str | None = None,
+        dtype: torch.dtype | None = None,
+        thought_noise: Tensor | None = None,
+    ) -> BrainState:
+        if isinstance(batch_size, bool) or not isinstance(batch_size, int) or batch_size < 1:
+            raise ValueError("batch_size must be a positive integer")
+        parameter = self.initial_belief
+        actual_device = parameter.device if device is None else torch.device(device)
+        actual_dtype = parameter.dtype if dtype is None else dtype
+        thought_noise = self._resolve_thought_noise(
+            batch_size=batch_size,
+            device=actual_device,
+            dtype=actual_dtype,
+            thought_noise=thought_noise,
+        )
+
+        thoughts = self.initial_thought_registers.to(
+            device=actual_device,
+            dtype=actual_dtype,
+        ).expand(
+            batch_size,
+            self.config.thoughtlets,
+            self.config.registers_per_thoughtlet,
+            self.config.core_width,
+        )
+        noise = self.noise_projection(thought_noise).unsqueeze(2)
+        return BrainState(
+            belief=self.initial_belief.to(device=actual_device, dtype=actual_dtype).expand(
+                batch_size, -1, -1
+            ),
+            working_memory=self.initial_working_memory.to(
+                device=actual_device,
+                dtype=actual_dtype,
+            ).expand(batch_size, -1, -1),
+            thoughts=thoughts + noise,
+            goal_context=self.initial_goal_context.to(
+                device=actual_device,
+                dtype=actual_dtype,
+            ).expand(batch_size, -1, -1),
+            thought_age_seconds=torch.zeros(
+                batch_size,
+                self.config.thoughtlets,
+                device=actual_device,
+                dtype=actual_dtype,
+            ),
+        )
+
+    def _validate_state(
+        self,
+        state: BrainState,
+        *,
+        batch: int,
+        device: torch.device,
+        dtype: torch.dtype,
+    ) -> None:
+        layout = self.config.state_layout(batch_size=batch)
+        expected = {
+            "belief": layout.belief.dimensions,
+            "working_memory": layout.working_memory.dimensions,
+            "thoughts": layout.thought_field.dimensions,
+            "goal_context": layout.goal_context.dimensions,
+            "thought_age_seconds": (batch, self.config.thoughtlets),
+        }
+        for name, shape in expected.items():
+            tensor = getattr(state, name)
+            if not isinstance(tensor, Tensor) or tuple(tensor.shape) != shape:
+                raise ValueError(f"state.{name} must have shape {shape}")
+            if tensor.device != device:
+                raise ValueError(f"state.{name} must be on {device}")
+            if tensor.dtype != dtype:
+                raise ValueError(f"state.{name} must use dtype {dtype}")
+
+    def _normalize_elapsed(self, elapsed_seconds: Tensor, *, batch: int, pixels: Tensor) -> Tensor:
+        if elapsed_seconds.ndim == 1:
+            elapsed_seconds = elapsed_seconds.unsqueeze(-1)
+        if tuple(elapsed_seconds.shape) != (batch, 1):
+            raise ValueError("elapsed_seconds must have shape [batch] or [batch, 1]")
+        elapsed_seconds = elapsed_seconds.to(device=pixels.device, dtype=pixels.dtype)
+        # Avoid a host/device synchronization in every accelerator training
+        # step. The tensorization pipeline owns this invariant on accelerators;
+        # eager CPU callers still receive a precise boundary error.
+        if elapsed_seconds.device.type == "cpu":
+            if not bool(torch.isfinite(elapsed_seconds).all()) or bool(
+                (elapsed_seconds < 0).any()
+            ):
+                raise ValueError("elapsed_seconds must be finite and nonnegative")
+        return elapsed_seconds
+
+    def _refresh_thoughts(
+        self,
+        *,
+        thoughts: Tensor,
+        sensors: Tensor,
+        belief: Tensor,
+        elapsed_seconds: Tensor,
+        thought_age_seconds: Tensor,
+        thought_noise: Tensor | None,
+    ) -> tuple[Tensor, Tensor, Tensor]:
+        batch, thoughtlets, registers, width = thoughts.shape
+        thought_noise = self._resolve_thought_noise(
+            batch_size=batch,
+            device=thoughts.device,
+            dtype=thoughts.dtype,
+            thought_noise=thought_noise,
+        )
+
+        seed_query = self.initial_thought_registers.to(dtype=thoughts.dtype).expand(
+            batch,
+            thoughtlets,
+            registers,
+            width,
+        ) + self.noise_projection(thought_noise).unsqueeze(2)
+        seed_context = torch.cat((sensors, belief), dim=1)
+        seed_context = (
+            seed_context.unsqueeze(1)
+            .expand(batch, thoughtlets, seed_context.shape[1], width)
+            .reshape(batch * thoughtlets, seed_context.shape[1], width)
+        )
+        seeds = self.seed_attention(
+            seed_query.reshape(batch * thoughtlets, registers, width),
+            seed_context,
+        ).reshape_as(thoughts)
+        lifecycle_logits = self.thought_predictions.lifecycle(thoughts.mean(dim=2))
+        expire_probability = torch.softmax(lifecycle_logits, dim=-1)[..., 2:3]
+        keep = 1.0 - expire_probability
+        refreshed = keep.unsqueeze(-1) * thoughts + (1.0 - keep.unsqueeze(-1)) * seeds
+        elapsed = elapsed_seconds.expand(batch, thoughtlets)
+        ages = torch.where(keep.squeeze(-1) >= 0.5, thought_age_seconds + elapsed, elapsed)
+        return refreshed, ages, expire_probability.squeeze(-1)
+
+    def forward(
+        self,
+        pixels: Tensor,
+        previous_control: Tensor,
+        elapsed_seconds: Tensor,
+        state: BrainState | None = None,
+        *,
+        max_cycles: int | None = None,
+        thought_noise: Tensor | None = None,
+        retrieved_memory: Tensor | None = None,
+    ) -> ModelOutput:
+        if pixels.ndim != 4:
+            raise ValueError("pixels must have shape [batch, 3, height, width]")
+        batch = pixels.shape[0]
+        if tuple(pixels.shape[-2:]) != self.input_resolution:
+            raise ValueError(f"pixels must use configured resolution {self.input_resolution}")
+        if tuple(previous_control.shape) != (batch, self.actuator_queries):
+            raise ValueError(
+                f"previous_control must have shape {(batch, self.actuator_queries)}"
+            )
+        if not pixels.is_floating_point() or not previous_control.is_floating_point():
+            raise ValueError("pixels and previous_control must be floating-point tensors")
+        if previous_control.device != pixels.device:
+            raise ValueError("pixels and previous_control must be on the same device")
+        if previous_control.dtype != pixels.dtype:
+            raise ValueError("pixels and previous_control must use the same dtype")
+        elapsed = self._normalize_elapsed(elapsed_seconds, batch=batch, pixels=pixels)
+
+        cycles = self.config.cognitive_cycles if max_cycles is None else max_cycles
+        if isinstance(cycles, bool) or not isinstance(cycles, int):
+            raise ValueError("max_cycles must be an integer")
+        if cycles < 0 or cycles > self.config.cognitive_cycles:
+            raise ValueError(
+                f"max_cycles must be between 0 and {self.config.cognitive_cycles}"
+            )
+
+        if state is None:
+            state = self.initial_state(
+                batch,
+                device=pixels.device,
+                dtype=pixels.dtype,
+                thought_noise=thought_noise,
+            )
+        self._validate_state(
+            state,
+            batch=batch,
+            device=pixels.device,
+            dtype=pixels.dtype,
+        )
+
+        sensors = self.pixel_encoder(pixels)
+        control_token = self.control_encoder(previous_control).unsqueeze(1)
+        time_input = torch.log1p(elapsed * 1_000.0)
+        time_token = self.time_encoder(time_input).unsqueeze(1)
+        action_time_tokens = torch.cat((control_token, time_token), dim=1)
+
+        ingest_context = torch.cat(
+            (sensors, action_time_tokens, state.belief, state.working_memory),
+            dim=1,
+        )
+        belief_proposal = self.ingest_attention(state.belief, ingest_context)
+        belief = self.ingest_blend(state.belief, belief_proposal, elapsed)
+        thoughts, thought_ages, applied_expire_probability = self._refresh_thoughts(
+            thoughts=state.thoughts,
+            sensors=sensors,
+            belief=belief,
+            elapsed_seconds=elapsed,
+            thought_age_seconds=state.thought_age_seconds,
+            thought_noise=thought_noise,
+        )
+        working_memory = state.working_memory
+        goal_context = state.goal_context
+
+        retrieval_shape = (
+            batch,
+            self.config.thoughtlets,
+            self.config.retrieved_entries_per_thoughtlet,
+            self.config.core_width,
+        )
+        if retrieved_memory is None:
+            retrieved_memory = pixels.new_zeros(retrieval_shape)
+        elif tuple(retrieved_memory.shape) != retrieval_shape:
+            raise ValueError(f"retrieved_memory must have shape {retrieval_shape}")
+        else:
+            retrieved_memory = retrieved_memory.to(device=pixels.device, dtype=pixels.dtype)
+
+        exits: list[ActionPrediction] = [
+            self.actuator(
+                sensors=sensors,
+                belief=belief,
+                thoughts=thoughts,
+                working_memory=working_memory,
+                retrieved_memory=retrieved_memory,
+                goal_context=goal_context,
+            )
+        ]
+        routing_indices: list[Tensor] = []
+        routing_weights: list[Tensor] = []
+        for cycle in range(cycles):
+            allow_routing, allow_workspace_writes = self._communication_policy(cycle)
+            belief, working_memory, thoughts, cycle_routing = self.brain_cell(
+                belief=belief,
+                working_memory=working_memory,
+                thoughts=thoughts,
+                sensors=sensors,
+                action_time_tokens=action_time_tokens,
+                goal_context=goal_context,
+                retrieved_memory=retrieved_memory,
+                elapsed_seconds=elapsed,
+                allow_routing=allow_routing,
+                allow_workspace_writes=allow_workspace_writes,
+            )
+            routing_indices.extend(routing.indices for routing in cycle_routing)
+            routing_weights.extend(routing.weights for routing in cycle_routing)
+            exits.append(
+                self.actuator(
+                    sensors=sensors,
+                    belief=belief,
+                    thoughts=thoughts,
+                    working_memory=working_memory,
+                    retrieved_memory=retrieved_memory,
+                    goal_context=goal_context,
+                )
+            )
+
+        next_state = BrainState(
+            belief=belief,
+            working_memory=working_memory,
+            thoughts=thoughts,
+            goal_context=goal_context,
+            thought_age_seconds=thought_ages,
+        )
+        world = self.thought_predictions(thoughts, sensors, belief)
+        summaries = thoughts.mean(dim=2)
+        normalized = F.normalize(summaries, dim=-1, eps=1e-6)
+        similarity = torch.matmul(normalized, normalized.transpose(-1, -2))
+        value = self.value_per_thought(summaries).mean(dim=1).squeeze(-1)
+        diagnostics = ModelDiagnostics(
+            routing_indices=tuple(routing_indices),
+            routing_weights=tuple(routing_weights),
+            thought_summaries=summaries,
+            thought_cosine_similarity=similarity,
+            actuator_thought_attention=exits[-1].thought_attention,
+            applied_expire_probability=applied_expire_probability,
+            cycles_completed=cycles,
+        )
+        return ModelOutput(
+            action=exits[-1],
+            anytime_actions=tuple(exits),
+            value=value,
+            world=world,
+            next_state=next_state,
+            diagnostics=diagnostics,
+        )
+
+
+__all__ = [
+    "ActionPrediction",
+    "BrainState",
+    "deterministic_thought_identity_codes",
+    "IreneBrainModel",
+    "ModelDiagnostics",
+    "ModelOutput",
+    "ThoughtPredictions",
+]

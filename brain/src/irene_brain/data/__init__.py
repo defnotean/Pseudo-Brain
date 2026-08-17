@@ -1,0 +1,46 @@
+"""Canonical lifetime records, deterministic replay, and branch rollouts."""
+
+from .branching import evaluate_branches
+from .moving_shapes_dataset import (
+    DatasetSplit,
+    MovingShapesDatasetConfig,
+    MovingShapesSequence,
+    MovingShapesSequenceDataset,
+    MovingShapesTransition,
+    dataset_manifest_sha256,
+    split_episode_seed,
+    split_for_episode_seed,
+)
+from .records import BranchRecord, LifetimeRecord, SensorStorageLocator, StepRecord
+from .replay import ReplayMismatch, ReplayStep, ReplayTrace, record_trace, verify_trace
+from .splits import (
+    SplitIntegrityError,
+    SplitLeakage,
+    audit_split_integrity,
+    require_split_integrity,
+)
+
+__all__ = [
+    "BranchRecord",
+    "DatasetSplit",
+    "LifetimeRecord",
+    "MovingShapesDatasetConfig",
+    "MovingShapesSequence",
+    "MovingShapesSequenceDataset",
+    "MovingShapesTransition",
+    "ReplayMismatch",
+    "ReplayStep",
+    "ReplayTrace",
+    "SensorStorageLocator",
+    "SplitIntegrityError",
+    "SplitLeakage",
+    "StepRecord",
+    "audit_split_integrity",
+    "dataset_manifest_sha256",
+    "evaluate_branches",
+    "record_trace",
+    "require_split_integrity",
+    "split_episode_seed",
+    "split_for_episode_seed",
+    "verify_trace",
+]

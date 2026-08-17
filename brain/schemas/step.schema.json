@@ -1,0 +1,152 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://irene.local/schemas/step.schema.json",
+  "title": "Pseudo-Brain lifetime step record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "lifetime_id",
+    "episode_id",
+    "step",
+    "environment_tick",
+    "frame_id",
+    "capture_time_qpc",
+    "observation_ready_qpc",
+    "action_requested_qpc",
+    "action_applied_qpc",
+    "rgb_ref",
+    "audio_ref",
+    "requested_control",
+    "applied_control",
+    "reward_raw",
+    "events",
+    "terminated",
+    "truncated",
+    "dropped_frames",
+    "snapshot_hash",
+    "privileged_state_ref"
+  ],
+  "$defs": {
+    "control": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "keys_down",
+        "mouse_dx",
+        "mouse_dy",
+        "mouse_buttons",
+        "mouse_wheel",
+        "gamepad_axes",
+        "gamepad_buttons",
+        "impulse_sequence",
+        "intended_hold_ns"
+      ],
+      "properties": {
+        "keys_down": {
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 256,
+          "items": { "type": "integer", "minimum": 0, "maximum": 255 }
+        },
+        "mouse_dx": { "type": "number" },
+        "mouse_dy": { "type": "number" },
+        "mouse_buttons": {
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 8,
+          "items": { "type": "integer", "minimum": 0, "maximum": 7 }
+        },
+        "mouse_wheel": { "type": "number" },
+        "gamepad_axes": {
+          "type": "array",
+          "maxItems": 8,
+          "oneOf": [
+            { "maxItems": 0 },
+            { "minItems": 8 }
+          ],
+          "items": { "type": "number", "minimum": -1, "maximum": 1 }
+        },
+        "gamepad_buttons": {
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 32,
+          "items": { "type": "integer", "minimum": 0, "maximum": 31 }
+        },
+        "impulse_sequence": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615
+        },
+        "intended_hold_ns": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "anyOf": [
+              { "properties": { "mouse_dx": { "not": { "const": 0 } } } },
+              { "properties": { "mouse_dy": { "not": { "const": 0 } } } },
+              { "properties": { "mouse_wheel": { "not": { "const": 0 } } } }
+            ]
+          },
+          "then": {
+            "properties": {
+              "impulse_sequence": { "minimum": 1 }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "properties": {
+    "lifetime_id": { "type": "string", "minLength": 1 },
+    "episode_id": { "type": "string", "minLength": 1 },
+    "step": { "type": "integer", "minimum": 0, "maximum": 18446744073709551615 },
+    "environment_tick": { "type": "integer", "minimum": 0, "maximum": 18446744073709551615 },
+    "frame_id": { "type": "integer", "minimum": 0, "maximum": 18446744073709551615 },
+    "capture_time_qpc": { "type": "integer", "minimum": 0, "maximum": 18446744073709551615 },
+    "observation_ready_qpc": { "type": "integer", "minimum": 0, "maximum": 18446744073709551615 },
+    "action_requested_qpc": { "type": "integer", "minimum": 0, "maximum": 18446744073709551615 },
+    "action_applied_qpc": { "type": "integer", "minimum": 0, "maximum": 18446744073709551615 },
+    "rgb_ref": { "type": "string", "minLength": 1 },
+    "audio_ref": { "type": ["string", "null"], "minLength": 1 },
+    "requested_control": {
+      "$ref": "#/$defs/control",
+      "x-irene-visibility": "action-label"
+    },
+    "applied_control": {
+      "$ref": "#/$defs/control",
+      "x-irene-visibility": "action-label"
+    },
+    "reward_raw": {
+      "type": "number",
+      "x-irene-visibility": "privileged-target"
+    },
+    "events": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "x-irene-visibility": "privileged-target"
+    },
+    "terminated": { "type": "boolean" },
+    "truncated": { "type": "boolean" },
+    "dropped_frames": { "type": "integer", "minimum": 0, "maximum": 18446744073709551615 },
+    "snapshot_hash": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9a-f]{64}$",
+      "x-irene-visibility": "privileged-target"
+    },
+    "privileged_state_ref": {
+      "type": ["string", "null"],
+      "minLength": 1,
+      "x-irene-visibility": "privileged-target"
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Explicit namespace for forward-compatible annotations.",
+      "x-irene-visibility": "non-model"
+    }
+  }
+}

@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://irene.local/schemas/lifetime.schema.json",
+  "title": "Pseudo-Brain lifetime manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "lifetime_id",
+    "world_lineage_id",
+    "environment_family",
+    "environment_build_sha256",
+    "container_digest",
+    "generator_config",
+    "seed_vector",
+    "control_mapping_hash",
+    "qpc_frequency_hz",
+    "graphics_config",
+    "source_type",
+    "source_session_id",
+    "license_record_id",
+    "split"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": { "source_type": { "const": "human" } },
+        "required": ["source_type"]
+      },
+      "then": {
+        "required": ["player_pseudonym"],
+        "properties": {
+          "player_pseudonym": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  ],
+  "properties": {
+    "lifetime_id": { "type": "string", "minLength": 1 },
+    "world_lineage_id": { "type": "string", "minLength": 1 },
+    "environment_family": { "type": "string", "minLength": 1 },
+    "environment_build_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "container_digest": { "type": "string", "minLength": 1 },
+    "generator_config": {
+      "type": "object",
+      "x-irene-visibility": "manifest-only"
+    },
+    "seed_vector": {
+      "type": "object",
+      "x-irene-visibility": "manifest-only"
+    },
+    "control_mapping_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "x-irene-visibility": "manifest-only"
+    },
+    "qpc_frequency_hz": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 18446744073709551615,
+      "x-irene-visibility": "timing-metadata"
+    },
+    "graphics_config": {
+      "type": "object",
+      "x-irene-visibility": "manifest-only"
+    },
+    "source_type": {
+      "type": "string",
+      "enum": ["human", "self_play", "branch"]
+    },
+    "source_session_id": {
+      "type": "string",
+      "minLength": 1,
+      "x-irene-visibility": "manifest-only"
+    },
+    "player_pseudonym": {
+      "type": ["string", "null"],
+      "minLength": 1,
+      "x-irene-visibility": "manifest-only"
+    },
+    "ancestor_lifetime_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "x-irene-visibility": "manifest-only"
+    },
+    "license_record_id": { "type": "string", "minLength": 1 },
+    "split": {
+      "type": "string",
+      "enum": ["train", "validation", "test"]
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Explicit namespace for forward-compatible annotations.",
+      "x-irene-visibility": "manifest-only"
+    }
+  }
+}

@@ -1,0 +1,257 @@
+{
+  "claim_boundary": "This manifest records architecture and resource controls only; it does not establish independent thoughts, causal specialization, superiority, or human-like cognition.",
+  "fairness_regimes": {
+    "measured_latency_or_flop_matched": {
+      "comparison_variant_ids": [
+        "irene.monolithic_gru.same_width.v1"
+      ],
+      "matching_variables": [
+        "cognitive_cycles"
+      ],
+      "maximum_latency_delta_fraction": 0.05,
+      "required_measurements": [
+        "device_fingerprint",
+        "median_end_to_end_latency_ns",
+        "p95_end_to_end_latency_ns",
+        "measured_or_profiled_flops_per_decision",
+        "peak_accelerator_memory_bytes"
+      ],
+      "status": "hardware_calibration_required_before_training",
+      "verified": false
+    },
+    "parameter_matched": {
+      "comparison_variant_ids": [
+        "irene.thought_field.isolated_slots.v1",
+        "irene.monolithic_gru.parameter_matched.v1"
+      ],
+      "fixed_controls": [
+        "dataset_bytes_and_order",
+        "optimizer_and_schedule",
+        "objective",
+        "optimizer_steps",
+        "precision",
+        "seed_set"
+      ],
+      "maximum_allocated_trainable_parameter_delta_fraction": 0.01,
+      "verified": true
+    }
+  },
+  "implementation": {
+    "source_bundle_sha256": "a7313109b6f99cbe57e5d23cef6e6444a224d348597e73e82da9f71c4a7e8448",
+    "source_files": {
+      "src/irene_brain/model/actuator.py": "2a213cfaf28ba89eb9b7ec09ac37d16ee247ef7a636a0c65dd8e962b45938a59",
+      "src/irene_brain/model/baselines.py": "6bde876c3aed6b4503794b942aedac017ab0dd32b7bb334206c5bfeb2231e964",
+      "src/irene_brain/model/brain_cell.py": "efa862895d2ff1c2a2752d0657d664529329433fcaf9b2078e95a5424622e136",
+      "src/irene_brain/model/sensory.py": "bd7ae52907076f9eb19b9fa24a8ddc85abffb9cfee9577ee6a8af11898330dca",
+      "src/irene_brain/model/spec.py": "9a36c72477f99797f9240c52791f1be93aa7c5962aa2d59a52bd730eef4048a3",
+      "src/irene_brain/model/torch_model.py": "47e8c7af1e27d2f044448d7cdab3ef1cd0f067a91f67e305c0359525b92de6e1",
+      "src/irene_brain/training/factory.py": "6f15579f8928459ff5379b92a45ef068183e7e6ef81b66d0580482ee0e8eb42f",
+      "src/irene_brain/training/objective.py": "b4bbc738ad9315c8a29e6e3257adab0cd60c2b9a7b436debefd5421aee3ab42f"
+    }
+  },
+  "manifest_sha256": "52bba6a9b723dda51da18d2842c5eaf360453db011e7f97bbb066e4034905421",
+  "reference_variant_id": "irene.thought_field.routed.v1",
+  "schema_version": 1,
+  "variants": [
+    {
+      "absolute_trainable_parameter_delta_fraction": 0.0010250614689779898,
+      "allocated_parameters": {
+        "architecturally_connected_trainable": 29643900,
+        "architecturally_disconnected_trainable": 0,
+        "total": 29643900,
+        "trainable": 29643900
+      },
+      "identity": {
+        "latent_topology": "single_widened_gru_latent",
+        "limitations": [
+          "Width is selected before training by nearest allocated trainable parameter count.",
+          "Equal parameter count does not imply equal FLOPs, memory traffic, or latency."
+        ],
+        "matching_role": "nearest_width_parameter_control",
+        "peer_routing": false,
+        "pooled_recurrent_input": true,
+        "schema_version": 1,
+        "thought_workspace_writes": true,
+        "variant_id": "irene.monolithic_gru.parameter_matched.v1"
+      },
+      "model_class": "irene_brain.model.baselines.ParameterMatchedMonolithicBaseline",
+      "model_factory": "irene_brain.training.factory:build_thesis_parameter_matched_monolithic_model",
+      "persistent_state": {
+        "batch_size": 1,
+        "bytes": 57816,
+        "bytes_per_element": 2,
+        "elements": 28908,
+        "thought_elements": 396
+      },
+      "shape_controls": {
+        "aggregate_retrieved_tokens": 64,
+        "attention_heads": 6,
+        "brain_cell_blocks": 4,
+        "cognitive_cycles": 3,
+        "core_width": 396,
+        "registers_per_thoughtlet": 1,
+        "retrieved_entries_per_thoughtlet": 64,
+        "routed_neighbors": 0,
+        "thoughtlets": 1
+      },
+      "trainable_parameter_delta_from_reference": -30418,
+      "training_recipe": {
+        "canonical_config_sha256": "55b0c0908029868ca5db7854db456d88eb8fccd73c250c752252bf8f236b4f0e",
+        "path": "configs/training/baseline-stagea-monolithic-parameter-matched.toml",
+        "raw_sha256": "4b01d28e25eff71fd115055594ebe3c26bc51ee26bcee1f59fa6d52ecaac141a"
+      },
+      "variant_id": "irene.monolithic_gru.parameter_matched.v1",
+      "variant_identity_sha256": "f8022dbca00ce90b68a79ef8995d7a35182450aa459ee1b429461788ee877659"
+    },
+    {
+      "absolute_trainable_parameter_delta_fraction": 0.0601216176223494,
+      "allocated_parameters": {
+        "architecturally_connected_trainable": 27890250,
+        "architecturally_disconnected_trainable": 0,
+        "total": 27890250,
+        "trainable": 27890250
+      },
+      "identity": {
+        "latent_topology": "single_gru_latent",
+        "limitations": [
+          "This is a conventional pooled GRU control, not every possible monolithic recurrent design.",
+          "Its result cannot isolate parameter count until a capacity-matched width is selected."
+        ],
+        "matching_role": "measured_latency_or_flop_control",
+        "peer_routing": false,
+        "pooled_recurrent_input": true,
+        "schema_version": 1,
+        "thought_workspace_writes": true,
+        "variant_id": "irene.monolithic_gru.same_width.v1"
+      },
+      "model_class": "irene_brain.model.baselines.MonolithicRecurrentBaseline",
+      "model_factory": "irene_brain.training.factory:build_thesis_monolithic_model",
+      "persistent_state": {
+        "batch_size": 1,
+        "bytes": 56064,
+        "bytes_per_element": 2,
+        "elements": 28032,
+        "thought_elements": 384
+      },
+      "shape_controls": {
+        "aggregate_retrieved_tokens": 64,
+        "attention_heads": 8,
+        "brain_cell_blocks": 4,
+        "cognitive_cycles": 3,
+        "core_width": 384,
+        "registers_per_thoughtlet": 1,
+        "retrieved_entries_per_thoughtlet": 64,
+        "routed_neighbors": 0,
+        "thoughtlets": 1
+      },
+      "trainable_parameter_delta_from_reference": -1784068,
+      "training_recipe": {
+        "canonical_config_sha256": "6060b0026a48598264dfd77e72dd4cab59852f0101649b86fe551edc84615f6c",
+        "path": "configs/training/baseline-stagea-monolithic-same-width.toml",
+        "raw_sha256": "f42b918bb71e756e327ad2a2a67ca4cb86a898a4bae87c5896148c008465523d"
+      },
+      "variant_id": "irene.monolithic_gru.same_width.v1",
+      "variant_identity_sha256": "d41bb7853e888f17704df22fa82322ad1dd86b61caf1d46c31eb64fd8c835434"
+    },
+    {
+      "absolute_trainable_parameter_delta_fraction": 0.0,
+      "allocated_parameters": {
+        "architecturally_connected_trainable": 27903306,
+        "architecturally_disconnected_trainable": 1771012,
+        "total": 29674318,
+        "trainable": 29674318
+      },
+      "identity": {
+        "latent_topology": "32_factorized_slots_x_3_registers",
+        "limitations": [
+          "Routing and utility parameters remain allocated but are disconnected.",
+          "Actuator queries still read every slot because action readout is not peer communication."
+        ],
+        "matching_role": "exact_allocated_parameter_ablation",
+        "peer_routing": false,
+        "pooled_recurrent_input": false,
+        "schema_version": 1,
+        "thought_workspace_writes": false,
+        "variant_id": "irene.thought_field.isolated_slots.v1"
+      },
+      "model_class": "irene_brain.model.baselines.NoCommunicationSlotBaseline",
+      "model_factory": "irene_brain.training.factory:build_thesis_no_communication_model",
+      "persistent_state": {
+        "batch_size": 1,
+        "bytes": 129024,
+        "bytes_per_element": 2,
+        "elements": 64512,
+        "thought_elements": 36864
+      },
+      "shape_controls": {
+        "aggregate_retrieved_tokens": 64,
+        "attention_heads": 8,
+        "brain_cell_blocks": 4,
+        "cognitive_cycles": 3,
+        "core_width": 384,
+        "registers_per_thoughtlet": 3,
+        "retrieved_entries_per_thoughtlet": 2,
+        "routed_neighbors": 2,
+        "thoughtlets": 32
+      },
+      "trainable_parameter_delta_from_reference": 0,
+      "training_recipe": {
+        "canonical_config_sha256": "9ca4c3cc23a77fd2f28cdd38afd2ee3be673e909a6d9753fb8e8a572420e5161",
+        "path": "configs/training/baseline-stagea-no-communication.toml",
+        "raw_sha256": "1fb17c78ff38209d8a5ad05a0c9d7e4227c4cd44aad654c03015a229f3cc1e3e"
+      },
+      "variant_id": "irene.thought_field.isolated_slots.v1",
+      "variant_identity_sha256": "4f56abaee97c73c6660367418fb3440d44a54f8bb1c7cfe3e7d05e1a1c439600"
+    },
+    {
+      "absolute_trainable_parameter_delta_fraction": 0.0,
+      "allocated_parameters": {
+        "architecturally_connected_trainable": 29674318,
+        "architecturally_disconnected_trainable": 0,
+        "total": 29674318,
+        "trainable": 29674318
+      },
+      "identity": {
+        "latent_topology": "32_factorized_slots_x_3_registers",
+        "limitations": [
+          "Slot geometry alone does not establish distinct or causal thoughts.",
+          "The candidate must pass intervention and matched-control evaluations."
+        ],
+        "matching_role": "reference",
+        "peer_routing": true,
+        "pooled_recurrent_input": false,
+        "schema_version": 1,
+        "thought_workspace_writes": true,
+        "variant_id": "irene.thought_field.routed.v1"
+      },
+      "model_class": "irene_brain.model.torch_model.IreneBrainModel",
+      "model_factory": "irene_brain.training.factory:build_thesis_model",
+      "persistent_state": {
+        "batch_size": 1,
+        "bytes": 129024,
+        "bytes_per_element": 2,
+        "elements": 64512,
+        "thought_elements": 36864
+      },
+      "shape_controls": {
+        "aggregate_retrieved_tokens": 64,
+        "attention_heads": 8,
+        "brain_cell_blocks": 4,
+        "cognitive_cycles": 3,
+        "core_width": 384,
+        "registers_per_thoughtlet": 3,
+        "retrieved_entries_per_thoughtlet": 2,
+        "routed_neighbors": 2,
+        "thoughtlets": 32
+      },
+      "trainable_parameter_delta_from_reference": 0,
+      "training_recipe": {
+        "canonical_config_sha256": "8e8e4cc12123f55ee22aace1d65517dbb7586465bbf704c77cc7fe45bb3fc1f9",
+        "path": "configs/training/dgx-stagea-continuation-gate-b.toml",
+        "raw_sha256": "f013e3e14dfb854da1131aa726dd141bbe22e5766db8a48ed7cdb1aff6b9a6bf"
+      },
+      "variant_id": "irene.thought_field.routed.v1",
+      "variant_identity_sha256": "dedb079de66dda87fe40fdfefc101b9b788facc278121faa97d6d2e08cbc845e"
+    }
+  ]
+}
