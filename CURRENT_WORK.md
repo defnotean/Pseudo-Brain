@@ -119,6 +119,9 @@ Read in this order unless you already know the file you need:
    architecture-comparison rules, not the current qualification.
 7. [brain/docs/PLAY_SAFE.md](brain/docs/PLAY_SAFE.md) — local safety policy.
 8. [brain/PLAN.md](brain/PLAN.md) — long-term architecture blueprint.
+9. [brain/docs/ROADMAP_TO_PACMAN.md](brain/docs/ROADMAP_TO_PACMAN.md) — the path
+   from the failed RCQ-v2 to a 60 Hz Pac-Man-like arcade proof, including the
+   RCQ-v3 redesign decisions that need owner sign-off before any new training.
 
 Historical Stage A DGX records are under `brain/docs/runs/`. They document
 valid failures. Do not treat them as a green light to scale.
