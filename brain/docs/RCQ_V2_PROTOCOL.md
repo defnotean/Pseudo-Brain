@@ -5,9 +5,10 @@ registration is published at `registrations/rcq-v2-reference-v2.json` with
 SHA-256
 `6cc98739c78499a990a4b3480524c48dd49243c1e3c63094977a9a917df49690`.
 Historical `registrations/rcq-v2-reference-v1.json` remains
-`33f7900c1d71b5e363de5a6b7ca921120f486b315241384d906d209a5e02fce0`. No
-qualification run or final TEST has been launched. If source or configuration
-changes after the live pin, make a new release and a new registration instead.
+`33f7900c1d71b5e363de5a6b7ca921120f486b315241384d906d209a5e02fce0`. The live
+2,048-update reference is running. Final TEST has not been launched. If source
+or configuration changes after the live pin, make a new release and a new
+registration instead.
 
 If you are executing the campaign rather than auditing thresholds, start with
 [CURRENT_WORK.md](../../CURRENT_WORK.md) and

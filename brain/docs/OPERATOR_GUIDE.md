@@ -249,6 +249,8 @@ namespace.
   campaign. Do not start the 2,048-update reference. The 2026-08-16 canary is
   that case:
   [runs/2026-08-16-rcq-v2-smoke-pass-canary-invariance-fail.md](./runs/2026-08-16-rcq-v2-smoke-pass-canary-invariance-fail.md).
+  Live v2 canary passed after the capture fix:
+  [runs/2026-08-16-rcq-v2-reference-v2-smoke-canary-train.md](./runs/2026-08-16-rcq-v2-reference-v2-smoke-canary-train.md).
   Diagnosis: CUDA kernel selection follows the `requires_grad` freeze mask.
   [runs/2026-08-16-rcq-v2-canary-invariance-diagnosis.md](./runs/2026-08-16-rcq-v2-canary-invariance-diagnosis.md).
   Bounded probes: `brain/scripts/diagnose_rcq_stage_invariance.py`.

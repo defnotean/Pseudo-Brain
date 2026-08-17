@@ -83,5 +83,7 @@ no value aggregates from sealed ranges.
   `qualification-pins/rcq-v2-reference-v2/`.
 - The first v2 pin is unused. See
   [2026-08-16-rcq-v2-reference-v2-unused-pin-discard.md](./2026-08-16-rcq-v2-reference-v2-unused-pin-discard.md).
+- Live follow-up: smoke and canary passed, reference train started.
+  [2026-08-16-rcq-v2-reference-v2-smoke-canary-train.md](./2026-08-16-rcq-v2-reference-v2-smoke-canary-train.md).
 
 Next operator step: [OPERATOR_GUIDE.md](../OPERATOR_GUIDE.md) step 3.

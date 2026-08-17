@@ -32,9 +32,9 @@ action, and not an architecture-superiority claim.
 | 2 | Freeze implementation source and regenerate the matched-baseline architecture manifest | Done. Live digest `30d4c119…`. Historical campaign pin `52bba6a9…` unchanged. |
 | 3 | Run local CPU-only tests, including the regenerated manifest identity | Done. 299 tests passed, one expected POSIX skip. |
 | 4 | Build the create-once, target-blind RCQ-v2 registration and record its SHA-256 | Live v2 `6cc98739c78499a990a4b3480524c48dd49243c1e3c63094977a9a917df49690`. Historical v1 `33f7900c…` preserved. Copy the live digest off-repo. |
-| 5 | DGX preflight and immutable release sync | Next for the live v2 tree. Historical release `r20260817t013858z-db1f586ef3a0` stays unused for training. |
-| 6 | Trusted pretraining pin, then RCQ smoke, then staging canary | Next after a new v2 sync. First v2 pin `2847e786…` is unused: smoke died because historical v1 JSON is not in the live release. |
-| 7 | Pinned 2,048-update reference train on seed 1702 | Only if live v2 smoke and canary both pass. |
+| 5 | DGX preflight and immutable release sync | Done for live release `r20260817t021531z-7a2967ebec60`. Historical v1 release stays unused for training. |
+| 6 | Trusted pretraining pin, then RCQ smoke, then staging canary | Done on pin `adf79ccc…`. Smoke and canary both passed. First v2 pin `2847e786…` is unused. |
+| 7 | Pinned 2,048-update reference train on seed 1702 | Running detached as `dgx-rcq-v2-reference-seed-1702`. Entry gate is step 1,536. |
 | 8 | Newly named qualification after the invariance capture fix | Done. Live file `registrations/rcq-v2-reference-v2.json`. Do not edit v1. |
 | 9 | Preclaim, independent review, final authorization, one-shot TEST | Only after this qualification's development gates pass |
 

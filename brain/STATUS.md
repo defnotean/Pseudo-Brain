@@ -4,9 +4,8 @@ Updated: 2026-08-16
 
 ## Current campaign: RCQ-v2
 
-Status: live qualification is `rcq_v2_reference_v2`. Historical v1 Spark pin
-passed smoke and failed the staging canary (CUDA `requires_grad` kernel
-selection, not a model result). The capture fix is in the live source tree.
+Status: live qualification is `rcq_v2_reference_v2`. Smoke and staging canary
+passed on pin `adf79ccc…`. The 2,048-update reference is running detached.
 No final TEST has been launched.
 
 RCQ-v2 asks whether the existing single model can learn a state-conditioned
@@ -40,6 +39,10 @@ test required git-only `registrations/rcq-v2-reference-v1.json`. CUDA backward
 passed. Record:
 [docs/runs/2026-08-16-rcq-v2-reference-v2-unused-pin-discard.md](./docs/runs/2026-08-16-rcq-v2-reference-v2-unused-pin-discard.md).
 Keep the live registration SHA. Do not rebuild it.
+
+Live v2 pin `adf79ccc…` (release `r20260817t021531z-7a2967ebec60`) passed
+smoke and the staging canary. The 2,048-update reference is running. Record:
+[docs/runs/2026-08-16-rcq-v2-reference-v2-smoke-canary-train.md](./docs/runs/2026-08-16-rcq-v2-reference-v2-smoke-canary-train.md).
 
 The third historical-v1 pin (`dbcb6afc…`, release `r20260817t013858z-db1f586ef3a0`) passed
 smoke and failed the staging canary. Diagnosis:
