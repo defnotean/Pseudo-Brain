@@ -20,6 +20,15 @@ class DgxLaunchContractTests(unittest.TestCase):
         cls.common = (cls.script_root / "Dgx.Common.ps1").read_text(encoding="utf-8")
         cls.remote = (cls.script_root / "_remote_dispatch.sh").read_text(encoding="utf-8")
 
+    def _copy_writable_irene_brain(self, destination: Path) -> None:
+        shutil.copytree(
+            self.brain_root / "src" / "irene_brain",
+            destination,
+            ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
+        )
+        for path in destination.rglob("*"):
+            path.chmod(0o700 if path.is_dir() else 0o600)
+
     def test_ssh_is_noninteractive_strict_and_remote_only(self) -> None:
         self.assertIn("BatchMode=yes", self.common)
         self.assertIn("StrictHostKeyChecking=yes", self.common)
@@ -641,11 +650,7 @@ fi
         )
         self.addCleanup(release_temporary.cleanup)
         release_root = Path(release_temporary.name)
-        shutil.copytree(
-            self.brain_root / "src" / "irene_brain",
-            release_root / "brain" / "src" / "irene_brain",
-            ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
-        )
+        self._copy_writable_irene_brain(release_root / "brain" / "src" / "irene_brain")
         release = self._git_bash_path(release_root)
 
         def metrics(*, value_loss: float, passing_action: bool) -> dict[str, float]:
@@ -784,13 +789,10 @@ fi
             prefix="dgx-legacy-transition-evaluator-"
         ) as temporary:
             legacy_release = Path(temporary)
-            legacy_package = legacy_release / "brain" / "src" / "irene_brain"
-            shutil.copytree(
-                self.brain_root / "src" / "irene_brain",
-                legacy_package,
-                ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
+            self._copy_writable_irene_brain(
+                legacy_release / "brain" / "src" / "irene_brain"
             )
-            legacy_evaluator = legacy_package / "evaluation" / "rcq_v2.py"
+            legacy_evaluator = legacy_release / "brain" / "src" / "irene_brain" / "evaluation" / "rcq_v2.py"
             source = legacy_evaluator.read_text(encoding="utf-8")
             old_definition = "def evaluate_rcq_v2_value_development("
             self.assertEqual(source.count(old_definition), 1)

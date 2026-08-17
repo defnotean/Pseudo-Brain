@@ -32,8 +32,8 @@ action, and not an architecture-superiority claim.
 | 2 | Freeze implementation source and regenerate the matched-baseline architecture manifest | Done. Live digest `30d4c119…`. Historical campaign pin `52bba6a9…` unchanged. |
 | 3 | Run local CPU-only tests, including the regenerated manifest identity | Done. 294 tests passed, one expected POSIX skip. |
 | 4 | Build the create-once, target-blind RCQ-v2 registration and record its SHA-256 | Done. `33f7900c1d71b5e363de5a6b7ca921120f486b315241384d906d209a5e02fce0`. Copy that digest off-repo. |
-| 5 | DGX preflight and immutable release sync | Next |
-| 6 | Trusted pretraining pin, then RCQ smoke, then staging canary | After sync |
+| 5 | DGX preflight and immutable release sync | First sync `r20260817t012309z-c07f1a23ca35` is historical only. Re-sync after the launcher-test fix. |
+| 6 | Trusted pretraining pin, then RCQ smoke, then staging canary | Unused pin `cee1cb76…` discarded; smoke never receipted. New pin required. |
 | 7 | Pinned 2,048-update reference train on seed 1702 | Only if smoke and canary pass |
 | 8 | Preclaim, independent review, final authorization, one-shot TEST | Only if both development gates pass |
 

@@ -51,8 +51,11 @@ Do this on the Windows workstation. Do not use the local GPU.
 5. Commit and push the frozen source, configuration, documentation, and
    manifest **before** creating the registration. After the registration SHA
    exists, do not edit `brain/src`, the RCQ training TOML, or the registration
-   file. If a later smoke or canary forces a source change, discard that
-   registration/release pair and start a new freeze.
+   file. If a later smoke or canary forces a **source** change, discard that
+   registration/release pair and start a new freeze. A launcher-test-only fix
+   that leaves `source_tree_sha256` unchanged still needs a new immutable
+   release and a new pretraining pin; empty the unused create-only pin
+   directory first, and do not rebuild the registration.
 
 ## Step 2. Create the target-blind registration
 
@@ -232,6 +235,11 @@ namespace.
   old `[1048576, 1049088)` band is already dead for that reason.
 - **Continuing after a failed frozen gate.** Diagnose or preregister a new
   experiment. Do not treat a failed candidate as a warm start.
+- **Smoke dies writing onto a copied immutable release.** Isolated tests run
+  from a `chmod a-w` tree. Copies used for mutation must be made writable
+  after copy; do not chmod the installed release. If smoke never receipted,
+  discard the unused pin and sync a new release. The 2026-08-16 first pin is
+  that case: [runs/2026-08-16-rcq-v2-unused-pretraining-pin-discard.md](./runs/2026-08-16-rcq-v2-unused-pretraining-pin-discard.md).
 
 ## What to copy down at each gate
 

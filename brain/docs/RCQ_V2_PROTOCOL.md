@@ -223,8 +223,11 @@ immutable release, and the evaluator requires the resulting fixed container
 path `/workspace/repo/registrations/rcq-v2-reference-v1.json`. Do not generate
 the registration inside an already installed read-only release. Do not edit
 source, configuration, or registration after its SHA is pinned; if smoke or
-canary work requires a change, discard that registration/release pair and begin
-again with a new immutable release.
+canary work requires a source or config change, discard that
+registration/release pair and begin again with a new immutable release. A
+launcher-test-only change that does not alter `source_tree_sha256` still
+requires a new immutable release and a new create-only pretraining pin. Discard
+the unused pin if smoke never completed; do not rebuild the registration.
 
 ## DGX run order
 

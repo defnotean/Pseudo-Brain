@@ -4,8 +4,9 @@ Updated: 2026-08-16
 
 ## Current campaign: RCQ-v2
 
-Status: target-blind registration published; DGX preflight and sync are next.
-No qualification run or final TEST has been launched.
+Status: target-blind registration published and kept. The first Spark
+pretraining pin was discarded after pin-bound smoke failed on a launcher-test
+bug. No qualification run or final TEST has been launched.
 
 RCQ-v2 asks whether the existing single model can learn a state-conditioned
 W/A/S/D policy and a useful value estimate on synthetic moving-shapes, for one
@@ -23,6 +24,15 @@ Create-once registration:
 Keep a copy of that SHA-256 outside this repository. Do not edit the
 registration file. If source or the RCQ training config changes, start a new
 qualification instead.
+
+The first Spark pin (`cee1cb7676e2eae00c58236b8eda2e00d3495bb20b212c8ff62ca4c90ec1333b`,
+release `r20260817t012309z-c07f1a23ca35`) is unused. Isolated smoke died in
+`test_resume_preflight_refuses_terminal_failed_stage_gates` while writing onto a
+mode-`444` copy of the immutable release. CUDA backward had already passed.
+Record: [docs/runs/2026-08-16-rcq-v2-unused-pretraining-pin-discard.md](./docs/runs/2026-08-16-rcq-v2-unused-pretraining-pin-discard.md).
+A launcher-test-only fix does not change `source_tree_sha256` and does not
+rebuild the registration. It still requires a new immutable release and a new
+create-only pin.
 
 The matched-baseline architecture manifest at
 `configs/baseline-architecture-manifest.json` was regenerated as an intentional
