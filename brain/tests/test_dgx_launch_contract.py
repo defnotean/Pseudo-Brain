@@ -239,6 +239,11 @@ fi
             with self.subTest(required=required):
                 self.assertIn(required, self.remote + self.common)
         self.assertNotIn("-p --noprofile", self.remote + self.common)
+        self.assertNotRegex(
+            self.remote,
+            r"<<'PY' \|\|\r?\n\s+fail ",
+            "a bash fail after a heredoc starter is swallowed as Python source",
+        )
         self.assertNotIn("#!/usr/bin/env bash", self.remote)
         self.assertNotIn('"$image_id" -lc "$container_script"', self.remote)
 

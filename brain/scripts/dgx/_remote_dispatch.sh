@@ -1808,8 +1808,7 @@ PY
         "$registration" "$pin_dir" "$RCQ_PRETRAINING_PIN_FILENAME" \
         "$release_id" "$expected_archive_sha" "$expected_registration_sha" \
         "$actual_config_sha" "$image_reference" "$expected_image_id" \
-        "$marker_sha" "$created_utc" <<'PY' ||
-        fail pretraining_pin_publish_failed 'could not publish the create-only RCQ-v2 pretraining pin'
+        "$marker_sha" "$created_utc" <<'PY' || fail pretraining_pin_publish_failed 'could not publish the create-only RCQ-v2 pretraining pin'
 from __future__ import annotations
 
 from hashlib import sha256
@@ -1985,8 +1984,7 @@ finally:
 PY
 
     chmod 400 -- "$pin_path" || fail pretraining_pin_seal_failed 'could not seal the RCQ-v2 pretraining pin read-only'
-    python3 -I - "$pin_path" "$pin_dir" <<'PY' ||
-        fail pretraining_pin_seal_failed 'could not fsync and verify the sealed RCQ-v2 pretraining pin'
+    python3 -I - "$pin_path" "$pin_dir" <<'PY' || fail pretraining_pin_seal_failed 'could not fsync and verify the sealed RCQ-v2 pretraining pin'
 import os
 import stat
 import sys
@@ -2090,8 +2088,7 @@ write_rcq_v2_final_authorization() {
         "$latest_path" "$entry_checkpoint" "$checkpoint" "$readiness_path" \
         "$expected_pretraining_file_sha" "$expected_latest_file_sha" \
         "$expected_entry_checkpoint_sha" "$expected_checkpoint_sha" \
-        "$expected_readiness_file_sha" "$RCQ_PIN_RANGE_CLAIM_ID" "$reviewed_utc" <<'PY' ||
-        fail final_authorization_publish_failed 'could not validate evidence and publish the create-only final authorization'
+        "$expected_readiness_file_sha" "$RCQ_PIN_RANGE_CLAIM_ID" "$reviewed_utc" <<'PY' || fail final_authorization_publish_failed 'could not validate evidence and publish the create-only final authorization'
 from __future__ import annotations
 
 from hashlib import sha256
