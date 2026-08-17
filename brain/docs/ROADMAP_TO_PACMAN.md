@@ -178,7 +178,12 @@ PLAN.md §20 defines the ladder; the work items in this repo are:
    e.g. `environments/maze_chase.py` — original code and assets (no Namco
    IP), deterministic, branchable, 60 Hz, with the registered variant axes:
    maze layouts, ghost AI rules, speed curves, visuals, control mappings,
-   sticky/delayed input. Rights-clean by construction.
+   sticky/delayed input. Rights-clean by construction. **Implemented** as
+   `environments/maze_chase.py` (loop-carved seeded mazes, pellet clearing
+   with a terminated win condition, BFS ghosts;
+   [runs/2026-08-17-maze-chase-world.md](runs/2026-08-17-maze-chase-world.md)).
+   Remaining variant axes: ghost AI rules beyond direct BFS, speed curves,
+   sticky/delayed input, plus a scripted pellet teacher and matrix inclusion.
 4. **The arcade proof gate** (PLAN.md §31 Phase 4): kernel p99 ≤ 8 ms,
    end-to-end p99 ≤ 16.67 ms at frame skip 1, ≥10% score over the matched
    real-time recurrent/world-model baseline across ≥100 seeds, positive

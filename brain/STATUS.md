@@ -139,6 +139,12 @@ worlds × the three non-privileged diagnostic policies in one SHA-256-pinned
 evidence record, and it already discriminates pursuit pressure, maze
 planning, occlusion memory, and key/door sequencing. Record:
 [docs/runs/2026-08-17-cross-world-diagnostic-matrix.md](./docs/runs/2026-08-17-cross-world-diagnostic-matrix.md).
+The Phase 4 target world is implemented and rights-clean by construction:
+`src/irene_brain/environments/maze_chase.py` — pellet clearing with a
+terminated win condition, BFS ghosts, and loop-carved seeded mazes (a
+perfect maze proved unplayable under pursuit: a chasing ghost in a tree is a
+hard wall). Record:
+[docs/runs/2026-08-17-maze-chase-world.md](./docs/runs/2026-08-17-maze-chase-world.md).
 
 Local play-safe verification after the live v2 registration: every isolated
 test module passed (299 tests, one expected POSIX skip in the trusted-final
