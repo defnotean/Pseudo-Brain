@@ -2,6 +2,27 @@
 
 Updated: 2026-08-16
 
+## Current campaign: RCQ-v2
+
+Status: local freeze and operator documentation in progress. No qualification
+run, registration, or final TEST has been launched.
+
+RCQ-v2 asks whether the existing single model can learn a state-conditioned
+W/A/S/D policy and a useful value estimate on synthetic moving-shapes, for one
+seed, under a frozen recipe. A later pass would not be closed-loop gameplay or
+architecture superiority. Read [CURRENT_WORK.md](../CURRENT_WORK.md) and
+[docs/OPERATOR_GUIDE.md](./docs/OPERATOR_GUIDE.md) before [docs/RCQ_V2_PROTOCOL.md](./docs/RCQ_V2_PROTOCOL.md).
+
+The matched-baseline architecture manifest at
+`configs/baseline-architecture-manifest.json` is a separate identity used by
+architecture-comparison tests. It was stale relative to
+`src/irene_brain/training/objective.py` and must be regenerated as an
+intentional freeze before those tests, or the full play-safe suite, can pass.
+That freeze does not open TEST and does not start DGX training.
+
+Historical Stage A DGX runs below remain valid failures. They are not a
+starting checkpoint for RCQ-v2.
+
 ## Phase 0A: safe deterministic core
 
 Status: operational and covered by the play-safe test suite.

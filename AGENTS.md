@@ -12,4 +12,8 @@
 - Preserve all historical run artifacts and registered configuration hashes.
 - Do not start a longer run when a frozen scientific gate fails; diagnose or
   create a newly preregistered experiment instead.
-- Do not commit unless the user asks.
+- After each implementation, update the operator-facing documentation so it
+  matches the code. When the owner has asked for continuous GitHub updates,
+  commit and push that documentation with the change.
+- Do not commit unless the user asks, except when the owner has explicitly
+  requested continuous pushes.

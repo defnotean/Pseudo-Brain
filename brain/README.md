@@ -9,6 +9,9 @@ training releases and checkpoints remain verifiable. New project work lives
 under `Projects/Pseudo-Brain`; the separate Irene application and personality
 data are not dependencies of this project.
 
+The current campaign, in plain language, is
+[CURRENT_WORK.md](../CURRENT_WORK.md). How to freeze, register, and launch is
+[docs/OPERATOR_GUIDE.md](./docs/OPERATOR_GUIDE.md).
 The current project blueprint is [PLAN.md](./PLAN.md).
 Current implementation status is [STATUS.md](./STATUS.md).
 

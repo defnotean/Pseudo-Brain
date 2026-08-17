@@ -27,7 +27,13 @@ services.
 
 ## Enforcement
 
-Use scripts/run_play_safe_tests.ps1 for the Phase 0 test suite. It:
+Use scripts/run_play_safe_tests.ps1 for the Phase 0 test suite. The
+matched-baseline freeze wrapper
+`scripts/Update-BaselineArchitectureManifest.ps1` uses the same CPU-only,
+one-thread, CUDA-hidden environment; it instantiates models only to count
+parameters and write the architecture identity, and it does not train.
+
+The test runner:
 
 - Sets CUDA_VISIBLE_DEVICES to -1.
 - Limits common numerical runtimes to one thread.

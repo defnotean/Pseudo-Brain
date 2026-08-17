@@ -2,7 +2,8 @@
 
 The scientific qualification sequence, frozen gates, sealed TEST chronology,
 and stopping rules are specified in
-[RCQ_V2_PROTOCOL.md](RCQ_V2_PROTOCOL.md). This document covers the DGX host and
+[RCQ_V2_PROTOCOL.md](RCQ_V2_PROTOCOL.md). The readable operator walkthrough is
+[OPERATOR_GUIDE.md](OPERATOR_GUIDE.md). This document covers the DGX host and
 container operations that implement that protocol.
 
 Pseudo-Brain uses the DGX Spark only for offline training. The Spark is never in

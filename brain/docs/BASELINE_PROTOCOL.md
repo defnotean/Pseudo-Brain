@@ -9,9 +9,16 @@ thoughts or human-like cognition.
 The machine-readable source of truth is
 `configs/baseline-architecture-manifest.json`. Its digest covers architecture
 identities, exact parameter counts, persistent-state sizes, recipe hashes,
-implementation-source hashes, fairness rules, and the explicit claim boundary. Regenerate it with
-`scripts/build_baseline_architecture_manifest.py`; a changed digest defines a
-different comparison.
+implementation-source hashes, fairness rules, and the explicit claim boundary.
+Regenerate it only as an intentional freeze, using the play-safe wrapper:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\brain\scripts\Update-BaselineArchitectureManifest.ps1
+```
+
+The wrapper calls `scripts/build_baseline_architecture_manifest.py` with
+isolated CPU-only Python. A changed digest defines a different comparison. Do
+not rewrite the file to keep an old claim current.
 
 ## Frozen variants
 

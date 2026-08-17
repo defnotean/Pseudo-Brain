@@ -29,6 +29,12 @@ no caller-selected workspace, release, image, config, run, or checkpoint:
 - `Test-DgxRcqV2FinalReceipt.ps1`: read-only receipt verification. No identity arguments.
 - `New-RcqV2Registration.ps1`: local target-blind registration builder before release sync.
 
+The plain-language campaign checklist is
+[CURRENT_WORK.md](../../../CURRENT_WORK.md). The ordered operator commands are
+[OPERATOR_GUIDE.md](../../docs/OPERATOR_GUIDE.md). Local matched-baseline
+manifest regeneration uses `../Update-BaselineArchitectureManifest.ps1` and is
+not a DGX action.
+
 The current workspace contract is `pseudo-brain-workspace-v2`. The canonical
 production workspace is `~/projects/pseudo-brain`. Generic preflight, sync,
 smoke, start, and resume may target a direct child of the remote `projects`

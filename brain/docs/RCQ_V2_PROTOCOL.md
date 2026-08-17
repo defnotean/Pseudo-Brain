@@ -5,6 +5,11 @@ been launched. The canonical registration and its external SHA-256 pin must be
 created from the final frozen local source/configuration tree, then included in
 the immutable synced release before training begins.
 
+If you are executing the campaign rather than auditing thresholds, start with
+[CURRENT_WORK.md](../../CURRENT_WORK.md) and
+[OPERATOR_GUIDE.md](OPERATOR_GUIDE.md). This file remains the frozen
+scientific contract.
+
 ## What this experiment can establish
 
 RCQ-v2 is the smallest candidate-competency experiment for one reference Pseudo-Brain
