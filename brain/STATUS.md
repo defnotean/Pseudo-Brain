@@ -34,7 +34,14 @@ release: a mode-`444` evaluator copy, then an OS-dependent absolute checkpoint
 path. CUDA backward passed both times. Record:
 [docs/runs/2026-08-16-rcq-v2-unused-pretraining-pin-discard.md](./docs/runs/2026-08-16-rcq-v2-unused-pretraining-pin-discard.md).
 
-The third pin (`dbcb6afc…`, release `r20260817t013858z-db1f586ef3a0`) passed
+The first live-v2 Spark pin (`2847e786…`, release
+`r20260817t021020z-6f2359089eeb`) is unused: smoke died because a preservation
+test required git-only `registrations/rcq-v2-reference-v1.json`. CUDA backward
+passed. Record:
+[docs/runs/2026-08-16-rcq-v2-reference-v2-unused-pin-discard.md](./docs/runs/2026-08-16-rcq-v2-reference-v2-unused-pin-discard.md).
+Keep the live registration SHA. Do not rebuild it.
+
+The third historical-v1 pin (`dbcb6afc…`, release `r20260817t013858z-db1f586ef3a0`) passed
 smoke and failed the staging canary. Diagnosis:
 [docs/runs/2026-08-16-rcq-v2-canary-invariance-diagnosis.md](./docs/runs/2026-08-16-rcq-v2-canary-invariance-diagnosis.md).
 Do not start the 2,048-update reference on that pin. The capture fix changed

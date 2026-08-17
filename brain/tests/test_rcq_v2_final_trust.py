@@ -384,6 +384,14 @@ class RCQV2FinalTrustTests(unittest.TestCase):
             / "registrations"
             / "rcq-v2-reference-v1.json"
         )
+        self.assertNotEqual(
+            torch_runner._REGISTRATION_RELATIVE_PATH.as_posix(),
+            "registrations/rcq-v2-reference-v1.json",
+        )
+        if not historical.is_file():
+            self.skipTest(
+                "historical v1 registration is git-only and is not installed in the immutable DGX release"
+            )
         encoded = historical.read_bytes()
         payload = json.loads(encoded.decode("utf-8"))
         self.assertEqual(payload["qualification_id"], "rcq_v2_reference_v1")
@@ -391,10 +399,6 @@ class RCQV2FinalTrustTests(unittest.TestCase):
         self.assertEqual(
             sha256(encoded).hexdigest(),
             "33f7900c1d71b5e363de5a6b7ca921120f486b315241384d906d209a5e02fce0",
-        )
-        self.assertNotEqual(
-            torch_runner._REGISTRATION_RELATIVE_PATH.as_posix(),
-            "registrations/rcq-v2-reference-v1.json",
         )
 
     def test_live_v2_registration_bytes_are_pinned(self) -> None:
