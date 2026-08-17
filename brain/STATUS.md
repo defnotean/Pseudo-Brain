@@ -85,17 +85,18 @@ Do not start the 2,048-update reference on that pin. The capture fix changed
 
 The matched-baseline architecture manifest at
 `configs/baseline-architecture-manifest.json` was regenerated as an intentional
-local freeze on 2026-08-16, again on 2026-08-17 when the RCQ-v3 recipe
-options changed the matched implementation files, and once more on 2026-08-17
-when the v3 staging-canary smoke-factory squash parity changed
-`training/factory.py`. Live digest
-`eb46988b178d593da6f98f6b99273fd2e791dd62e35f9bcef719c03958d4bb2a` (previous
-`5decb402…` and `30d4c119…`; all are explicit `new_comparison` identities). The
+local freeze on 2026-08-16, twice on 2026-08-17 (RCQ-v3 recipe options, then
+v3 smoke-factory squash parity), and again on 2026-08-17 when the baseline
+suite gained the reset-slot and dense-routing ablations. Live digest
+`f4e9b355299290b7cbf352b1cfb861fd771373cbb0d9707e92c281b998084711` (previous
+`eb46988b…`, `5decb402…`, and `30d4c119…`; all are explicit `new_comparison`
+identities). The
 historical first-matched campaign pin `52bba6a9…` is unchanged and that
 campaign stays blocked. Records:
 [docs/runs/2026-08-16-baseline-architecture-manifest-freeze.md](./docs/runs/2026-08-16-baseline-architecture-manifest-freeze.md),
 [docs/runs/2026-08-17-rcq-v3-recipe-options.md](./docs/runs/2026-08-17-rcq-v3-recipe-options.md),
-[docs/runs/2026-08-17-rcq-v3-reference-v1-preregistration.md](./docs/runs/2026-08-17-rcq-v3-reference-v1-preregistration.md).
+[docs/runs/2026-08-17-rcq-v3-reference-v1-preregistration.md](./docs/runs/2026-08-17-rcq-v3-reference-v1-preregistration.md),
+[docs/runs/2026-08-17-baseline-suite-persistence-and-density-ablations.md](./docs/runs/2026-08-17-baseline-suite-persistence-and-density-ablations.md).
 The freeze does not open TEST and does not start DGX training.
 
 Local play-safe verification after the live v2 registration: every isolated

@@ -15,19 +15,23 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from irene_brain.model.baselines import (  # noqa: E402
+    DENSE_COMMUNICATION_IDENTITY,
     MONOLITHIC_IDENTITY,
     NO_COMMUNICATION_IDENTITY,
     PARAMETER_MATCHED_MONOLITHIC_IDENTITY,
     REFERENCE_IDENTITY,
+    RESET_STATE_IDENTITY,
     build_architecture_manifest,
 )
 from irene_brain.project_paths import resolve_workspace_path  # noqa: E402
 from irene_brain.training.config import load_training_config  # noqa: E402
 from irene_brain.training.factory import (  # noqa: E402
+    build_thesis_dense_routing_model,
     build_thesis_model,
     build_thesis_monolithic_model,
     build_thesis_no_communication_model,
     build_thesis_parameter_matched_monolithic_model,
+    build_thesis_reset_slots_model,
 )
 
 
@@ -41,6 +45,16 @@ REGISTRATIONS = {
         "configs/training/baseline-stagea-no-communication.toml",
         "irene_brain.training.factory:build_thesis_no_communication_model",
         build_thesis_no_communication_model,
+    ),
+    RESET_STATE_IDENTITY.variant_id: (
+        "configs/training/baseline-stagea-reset-slots.toml",
+        "irene_brain.training.factory:build_thesis_reset_slots_model",
+        build_thesis_reset_slots_model,
+    ),
+    DENSE_COMMUNICATION_IDENTITY.variant_id: (
+        "configs/training/baseline-stagea-dense-communication.toml",
+        "irene_brain.training.factory:build_thesis_dense_routing_model",
+        build_thesis_dense_routing_model,
     ),
     MONOLITHIC_IDENTITY.variant_id: (
         "configs/training/baseline-stagea-monolithic-same-width.toml",

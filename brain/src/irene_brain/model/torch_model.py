@@ -374,6 +374,42 @@ class IreneBrainModel(nn.Module):
                 raise ValueError("elapsed_seconds must be finite and nonnegative")
         return elapsed_seconds
 
+    def _seed_thoughts(
+        self,
+        *,
+        batch_size: int,
+        sensors: Tensor,
+        belief: Tensor,
+        thought_noise: Tensor | None,
+    ) -> Tensor:
+        """Compute freshly seeded thought registers from current sensors/belief."""
+
+        thoughtlets = self.config.thoughtlets
+        registers = self.config.registers_per_thoughtlet
+        width = self.config.core_width
+        thought_noise = self._resolve_thought_noise(
+            batch_size=batch_size,
+            device=sensors.device,
+            dtype=sensors.dtype,
+            thought_noise=thought_noise,
+        )
+        seed_query = self.initial_thought_registers.to(dtype=sensors.dtype).expand(
+            batch_size,
+            thoughtlets,
+            registers,
+            width,
+        ) + self.noise_projection(thought_noise).unsqueeze(2)
+        seed_context = torch.cat((sensors, belief), dim=1)
+        seed_context = (
+            seed_context.unsqueeze(1)
+            .expand(batch_size, thoughtlets, seed_context.shape[1], width)
+            .reshape(batch_size * thoughtlets, seed_context.shape[1], width)
+        )
+        return self.seed_attention(
+            seed_query.reshape(batch_size * thoughtlets, registers, width),
+            seed_context,
+        ).reshape(batch_size, thoughtlets, registers, width)
+
     def _refresh_thoughts(
         self,
         *,
@@ -385,29 +421,12 @@ class IreneBrainModel(nn.Module):
         thought_noise: Tensor | None,
     ) -> tuple[Tensor, Tensor, Tensor]:
         batch, thoughtlets, registers, width = thoughts.shape
-        thought_noise = self._resolve_thought_noise(
+        seeds = self._seed_thoughts(
             batch_size=batch,
-            device=thoughts.device,
-            dtype=thoughts.dtype,
+            sensors=sensors,
+            belief=belief,
             thought_noise=thought_noise,
         )
-
-        seed_query = self.initial_thought_registers.to(dtype=thoughts.dtype).expand(
-            batch,
-            thoughtlets,
-            registers,
-            width,
-        ) + self.noise_projection(thought_noise).unsqueeze(2)
-        seed_context = torch.cat((sensors, belief), dim=1)
-        seed_context = (
-            seed_context.unsqueeze(1)
-            .expand(batch, thoughtlets, seed_context.shape[1], width)
-            .reshape(batch * thoughtlets, seed_context.shape[1], width)
-        )
-        seeds = self.seed_attention(
-            seed_query.reshape(batch * thoughtlets, registers, width),
-            seed_context,
-        ).reshape_as(thoughts)
         lifecycle_logits = self.thought_predictions.lifecycle(thoughts.mean(dim=2))
         expire_probability = torch.softmax(lifecycle_logits, dim=-1)[..., 2:3]
         keep = 1.0 - expire_probability

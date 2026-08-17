@@ -8,9 +8,11 @@ from typing import TypeVar
 from torch import nn
 
 from ..model.baselines import (
+    DenseCommunicationSlotBaseline,
     MonolithicRecurrentBaseline,
     NoCommunicationSlotBaseline,
     ParameterMatchedMonolithicBaseline,
+    ResetStateSlotBaseline,
 )
 from ..model.spec import ThoughtFieldConfig
 from ..model.torch_model import IreneBrainModel
@@ -108,6 +110,30 @@ def build_thesis_no_communication_model(
     return _identity_pixel_grid(model)
 
 
+def build_thesis_reset_slots_model(
+    config: TrainingConfig,
+) -> ResetStateSlotBaseline:
+    _require_config(config)
+    model = ResetStateSlotBaseline(
+        ThoughtFieldConfig.thesis_mvp(),
+        input_resolution=(64, 64),
+        plan_steps=3,
+    )
+    return _identity_pixel_grid(model)
+
+
+def build_thesis_dense_routing_model(
+    config: TrainingConfig,
+) -> DenseCommunicationSlotBaseline:
+    _require_config(config)
+    model = DenseCommunicationSlotBaseline(
+        ThoughtFieldConfig.thesis_mvp(),
+        input_resolution=(64, 64),
+        plan_steps=3,
+    )
+    return _identity_pixel_grid(model)
+
+
 def build_thesis_monolithic_model(
     config: TrainingConfig,
 ) -> MonolithicRecurrentBaseline:
@@ -140,7 +166,9 @@ __all__ = [
     "PARAMETER_MATCHED_MONOLITH_HEADS",
     "build_smoke_model",
     "build_thesis_model",
+    "build_thesis_dense_routing_model",
     "build_thesis_monolithic_model",
     "build_thesis_no_communication_model",
     "build_thesis_parameter_matched_monolithic_model",
+    "build_thesis_reset_slots_model",
 ]

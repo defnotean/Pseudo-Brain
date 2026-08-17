@@ -19,13 +19,17 @@ if str(SRC) not in sys.path:
 
 if torch is not None:
     from irene_brain.model.baselines import (
+        DENSE_COMMUNICATION_IDENTITY,
         MONOLITHIC_IDENTITY,
         NO_COMMUNICATION_IDENTITY,
         PARAMETER_MATCHED_MONOLITHIC_IDENTITY,
         REFERENCE_IDENTITY,
+        RESET_STATE_IDENTITY,
+        DenseCommunicationSlotBaseline,
         MonolithicRecurrentBaseline,
         NoCommunicationSlotBaseline,
         ParameterMatchedMonolithicBaseline,
+        ResetStateSlotBaseline,
         allocated_parameter_counts,
         build_architecture_manifest,
     )
@@ -89,6 +93,8 @@ class MatchedBaselineTests(unittest.TestCase):
             NO_COMMUNICATION_IDENTITY,
             MONOLITHIC_IDENTITY,
             PARAMETER_MATCHED_MONOLITHIC_IDENTITY,
+            RESET_STATE_IDENTITY,
+            DENSE_COMMUNICATION_IDENTITY,
         )
         self.assertEqual(len({item.variant_id for item in identities}), len(identities))
         self.assertEqual(len({item.sha256 for item in identities}), len(identities))
@@ -156,6 +162,103 @@ class MatchedBaselineTests(unittest.TestCase):
         self.assertTrue(
             all(indices.shape[-1] == 0 for indices in first.diagnostics.routing_indices)
         )
+
+    def test_reset_slots_ignore_incoming_thought_state(self) -> None:
+        assert torch is not None
+        torch.manual_seed(11)
+        reference = IreneBrainModel(self.slot_config(), input_resolution=(8, 8))
+        torch.manual_seed(11)
+        reset = ResetStateSlotBaseline(self.slot_config(), input_resolution=(8, 8))
+        reference_counts = allocated_parameter_counts(reference)
+        reset_counts = allocated_parameter_counts(reset)
+        self.assertEqual(reference_counts["total"], reset_counts["total"])
+        self.assertEqual(reference_counts["trainable"], reset_counts["trainable"])
+        self.assertEqual(reset_counts["architecturally_disconnected_trainable"], 16 * 3 + 3)
+        self.assertEqual(set(reference.state_dict()), set(reset.state_dict()))
+        self.assertTrue(
+            all(
+                torch.equal(reference.state_dict()[name], reset.state_dict()[name])
+                for name in reference.state_dict()
+            )
+        )
+
+        pixels, control, elapsed = self.inputs()
+        state = reset.initial_state(1)
+        changed_thoughts = state.thoughts.clone()
+        changed_thoughts[:, 0].add_(3.0)
+        changed_ages = state.thought_age_seconds.clone()
+        changed_ages[:, 1].add_(12.0)
+        changed_state = replace(
+            state,
+            thoughts=changed_thoughts,
+            thought_age_seconds=changed_ages,
+        )
+        reset.eval()
+        with torch.no_grad():
+            first = reset(pixels, control, elapsed, state=state, max_cycles=2)
+            changed = reset(pixels, control, elapsed, state=changed_state, max_cycles=2)
+        # Persistence is gone: the incoming thought state cannot influence
+        # anything the model computes this step.
+        self.assertTrue(torch.equal(first.next_state.thoughts, changed.next_state.thoughts))
+        self.assertTrue(
+            torch.equal(first.next_state.working_memory, changed.next_state.working_memory)
+        )
+        self.assertTrue(torch.equal(first.action.control, changed.action.control))
+        self.assertTrue(
+            torch.equal(
+                first.next_state.thought_age_seconds,
+                changed.next_state.thought_age_seconds,
+            )
+        )
+        self.assertTrue(
+            torch.equal(
+                first.diagnostics.applied_expire_probability,
+                torch.ones_like(first.diagnostics.applied_expire_probability),
+            )
+        )
+
+    def test_dense_routing_reaches_every_other_slot(self) -> None:
+        assert torch is not None
+        torch.manual_seed(11)
+        reference = IreneBrainModel(self.slot_config(), input_resolution=(8, 8))
+        torch.manual_seed(11)
+        dense = DenseCommunicationSlotBaseline(
+            self.slot_config(),
+            input_resolution=(8, 8),
+        )
+        reference_counts = allocated_parameter_counts(reference)
+        dense_counts = allocated_parameter_counts(dense)
+        self.assertEqual(reference_counts["total"], dense_counts["total"])
+        self.assertEqual(reference_counts["trainable"], dense_counts["trainable"])
+        self.assertEqual(dense_counts["architecturally_disconnected_trainable"], 0)
+        self.assertEqual(set(reference.state_dict()), set(dense.state_dict()))
+        self.assertTrue(
+            all(
+                torch.equal(reference.state_dict()[name], dense.state_dict()[name])
+                for name in reference.state_dict()
+            )
+        )
+
+        pixels, control, elapsed = self.inputs()
+        dense.eval()
+        with torch.no_grad():
+            output = dense(pixels, control, elapsed, max_cycles=2)
+        thoughtlets = self.slot_config().thoughtlets
+        # Cycle 0 is private; later cycles route densely to all K-1 peers.
+        cycle_one_indices = output.diagnostics.routing_indices[-1]
+        cycle_one_weights = output.diagnostics.routing_weights[-1]
+        self.assertEqual(cycle_one_indices.shape, (1, thoughtlets, thoughtlets - 1))
+        self.assertEqual(cycle_one_weights.shape, (1, thoughtlets, thoughtlets - 1))
+        for slot in range(thoughtlets):
+            self.assertEqual(
+                set(cycle_one_indices[0, slot].tolist()),
+                {peer for peer in range(thoughtlets) if peer != slot},
+            )
+        weight_sums = cycle_one_weights.sum(dim=-1)
+        self.assertTrue(
+            torch.allclose(weight_sums, torch.ones_like(weight_sums))
+        )
+        self.assertTrue(torch.isfinite(output.action.control).all())
 
     def test_monolithic_control_runs_with_one_finite_recurrent_latent(self) -> None:
         assert torch is not None
@@ -266,6 +369,8 @@ class MatchedBaselineTests(unittest.TestCase):
                 NO_COMMUNICATION_IDENTITY,
                 MONOLITHIC_IDENTITY,
                 PARAMETER_MATCHED_MONOLITHIC_IDENTITY,
+                RESET_STATE_IDENTITY,
+                DENSE_COMMUNICATION_IDENTITY,
             )
         }
         entries = {entry["variant_id"]: entry for entry in manifest["variants"]}
@@ -295,6 +400,16 @@ class MatchedBaselineTests(unittest.TestCase):
         self.assertEqual(entries[REFERENCE_IDENTITY.variant_id]["allocated_parameters"]["trainable"], 29_674_318)
         self.assertEqual(entries[NO_COMMUNICATION_IDENTITY.variant_id]["allocated_parameters"]["trainable"], 29_674_318)
         self.assertEqual(entries[PARAMETER_MATCHED_MONOLITHIC_IDENTITY.variant_id]["allocated_parameters"]["trainable"], 29_643_900)
+        self.assertEqual(entries[RESET_STATE_IDENTITY.variant_id]["allocated_parameters"]["trainable"], 29_674_318)
+        self.assertEqual(
+            entries[RESET_STATE_IDENTITY.variant_id]["allocated_parameters"]["architecturally_disconnected_trainable"],
+            384 * 3 + 3,
+        )
+        self.assertEqual(entries[DENSE_COMMUNICATION_IDENTITY.variant_id]["allocated_parameters"]["trainable"], 29_674_318)
+        self.assertEqual(
+            entries[DENSE_COMMUNICATION_IDENTITY.variant_id]["allocated_parameters"]["architecturally_disconnected_trainable"],
+            0,
+        )
 
 
 if __name__ == "__main__":

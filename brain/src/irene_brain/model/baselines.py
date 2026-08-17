@@ -12,9 +12,9 @@ from hashlib import sha256
 import json
 from typing import Mapping
 
-from torch import nn
+from torch import Tensor, nn
 
-from .brain_cell import MonolithicRecurrentCell
+from .brain_cell import BrainCell, MonolithicRecurrentCell
 from .torch_model import IreneBrainModel
 
 
@@ -114,6 +114,34 @@ PARAMETER_MATCHED_MONOLITHIC_IDENTITY = ArchitectureVariantIdentity(
     ),
 )
 
+RESET_STATE_IDENTITY = ArchitectureVariantIdentity(
+    schema_version=1,
+    variant_id="irene.thought_field.reset_slots.v1",
+    latent_topology="32_factorized_slots_x_3_registers",
+    peer_routing=True,
+    thought_workspace_writes=True,
+    pooled_recurrent_input=False,
+    matching_role="exact_allocated_parameter_persistence_ablation",
+    limitations=(
+        "Incoming thought state is discarded every step; slots reseed from sensors and belief.",
+        "The lifecycle head remains allocated but is disconnected from the computation.",
+    ),
+)
+
+DENSE_COMMUNICATION_IDENTITY = ArchitectureVariantIdentity(
+    schema_version=1,
+    variant_id="irene.thought_field.dense_routing.v1",
+    latent_topology="32_factorized_slots_x_3_registers",
+    peer_routing=True,
+    thought_workspace_writes=True,
+    pooled_recurrent_input=False,
+    matching_role="exact_allocated_parameter_dense_communication_ablation",
+    limitations=(
+        "Routing is unrestricted all-to-all softmax instead of sparse top-k.",
+        "Dense communication costs more message bandwidth per cycle than the reference.",
+    ),
+)
+
 
 class NoCommunicationSlotBaseline(IreneBrainModel):
     """Full slot model with both current-cycle communication paths severed."""
@@ -124,6 +152,51 @@ class NoCommunicationSlotBaseline(IreneBrainModel):
     def _communication_policy(self, cycle: int) -> tuple[bool, bool]:
         del cycle
         return False, False
+
+
+class ResetStateSlotBaseline(IreneBrainModel):
+    """Full slot model with persistence removed: slots reseed every step."""
+
+    architecture_identity = RESET_STATE_IDENTITY
+    architecture_variant_id = RESET_STATE_IDENTITY.variant_id
+
+    def _refresh_thoughts(
+        self,
+        *,
+        thoughts: Tensor,
+        sensors: Tensor,
+        belief: Tensor,
+        elapsed_seconds: Tensor,
+        thought_age_seconds: Tensor,
+        thought_noise: Tensor | None,
+    ) -> tuple[Tensor, Tensor, Tensor]:
+        del thought_age_seconds
+        batch, thoughtlets, _registers, _width = thoughts.shape
+        seeds = self._seed_thoughts(
+            batch_size=batch,
+            sensors=sensors,
+            belief=belief,
+            thought_noise=thought_noise,
+        )
+        ages = elapsed_seconds.expand(batch, thoughtlets)
+        expire_probability = thoughts.new_ones((batch, thoughtlets))
+        return seeds, ages, expire_probability
+
+
+class DenseCommunicationSlotBaseline(IreneBrainModel):
+    """Full slot model with unrestricted all-to-all peer routing."""
+
+    architecture_identity = DENSE_COMMUNICATION_IDENTITY
+    architecture_variant_id = DENSE_COMMUNICATION_IDENTITY.variant_id
+
+    def _build_brain_cell(self, *, width: int) -> nn.Module:
+        return BrainCell(
+            width=width,
+            heads=self.config.attention_heads,
+            routed_neighbors=self.config.routed_neighbors,
+            blocks=self.config.brain_cell_blocks,
+            dense_routing=True,
+        )
 
 
 class MonolithicRecurrentBaseline(IreneBrainModel):
@@ -165,6 +238,15 @@ def allocated_parameter_counts(model: nn.Module) -> dict[str, int]:
             if parameter.requires_grad
             and name.startswith("brain_cell.blocks.")
             and any(fragment in name for fragment in disconnected_fragments)
+        )
+    if isinstance(model, ResetStateSlotBaseline):
+        # The lifecycle head only gates persistence; with slots reseeded every
+        # step its parameters are allocated but receive no task gradient.
+        disconnected += sum(
+            parameter.numel()
+            for name, parameter in model.named_parameters()
+            if parameter.requires_grad
+            and name.startswith("thought_predictions.lifecycle.")
         )
     trainable = sum(
         parameter.numel() for parameter in parameters if parameter.requires_grad
@@ -352,6 +434,8 @@ def build_architecture_manifest(
 
 __all__ = [
     "ArchitectureVariantIdentity",
+    "DENSE_COMMUNICATION_IDENTITY",
+    "DenseCommunicationSlotBaseline",
     "MONOLITHIC_IDENTITY",
     "MonolithicRecurrentBaseline",
     "NO_COMMUNICATION_IDENTITY",
@@ -359,6 +443,8 @@ __all__ = [
     "PARAMETER_MATCHED_MONOLITHIC_IDENTITY",
     "ParameterMatchedMonolithicBaseline",
     "REFERENCE_IDENTITY",
+    "RESET_STATE_IDENTITY",
+    "ResetStateSlotBaseline",
     "allocated_parameter_counts",
     "architecture_manifest_entry",
     "build_architecture_manifest",

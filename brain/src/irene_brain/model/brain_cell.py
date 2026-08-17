@@ -59,10 +59,18 @@ class ResidualCrossAttention(nn.Module):
 class StructuredBrainBlock(nn.Module):
     """One block shared by every slot and reused on every cognitive cycle."""
 
-    def __init__(self, *, width: int, heads: int, routed_neighbors: int) -> None:
+    def __init__(
+        self,
+        *,
+        width: int,
+        heads: int,
+        routed_neighbors: int,
+        dense_routing: bool = False,
+    ) -> None:
         super().__init__()
         self.width = width
         self.routed_neighbors = routed_neighbors
+        self.dense_routing = bool(dense_routing)
         self.belief_attention = ResidualCrossAttention(width=width, heads=heads)
         self.thought_attention = ResidualCrossAttention(width=width, heads=heads)
         self.memory_attention = ResidualCrossAttention(width=width, heads=heads)
@@ -97,10 +105,26 @@ class StructuredBrainBlock(nn.Module):
         scores = torch.matmul(query, key.transpose(-1, -2)) / math.sqrt(width)
         diagonal = torch.eye(thoughtlets, device=summaries.device, dtype=torch.bool)
         scores = scores.masked_fill(diagonal.unsqueeze(0), torch.finfo(scores.dtype).min)
+        projected = self.route_value(summaries)
+        if self.dense_routing:
+            # Unrestricted all-to-all communication: every other slot is a
+            # routing target with its softmax weight, no sparse top-k.
+            base = torch.arange(thoughtlets, device=summaries.device)
+            off_diagonal = base.unsqueeze(0).expand(thoughtlets, thoughtlets)
+            off_diagonal = off_diagonal[~diagonal].reshape(thoughtlets, thoughtlets - 1)
+            indices = off_diagonal.unsqueeze(0).expand(batch, thoughtlets, thoughtlets - 1)
+            weights = torch.gather(torch.softmax(scores, dim=-1), 2, indices)
+            selected = torch.gather(
+                projected.unsqueeze(1).expand(batch, thoughtlets, thoughtlets, width),
+                2,
+                indices.unsqueeze(-1).expand(batch, thoughtlets, thoughtlets - 1, width),
+            )
+            message = torch.sum(selected * weights.unsqueeze(-1), dim=2)
+            return message, RoutingDiagnostics(indices, weights)
+
         values, indices = torch.topk(scores, k=self.routed_neighbors, dim=-1)
         weights = torch.softmax(values, dim=-1)
 
-        projected = self.route_value(summaries)
         candidates = projected.unsqueeze(1).expand(batch, thoughtlets, thoughtlets, width)
         selected = torch.gather(
             candidates,
@@ -231,6 +255,7 @@ class BrainCell(nn.Module):
         heads: int,
         routed_neighbors: int,
         blocks: int,
+        dense_routing: bool = False,
     ) -> None:
         super().__init__()
         self.blocks = nn.ModuleList(
@@ -238,6 +263,7 @@ class BrainCell(nn.Module):
                 width=width,
                 heads=heads,
                 routed_neighbors=routed_neighbors,
+                dense_routing=dense_routing,
             )
             for _ in range(blocks)
         )

@@ -37,19 +37,19 @@
     }
   },
   "implementation": {
-    "source_bundle_sha256": "e99e789b1b9d19e6f8511ec417925c1c6b3c9e7010a1346482dfc4c1adadc0b7",
+    "source_bundle_sha256": "6b476d011adc47da2835c7bd3d97af60f5f12b45345cd573af3962ab0bff2d00",
     "source_files": {
       "src/irene_brain/model/actuator.py": "d2dad5e74a6fdce1c63cdd84f71508b90989eb9fecfdea1a192b4d82c2aad5ea",
-      "src/irene_brain/model/baselines.py": "6bde876c3aed6b4503794b942aedac017ab0dd32b7bb334206c5bfeb2231e964",
-      "src/irene_brain/model/brain_cell.py": "efa862895d2ff1c2a2752d0657d664529329433fcaf9b2078e95a5424622e136",
+      "src/irene_brain/model/baselines.py": "015939351e96063e72d1df4ade07acca7d07f72774f9c44aa671da83f57f5357",
+      "src/irene_brain/model/brain_cell.py": "ab755df7e8551366c91c47ab08aec6e4b067fa282b9f957751bbbb06f66cb955",
       "src/irene_brain/model/sensory.py": "bd7ae52907076f9eb19b9fa24a8ddc85abffb9cfee9577ee6a8af11898330dca",
       "src/irene_brain/model/spec.py": "d6c718fa4ee8ff2e031f30746d490603e2a4aac3a31d124bdef1d7c2c2148cf5",
-      "src/irene_brain/model/torch_model.py": "47e8c7af1e27d2f044448d7cdab3ef1cd0f067a91f67e305c0359525b92de6e1",
-      "src/irene_brain/training/factory.py": "71dd3a1e1111c03c258fb0756ed7f7941b96a88619ca1b85a3d7be3f29dc8873",
+      "src/irene_brain/model/torch_model.py": "102caf0ead1895a913ed1031811596fb69f09839bd571bc2529ea5117f15409b",
+      "src/irene_brain/training/factory.py": "bcdbeea3eb52caa83bd60960a61df27c75d6cce06d797bf001e5115e5c376c7c",
       "src/irene_brain/training/objective.py": "4c3068d62122c930f5c42acb5acf2b5853d7b85d21de77f91949f29c7d6f355e"
     }
   },
-  "manifest_sha256": "eb46988b178d593da6f98f6b99273fd2e791dd62e35f9bcef719c03958d4bb2a",
+  "manifest_sha256": "f4e9b355299290b7cbf352b1cfb861fd771373cbb0d9707e92c281b998084711",
   "reference_variant_id": "irene.thought_field.routed.v1",
   "schema_version": 1,
   "variants": [
@@ -156,6 +156,56 @@
     {
       "absolute_trainable_parameter_delta_fraction": 0.0,
       "allocated_parameters": {
+        "architecturally_connected_trainable": 29674318,
+        "architecturally_disconnected_trainable": 0,
+        "total": 29674318,
+        "trainable": 29674318
+      },
+      "identity": {
+        "latent_topology": "32_factorized_slots_x_3_registers",
+        "limitations": [
+          "Routing is unrestricted all-to-all softmax instead of sparse top-k.",
+          "Dense communication costs more message bandwidth per cycle than the reference."
+        ],
+        "matching_role": "exact_allocated_parameter_dense_communication_ablation",
+        "peer_routing": true,
+        "pooled_recurrent_input": false,
+        "schema_version": 1,
+        "thought_workspace_writes": true,
+        "variant_id": "irene.thought_field.dense_routing.v1"
+      },
+      "model_class": "irene_brain.model.baselines.DenseCommunicationSlotBaseline",
+      "model_factory": "irene_brain.training.factory:build_thesis_dense_routing_model",
+      "persistent_state": {
+        "batch_size": 1,
+        "bytes": 129024,
+        "bytes_per_element": 2,
+        "elements": 64512,
+        "thought_elements": 36864
+      },
+      "shape_controls": {
+        "aggregate_retrieved_tokens": 64,
+        "attention_heads": 8,
+        "brain_cell_blocks": 4,
+        "cognitive_cycles": 3,
+        "core_width": 384,
+        "registers_per_thoughtlet": 3,
+        "retrieved_entries_per_thoughtlet": 2,
+        "routed_neighbors": 2,
+        "thoughtlets": 32
+      },
+      "trainable_parameter_delta_from_reference": 0,
+      "training_recipe": {
+        "canonical_config_sha256": "bc28eb2a937967c4515a61a27fc9de264ff42b81e939e1dad0a6f0d4933b59c7",
+        "path": "configs/training/baseline-stagea-dense-communication.toml",
+        "raw_sha256": "8e9b3f794be12fcd623d880b93fdf61fb1e809f8d0b949ec72a75b739323fe95"
+      },
+      "variant_id": "irene.thought_field.dense_routing.v1",
+      "variant_identity_sha256": "5dc1acc4f17240156568193cfde9aaeee321ccd7fc84efa4ecd1aa9e29d65044"
+    },
+    {
+      "absolute_trainable_parameter_delta_fraction": 0.0,
+      "allocated_parameters": {
         "architecturally_connected_trainable": 27903306,
         "architecturally_disconnected_trainable": 1771012,
         "total": 29674318,
@@ -202,6 +252,56 @@
       },
       "variant_id": "irene.thought_field.isolated_slots.v1",
       "variant_identity_sha256": "4f56abaee97c73c6660367418fb3440d44a54f8bb1c7cfe3e7d05e1a1c439600"
+    },
+    {
+      "absolute_trainable_parameter_delta_fraction": 0.0,
+      "allocated_parameters": {
+        "architecturally_connected_trainable": 29673163,
+        "architecturally_disconnected_trainable": 1155,
+        "total": 29674318,
+        "trainable": 29674318
+      },
+      "identity": {
+        "latent_topology": "32_factorized_slots_x_3_registers",
+        "limitations": [
+          "Incoming thought state is discarded every step; slots reseed from sensors and belief.",
+          "The lifecycle head remains allocated but is disconnected from the computation."
+        ],
+        "matching_role": "exact_allocated_parameter_persistence_ablation",
+        "peer_routing": true,
+        "pooled_recurrent_input": false,
+        "schema_version": 1,
+        "thought_workspace_writes": true,
+        "variant_id": "irene.thought_field.reset_slots.v1"
+      },
+      "model_class": "irene_brain.model.baselines.ResetStateSlotBaseline",
+      "model_factory": "irene_brain.training.factory:build_thesis_reset_slots_model",
+      "persistent_state": {
+        "batch_size": 1,
+        "bytes": 129024,
+        "bytes_per_element": 2,
+        "elements": 64512,
+        "thought_elements": 36864
+      },
+      "shape_controls": {
+        "aggregate_retrieved_tokens": 64,
+        "attention_heads": 8,
+        "brain_cell_blocks": 4,
+        "cognitive_cycles": 3,
+        "core_width": 384,
+        "registers_per_thoughtlet": 3,
+        "retrieved_entries_per_thoughtlet": 2,
+        "routed_neighbors": 2,
+        "thoughtlets": 32
+      },
+      "trainable_parameter_delta_from_reference": 0,
+      "training_recipe": {
+        "canonical_config_sha256": "a436363059a938a19e06f9a9d860093cddc6f1eaeef1d2359964900434a22e7d",
+        "path": "configs/training/baseline-stagea-reset-slots.toml",
+        "raw_sha256": "47b0e69ea2dcffd563f012a46340c5f279fd2310437d77ab0412d66fe379ea77"
+      },
+      "variant_id": "irene.thought_field.reset_slots.v1",
+      "variant_identity_sha256": "1b8dfba7793525760ad2e9336d3579f7c18652bd2dcdbbe78bc838b12ca82095"
     },
     {
       "absolute_trainable_parameter_delta_fraction": 0.0,
