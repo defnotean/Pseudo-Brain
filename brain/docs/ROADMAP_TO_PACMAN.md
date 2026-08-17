@@ -155,7 +155,10 @@ PLAN.md §20 defines the ladder; the work items in this repo are:
    Pursuit/evasion is implemented (`environments/pursuit.py`, playable through
    the closed-loop evaluator via `environment_factory`;
    [runs/2026-08-17-pursuit-world.md](runs/2026-08-17-pursuit-world.md));
-   junction choice, occlusion, and keys/doors remain.
+   junction choice is implemented (`environments/junction.py`, a seeded
+   perfect-maze world with BFS shortest-path chasers;
+   [runs/2026-08-17-junction-world.md](runs/2026-08-17-junction-world.md));
+   occlusion and keys/doors remain.
 2. **External open worlds** (license-cleared): XLand-MiniGrid, Craftax,
    Procgen — adapters behind `environments/protocol.py`, lifetime recording,
    held-out generator families.
