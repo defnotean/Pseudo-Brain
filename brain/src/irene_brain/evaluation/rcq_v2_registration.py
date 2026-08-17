@@ -13,6 +13,7 @@ from hashlib import sha256
 import importlib
 import os
 from pathlib import Path
+import stat
 from typing import Sequence
 
 from ..data import DatasetSplit
@@ -49,7 +50,6 @@ from .rcq_v2_final import (
     _publish_no_replace,
     _registered_thresholds,
     _validate_registration,
-    _safe_receipt_root,
 )
 from .rcq_v2_torch import (
     _file_sha256,
@@ -148,7 +148,7 @@ def _registration_payload(
     )
     return {
         "schema_version": 2,
-        "qualification_id": "rcq_v2_reference_v1",
+        "qualification_id": "rcq_v2_reference_v2",
         "evaluator_id": FINAL_EVALUATOR_ID,
         "config_canonical_sha256": config.config_sha256,
         "config_raw_sha256": _file_sha256(config_file),
@@ -284,15 +284,15 @@ def _registration_payload(
             "container_claim_registry_root": "/workspace/final-claims",
             "container_pin_root": "/workspace/pins",
             "host_pin_directory_relative_path": (
-                "qualification-pins/rcq-v2-reference-v1"
+                "qualification-pins/rcq-v2-reference-v2"
             ),
             "pretraining_pin_filename": "pretraining.json",
             "final_authorization_filename": "final-authorization.json",
             "registration_release_relative_path": (
-                "registrations/rcq-v2-reference-v1.json"
+                "registrations/rcq-v2-reference-v2.json"
             ),
             "readiness_receipt_relative_path": (
-                "preclaim-readiness/rcq-v2-reference-v1.json"
+                "preclaim-readiness/rcq-v2-reference-v2.json"
             ),
         },
         "receipt_directory": f"final-claims/{_final_range_claim_id()}",
@@ -337,6 +337,45 @@ def build_target_blind_registration(
     return encoded, digest
 
 
+def _safe_registration_parent(value: str | os.PathLike[str]) -> Path:
+    """Resolve an existing registration directory that may hold historical files.
+
+    Claim receipt roots must be empty and exclusively owned. Registration
+    parents are different: only the live filename is create-once, and sibling
+    historical JSON files must remain.
+    """
+
+    absolute = Path(value).absolute()
+    current = Path(absolute.anchor)
+    for part in absolute.parts[1:]:
+        current = current / part
+        if current.exists():
+            metadata = current.stat(follow_symlinks=False)
+            reparse = getattr(metadata, "st_file_attributes", 0) & getattr(
+                stat,
+                "FILE_ATTRIBUTE_REPARSE_POINT",
+                0,
+            )
+            if current.is_symlink() or reparse:
+                raise RCQInputError(
+                    "registration parent cannot traverse a link or reparse point"
+                )
+    if not absolute.exists() or not absolute.is_dir():
+        raise RCQInputError("registration parent must be an existing directory")
+    resolved = absolute.resolve(strict=True)
+    metadata = resolved.stat(follow_symlinks=False)
+    reparse = getattr(metadata, "st_file_attributes", 0) & getattr(
+        stat,
+        "FILE_ATTRIBUTE_REPARSE_POINT",
+        0,
+    )
+    if not resolved.is_dir() or resolved.is_symlink() or reparse:
+        raise RCQInputError(
+            "registration parent must resolve to a non-symlink directory"
+        )
+    return resolved
+
+
 def write_target_blind_registration(
     *,
     training_release_root: str | os.PathLike[str],
@@ -357,8 +396,10 @@ def write_target_blind_registration(
     )
     config = load_training_config(config_file)
     config.resource_policy.require(Capability.ARTIFACT_WRITE)
-    parent = _safe_receipt_root(target.parent)
+    parent = _safe_registration_parent(target.parent)
     target = parent / target.name
+    if target.exists() or target.is_symlink():
+        raise RCQInputError("registration output already exists; replacement is forbidden")
     _publish_no_replace(target, encoded, policy=config.resource_policy)
     if _file_sha256(target) != digest:
         raise RCQInputError("published registration differs from its external SHA-256 pin")

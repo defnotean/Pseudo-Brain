@@ -37,7 +37,7 @@ if (-not $canonicalGitTopLevel.Equals($repoRoot, [StringComparison]::OrdinalIgno
     throw 'The DGX sync scripts are not running from the canonical Pseudo-Brain Git root.'
 }
 
-$registrationRelativePath = 'registrations/rcq-v2-reference-v1.json'
+$registrationRelativePath = 'registrations/rcq-v2-reference-v2.json'
 $sourceFiles = @(& $git -C $repoRoot ls-files --cached --others --exclude-standard -- brain $registrationRelativePath)
 if ($LASTEXITCODE -ne 0) {
     throw 'git ls-files failed while building the source-only release manifest.'

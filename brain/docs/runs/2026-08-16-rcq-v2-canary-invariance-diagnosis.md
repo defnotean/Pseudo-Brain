@@ -59,3 +59,7 @@ This edits `brain/src/irene_brain/training/torch_system.py`, so
 edit it to match the new tree. Start a newly named qualification, new
 immutable release, and new create-only pin. Do not start the 2,048-update
 reference on pin `dbcb6afc…`.
+
+Follow-up: live qualification `rcq_v2_reference_v2` is registered at
+`registrations/rcq-v2-reference-v2.json`. Record:
+[2026-08-16-rcq-v2-reference-v2-registration.md](./2026-08-16-rcq-v2-reference-v2-registration.md).

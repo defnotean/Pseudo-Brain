@@ -20,12 +20,12 @@ set -euo pipefail
 RCQ_STAGING_CANARY_CONFIG='brain/configs/training/dgx-rcq-v2-staging-canary.toml'
 RCQ_REFERENCE_CONFIG='brain/configs/training/dgx-rcq-v2-reference.toml'
 DGX_SMOKE_CONFIG='brain/configs/training/dgx-smoke.toml'
-RCQ_REGISTRATION_RELATIVE_PATH='registrations/rcq-v2-reference-v1.json'
+RCQ_REGISTRATION_RELATIVE_PATH='registrations/rcq-v2-reference-v2.json'
 RCQ_REFERENCE_RUN_ID='dgx-rcq-v2-reference-seed-1702'
-RCQ_PIN_DIRECTORY_RELATIVE_PATH='qualification-pins/rcq-v2-reference-v1'
+RCQ_PIN_DIRECTORY_RELATIVE_PATH='qualification-pins/rcq-v2-reference-v2'
 RCQ_PRETRAINING_PIN_FILENAME='pretraining.json'
 RCQ_FINAL_AUTHORIZATION_FILENAME='final-authorization.json'
-RCQ_READINESS_RELATIVE_PATH='preclaim-readiness/rcq-v2-reference-v1.json'
+RCQ_READINESS_RELATIVE_PATH='preclaim-readiness/rcq-v2-reference-v2.json'
 RCQ_ENTRY_CHECKPOINT_NAME='step-00001536.pt'
 RCQ_FINAL_CHECKPOINT_NAME='step-00002048.pt'
 RCQ_WORKSPACE_MARKER_SHA256='5657bd63ee6ff61d1d90ea63b4cb02f9dd7d5dc3df223c9cbb028f9e2a096053'
@@ -539,12 +539,12 @@ if not isinstance(value, dict):
     raise ValueError("registration root is not an object")
 if value.get("schema_version") != 2:
     raise ValueError("registration schema is not RCQ-v2 schema 2")
-if value.get("qualification_id") != "rcq_v2_reference_v1":
+if value.get("qualification_id") != "rcq_v2_reference_v2":
     raise ValueError("registration qualification is not fixed")
 protocol = value.get("workspace_protocol")
 if not isinstance(protocol, dict) or protocol.get("contract") != "pseudo-brain-workspace-v2":
     raise ValueError("registration workspace protocol is not fixed")
-if protocol.get("registration_release_relative_path") != "registrations/rcq-v2-reference-v1.json":
+if protocol.get("registration_release_relative_path") != "registrations/rcq-v2-reference-v2.json":
     raise ValueError("registration path contract is not fixed")
 PY
     DGX_SAFE_PATH="$path"
@@ -556,7 +556,7 @@ load_rcq_v2_pretraining_pin_summary() {
     pin_parent="$workspace/qualification-pins"
     assert_account_owned_directory "$pin_parent" "$workspace" 'qualification pin root' 700
     pin_parent="$DGX_SAFE_PATH"
-    pin_dir="$pin_parent/rcq-v2-reference-v1"
+    pin_dir="$pin_parent/rcq-v2-reference-v2"
     assert_account_owned_directory "$pin_dir" "$pin_parent" 'RCQ-v2 qualification pin directory' 700
     pin_dir="$DGX_SAFE_PATH"
     pin_path="$pin_dir/$RCQ_PRETRAINING_PIN_FILENAME"
@@ -625,7 +625,7 @@ exact_keys(
 )
 if value["schema_version"] != 1 or value["action"] != "rcq_v2_pin_pretraining_v1":
     raise ValueError("pretraining pin identity differs")
-if value["qualification_id"] != "rcq_v2_reference_v1":
+if value["qualification_id"] != "rcq_v2_reference_v2":
     raise ValueError("pretraining qualification differs")
 workspace = value["workspace"]
 exact_keys(
@@ -643,7 +643,7 @@ if workspace != {
     "marker_relative_path": ".pseudo-brain-workspace-v2",
     "marker_file_sha256": "5657bd63ee6ff61d1d90ea63b4cb02f9dd7d5dc3df223c9cbb028f9e2a096053",
     "claim_registry_relative_path": "final-claims",
-    "pin_directory_relative_path": "qualification-pins/rcq-v2-reference-v1",
+    "pin_directory_relative_path": "qualification-pins/rcq-v2-reference-v2",
 }:
     raise ValueError("workspace binding differs")
 release = value["release"]
@@ -656,7 +656,7 @@ if release["relative_path"] != f"releases/{release_id}":
 archive_sha = hash_string(release["archive_sha256"], "archive_sha256")
 registration = value["registration"]
 exact_keys(registration, {"release_relative_path", "sha256"}, "registration")
-if registration["release_relative_path"] != "registrations/rcq-v2-reference-v1.json":
+if registration["release_relative_path"] != "registrations/rcq-v2-reference-v2.json":
     raise ValueError("registration path differs")
 registration_sha = hash_string(registration["sha256"], "registration_sha256")
 config = value["config"]
@@ -801,7 +801,7 @@ bind_rcq_v2_pretraining_authority() {
     pin_parent="$workspace/qualification-pins"
     assert_account_owned_directory "$pin_parent" "$workspace" 'qualification pin root' 700
     pin_parent="$DGX_SAFE_PATH"
-    pin_dir="$pin_parent/rcq-v2-reference-v1"
+    pin_dir="$pin_parent/rcq-v2-reference-v2"
     assert_account_owned_directory "$pin_dir" "$pin_parent" 'RCQ-v2 qualification pin directory' 700
     RCQ_PIN_DIRECTORY="$DGX_SAFE_PATH"
     pin_path="$RCQ_PIN_DIRECTORY/$RCQ_PRETRAINING_PIN_FILENAME"
@@ -1791,7 +1791,7 @@ PY
     pin_parent="$workspace/qualification-pins"
     assert_account_owned_directory "$pin_parent" "$workspace" 'qualification pin root' 700
     pin_parent="$DGX_SAFE_PATH"
-    pin_dir="$pin_parent/rcq-v2-reference-v1"
+    pin_dir="$pin_parent/rcq-v2-reference-v2"
     ensure_private_directory "$pin_dir" "$pin_parent" 'RCQ-v2 qualification pin directory'
     pin_dir="$DGX_SAFE_PATH"
     if find "$pin_dir" -mindepth 1 -print -quit | grep -q .; then
@@ -1872,16 +1872,16 @@ expected_protocol = {
     "container_release_root": "/workspace/repo",
     "container_run_root": "/workspace/run",
     "container_claim_registry_root": "/workspace/final-claims",
-    "registration_release_relative_path": "registrations/rcq-v2-reference-v1.json",
-    "readiness_receipt_relative_path": "preclaim-readiness/rcq-v2-reference-v1.json",
-    "host_pin_directory_relative_path": "qualification-pins/rcq-v2-reference-v1",
+    "registration_release_relative_path": "registrations/rcq-v2-reference-v2.json",
+    "readiness_receipt_relative_path": "preclaim-readiness/rcq-v2-reference-v2.json",
+    "host_pin_directory_relative_path": "qualification-pins/rcq-v2-reference-v2",
     "container_pin_root": "/workspace/pins",
     "pretraining_pin_filename": "pretraining.json",
     "final_authorization_filename": "final-authorization.json",
 }
 if protocol != expected_protocol:
     raise ValueError("registration workspace protocol differs from the pinned host/container contract")
-if registration.get("qualification_id") != "rcq_v2_reference_v1":
+if registration.get("qualification_id") != "rcq_v2_reference_v2":
     raise ValueError("registration qualification id differs")
 if registration.get("run_id") != "dgx-rcq-v2-reference-seed-1702":
     raise ValueError("registration run id differs")
@@ -1910,14 +1910,14 @@ range_claim_id = receipt_directory.split("/", 1)[1]
 payload: dict[str, object] = {
     "schema_version": 1,
     "action": "rcq_v2_pin_pretraining_v1",
-    "qualification_id": "rcq_v2_reference_v1",
+    "qualification_id": "rcq_v2_reference_v2",
     "workspace": {
         "contract": "pseudo-brain-workspace-v2",
         "host_account_home_relative_path": "projects/pseudo-brain",
         "marker_relative_path": ".pseudo-brain-workspace-v2",
         "marker_file_sha256": marker_sha,
         "claim_registry_relative_path": "final-claims",
-        "pin_directory_relative_path": "qualification-pins/rcq-v2-reference-v1",
+        "pin_directory_relative_path": "qualification-pins/rcq-v2-reference-v2",
     },
     "release": {
         "id": release_id,
@@ -1927,7 +1927,7 @@ payload: dict[str, object] = {
         "archive_sha256": archive_sha,
     },
     "registration": {
-        "release_relative_path": "registrations/rcq-v2-reference-v1.json",
+        "release_relative_path": "registrations/rcq-v2-reference-v2.json",
         "sha256": registration_sha,
     },
     "config": {
@@ -2214,7 +2214,7 @@ if set(readiness) != expected_readiness_fields:
 if (
     readiness["schema_version"] != 1
     or readiness["action"] != "rcq_v2_preclaim_v1"
-    or readiness["qualification_id"] != "rcq_v2_reference_v1"
+    or readiness["qualification_id"] != "rcq_v2_reference_v2"
     or readiness["status"] != "ready_for_once_only_final"
     or readiness["range_claim_id"] != range_claim_id
     or readiness["receipt_directory"] != f"final-claims/{range_claim_id}"
@@ -2256,7 +2256,7 @@ if observed_readiness_semantic != expected_readiness_semantic:
 body = {
     "schema_version": 1,
     "action": "rcq_v2_authorize_final_v1",
-    "qualification_id": "rcq_v2_reference_v1",
+    "qualification_id": "rcq_v2_reference_v2",
     "pretraining": {
         "relative_path": "pretraining.json",
         "file_sha256": expected_pretraining_file,
@@ -2279,7 +2279,7 @@ body = {
         "sha256": expected_checkpoint,
     },
     "readiness": {
-        "relative_path": "final-claims/preclaim-readiness/rcq-v2-reference-v1.json",
+        "relative_path": "final-claims/preclaim-readiness/rcq-v2-reference-v2.json",
         "file_sha256": expected_readiness_file,
         "readiness_sha256": observed_readiness_semantic,
     },
@@ -2350,7 +2350,7 @@ bind_rcq_v2_receipt_verification_authority() {
     pin_parent="$workspace/qualification-pins"
     assert_account_owned_directory "$pin_parent" "$workspace" 'qualification pin root' 700
     pin_parent="$DGX_SAFE_PATH"
-    RCQ_PIN_DIRECTORY="$pin_parent/rcq-v2-reference-v1"
+    RCQ_PIN_DIRECTORY="$pin_parent/rcq-v2-reference-v2"
     assert_account_owned_directory "$RCQ_PIN_DIRECTORY" "$pin_parent" 'RCQ-v2 qualification pin directory' 700
     RCQ_PIN_DIRECTORY="$DGX_SAFE_PATH"
     pin_path="$RCQ_PIN_DIRECTORY/$RCQ_PRETRAINING_PIN_FILENAME"
@@ -2598,7 +2598,7 @@ case "$action" in
         assert_account_owned_directory "$pin_parent" "$workspace" 'qualification pin root' 700
         pin_parent="$DGX_SAFE_PATH"
         require_command flock
-        open_private_lock "$pin_parent/.rcq-v2-reference-v1.lock" "$pin_parent" \
+        open_private_lock "$pin_parent/.rcq-v2-reference-v2.lock" "$pin_parent" \
             'RCQ-v2 qualification authority lock'
         write_rcq_v2_pretraining_pin "$workspace" "$1" "$2" "$3" "$4" "$5"
         ;;
@@ -2620,10 +2620,10 @@ case "$action" in
         [[ "$actual_sha" == "$expected_sha" ]] || fail archive_hash_mismatch 'incoming archive hash does not match'
         registration_members=0
         while IFS= read -r entry; do
-            [[ ( "$entry" == brain/* || "$entry" == registrations/rcq-v2-reference-v1.json ) &&
+            [[ ( "$entry" == brain/* || "$entry" == registrations/rcq-v2-reference-v2.json ) &&
                 "/$entry/" != *"/../"* && "$entry" != /* ]] ||
                 fail unsafe_archive "unsafe archive member '$entry'"
-            if [[ "$entry" == registrations/rcq-v2-reference-v1.json ]]; then
+            if [[ "$entry" == registrations/rcq-v2-reference-v2.json ]]; then
                 registration_members=$((registration_members + 1))
             fi
         done < <(tar -tzf "$archive_path")
@@ -2656,7 +2656,7 @@ case "$action" in
         [[ -f "$staging/brain/pyproject.toml" ]] || fail incomplete_release 'brain/pyproject.toml is missing'
         assert_clean_release_python_source "$staging"
         assert_canonical_rcq_v2_registration_file \
-            "$staging/registrations/rcq-v2-reference-v1.json" "$staging"
+            "$staging/registrations/rcq-v2-reference-v2.json" "$staging"
         (set -o noclobber; printf '%s\n' "$actual_sha" > "$staging/.source-archive.sha256") ||
             fail source_receipt_exists 'release source receipt appeared concurrently'
         chmod -R a-w -- "$staging" || fail release_permission_failed 'could not make release tree read-only'
@@ -2675,7 +2675,7 @@ case "$action" in
             assert_account_owned_directory "$pin_parent" "$workspace" 'qualification pin root' 700
             pin_parent="$DGX_SAFE_PATH"
             require_command flock
-            open_private_lock "$pin_parent/.rcq-v2-reference-v1.lock" "$pin_parent" \
+            open_private_lock "$pin_parent/.rcq-v2-reference-v2.lock" "$pin_parent" \
                 'RCQ-v2 qualification authority lock'
             bind_rcq_v2_pretraining_authority "$workspace"
             release_id="$RCQ_PIN_RELEASE_ID"
@@ -2726,7 +2726,7 @@ case "$action" in
         assert_account_owned_directory "$pin_parent" "$workspace" 'qualification pin root' 700
         pin_parent="$DGX_SAFE_PATH"
         require_command flock
-        open_private_lock "$pin_parent/.rcq-v2-reference-v1.lock" "$pin_parent" \
+        open_private_lock "$pin_parent/.rcq-v2-reference-v2.lock" "$pin_parent" \
             'RCQ-v2 qualification authority lock'
         bind_rcq_v2_pretraining_authority "$workspace"
         release_id="$RCQ_PIN_RELEASE_ID"
@@ -2905,7 +2905,7 @@ EOF
             assert_account_owned_directory "$pin_parent" "$workspace" 'qualification pin root' 700
             pin_parent="$DGX_SAFE_PATH"
             require_command flock
-            open_private_lock "$pin_parent/.rcq-v2-reference-v1.lock" "$pin_parent" \
+            open_private_lock "$pin_parent/.rcq-v2-reference-v2.lock" "$pin_parent" \
                 'RCQ-v2 qualification authority lock'
             bind_rcq_v2_pretraining_authority "$workspace"
             release_id="$RCQ_PIN_RELEASE_ID"
@@ -3060,7 +3060,7 @@ EOF
             assert_account_owned_directory "$pin_parent" "$workspace" 'qualification pin root' 700
             pin_parent="$DGX_SAFE_PATH"
             require_command flock
-            open_private_lock "$pin_parent/.rcq-v2-reference-v1.lock" "$pin_parent" \
+            open_private_lock "$pin_parent/.rcq-v2-reference-v2.lock" "$pin_parent" \
                 'RCQ-v2 qualification authority lock'
             bind_rcq_v2_pretraining_authority "$workspace"
             release_id="$RCQ_PIN_RELEASE_ID"
@@ -3455,7 +3455,7 @@ EOF
         pin_parent="$DGX_SAFE_PATH"
         require_command flock
         require_command python3
-        open_private_lock "$pin_parent/.rcq-v2-reference-v1.lock" "$pin_parent" \
+        open_private_lock "$pin_parent/.rcq-v2-reference-v2.lock" "$pin_parent" \
             'RCQ-v2 qualification authority lock'
         bind_rcq_v2_pretraining_authority "$workspace"
         open_rcq_v2_range_authority_lock "$workspace" "$RCQ_PIN_RANGE_CLAIM_ID"
@@ -3470,7 +3470,7 @@ EOF
         assert_account_owned_directory "$pin_parent" "$workspace" 'qualification pin root' 700
         pin_parent="$DGX_SAFE_PATH"
         require_command flock
-        open_private_lock "$pin_parent/.rcq-v2-reference-v1.lock" "$pin_parent" \
+        open_private_lock "$pin_parent/.rcq-v2-reference-v2.lock" "$pin_parent" \
             'RCQ-v2 qualification authority lock'
         bind_rcq_v2_pretraining_authority "$workspace"
         open_rcq_v2_range_authority_lock "$workspace" "$RCQ_PIN_RANGE_CLAIM_ID"
@@ -3486,7 +3486,7 @@ EOF
         assert_account_owned_directory "$pin_parent" "$workspace" 'qualification pin root' 700
         pin_parent="$DGX_SAFE_PATH"
         require_command flock
-        open_private_lock "$pin_parent/.rcq-v2-reference-v1.lock" "$pin_parent" \
+        open_private_lock "$pin_parent/.rcq-v2-reference-v2.lock" "$pin_parent" \
             'RCQ-v2 qualification authority lock'
         bind_rcq_v2_pretraining_authority "$workspace"
         open_rcq_v2_range_authority_lock "$workspace" "$RCQ_PIN_RANGE_CLAIM_ID"
@@ -3502,7 +3502,7 @@ EOF
         assert_account_owned_directory "$pin_parent" "$workspace" 'qualification pin root' 700
         pin_parent="$DGX_SAFE_PATH"
         require_command flock
-        open_private_lock "$pin_parent/.rcq-v2-reference-v1.lock" "$pin_parent" \
+        open_private_lock "$pin_parent/.rcq-v2-reference-v2.lock" "$pin_parent" \
             'RCQ-v2 qualification authority lock'
         bind_rcq_v2_receipt_verification_authority "$workspace"
         open_rcq_v2_range_authority_lock "$workspace" "$RCQ_PIN_RANGE_CLAIM_ID"

@@ -30,13 +30,13 @@ action, and not an architecture-superiority claim.
 | 0 | Source lives in this Git repository and on private GitHub | Done. `defnotean/Pseudo-Brain`, branch `defnotean/pseudo-brain` |
 | 1 | Write operator documentation and freeze tooling | Done |
 | 2 | Freeze implementation source and regenerate the matched-baseline architecture manifest | Done. Live digest `30d4c119…`. Historical campaign pin `52bba6a9…` unchanged. |
-| 3 | Run local CPU-only tests, including the regenerated manifest identity | Done. 294 tests passed, one expected POSIX skip. |
-| 4 | Build the create-once, target-blind RCQ-v2 registration and record its SHA-256 | Done. `33f7900c1d71b5e363de5a6b7ca921120f486b315241384d906d209a5e02fce0`. Copy that digest off-repo. |
-| 5 | DGX preflight and immutable release sync | Done for historical release `r20260817t013858z-db1f586ef3a0`. |
-| 6 | Trusted pretraining pin, then RCQ smoke, then staging canary | v1 pin `dbcb6afc…` smoke passed; canary failed. Root cause: CUDA `requires_grad` kernel selection. Capture fix confirmed on GB10. |
-| 7 | Pinned 2,048-update reference train on seed 1702 | Do not start on the v1 pin. |
-| 8 | Newly named qualification after the invariance capture fix | Next. Do not edit `registrations/rcq-v2-reference-v1.json`. |
-| 9 | Preclaim, independent review, final authorization, one-shot TEST | Only after a later qualification's development gates pass |
+| 3 | Run local CPU-only tests, including the regenerated manifest identity | Done. 299 tests passed, one expected POSIX skip. |
+| 4 | Build the create-once, target-blind RCQ-v2 registration and record its SHA-256 | Live v2 `6cc98739c78499a990a4b3480524c48dd49243c1e3c63094977a9a917df49690`. Historical v1 `33f7900c…` preserved. Copy the live digest off-repo. |
+| 5 | DGX preflight and immutable release sync | Next for the live v2 tree. Historical release `r20260817t013858z-db1f586ef3a0` stays unused for training. |
+| 6 | Trusted pretraining pin, then RCQ smoke, then staging canary | Next after v2 sync. v1 pin `dbcb6afc…` smoke passed; canary failed. Do not reuse that pin. |
+| 7 | Pinned 2,048-update reference train on seed 1702 | Only if live v2 smoke and canary both pass. |
+| 8 | Newly named qualification after the invariance capture fix | Done. Live file `registrations/rcq-v2-reference-v2.json`. Do not edit v1. |
+| 9 | Preclaim, independent review, final authorization, one-shot TEST | Only after this qualification's development gates pass |
 
 Do not skip ahead. Do not open sealed TEST ranges to "check" labels. Do not
 resume a failed frozen gate as if it had passed. Stage A historical DGX runs
@@ -81,9 +81,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\brain\scripts\dgx\New-RcqV
 ```
 
 Copy the printed `REGISTRATION_SHA256` somewhere that is not this repository
-and not a training run directory. The file itself is published at
-`registrations/rcq-v2-reference-v1.json` and must be included in the immutable
-DGX release.
+and not a training run directory. The live file is
+`registrations/rcq-v2-reference-v2.json` and must be included in the immutable
+DGX release. Historical `registrations/rcq-v2-reference-v1.json` stays in git
+and is not part of the live sync allowlist.
 
 ## What "target-blind" means
 

@@ -45,7 +45,7 @@ foreach ($entry in Get-ChildItem -LiteralPath $packageRoot -Force -Recurse) {
 }
 
 $config = Join-Path $repoRoot 'brain\configs\training\dgx-rcq-v2-reference.toml'
-$registration = Join-Path $repoRoot 'registrations\rcq-v2-reference-v1.json'
+$registration = Join-Path $repoRoot 'registrations\rcq-v2-reference-v2.json'
 if (-not (Test-Path -LiteralPath $config -PathType Leaf)) {
     throw 'The fixed RCQ-v2 reference configuration is missing.'
 }
@@ -60,7 +60,7 @@ if (($helperItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
     throw 'The isolated registration helper is a reparse point.'
 }
 if ($PlanOnly) {
-    Write-Host 'PLAN action=create-target-blind-rcq-v2-registration output=registrations/rcq-v2-reference-v1.json isolated_python=-I-B helper=brain/scripts/run_rcq_v2_registration.py'
+    Write-Host 'PLAN action=create-target-blind-rcq-v2-registration output=registrations/rcq-v2-reference-v2.json isolated_python=-I-B helper=brain/scripts/run_rcq_v2_registration.py'
     return
 }
 

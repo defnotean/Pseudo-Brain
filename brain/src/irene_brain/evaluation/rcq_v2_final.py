@@ -251,7 +251,7 @@ def _validate_registration(raw: object) -> None:
         raise RCQInputError("RCQ registration has incompatible fields")
     exact = {
         "schema_version": 2,
-        "qualification_id": "rcq_v2_reference_v1",
+        "qualification_id": "rcq_v2_reference_v2",
         "evaluator_id": FINAL_EVALUATOR_ID,
         "run_seed": 1702,
         "run_id": "dgx-rcq-v2-reference-seed-1702",
@@ -335,15 +335,15 @@ def _validate_registration(raw: object) -> None:
         "container_claim_registry_root": "/workspace/final-claims",
         "container_pin_root": "/workspace/pins",
         "host_pin_directory_relative_path": (
-            "qualification-pins/rcq-v2-reference-v1"
+            "qualification-pins/rcq-v2-reference-v2"
         ),
         "pretraining_pin_filename": "pretraining.json",
         "final_authorization_filename": "final-authorization.json",
         "registration_release_relative_path": (
-            "registrations/rcq-v2-reference-v1.json"
+            "registrations/rcq-v2-reference-v2.json"
         ),
         "readiness_receipt_relative_path": (
-            "preclaim-readiness/rcq-v2-reference-v1.json"
+            "preclaim-readiness/rcq-v2-reference-v2.json"
         ),
     }):
         raise RCQInputError("RCQ canonical workspace protocol changed")

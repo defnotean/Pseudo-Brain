@@ -391,26 +391,26 @@ assert_clean_release_python_source "$release"
     def test_release_sync_requires_one_canonical_fixed_registration(self) -> None:
         python_path = self._git_bash_path(Path(sys.executable))
         canonical = (
-            '{"qualification_id":"rcq_v2_reference_v1","schema_version":2,'
+            '{"qualification_id":"rcq_v2_reference_v2","schema_version":2,'
             '"workspace_protocol":{"contract":"pseudo-brain-workspace-v2",'
             '"registration_release_relative_path":'
-            '"registrations/rcq-v2-reference-v1.json"}}'
+            '"registrations/rcq-v2-reference-v2.json"}}'
         )
         body = f"""
 PATH=/usr/bin:/bin
 python3() {{ "{python_path}" "$@"; }}
 release="$1/release"
-registration="$release/registrations/rcq-v2-reference-v1.json"
+registration="$release/registrations/rcq-v2-reference-v2.json"
 mkdir -p -- "$(dirname -- "$registration")"
 printf '%s\n' '{canonical}' > "$registration"
 assert_canonical_rcq_v2_registration_file "$registration" "$release"
 
-printf '%s\n' '{{"schema_version":2, "qualification_id":"rcq_v2_reference_v1", "workspace_protocol":{{"contract":"pseudo-brain-workspace-v2","registration_release_relative_path":"registrations/rcq-v2-reference-v1.json"}}}}' > "$registration"
+printf '%s\n' '{{"schema_version":2, "qualification_id":"rcq_v2_reference_v2", "workspace_protocol":{{"contract":"pseudo-brain-workspace-v2","registration_release_relative_path":"registrations/rcq-v2-reference-v2.json"}}}}' > "$registration"
 if (assert_canonical_rcq_v2_registration_file "$registration" "$release" >/dev/null 2>&1); then
     exit 101
 fi
 
-printf '%s\n' '{{"qualification_id":"rcq_v2_reference_v1","qualification_id":"rcq_v2_reference_v1","schema_version":2,"workspace_protocol":{{"contract":"pseudo-brain-workspace-v2","registration_release_relative_path":"registrations/rcq-v2-reference-v1.json"}}}}' > "$registration"
+printf '%s\n' '{{"qualification_id":"rcq_v2_reference_v2","qualification_id":"rcq_v2_reference_v2","schema_version":2,"workspace_protocol":{{"contract":"pseudo-brain-workspace-v2","registration_release_relative_path":"registrations/rcq-v2-reference-v2.json"}}}}' > "$registration"
 if (assert_canonical_rcq_v2_registration_file "$registration" "$release" >/dev/null 2>&1); then
     exit 102
 fi
@@ -453,7 +453,7 @@ fi
         for required in (
             "resolve_canonical_rcq_v2_workspace",
             "host_account_home_relative_path",
-            "qualification-pins/rcq-v2-reference-v1",
+            "qualification-pins/rcq-v2-reference-v2",
             "pretraining.json",
             "PSEUDOBRAINRCQPRETRAINPIN\\x01",
             "marker_file_sha256",
@@ -1196,7 +1196,7 @@ fi
         self.assertIn(".pseudo-brain-workspace-v2", sync)
         self.assertIn("rev-parse --show-toplevel", sync)
         self.assertIn("canonical Pseudo-Brain Git root", sync)
-        self.assertIn("registrations/rcq-v2-reference-v1.json", sync)
+        self.assertIn("registrations/rcq-v2-reference-v2.json", sync)
         for forbidden_pattern in ("\\.env", "checkpoints?", "safetensors", "ReparsePoint"):
             with self.subTest(forbidden_pattern=forbidden_pattern):
                 self.assertIn(forbidden_pattern, sync)

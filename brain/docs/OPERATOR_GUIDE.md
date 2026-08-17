@@ -74,16 +74,17 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\brain\scripts\dgx\New-RcqV
 
 Expected outputs:
 
-- File: `registrations/rcq-v2-reference-v1.json`
+- File: `registrations/rcq-v2-reference-v2.json`
 - Printed line: `REGISTRATION_SHA256=<64 lowercase hex>`
 - Printed line: `EXTERNAL_PIN_REQUIRED=true`
 
-The 2026-08-16 freeze already published that file. Its digest is
-`33f7900c1d71b5e363de5a6b7ca921120f486b315241384d906d209a5e02fce0`. Copy that
+The live 2026-08-16 qualification already published that file. Its digest is
+`6cc98739c78499a990a4b3480524c48dd49243c1e3c63094977a9a917df49690`. Copy that
 value into a note that is not this repository and not `brain/runs/`. See
-[runs/2026-08-16-rcq-v2-target-blind-registration.md](./runs/2026-08-16-rcq-v2-target-blind-registration.md).
-Replacement is forbidden: if the file already exists, delete nothing; start a
-newly named qualification instead.
+[runs/2026-08-16-rcq-v2-reference-v2-registration.md](./runs/2026-08-16-rcq-v2-reference-v2-registration.md).
+Historical `registrations/rcq-v2-reference-v1.json` stays in git and must not
+be edited. Replacement of the live file is forbidden: if it already exists,
+delete nothing; start a newly named qualification instead.
 
 `PlanOnly` prints the intended action without writing:
 
@@ -121,7 +122,7 @@ registration path:
 
 Write down `RELEASE_ID`, the source-archive SHA-256, and the cached image
 content digest. Require remote read-back of the externally pinned registration
-SHA at `registrations/rcq-v2-reference-v1.json` inside that release.
+SHA at `registrations/rcq-v2-reference-v2.json` inside that release.
 
 ## Step 4. Trusted pretraining pin
 

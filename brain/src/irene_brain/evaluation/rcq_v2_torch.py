@@ -104,7 +104,7 @@ _REGISTERED_CONFIG_RELATIVE_PATH = Path(
     "brain/configs/training/dgx-rcq-v2-reference.toml"
 )
 _REGISTRATION_RELATIVE_PATH = Path(
-    "registrations/rcq-v2-reference-v1.json"
+    "registrations/rcq-v2-reference-v2.json"
 )
 _CONTAINER_RELEASE_ROOT = Path("/workspace/repo")
 _CONTAINER_RUN_ROOT = Path("/workspace/run")
@@ -1020,7 +1020,7 @@ def _load_pretraining_pin() -> _PinnedDocument:
         type(raw["schema_version"]) is not int
         or raw["schema_version"] != 1
         or raw["action"] != "rcq_v2_pin_pretraining_v1"
-        or raw["qualification_id"] != "rcq_v2_reference_v1"
+        or raw["qualification_id"] != "rcq_v2_reference_v2"
         or raw["range_claim_id"] != _final_range_claim_id()
     ):
         raise RCQInputError("pretraining pin identity changed")
@@ -1042,7 +1042,7 @@ def _load_pretraining_pin() -> _PinnedDocument:
         "marker_relative_path": ".pseudo-brain-workspace-v2",
         "marker_file_sha256": _digest_bytes(b"pseudo-brain-workspace-v2\n"),
         "claim_registry_relative_path": "final-claims",
-        "pin_directory_relative_path": "qualification-pins/rcq-v2-reference-v1",
+        "pin_directory_relative_path": "qualification-pins/rcq-v2-reference-v2",
     }
     if not _strict_equal(workspace, expected_workspace):
         raise RCQInputError("pretraining workspace pin changed")
@@ -1180,7 +1180,7 @@ def _load_final_authorization() -> _PinnedDocument:
         type(raw["schema_version"]) is not int
         or raw["schema_version"] != 1
         or raw["action"] != "rcq_v2_authorize_final_v1"
-        or raw["qualification_id"] != "rcq_v2_reference_v1"
+        or raw["qualification_id"] != "rcq_v2_reference_v2"
         or raw["range_claim_id"] != _final_range_claim_id()
     ):
         raise RCQInputError("final authorization identity changed")
@@ -1259,7 +1259,7 @@ def _load_final_authorization() -> _PinnedDocument:
     )
     if (
         readiness["relative_path"]
-        != "final-claims/preclaim-readiness/rcq-v2-reference-v1.json"
+        != "final-claims/preclaim-readiness/rcq-v2-reference-v2.json"
     ):
         raise RCQInputError("final authorization readiness path changed")
     _relative_posix(readiness["relative_path"], name="authorized readiness path")
@@ -2923,7 +2923,7 @@ def _readiness_payload(context: _PreclaimContext) -> dict[str, object]:
 def _readiness_path(context: _PreclaimContext) -> Path:
     relative = context.workspace_protocol["readiness_receipt_relative_path"]
     if type(relative) is not str or relative != (
-        "preclaim-readiness/rcq-v2-reference-v1.json"
+        "preclaim-readiness/rcq-v2-reference-v2.json"
     ):
         raise RCQInputError("registered preclaim readiness path changed")
     return context.claim_registry / Path(relative)
@@ -3080,7 +3080,7 @@ def _load_readiness_receipt_for_verification(
         type(readiness["schema_version"]) is not int
         or readiness["schema_version"] != 1
         or readiness["action"] != "rcq_v2_preclaim_v1"
-        or readiness["qualification_id"] != "rcq_v2_reference_v1"
+        or readiness["qualification_id"] != "rcq_v2_reference_v2"
         or readiness["evaluator_id"] != "rcq_v2_final_v1"
         or readiness["status"] != "ready_for_once_only_final"
         or readiness["checkpoint_step"] != FINAL_STEP
@@ -3231,7 +3231,7 @@ def _prepare_receipt_verification_bindings() -> Mapping[str, object]:
     ):
         raise RCQInputError("final authorization links are incompatible")
     readiness_path = _plain_resolve(
-        claim_registry / "preclaim-readiness" / "rcq-v2-reference-v1.json",
+        claim_registry / "preclaim-readiness" / "rcq-v2-reference-v2.json",
         name="preclaim readiness receipt",
         kind="file",
     )

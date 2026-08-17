@@ -1,10 +1,13 @@
 # Reference Candidate Qualification v2 protocol and runbook
 
-Status: implementation-ready protocol. The 2026-08-16 target-blind registration
-is published at `registrations/rcq-v2-reference-v1.json` with SHA-256
+Status: implementation-ready protocol. The live 2026-08-16 target-blind
+registration is published at `registrations/rcq-v2-reference-v2.json` with
+SHA-256
+`6cc98739c78499a990a4b3480524c48dd49243c1e3c63094977a9a917df49690`.
+Historical `registrations/rcq-v2-reference-v1.json` remains
 `33f7900c1d71b5e363de5a6b7ca921120f486b315241384d906d209a5e02fce0`. No
 qualification run or final TEST has been launched. If source or configuration
-changes after that pin, make a new release and a new registration instead.
+changes after the live pin, make a new release and a new registration instead.
 
 If you are executing the campaign rather than auditing thresholds, start with
 [CURRENT_WORK.md](../../CURRENT_WORK.md) and
@@ -223,7 +226,7 @@ derives configuration manifests only and reports `sealed_test_examples_opened`
 as zero; it does not instantiate any dataset. Release sync allowlists that one
 exact registration path in addition to `brain/**`, installs both into the same
 immutable release, and the evaluator requires the resulting fixed container
-path `/workspace/repo/registrations/rcq-v2-reference-v1.json`. Do not generate
+path `/workspace/repo/registrations/rcq-v2-reference-v2.json`. Do not generate
 the registration inside an already installed read-only release. Do not edit
 source, configuration, or registration after its SHA is pinned; if smoke or
 canary work requires a source or config change, discard that
@@ -240,7 +243,7 @@ The operator commands below are the only supported production sequence. Generic
 `brain/configs/training/dgx-rcq-v2-reference.toml` and the fixed run ID
 `dgx-rcq-v2-reference-seed-1702`. After the pretraining pin exists, production
 actions resolve the canonical workspace `~/projects/pseudo-brain`, the pin
-directory `qualification-pins/rcq-v2-reference-v1`, and the claim registry
+directory `qualification-pins/rcq-v2-reference-v2`, and the claim registry
 `final-claims` on the host; they do not accept caller-selected workspace,
 release, image, config, run, or checkpoint identities. Container Python is
 `python3 -I` with argv limited to the subcommand `preclaim`, `final-once`, or

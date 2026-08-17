@@ -4,9 +4,9 @@ Updated: 2026-08-16
 
 ## Current campaign: RCQ-v2
 
-Status: v1 Spark pin passed smoke and failed the staging canary. The failure
-is CUDA kernel selection on `requires_grad` flips, not a model result. A
-capture fix is confirmed on GB10 and requires a newly named qualification.
+Status: live qualification is `rcq_v2_reference_v2`. Historical v1 Spark pin
+passed smoke and failed the staging canary (CUDA `requires_grad` kernel
+selection, not a model result). The capture fix is in the live source tree.
 No final TEST has been launched.
 
 RCQ-v2 asks whether the existing single model can learn a state-conditioned
@@ -15,16 +15,18 @@ seed, under a frozen recipe. A later pass would not be closed-loop gameplay or
 architecture superiority. Read [CURRENT_WORK.md](../CURRENT_WORK.md) and
 [docs/OPERATOR_GUIDE.md](./docs/OPERATOR_GUIDE.md) before [docs/RCQ_V2_PROTOCOL.md](./docs/RCQ_V2_PROTOCOL.md).
 
-Create-once registration:
+Live create-once registration:
 
-- File: `registrations/rcq-v2-reference-v1.json`
-- SHA-256: `33f7900c1d71b5e363de5a6b7ca921120f486b315241384d906d209a5e02fce0`
+- File: `registrations/rcq-v2-reference-v2.json`
+- SHA-256: `6cc98739c78499a990a4b3480524c48dd49243c1e3c63094977a9a917df49690`
+- Qualification id: `rcq_v2_reference_v2`
 - `sealed_test_examples_opened`: 0
-- Record: [docs/runs/2026-08-16-rcq-v2-target-blind-registration.md](./docs/runs/2026-08-16-rcq-v2-target-blind-registration.md)
+- Record: [docs/runs/2026-08-16-rcq-v2-reference-v2-registration.md](./docs/runs/2026-08-16-rcq-v2-reference-v2-registration.md)
 
-Keep a copy of that SHA-256 outside this repository. Do not edit the
-registration file. If source or the RCQ training config changes, start a new
-qualification instead.
+Historical v1 file `registrations/rcq-v2-reference-v1.json` remains
+`33f7900c1d71b5e363de5a6b7ca921120f486b315241384d906d209a5e02fce0`. Do not
+edit either JSON. If source or the RCQ training config changes after the live
+pin, start a newly named qualification instead.
 
 Two unused Spark pins (`cee1cb76…` then `04608d70…`) were discarded after
 pin-bound smoke died in isolated tests that only fail on the immutable Linux
@@ -35,9 +37,9 @@ path. CUDA backward passed both times. Record:
 The third pin (`dbcb6afc…`, release `r20260817t013858z-db1f586ef3a0`) passed
 smoke and failed the staging canary. Diagnosis:
 [docs/runs/2026-08-16-rcq-v2-canary-invariance-diagnosis.md](./docs/runs/2026-08-16-rcq-v2-canary-invariance-diagnosis.md).
-Do not start the 2,048-update reference on that pin. The capture fix changes
-`source_tree_sha256`; keep `registrations/rcq-v2-reference-v1.json` and start a
-newly named qualification.
+Do not start the 2,048-update reference on that pin. The capture fix changed
+`source_tree_sha256`; v1 JSON is preserved and live work uses
+`registrations/rcq-v2-reference-v2.json`.
 
 The matched-baseline architecture manifest at
 `configs/baseline-architecture-manifest.json` was regenerated as an intentional
@@ -48,11 +50,12 @@ campaign stays blocked. Record:
 [docs/runs/2026-08-16-baseline-architecture-manifest-freeze.md](./docs/runs/2026-08-16-baseline-architecture-manifest-freeze.md).
 The freeze does not open TEST and does not start DGX training.
 
-Local play-safe verification after the freeze: every isolated test module
-passed (294 tests, one expected POSIX skip in the trusted-final suite, about
-47 seconds, CPU-only). The first-matched campaign remains fail-closed on its
-historical 500-step pin. The play-safe runner now sets `PYTHONDONTWRITEBYTECODE`
-so later tests cannot leave `__pycache__` in the registered source tree.
+Local play-safe verification after the live v2 registration: every isolated
+test module passed (299 tests, one expected POSIX skip in the trusted-final
+suite, about 55 seconds, CPU-only). The first-matched campaign remains
+fail-closed on its historical 500-step pin. The play-safe runner now sets
+`PYTHONDONTWRITEBYTECODE` so later tests cannot leave `__pycache__` in the
+registered source tree.
 
 Historical Stage A DGX runs below remain valid failures. They are not a
 starting checkpoint for RCQ-v2.

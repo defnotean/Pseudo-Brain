@@ -67,7 +67,7 @@ def _registration_payload() -> dict[str, object]:
     }
     return {
         "schema_version": 2,
-        "qualification_id": "rcq_v2_reference_v1",
+        "qualification_id": "rcq_v2_reference_v2",
         "evaluator_id": final.FINAL_EVALUATOR_ID,
         "config_canonical_sha256": zero,
         "config_raw_sha256": zero,
@@ -158,15 +158,15 @@ def _registration_payload() -> dict[str, object]:
             "container_claim_registry_root": "/workspace/final-claims",
             "container_pin_root": "/workspace/pins",
             "host_pin_directory_relative_path": (
-                "qualification-pins/rcq-v2-reference-v1"
+                "qualification-pins/rcq-v2-reference-v2"
             ),
             "pretraining_pin_filename": "pretraining.json",
             "final_authorization_filename": "final-authorization.json",
             "registration_release_relative_path": (
-                "registrations/rcq-v2-reference-v1.json"
+                "registrations/rcq-v2-reference-v2.json"
             ),
             "readiness_receipt_relative_path": (
-                "preclaim-readiness/rcq-v2-reference-v1.json"
+                "preclaim-readiness/rcq-v2-reference-v2.json"
             ),
         },
         "receipt_directory": f"final-claims/{final._final_range_claim_id()}",
@@ -239,7 +239,7 @@ def _pretraining_pin_payload(*, registration_sha256: str) -> dict[str, object]:
     payload: dict[str, object] = {
         "schema_version": 1,
         "action": "rcq_v2_pin_pretraining_v1",
-        "qualification_id": "rcq_v2_reference_v1",
+        "qualification_id": "rcq_v2_reference_v2",
         "workspace": {
             "contract": "pseudo-brain-workspace-v2",
             "host_account_home_relative_path": "projects/pseudo-brain",
@@ -249,7 +249,7 @@ def _pretraining_pin_payload(*, registration_sha256: str) -> dict[str, object]:
             ).hexdigest(),
             "claim_registry_relative_path": "final-claims",
             "pin_directory_relative_path": (
-                "qualification-pins/rcq-v2-reference-v1"
+                "qualification-pins/rcq-v2-reference-v2"
             ),
         },
         "release": {
@@ -258,7 +258,7 @@ def _pretraining_pin_payload(*, registration_sha256: str) -> dict[str, object]:
             "archive_sha256": "1" * 64,
         },
         "registration": {
-            "release_relative_path": "registrations/rcq-v2-reference-v1.json",
+            "release_relative_path": "registrations/rcq-v2-reference-v2.json",
             "sha256": registration_sha256,
         },
         "config": {
@@ -304,7 +304,7 @@ def _final_authorization_payload(
     payload: dict[str, object] = {
         "schema_version": 1,
         "action": "rcq_v2_authorize_final_v1",
-        "qualification_id": "rcq_v2_reference_v1",
+        "qualification_id": "rcq_v2_reference_v2",
         "pretraining": {
             "relative_path": "pretraining.json",
             "file_sha256": pretraining_file_sha256,
@@ -328,7 +328,7 @@ def _final_authorization_payload(
         },
         "readiness": {
             "relative_path": (
-                "final-claims/preclaim-readiness/rcq-v2-reference-v1.json"
+                "final-claims/preclaim-readiness/rcq-v2-reference-v2.json"
             ),
             "file_sha256": "5" * 64,
             "readiness_sha256": "6" * 64,
@@ -375,8 +375,57 @@ class RCQV2FinalTrustTests(unittest.TestCase):
         self.assertNotIn("--output", preregistration_options)
         self.assertEqual(
             torch_runner._REGISTRATION_RELATIVE_PATH.as_posix(),
+            "registrations/rcq-v2-reference-v2.json",
+        )
+
+    def test_historical_v1_registration_bytes_are_preserved(self) -> None:
+        historical = (
+            Path(__file__).resolve().parents[2]
+            / "registrations"
+            / "rcq-v2-reference-v1.json"
+        )
+        encoded = historical.read_bytes()
+        payload = json.loads(encoded.decode("utf-8"))
+        self.assertEqual(payload["qualification_id"], "rcq_v2_reference_v1")
+        self.assertEqual(payload["slices"]["final_recipient"]["local_start"], 3_145_728)
+        self.assertEqual(
+            sha256(encoded).hexdigest(),
+            "33f7900c1d71b5e363de5a6b7ca921120f486b315241384d906d209a5e02fce0",
+        )
+        self.assertNotEqual(
+            torch_runner._REGISTRATION_RELATIVE_PATH.as_posix(),
             "registrations/rcq-v2-reference-v1.json",
         )
+
+    def test_live_v2_registration_bytes_are_pinned(self) -> None:
+        live = (
+            Path(__file__).resolve().parents[2]
+            / "registrations"
+            / "rcq-v2-reference-v2.json"
+        )
+        encoded = live.read_bytes()
+        payload = json.loads(encoded.decode("utf-8"))
+        self.assertEqual(payload["qualification_id"], "rcq_v2_reference_v2")
+        self.assertEqual(payload["slices"]["final_recipient"]["local_start"], 3_145_728)
+        self.assertEqual(payload["run_id"], "dgx-rcq-v2-reference-seed-1702")
+        self.assertEqual(
+            sha256(encoded).hexdigest(),
+            "6cc98739c78499a990a4b3480524c48dd49243c1e3c63094977a9a917df49690",
+        )
+        self.assertEqual(
+            torch_runner._REGISTRATION_RELATIVE_PATH.as_posix(),
+            "registrations/rcq-v2-reference-v2.json",
+        )
+
+    def test_registration_parent_may_hold_historical_files(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            parent = Path(raw) / "registrations"
+            parent.mkdir()
+            (parent / "rcq-v2-reference-v1.json").write_bytes(b"{}\n")
+            resolved = preregistration._safe_registration_parent(parent)
+            self.assertEqual(resolved, parent.resolve(strict=True))
+            self.assertTrue((resolved / "rcq-v2-reference-v1.json").is_file())
+            self.assertFalse((resolved / "rcq-v2-reference-v2.json").exists())
 
     def test_cli_help_and_dispatch_derive_all_identities_without_injection(self) -> None:
         help_text = torch_runner._parser().format_help()
@@ -433,7 +482,7 @@ class RCQV2FinalTrustTests(unittest.TestCase):
                     raise RCQInputError("entry set changed")
 
         readiness = {
-            "file": "rcq-v2-reference-v1.json",
+            "file": "rcq-v2-reference-v2.json",
             "file_sha256": "1" * 64,
             "readiness_sha256": "2" * 64,
         }
@@ -441,7 +490,7 @@ class RCQV2FinalTrustTests(unittest.TestCase):
         retired = [{"role": "final_recipient"}]
         guard = {"status": "unused"}
         bindings = {
-            "qualification_id": "rcq_v2_reference_v1",
+            "qualification_id": "rcq_v2_reference_v2",
             "readiness_binding": readiness,
             "authorization": authorization,
             "retired_ranges": retired,
@@ -455,7 +504,7 @@ class RCQV2FinalTrustTests(unittest.TestCase):
         def fixture(status: str) -> tuple[FakeStore, dict[str, object]]:
             claim: dict[str, object] = {
                 "schema_version": 1,
-                "qualification_id": "rcq_v2_reference_v1",
+                "qualification_id": "rcq_v2_reference_v2",
                 "status": "claimed_test_retired",
                 "preclaim_readiness": readiness,
                 "authorization": authorization,
@@ -475,7 +524,7 @@ class RCQV2FinalTrustTests(unittest.TestCase):
             if status != "invalid_after_claim":
                 range_payload: dict[str, object] = {
                     "schema_version": 1,
-                    "qualification_id": "rcq_v2_reference_v1",
+                    "qualification_id": "rcq_v2_reference_v2",
                     "claim_sha256": claim["claim_sha256"],
                     "ranges": final._reserved_excluded_ranges(),
                 }
@@ -514,7 +563,7 @@ class RCQV2FinalTrustTests(unittest.TestCase):
                 }
             terminal: dict[str, object] = {
                 "schema_version": 1,
-                "qualification_id": "rcq_v2_reference_v1",
+                "qualification_id": "rcq_v2_reference_v2",
                 "status": status,
                 "passed": status == "passed",
                 "claim_sha256": claim["claim_sha256"],
