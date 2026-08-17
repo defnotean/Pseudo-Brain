@@ -136,6 +136,9 @@ plus a real-time evaluation stack:
    no-model capture-to-input p99 < 4 ms (PLAN.md §31 Phase 0).
 2. **Closed-loop moving-shapes play:** the qualified v3 (or later) checkpoint
    drives the in-repo world in real time through `runtime/continuous.py`.
+   The deterministic evaluator half is implemented
+   (`evaluation/closed_loop_play.py`; see §6 item 6); what remains is running
+   a qualified checkpoint through it and the physical Phase 0B latency path.
    Measure observe-to-submit latency, deadline misses, and closed-loop task
    success vs the open-loop gate numbers. This is the first honest "the model
    plays" claim, still in a toy world.
@@ -189,8 +192,15 @@ Near-term slices, each independently committable and test-covered:
    random/scripted/oracle policies.
 5. **Phase 0B capture/control harness** (runtime/capture, runtime/controls,
    watchdog, kill switch; behind explicit arming).
-6. **Closed-loop evaluator**: live-play metrics, latency evidence records
-   (extend `evaluation/latency_evidence.py` from benchmarks to play).
+6. **Closed-loop evaluator**. Implemented for the in-repo world:
+   `evaluation/closed_loop_play.py` drives moving-shapes deterministically
+   through `runtime/continuous.py` on a manual clock with declared simulated
+   inference latency, and emits canonical SHA-256 evidence records (task
+   outcomes, deadline misses, stale-frame rejections, RCQ-v2 action-path
+   failure modes) ([runs/2026-08-17-closed-loop-play-evaluator.md](runs/2026-08-17-closed-loop-play-evaluator.md)).
+   Still missing: live-play latency evidence records (extend
+   `evaluation/latency_evidence.py` from benchmarks to play) and Phase 0B
+   harness integration.
 7. **Next in-repo worlds** (pursuit/junction/occlusion) + branch-DAG data
    generation at scale on the Spark.
 8. **External world adapters** (XLand-MiniGrid first; smallest integration

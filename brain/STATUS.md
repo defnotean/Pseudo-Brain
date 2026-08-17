@@ -100,6 +100,16 @@ campaign stays blocked. Records:
 [docs/runs/2026-08-17-baseline-suite-persistence-and-density-ablations.md](./docs/runs/2026-08-17-baseline-suite-persistence-and-density-ablations.md).
 The freeze does not open TEST and does not start DGX training.
 
+The closed-loop moving-shapes play evaluator (roadmap §6 item 6) is
+implemented in `src/irene_brain/evaluation/closed_loop_play.py`: a
+deterministic, manual-clock harness that drives the in-repo world through
+`runtime/continuous.py` with declared simulated inference latency and emits
+canonical SHA-256 evidence records (task outcomes, deadline misses,
+stale-frame rejections, and the RCQ-v2 action-path failure modes). It is
+exploratory evidence tooling, not a qualification component; no checkpoint
+is qualified to be measured by it yet. Record:
+[docs/runs/2026-08-17-closed-loop-play-evaluator.md](./docs/runs/2026-08-17-closed-loop-play-evaluator.md).
+
 Local play-safe verification after the live v2 registration: every isolated
 test module passed (299 tests, one expected POSIX skip in the trusted-final
 suite, about 55 seconds, CPU-only). The first-matched campaign remains
