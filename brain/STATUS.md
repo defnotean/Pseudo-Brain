@@ -44,6 +44,8 @@ Keep the live registration SHA. Do not rebuild it.
 Live v2 pin `adf79ccc…` (release `r20260817t021531z-7a2967ebec60`) passed
 smoke and the staging canary. The 2,048-update reference is running. Record:
 [docs/runs/2026-08-16-rcq-v2-reference-v2-smoke-canary-train.md](./docs/runs/2026-08-16-rcq-v2-reference-v2-smoke-canary-train.md).
+Spark disk cleanup of non-3.8 weights:
+[docs/runs/2026-08-16-spark-non-3.8-model-cleanup.md](./docs/runs/2026-08-16-spark-non-3.8-model-cleanup.md).
 
 The third historical-v1 pin (`dbcb6afc…`, release `r20260817t013858z-db1f586ef3a0`) passed
 smoke and failed the staging canary. Diagnosis:
