@@ -114,6 +114,12 @@ scripted chaser, privileged-state oracle) are implemented for that evaluator
 in `src/irene_brain/evaluation/diagnostic_policies.py`, giving every future
 closed-loop model row a floor, reference, and ceiling. Record:
 [docs/runs/2026-08-17-diagnostic-policies.md](./docs/runs/2026-08-17-diagnostic-policies.md).
+The first moving-shapes successor world is implemented:
+`src/irene_brain/environments/pursuit.py` (pursuit/evasion with deterministic
+greedy chasers, canonical snapshots, and swept-path contact), and the
+closed-loop evaluator now drives any branchable in-repo world through an
+`environment_factory` parameter. Record:
+[docs/runs/2026-08-17-pursuit-world.md](./docs/runs/2026-08-17-pursuit-world.md).
 
 Local play-safe verification after the live v2 registration: every isolated
 test module passed (299 tests, one expected POSIX skip in the trusted-final

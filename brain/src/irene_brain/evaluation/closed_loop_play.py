@@ -342,18 +342,28 @@ def _run_episode_core(
     config: ClosedLoopPlayConfig,
     decide: _DecisionFn,
     on_environment: Callable[[object], None] | None = None,
+    environment_factory: Callable[[], object] | None = None,
 ) -> ClosedLoopEpisodeReport:
-    """Run one deterministic closed-loop episode for any decision source."""
+    """Run one deterministic closed-loop episode for any decision source.
 
-    from ..environments.moving_shapes import MovingShapesEnv
+    ``environment_factory`` defaults to the moving-shapes world driven by the
+    config knobs; pass any branchable in-repo world (for example
+    ``PursuitEnv``) to evaluate decision sources on the environment ladder.
+    Contact events are counted as ``collisions`` whether the world calls them
+    "collision" (moving shapes) or "caught" (pursuit).
+    """
 
-    environment = _EventCountingEnvironment(
-        MovingShapesEnv(
-            hazard_count=config.hazard_count,
-            tick_period_ns=config.tick_period_ns,
-            max_ticks=config.max_ticks,
-        )
-    )
+    if environment_factory is None:
+        from ..environments.moving_shapes import MovingShapesEnv
+
+        def environment_factory() -> object:
+            return MovingShapesEnv(
+                hazard_count=config.hazard_count,
+                tick_period_ns=config.tick_period_ns,
+                max_ticks=config.max_ticks,
+            )
+
+    environment = _EventCountingEnvironment(environment_factory())
     environment._environment.reset(seed)
     if on_environment is not None:
         on_environment(environment._environment)
@@ -441,7 +451,12 @@ def _run_episode_core(
         ticks_advanced=driver.step_count,
         reward_sum=environment.reward_sum,
         targets_collected=environment.events.count("target_collected"),
-        collisions=environment.events.count("collision"),
+        # Moving shapes reports "collision"; pursuit reports "caught". Both
+        # are the same column: the player made contact with a threat.
+        collisions=(
+            environment.events.count("collision")
+            + environment.events.count("caught")
+        ),
         decisions_submitted=decisions_submitted,
         decisions_rejected=sum(rejections.values()),
         rejections_by_reason=tuple(sorted(rejections.items())),
@@ -461,6 +476,7 @@ def run_closed_loop_episode(
     seed: int,
     config: ClosedLoopPlayConfig,
     device: object,
+    environment_factory: Callable[[], object] | None = None,
 ) -> ClosedLoopEpisodeReport:
     """Play one deterministic closed-loop moving-shapes episode."""
 
@@ -517,7 +533,12 @@ def run_closed_loop_episode(
         )
         return control, stats, float(output.value[0].float().cpu())
 
-    return _run_episode_core(seed=seed, config=config, decide=decide)
+    return _run_episode_core(
+        seed=seed,
+        config=config,
+        decide=decide,
+        environment_factory=environment_factory,
+    )
 
 
 def run_policy_closed_loop_episode(
@@ -525,6 +546,7 @@ def run_policy_closed_loop_episode(
     *,
     seed: int,
     config: ClosedLoopPlayConfig,
+    environment_factory: Callable[[], object] | None = None,
 ) -> ClosedLoopEpisodeReport:
     """Play one closed-loop episode for a non-model diagnostic policy.
 
@@ -552,7 +574,11 @@ def run_policy_closed_loop_episode(
         return control, control_audit_stats(control), None
 
     return _run_episode_core(
-        seed=seed, config=config, decide=decide, on_environment=bind
+        seed=seed,
+        config=config,
+        decide=decide,
+        on_environment=bind,
+        environment_factory=environment_factory,
     )
 
 
@@ -561,6 +587,7 @@ def evaluate_closed_loop_play(
     *,
     config: ClosedLoopPlayConfig,
     model_description: str,
+    environment_factory: Callable[[], object] | None = None,
 ) -> ClosedLoopPlayReport:
     """Run every registered seed and assemble the canonical report."""
 
@@ -575,7 +602,13 @@ def evaluate_closed_loop_play(
     model.eval()
     try:
         episodes = tuple(
-            run_closed_loop_episode(model, seed=seed, config=config, device=device)
+            run_closed_loop_episode(
+                model,
+                seed=seed,
+                config=config,
+                device=device,
+                environment_factory=environment_factory,
+            )
             for seed in config.episode_seeds
         )
     finally:
