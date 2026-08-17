@@ -12,6 +12,7 @@ from ..model.baselines import (
     MonolithicRecurrentBaseline,
     NoCommunicationSlotBaseline,
     ParameterMatchedMonolithicBaseline,
+    ReactiveSlotBaseline,
     ResetStateSlotBaseline,
 )
 from ..model.spec import ThoughtFieldConfig
@@ -134,6 +135,18 @@ def build_thesis_dense_routing_model(
     return _identity_pixel_grid(model)
 
 
+def build_thesis_reactive_model(
+    config: TrainingConfig,
+) -> ReactiveSlotBaseline:
+    _require_config(config)
+    model = ReactiveSlotBaseline(
+        ThoughtFieldConfig.thesis_mvp(),
+        input_resolution=(64, 64),
+        plan_steps=3,
+    )
+    return _identity_pixel_grid(model)
+
+
 def build_thesis_monolithic_model(
     config: TrainingConfig,
 ) -> MonolithicRecurrentBaseline:
@@ -170,5 +183,6 @@ __all__ = [
     "build_thesis_monolithic_model",
     "build_thesis_no_communication_model",
     "build_thesis_parameter_matched_monolithic_model",
+    "build_thesis_reactive_model",
     "build_thesis_reset_slots_model",
 ]

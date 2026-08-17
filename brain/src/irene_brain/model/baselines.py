@@ -15,7 +15,7 @@ from typing import Mapping
 from torch import Tensor, nn
 
 from .brain_cell import BrainCell, MonolithicRecurrentCell
-from .torch_model import IreneBrainModel
+from .torch_model import BrainState, IreneBrainModel, ModelOutput
 
 
 @dataclass(frozen=True, slots=True)
@@ -142,6 +142,20 @@ DENSE_COMMUNICATION_IDENTITY = ArchitectureVariantIdentity(
     ),
 )
 
+REACTIVE_IDENTITY = ArchitectureVariantIdentity(
+    schema_version=1,
+    variant_id="irene.thought_field.reactive.v1",
+    latent_topology="32_factorized_slots_x_3_registers",
+    peer_routing=True,
+    thought_workspace_writes=True,
+    pooled_recurrent_input=False,
+    matching_role="exact_allocated_parameter_reactive_control",
+    limitations=(
+        "No state crosses steps; belief, working memory, and thoughts reseed every forward.",
+        "A reactive policy cannot express temporal credit assignment across observations.",
+    ),
+)
+
 
 class NoCommunicationSlotBaseline(IreneBrainModel):
     """Full slot model with both current-cycle communication paths severed."""
@@ -196,6 +210,30 @@ class DenseCommunicationSlotBaseline(IreneBrainModel):
             routed_neighbors=self.config.routed_neighbors,
             blocks=self.config.brain_cell_blocks,
             dense_routing=True,
+        )
+
+
+class ReactiveSlotBaseline(IreneBrainModel):
+    """Full slot model with no cross-step state: a pure reactive policy."""
+
+    architecture_identity = REACTIVE_IDENTITY
+    architecture_variant_id = REACTIVE_IDENTITY.variant_id
+
+    def forward(
+        self,
+        pixels: Tensor,
+        previous_control: Tensor,
+        elapsed_seconds: Tensor,
+        state: BrainState | None = None,
+        **kwargs: object,
+    ) -> ModelOutput:
+        del state  # Reactive control: incoming state must not influence output.
+        return super().forward(
+            pixels,
+            previous_control,
+            elapsed_seconds,
+            state=None,
+            **kwargs,
         )
 
 
@@ -442,8 +480,10 @@ __all__ = [
     "NoCommunicationSlotBaseline",
     "PARAMETER_MATCHED_MONOLITHIC_IDENTITY",
     "ParameterMatchedMonolithicBaseline",
+    "REACTIVE_IDENTITY",
     "REFERENCE_IDENTITY",
     "RESET_STATE_IDENTITY",
+    "ReactiveSlotBaseline",
     "ResetStateSlotBaseline",
     "allocated_parameter_counts",
     "architecture_manifest_entry",

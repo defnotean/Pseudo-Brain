@@ -178,11 +178,11 @@ Near-term slices, each independently committable and test-covered:
 4. **Remaining matched baselines + the multi-seed comparison harness**
    (`evaluation/multiseed_comparison.py` exists; extend to the full baseline
    suite of PLAN.md §28). In progress: the statistical harness is complete and
-   the suite now covers six variants — reference, isolated-slot, reset-slot
-   (persistence removed), dense-routing (unrestricted communication), and both
-   monolithic GRU controls
+   the suite now covers seven variants — reference, isolated-slot, reset-slot
+   (persistence removed), dense-routing (unrestricted communication),
+   reactive (no cross-step state), and both monolithic GRU controls
    ([runs/2026-08-17-baseline-suite-persistence-and-density-ablations.md](runs/2026-08-17-baseline-suite-persistence-and-density-ablations.md)).
-   Still missing from §28: reactive no-memory CNN, deeper serial matched-FLOP
+   Still missing from §28: deeper serial matched-FLOP
    model, fixed multi-horizon no-persistence heads, matched-cost ensemble,
    recurrent world-model actor, task specialist, and the diagnostic
    random/scripted/oracle policies.

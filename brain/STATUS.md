@@ -87,10 +87,10 @@ The matched-baseline architecture manifest at
 `configs/baseline-architecture-manifest.json` was regenerated as an intentional
 local freeze on 2026-08-16, twice on 2026-08-17 (RCQ-v3 recipe options, then
 v3 smoke-factory squash parity), and again on 2026-08-17 when the baseline
-suite gained the reset-slot and dense-routing ablations. Live digest
-`f4e9b355299290b7cbf352b1cfb861fd771373cbb0d9707e92c281b998084711` (previous
-`eb46988b…`, `5decb402…`, and `30d4c119…`; all are explicit `new_comparison`
-identities). The
+suite gained the reset-slot, dense-routing, and reactive ablations. Live digest
+`8a41131e4284b9501864e4f30b4b518f161b2f884043de1255f7d251180ecf4d` (previous
+`f4e9b355…`, `eb46988b…`, `5decb402…`, and `30d4c119…`; all are explicit
+`new_comparison` identities). The
 historical first-matched campaign pin `52bba6a9…` is unchanged and that
 campaign stays blocked. Records:
 [docs/runs/2026-08-16-baseline-architecture-manifest-freeze.md](./docs/runs/2026-08-16-baseline-architecture-manifest-freeze.md),

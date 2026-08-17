@@ -23,12 +23,14 @@ if torch is not None:
         MONOLITHIC_IDENTITY,
         NO_COMMUNICATION_IDENTITY,
         PARAMETER_MATCHED_MONOLITHIC_IDENTITY,
+        REACTIVE_IDENTITY,
         REFERENCE_IDENTITY,
         RESET_STATE_IDENTITY,
         DenseCommunicationSlotBaseline,
         MonolithicRecurrentBaseline,
         NoCommunicationSlotBaseline,
         ParameterMatchedMonolithicBaseline,
+        ReactiveSlotBaseline,
         ResetStateSlotBaseline,
         allocated_parameter_counts,
         build_architecture_manifest,
@@ -95,6 +97,7 @@ class MatchedBaselineTests(unittest.TestCase):
             PARAMETER_MATCHED_MONOLITHIC_IDENTITY,
             RESET_STATE_IDENTITY,
             DENSE_COMMUNICATION_IDENTITY,
+            REACTIVE_IDENTITY,
         )
         self.assertEqual(len({item.variant_id for item in identities}), len(identities))
         self.assertEqual(len({item.sha256 for item in identities}), len(identities))
@@ -260,6 +263,46 @@ class MatchedBaselineTests(unittest.TestCase):
         )
         self.assertTrue(torch.isfinite(output.action.control).all())
 
+    def test_reactive_control_ignores_every_incoming_state_field(self) -> None:
+        assert torch is not None
+        torch.manual_seed(11)
+        reference = IreneBrainModel(self.slot_config(), input_resolution=(8, 8))
+        torch.manual_seed(11)
+        reactive = ReactiveSlotBaseline(self.slot_config(), input_resolution=(8, 8))
+        reference_counts = allocated_parameter_counts(reference)
+        reactive_counts = allocated_parameter_counts(reactive)
+        self.assertEqual(reference_counts["total"], reactive_counts["total"])
+        self.assertEqual(reference_counts["trainable"], reactive_counts["trainable"])
+        self.assertEqual(reactive_counts["architecturally_disconnected_trainable"], 0)
+        self.assertEqual(set(reference.state_dict()), set(reactive.state_dict()))
+
+        pixels, control, elapsed = self.inputs()
+        state = reactive.initial_state(1)
+        changed_state = replace(
+            state,
+            belief=state.belief + 5.0,
+            working_memory=state.working_memory - 2.0,
+            thoughts=state.thoughts + 3.0,
+            thought_age_seconds=state.thought_age_seconds + 7.0,
+        )
+        reactive.eval()
+        with torch.no_grad():
+            fresh = reactive(pixels, control, elapsed, state=None, max_cycles=2)
+            poisoned = reactive(pixels, control, elapsed, state=changed_state, max_cycles=2)
+        self.assertTrue(torch.equal(fresh.action.control, poisoned.action.control))
+        self.assertTrue(
+            torch.equal(fresh.next_state.thoughts, poisoned.next_state.thoughts)
+        )
+        self.assertTrue(
+            torch.equal(fresh.next_state.belief, poisoned.next_state.belief)
+        )
+        self.assertTrue(
+            torch.equal(
+                fresh.next_state.working_memory, poisoned.next_state.working_memory
+            )
+        )
+        self.assertTrue(torch.isfinite(fresh.action.control).all())
+
     def test_monolithic_control_runs_with_one_finite_recurrent_latent(self) -> None:
         assert torch is not None
         model = MonolithicRecurrentBaseline(
@@ -371,6 +414,7 @@ class MatchedBaselineTests(unittest.TestCase):
                 PARAMETER_MATCHED_MONOLITHIC_IDENTITY,
                 RESET_STATE_IDENTITY,
                 DENSE_COMMUNICATION_IDENTITY,
+                REACTIVE_IDENTITY,
             )
         }
         entries = {entry["variant_id"]: entry for entry in manifest["variants"]}
@@ -410,6 +454,7 @@ class MatchedBaselineTests(unittest.TestCase):
             entries[DENSE_COMMUNICATION_IDENTITY.variant_id]["allocated_parameters"]["architecturally_disconnected_trainable"],
             0,
         )
+        self.assertEqual(entries[REACTIVE_IDENTITY.variant_id]["allocated_parameters"]["trainable"], 29_674_318)
 
 
 if __name__ == "__main__":

@@ -28,6 +28,7 @@ not rewrite the file to keep an old claim current.
 | `irene.thought_field.isolated_slots.v1` | Communication ablation: same slots, but no peer routing and no thought-to-workspace writes | 29,674,318 | 129,024 bytes |
 | `irene.thought_field.reset_slots.v1` | Persistence ablation: incoming thought state is discarded and slots reseed from sensors and belief every step | 29,674,318 | 129,024 bytes |
 | `irene.thought_field.dense_routing.v1` | Dense-communication ablation: unrestricted all-to-all softmax routing instead of sparse top-k | 29,674,318 | 129,024 bytes |
+| `irene.thought_field.reactive.v1` | Reactive control: no state crosses steps; belief, working memory, and thoughts reseed every forward | 29,674,318 | 129,024 bytes |
 | `irene.monolithic_gru.same_width.v1` | Same-width pooled GRU control for hardware-calibrated latency/FLOP comparisons | 27,890,250 | 56,064 bytes |
 | `irene.monolithic_gru.parameter_matched.v1` | Width-396 pooled GRU control selected by nearest parameter count | 29,643,900 | 57,816 bytes |
 
@@ -50,12 +51,13 @@ another.
 
 The reset-slot model likewise retains the lifecycle head (1,155 parameters,
 allocated but disconnected) so allocated parameter count stays exact while
-incoming thought state is provably uninfluential. The dense-routing model has
-zero disconnected parameters: it spends the same routing projections on an
-all-to-all softmax instead of the sparse top-k. Both slot ablations are
-exact-allocated-parameter controls by construction; neither is part of the
-registered parameter-matched comparison pair, which remains the isolated-slot
-and width-396 monolithic controls.
+incoming thought state is provably uninfluential. The dense-routing and
+reactive models have zero disconnected parameters: dense routing spends the
+same projections on an all-to-all softmax instead of the sparse top-k, and
+the reactive control reseeds every state field at the forward boundary. All
+three slot ablations are exact-allocated-parameter controls by construction;
+none is part of the registered parameter-matched comparison pair, which
+remains the isolated-slot and width-396 monolithic controls.
 
 The monolithic models are intentionally conventional bottlenecks: external
 sources are pooled into one GRU latent while perception, belief, memory, world,

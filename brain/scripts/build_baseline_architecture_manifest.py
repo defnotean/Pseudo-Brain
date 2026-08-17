@@ -19,6 +19,7 @@ from irene_brain.model.baselines import (  # noqa: E402
     MONOLITHIC_IDENTITY,
     NO_COMMUNICATION_IDENTITY,
     PARAMETER_MATCHED_MONOLITHIC_IDENTITY,
+    REACTIVE_IDENTITY,
     REFERENCE_IDENTITY,
     RESET_STATE_IDENTITY,
     build_architecture_manifest,
@@ -31,6 +32,7 @@ from irene_brain.training.factory import (  # noqa: E402
     build_thesis_monolithic_model,
     build_thesis_no_communication_model,
     build_thesis_parameter_matched_monolithic_model,
+    build_thesis_reactive_model,
     build_thesis_reset_slots_model,
 )
 
@@ -55,6 +57,11 @@ REGISTRATIONS = {
         "configs/training/baseline-stagea-dense-communication.toml",
         "irene_brain.training.factory:build_thesis_dense_routing_model",
         build_thesis_dense_routing_model,
+    ),
+    REACTIVE_IDENTITY.variant_id: (
+        "configs/training/baseline-stagea-reactive.toml",
+        "irene_brain.training.factory:build_thesis_reactive_model",
+        build_thesis_reactive_model,
     ),
     MONOLITHIC_IDENTITY.variant_id: (
         "configs/training/baseline-stagea-monolithic-same-width.toml",
