@@ -56,8 +56,17 @@ def _monolithic_config(*, width: int, attention_heads: int = 8) -> ThoughtFieldC
 
 def build_smoke_model(config: TrainingConfig) -> IreneBrainModel:
     _require_config(config)
+    model_config = ThoughtFieldConfig.smoke()
+    if config.objective.continuous_output_squash == "deadzone_tanh":
+        model_config = replace(
+            model_config,
+            actuator=replace(
+                model_config.actuator,
+                continuous_squash="deadzone_tanh",
+            ),
+        )
     model = IreneBrainModel(
-        ThoughtFieldConfig.smoke(),
+        model_config,
         input_resolution=(32, 32),
         plan_steps=2,
     )

@@ -70,8 +70,14 @@ Assert-DgxRelativePath -Path $ConfigRelativePath
 if ($ConfigRelativePath -eq 'brain/configs/training/dgx-rcq-v2-reference.toml' -or $RunId -eq 'dgx-rcq-v2-reference-seed-1702') {
     throw 'the RCQ-v2 reference config/run requires Resume-DgxRcqV2Reference.ps1'
 }
+if ($ConfigRelativePath -eq 'brain/configs/training/dgx-rcq-v3-reference.toml' -or $RunId -eq 'dgx-rcq-v3-reference-seed-1702') {
+    throw 'the RCQ-v3 reference config/run requires Resume-DgxRcqV3Reference.ps1'
+}
 if ($ConfigRelativePath -eq 'brain/configs/training/dgx-rcq-v2-staging-canary.toml') {
     throw 'the schema-3 staging canary must use Invoke-DgxRcqStagingCanary.ps1'
+}
+if ($ConfigRelativePath -eq 'brain/configs/training/dgx-rcq-v3-staging-canary.toml') {
+    throw 'the schema-3 RCQ-v3 staging canary must use Invoke-DgxRcqV3StagingCanary.ps1'
 }
 
 if ($PSCmdlet.ParameterSetName -eq 'Latest') {

@@ -42,15 +42,27 @@ preregistration run record):
 
 Usage: ``python brain/scripts/build_rcq_v3_lineage.py [--force]`` from anywhere.
 Targets are create-only unless ``--force`` is given.
+
+``--dispatcher`` derives the RCQ-v3 qualification family inside the trusted
+host dispatcher ``brain/scripts/dgx/_remote_dispatch.sh``: nine v3 sibling
+functions and five mechanical v3 action cases are extracted from their frozen
+v2 counterparts and rewritten with the asserted substitutions below, then
+inserted between the section markers.  The shared structural edits (case-label
+extensions, canary-config parameterization, the release-sync whitelist, and
+the v3 constants block) are hand-reviewed in version control; this mode
+refuses to run unless those anchors are already present, and it refuses to
+run twice.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
+import re
 import sys
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 EVALUATION = REPO_ROOT / "brain" / "src" / "irene_brain" / "evaluation"
+DISPATCHER = REPO_ROOT / "brain" / "scripts" / "dgx" / "_remote_dispatch.sh"
 
 # (old, new, expected count) — count None means "report only, at least one".
 FINAL_SUBSTITUTIONS = [
@@ -160,6 +172,209 @@ RESIDUAL_TOKENS = (
     "dgx-rcq-v2",
 )
 
+# --------------------------------------------------------------------------
+# Trusted host dispatcher derivation (--dispatcher)
+# --------------------------------------------------------------------------
+
+DISPATCHER_FUNCTIONS = [
+    "assert_canonical_rcq_v2_registration_file",
+    "load_rcq_v2_pretraining_pin_summary",
+    "verify_rcq_v2_pretraining_host_bindings",
+    "bind_rcq_v2_pretraining_authority",
+    "write_rcq_v2_pretraining_pin",
+    "write_rcq_v2_final_authorization",
+    "bind_rcq_v2_receipt_verification_authority",
+    "prepare_rcq_v2_evaluator_paths",
+    "run_rcq_v2_evaluator_container",
+]
+
+DISPATCHER_MECHANICAL_CASES = [
+    "rcq_v2_pin_pretraining_v1",
+    "rcq_v2_authorize_final_v1",
+    "rcq_v2_preclaim_v1",
+    "rcq_v2_final_once_v1",
+    "rcq_v2_verify_receipt_v1",
+]
+
+# Ordered exact replacements for dispatcher text.  The two qualification-
+# neutral helpers keep their historical names everywhere (the canonical
+# workspace resolver and the claim-id-parameterized range authority lock), so
+# they are protected with placeholders before the blanket renames and restored
+# at the end.
+DISPATCHER_SUBSTITUTIONS = [
+    ("resolve_canonical_rcq_v2_workspace", "RCQV2WORKSPACERESOLVER"),
+    ("open_rcq_v2_range_authority_lock", "RCQV2RANGEAUTHORITYLOCK"),
+    ("_rcq_v2_", "_rcq_v3_"),
+    ("rcq_v2_reference_v2", "rcq_v3_reference_v1"),
+    ("rcq-v2-reference-v2", "rcq-v3-reference-v1"),
+    ("dgx-rcq-v2-reference-seed-1702", "dgx-rcq-v3-reference-seed-1702"),
+    ("dgx-rcq-v2-reference.toml", "dgx-rcq-v3-reference.toml"),
+    ("rcq_v2_pin_pretraining_v1", "rcq_v3_pin_pretraining_v1"),
+    ("rcq_v2_preclaim_v1", "rcq_v3_preclaim_v1"),
+    ("rcq_v2_authorize_final_v1", "rcq_v3_authorize_final_v1"),
+    ("rcq_v2_final_once_v1", "rcq_v3_final_once_v1"),
+    ("rcq_v2_verify_receipt_v1", "rcq_v3_verify_receipt_v1"),
+    ("pseudo-brain-rcq-v2-", "pseudo-brain-rcq-v3-"),
+    ("RCQ_PRECLAIM_ISOLATED_BOOTSTRAP", "RCQ_V3_PRECLAIM_ISOLATED_BOOTSTRAP"),
+    ("RCQ_FINAL_ONCE_ISOLATED_BOOTSTRAP", "RCQ_V3_FINAL_ONCE_ISOLATED_BOOTSTRAP"),
+    (
+        "RCQ_VERIFY_RECEIPT_ISOLATED_BOOTSTRAP",
+        "RCQ_V3_VERIFY_RECEIPT_ISOLATED_BOOTSTRAP",
+    ),
+    ("RCQ_REGISTRATION_RELATIVE_PATH", "RCQ_V3_REGISTRATION_RELATIVE_PATH"),
+    ("RCQ_READINESS_RELATIVE_PATH", "RCQ_V3_READINESS_RELATIVE_PATH"),
+    ("RCQ_REFERENCE_CONFIG", "RCQ_V3_REFERENCE_CONFIG"),
+    ("RCQ_REFERENCE_RUN_ID", "RCQ_V3_REFERENCE_RUN_ID"),
+    ("RCQ-v2", "RCQ-v3"),
+    ("RCQV2WORKSPACERESOLVER", "resolve_canonical_rcq_v2_workspace"),
+    ("RCQV2RANGEAUTHORITYLOCK", "open_rcq_v2_range_authority_lock"),
+]
+
+# Hand-reviewed structural edits that must already be present in the
+# dispatcher before the derived family is inserted.
+DISPATCHER_REQUIRED_ANCHORS = [
+    "RCQ_V3_REFERENCE_CONFIG='brain/configs/training/dgx-rcq-v3-reference.toml'",
+    "RCQ_V3_REFERENCE_RUN_ID='dgx-rcq-v3-reference-seed-1702'",
+    "smoke|rcq_v2_smoke_v1|rcq_v3_smoke_v1)",
+    "rcq_staging_canary|rcq_v3_staging_canary)",
+    "train|rcq_v2_reference_train_v1|rcq_v3_reference_train_v1)",
+    "resume|rcq_v2_reference_resume_v1|rcq_v3_reference_resume_v1)",
+    "assert_canonical_rcq_v3_registration_file",
+]
+
+# Anchors that legitimately appear more than once (one per v3 action case
+# or per release-sync whitelist site).
+DISPATCHER_REQUIRED_MULTI_ANCHORS = [
+    "bind_rcq_v3_pretraining_authority",
+    "registrations/rcq-v3-reference-v1.json",
+]
+
+DISPATCHER_SECTION_BEGIN = (
+    "# --- begin derived RCQ-v3 qualification family "
+    "(brain/scripts/build_rcq_v3_lineage.py --dispatcher) ---"
+)
+DISPATCHER_SECTION_END = (
+    "# --- end derived RCQ-v3 qualification family ---"
+)
+
+
+def _extract_function(text: str, name: str) -> str:
+    start_token = f"\n{name}() {{\n"
+    if text.count(start_token) != 1:
+        raise SystemExit(
+            f"dispatcher: expected exactly one definition of {name}(); "
+            "the frozen dispatcher text drifted"
+        )
+    start = text.index(start_token) + 1
+    # The body may embed Python heredocs whose lines include a bare ``}``, so a
+    # plain ``\n}\n`` search truncates early.  The real end of a dispatcher
+    # function is a ``}`` line directly followed by the next function
+    # definition or by the action-table anchor.
+    end_pattern = re.compile(
+        r"\n\}\n(?=\n?(?:[a-z0-9_]+\(\) \{|action=\"\$\{1:-\}\"))"
+    )
+    match = end_pattern.search(text, start)
+    if match is None:
+        raise SystemExit(f"dispatcher: cannot find the end of {name}()")
+    return text[start : match.start() + 3]
+
+
+def _extract_case(text: str, label: str) -> str:
+    start_token = f"    {label})\n"
+    if text.count(start_token) != 1:
+        raise SystemExit(
+            f"dispatcher: expected exactly one action case {label}); "
+            "the frozen dispatcher text drifted"
+        )
+    start = text.index(start_token)
+    end = text.find("\n        ;;\n", start)
+    if end == -1:
+        raise SystemExit(f"dispatcher: cannot find the end of case {label})")
+    return text[start : end + len("\n        ;;\n")]
+
+
+def _substitute_dispatcher(text: object) -> str:
+    result = str(text)
+    for old, new in DISPATCHER_SUBSTITUTIONS:
+        result = result.replace(old, new)
+    for forbidden in (
+        "rcq_v2_reference_v2",
+        "rcq-v2-reference-v2",
+        "dgx-rcq-v2",
+        "rcq_v2_pin_pretraining_v1",
+        "rcq_v2_preclaim_v1",
+        "rcq_v2_authorize_final_v1",
+        "rcq_v2_final_once_v1",
+        "rcq_v2_verify_receipt_v1",
+        "RCQ-v2",
+        "RCQ_REFERENCE_CONFIG",
+        "RCQ_REFERENCE_RUN_ID",
+        "RCQ_REGISTRATION_RELATIVE_PATH",
+        "RCQ_READINESS_RELATIVE_PATH",
+    ):
+        if forbidden in result:
+            raise SystemExit(
+                f"dispatcher derivation left a forbidden v2 token {forbidden!r}"
+            )
+    return result
+
+
+def _derive_dispatcher() -> None:
+    text = DISPATCHER.read_text(encoding="utf-8")
+    if DISPATCHER_SECTION_BEGIN in text:
+        raise SystemExit(
+            "dispatcher already contains the derived RCQ-v3 family; refusing a second insert"
+        )
+    for anchor in DISPATCHER_REQUIRED_ANCHORS:
+        if text.count(anchor) != 1:
+            raise SystemExit(
+                f"dispatcher: expected exactly one hand-reviewed anchor {anchor!r}; "
+                "apply the structural edits first"
+            )
+    for anchor in DISPATCHER_REQUIRED_MULTI_ANCHORS:
+        if anchor not in text:
+            raise SystemExit(
+                f"dispatcher: missing hand-reviewed anchor {anchor!r}; "
+                "apply the structural edits first"
+            )
+    functions = [_extract_function(text, name) for name in DISPATCHER_FUNCTIONS]
+    cases = [_extract_case(text, label) for label in DISPATCHER_MECHANICAL_CASES]
+    derived_functions = [_substitute_dispatcher(block) for block in functions]
+    derived_cases = [_substitute_dispatcher(block) for block in cases]
+
+    function_anchor = '\naction="${1:-}"\n'
+    if text.count(function_anchor) != 1:
+        raise SystemExit("dispatcher: the action-table anchor is not unique")
+    case_anchor = '    *) fail unknown_action "unsupported action \'$action\'" ;;\n'
+    if text.count(case_anchor) != 1:
+        raise SystemExit("dispatcher: the unknown-action anchor is not unique")
+
+    function_section = (
+        "\n"
+        + DISPATCHER_SECTION_BEGIN
+        + "\n"
+        + "\n".join(block.rstrip("\n") for block in derived_functions)
+        + "\n"
+        + DISPATCHER_SECTION_END
+        + "\n"
+    )
+    case_section = (
+        "\n"
+        + DISPATCHER_SECTION_BEGIN
+        + "\n\n"
+        + "\n".join(block.rstrip("\n") for block in derived_cases)
+        + "\n"
+        + DISPATCHER_SECTION_END
+        + "\n"
+    )
+    text = text.replace(function_anchor, function_section + function_anchor, 1)
+    text = text.replace(case_anchor, case_section + case_anchor, 1)
+    DISPATCHER.write_text(text, encoding="utf-8", newline="")
+    print(
+        "derived the RCQ-v3 dispatcher family: "
+        f"{len(derived_functions)} functions, {len(derived_cases)} action cases"
+    )
+
 
 def _apply(source_name: str, target_name: str, substitutions: list) -> None:
     source_path = EVALUATION / source_name
@@ -195,6 +410,9 @@ def _residual_census(target_name: str) -> None:
 
 
 def main() -> int:
+    if "--dispatcher" in sys.argv[1:]:
+        _derive_dispatcher()
+        return 0
     for source_name, target_name, substitutions in TARGETS:
         _apply(source_name, target_name, substitutions)
     print("\nresidual v2-identity census (every line must be deliberate):")

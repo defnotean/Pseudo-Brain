@@ -37,7 +37,7 @@
     }
   },
   "implementation": {
-    "source_bundle_sha256": "883e286f54b56993c765e1668f20440f98f1603408a84b135811fe6d086e4399",
+    "source_bundle_sha256": "e99e789b1b9d19e6f8511ec417925c1c6b3c9e7010a1346482dfc4c1adadc0b7",
     "source_files": {
       "src/irene_brain/model/actuator.py": "d2dad5e74a6fdce1c63cdd84f71508b90989eb9fecfdea1a192b4d82c2aad5ea",
       "src/irene_brain/model/baselines.py": "6bde876c3aed6b4503794b942aedac017ab0dd32b7bb334206c5bfeb2231e964",
@@ -45,11 +45,11 @@
       "src/irene_brain/model/sensory.py": "bd7ae52907076f9eb19b9fa24a8ddc85abffb9cfee9577ee6a8af11898330dca",
       "src/irene_brain/model/spec.py": "d6c718fa4ee8ff2e031f30746d490603e2a4aac3a31d124bdef1d7c2c2148cf5",
       "src/irene_brain/model/torch_model.py": "47e8c7af1e27d2f044448d7cdab3ef1cd0f067a91f67e305c0359525b92de6e1",
-      "src/irene_brain/training/factory.py": "a9589a298a8f7ba82a23018ac16eac1b6bd85c041b9c4b89818adeeb8883b846",
+      "src/irene_brain/training/factory.py": "71dd3a1e1111c03c258fb0756ed7f7941b96a88619ca1b85a3d7be3f29dc8873",
       "src/irene_brain/training/objective.py": "4c3068d62122c930f5c42acb5acf2b5853d7b85d21de77f91949f29c7d6f355e"
     }
   },
-  "manifest_sha256": "5decb402bc9ba68a8b8a80317d09f05458b4aa9584dab81a9d3b8575409f49e7",
+  "manifest_sha256": "eb46988b178d593da6f98f6b99273fd2e791dd62e35f9bcef719c03958d4bb2a",
   "reference_variant_id": "irene.thought_field.routed.v1",
   "schema_version": 1,
   "variants": [

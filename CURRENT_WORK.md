@@ -29,7 +29,7 @@ action, and not an architecture-superiority claim.
 |---|---|---|
 | 0 | Source lives in this Git repository and on private GitHub | Done. `defnotean/Pseudo-Brain`, branch `defnotean/pseudo-brain` |
 | 1 | Write operator documentation and freeze tooling | Done |
-| 2 | Freeze implementation source and regenerate the matched-baseline architecture manifest | Done. Live digest `5decb402…` (2026-08-17 RCQ-v3 recipe freeze). Historical `30d4c119…` and first-matched pin `52bba6a9…` unchanged. |
+| 2 | Freeze implementation source and regenerate the matched-baseline architecture manifest | Done. Live digest `eb46988b…` (2026-08-17 RCQ-v3 preregistration freeze). Historical `5decb402…`, `30d4c119…`, and first-matched pin `52bba6a9…` unchanged. |
 | 3 | Run local CPU-only tests, including the regenerated manifest identity | Done. 299 tests passed, one expected POSIX skip. |
 | 4 | Build the create-once, target-blind RCQ-v2 registration and record its SHA-256 | Live v2 `6cc98739c78499a990a4b3480524c48dd49243c1e3c63094977a9a917df49690`. Historical v1 `33f7900c…` preserved. Copy the live digest off-repo. |
 | 5 | DGX preflight and immutable release sync | Done for live release `r20260817t021531z-7a2967ebec60`. Historical v1 release stays unused for training. |
@@ -86,6 +86,21 @@ and not a training run directory. The live file is
 DGX release. Historical `registrations/rcq-v2-reference-v1.json` stays in git
 and is not part of the live sync allowlist.
 
+The RCQ-v3 qualification (`rcq_v3_reference_v1`) is fully preregistered in
+code and config but its registration file does not exist yet. When you are
+ready to start the v3 campaign, the ceremony sequence (console-attached
+terminal, in order) is:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\brain\scripts\dgx\New-RcqV3Registration.ps1
+```
+
+then commit the new `registrations/rcq-v3-reference-v1.json`, sync a fresh
+release, pin, smoke, canary, and start the reference with the
+`Invoke-DgxRcqV3*` / `Start-DgxRcqV3Reference.ps1` wrappers. The exact
+sequence and the frozen D1–D5 decisions are in
+[brain/docs/runs/2026-08-17-rcq-v3-reference-v1-preregistration.md](brain/docs/runs/2026-08-17-rcq-v3-reference-v1-preregistration.md).
+
 ## What "target-blind" means
 
 Registration hashes geometry and source/config identities. It does **not**
@@ -121,7 +136,7 @@ Read in this order unless you already know the file you need:
 8. [brain/PLAN.md](brain/PLAN.md) — long-term architecture blueprint.
 9. [brain/docs/ROADMAP_TO_PACMAN.md](brain/docs/ROADMAP_TO_PACMAN.md) — the path
    from the failed RCQ-v2 to a 60 Hz Pac-Man-like arcade proof, including the
-   RCQ-v3 redesign decisions that need owner sign-off before any new training.
+   now-frozen RCQ-v3 redesign decisions and the remaining owner-run ceremony.
 
 Historical Stage A DGX records are under `brain/docs/runs/`. They document
 valid failures. Do not treat them as a green light to scale.

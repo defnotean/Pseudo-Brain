@@ -56,6 +56,7 @@ class RecipeFieldConfigurationTests(unittest.TestCase):
             if path.stem in {
                 "dgx-rcq-v3-reference-candidate",
                 "dgx-rcq-v3-reference",
+                "dgx-rcq-v3-staging-canary",
             }:
                 continue
             loaded = load_training_config(path)

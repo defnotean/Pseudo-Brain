@@ -476,6 +476,24 @@ fi
                 self.assertIn(required, self.remote)
         self.assertEqual(self.remote.count("rcq_v2_pin_pretraining_v1)"), 1)
 
+        wrapper_v3 = (
+            self.script_root / "New-DgxRcqV3PretrainingPin.ps1"
+        ).read_text(encoding="utf-8")
+        for required in (
+            "$ReleaseId",
+            "$ReleaseArchiveSha256",
+            "$RegistrationSha256",
+            "$ContainerImage",
+            "$ContainerImageId",
+            "Assert-DgxImageId",
+            "'rcq_v3_pin_pretraining_v1'",
+        ):
+            with self.subTest(wrapper_v3_required=required):
+                self.assertIn(required, wrapper_v3)
+        for forbidden in ("RemoteWorkDir", "RunId", "ConfigRelativePath"):
+            with self.subTest(wrapper_v3_forbidden=forbidden):
+                self.assertNotIn(forbidden, wrapper_v3)
+
     def test_preflight_checks_spark_specific_resources(self) -> None:
         for required in (
             "aarch64",
@@ -575,7 +593,7 @@ fi
 PATH=/usr/bin:/bin
 workspace="$1/projects/pseudo-brain"
 mkdir -p -- "$workspace/releases/release-1" "$workspace/runs" "$workspace/logs"
-write_rcq_staging_canary_job "$workspace" release-1 repo/image:tag canary-1 2 8 {image_id} 1000 1000
+write_rcq_staging_canary_job "$workspace" release-1 repo/image:tag canary-1 2 8 {image_id} 1000 1000 "$RCQ_STAGING_CANARY_CONFIG"
 launch="$workspace/runs/canary-1/launch.sh"
 bash -n "$launch"
 [[ "$(grep -c -- '^docker run --rm' "$launch")" == 2 ]]
@@ -624,9 +642,9 @@ stage_transition_sha256=$transition_sha
 final_invariance_sha256=$invariance_sha
 completed_utc=20990101T000000Z
 EOF
-require_rcq_staging_canary_receipt "$workspace" "$release" release-1 repo/image:tag {image_id} {pin_file_sha} {pin_semantic_sha}
+require_rcq_staging_canary_receipt "$workspace" "$release" release-1 repo/image:tag {image_id} {pin_file_sha} {pin_semantic_sha} "$RCQ_STAGING_CANARY_CONFIG"
 printf '%s\\n' 'tampered' >> "$run/metrics.jsonl"
-if (require_rcq_staging_canary_receipt "$workspace" "$release" release-1 repo/image:tag {image_id} {pin_file_sha} {pin_semantic_sha} >/dev/null 2>&1); then
+if (require_rcq_staging_canary_receipt "$workspace" "$release" release-1 repo/image:tag {image_id} {pin_file_sha} {pin_semantic_sha} "$RCQ_STAGING_CANARY_CONFIG" >/dev/null 2>&1); then
     exit 104
 fi
 """
@@ -1201,6 +1219,7 @@ fi
         self.assertIn("rev-parse --show-toplevel", sync)
         self.assertIn("canonical Pseudo-Brain Git root", sync)
         self.assertIn("registrations/rcq-v2-reference-v2.json", sync)
+        self.assertIn("registrations/rcq-v3-reference-v1.json", sync)
         for forbidden_pattern in ("\\.env", "checkpoints?", "safetensors", "ReparsePoint"):
             with self.subTest(forbidden_pattern=forbidden_pattern):
                 self.assertIn(forbidden_pattern, sync)
@@ -1214,6 +1233,13 @@ fi
             "Invoke-DgxRcqV2Preclaim.ps1": "rcq_v2_preclaim_v1",
             "Invoke-DgxRcqV2FinalOnce.ps1": "rcq_v2_final_once_v1",
             "Test-DgxRcqV2FinalReceipt.ps1": "rcq_v2_verify_receipt_v1",
+            "Invoke-DgxRcqV3Smoke.ps1": "rcq_v3_smoke_v1",
+            "Invoke-DgxRcqV3StagingCanary.ps1": "rcq_v3_staging_canary",
+            "Start-DgxRcqV3Reference.ps1": "rcq_v3_reference_train_v1",
+            "Resume-DgxRcqV3Reference.ps1": "rcq_v3_reference_resume_v1",
+            "Invoke-DgxRcqV3Preclaim.ps1": "rcq_v3_preclaim_v1",
+            "Invoke-DgxRcqV3FinalOnce.ps1": "rcq_v3_final_once_v1",
+            "Test-DgxRcqV3FinalReceipt.ps1": "rcq_v3_verify_receipt_v1",
         }
         for filename, action in pin_derived.items():
             wrapper = (self.script_root / filename).read_text(encoding="utf-8")
@@ -1234,13 +1260,33 @@ fi
         self.assertNotIn("ContainerImage", authorization)
         self.assertNotIn("ConfigRelativePath", authorization)
         self.assertNotIn("RunId", authorization)
+        authorization_v3 = (
+            self.script_root / "New-DgxRcqV3FinalAuthorization.ps1"
+        ).read_text(encoding="utf-8")
+        self.assertIn("'rcq_v3_authorize_final_v1'", authorization_v3)
+        self.assertNotIn("RemoteWorkDir", authorization_v3)
+        self.assertNotIn("ReleaseId", authorization_v3)
+        self.assertNotIn("ContainerImage", authorization_v3)
+        self.assertNotIn("ConfigRelativePath", authorization_v3)
+        self.assertNotIn("RunId", authorization_v3)
         reference_start = (
             self.script_root / "Start-DgxRcqV2Reference.ps1"
         ).read_text(encoding="utf-8")
         reference_resume = (
             self.script_root / "Resume-DgxRcqV2Reference.ps1"
         ).read_text(encoding="utf-8")
-        for wrapper in (reference_start, reference_resume):
+        reference_start_v3 = (
+            self.script_root / "Start-DgxRcqV3Reference.ps1"
+        ).read_text(encoding="utf-8")
+        reference_resume_v3 = (
+            self.script_root / "Resume-DgxRcqV3Reference.ps1"
+        ).read_text(encoding="utf-8")
+        for wrapper in (
+            reference_start,
+            reference_resume,
+            reference_start_v3,
+            reference_resume_v3,
+        ):
             self.assertNotIn("ContainerCpuCount", wrapper)
             self.assertNotIn("ContainerMemoryGiB", wrapper)
             self.assertNotIn("MinFreeDiskGiB", wrapper)
@@ -1250,8 +1296,8 @@ fi
             "rcq_v2_final_once_v1)",
             "rcq_v2_verify_receipt_v1)",
             "rcq_v2_authorize_final_v1)",
-            "rcq_v2_reference_train_v1)",
-            "rcq_v2_reference_resume_v1)",
+            "train|rcq_v2_reference_train_v1|rcq_v3_reference_train_v1)",
+            "resume|rcq_v2_reference_resume_v1|rcq_v3_reference_resume_v1)",
             "accepts no caller-selected identity or runtime arguments",
             "bind_rcq_v2_pretraining_authority",
             "bind_rcq_v2_receipt_verification_authority",
@@ -1270,6 +1316,45 @@ fi
         ):
             with self.subTest(required=required):
                 self.assertIn(required, self.remote)
+        for required_v3 in (
+            "rcq_v3_preclaim_v1)",
+            "rcq_v3_final_once_v1)",
+            "rcq_v3_verify_receipt_v1)",
+            "rcq_v3_authorize_final_v1)",
+            "rcq_v3_pin_pretraining_v1)",
+            "rcq_v3_reference_train_v1",
+            "rcq_v3_reference_resume_v1",
+            "rcq_v3_smoke_v1",
+            "rcq_v3_staging_canary",
+            "assert_canonical_rcq_v3_registration_file",
+            "load_rcq_v3_pretraining_pin_summary",
+            "verify_rcq_v3_pretraining_host_bindings",
+            "bind_rcq_v3_pretraining_authority",
+            "bind_rcq_v3_receipt_verification_authority",
+            "prepare_rcq_v3_evaluator_paths",
+            "run_rcq_v3_evaluator_container",
+            "write_rcq_v3_pretraining_pin",
+            "write_rcq_v3_final_authorization",
+            "RCQ_V3_REFERENCE_CONFIG='brain/configs/training/dgx-rcq-v3-reference.toml'",
+            "RCQ_V3_REFERENCE_RUN_ID='dgx-rcq-v3-reference-seed-1702'",
+            "RCQ_V3_REGISTRATION_RELATIVE_PATH='registrations/rcq-v3-reference-v1.json'",
+            "RCQ_V3_READINESS_RELATIVE_PATH='preclaim-readiness/rcq-v3-reference-v1.json'",
+            "RCQ_V3_STAGING_CANARY_CONFIG='brain/configs/training/dgx-rcq-v3-staging-canary.toml'",
+            "irene_brain.evaluation.rcq_v3_torch",
+            "# --- begin derived RCQ-v3 qualification family",
+            "# --- end derived RCQ-v3 qualification family ---",
+        ):
+            with self.subTest(required_v3=required_v3):
+                self.assertIn(required_v3, self.remote)
+        # The derived v3 family holds the shared qualification-neutral helpers
+        # under their historical names on purpose.
+        self.assertIn("resolve_canonical_rcq_v2_workspace", self.remote)
+        self.assertIn("open_rcq_v2_range_authority_lock", self.remote)
+        self.assertEqual(self.remote.count("rcq_v3_pin_pretraining_v1)"), 1)
+        self.assertEqual(self.remote.count("rcq_v3_preclaim_v1)"), 1)
+        self.assertEqual(self.remote.count("rcq_v3_final_once_v1)"), 1)
+        self.assertEqual(self.remote.count("rcq_v3_verify_receipt_v1)"), 1)
+        self.assertEqual(self.remote.count("rcq_v3_authorize_final_v1)"), 1)
         self.assertNotIn("${RELEASE_ID", self.remote)
         self.assertNotIn("${RUN_ID", self.remote)
         self.assertNotIn("$DGX_RELEASE_ID", self.remote)
@@ -1286,6 +1371,11 @@ fi
         self.assertIn("requires Start-DgxRcqV2Reference.ps1", generic_train)
         self.assertIn("requires Resume-DgxRcqV2Reference.ps1", generic_resume)
         self.assertIn("requires Invoke-DgxRcqV2Smoke.ps1", generic_smoke)
+        self.assertIn("requires Start-DgxRcqV3Reference.ps1", generic_train)
+        self.assertIn("requires Resume-DgxRcqV3Reference.ps1", generic_resume)
+        self.assertIn("requires Invoke-DgxRcqV3Smoke.ps1", generic_smoke)
+        self.assertIn("must use Invoke-DgxRcqV3StagingCanary.ps1", generic_train)
+        self.assertIn("must use Invoke-DgxRcqV3StagingCanary.ps1", generic_resume)
         self.assertIn("must use Invoke-DgxRcqStagingCanary.ps1", generic_train)
         self.assertIn("must use Invoke-DgxRcqStagingCanary.ps1", generic_resume)
         self.assertGreaterEqual(self.remote.count("dedicated_canary_required"), 2)
@@ -1381,6 +1471,21 @@ fi
         self.assertIn("-I -B", script)
         self.assertNotIn("-c $bootstrap", script)
         self.assertNotIn('python -I -c', script)
+
+        script_v3 = (self.script_root / "New-RcqV3Registration.ps1").read_text(
+            encoding="utf-8"
+        )
+        helper_v3 = self.brain_root / "scripts" / "run_rcq_v3_registration.py"
+        self.assertTrue(helper_v3.is_file())
+        helper_v3_text = helper_v3.read_text(encoding="utf-8")
+        self.assertIn("runpy.run_module", helper_v3_text)
+        self.assertIn("irene_brain.evaluation.rcq_v3_registration", helper_v3_text)
+        self.assertIn("run_rcq_v3_registration.py", script_v3)
+        self.assertIn("registrations/rcq-v3-reference-v1.json", script_v3)
+        self.assertIn("dgx-rcq-v3-reference.toml", script_v3)
+        self.assertIn("-I -B", script_v3)
+        self.assertNotIn("-c $bootstrap", script_v3)
+        self.assertNotIn('python -I -c', script_v3)
 
     def test_isolated_python_bootstrap_ignores_startup_hooks(self) -> None:
         python_path = self._git_bash_path(Path(sys.executable))

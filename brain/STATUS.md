@@ -22,6 +22,17 @@ The v3 recipe options (deadzone hinge, structural squash, opposite-key pair
 penalty) are implemented and config-gated with defaults off; the unregistered
 review candidate is `configs/training/dgx-rcq-v3-reference-candidate.toml`.
 Record: [docs/runs/2026-08-17-rcq-v3-recipe-options.md](./docs/runs/2026-08-17-rcq-v3-recipe-options.md).
+
+RCQ-v3 preregistration machinery is complete and the D1–D5 decisions are
+frozen under the owner's standing delegation: qualification
+`rcq_v3_reference_v1`, frozen config
+`configs/training/dgx-rcq-v3-reference.toml` (hinge 0.5 @ margin 0.04, pair
+penalty 0.25, deadzone-tanh squash, seed 1702, 2,048 updates), fresh sealed
+TEST family `[4194304, 4195840)`, unchanged gates and thresholds. The v3
+evaluator lineage, trusted-dispatcher `rcq_v3_*` action family, and all ten
+operator wrappers exist and are locally verified; the registration file
+itself is deliberately not yet created. Record:
+[docs/runs/2026-08-17-rcq-v3-reference-v1-preregistration.md](./docs/runs/2026-08-17-rcq-v3-reference-v1-preregistration.md).
 Roadmap and pending owner decisions:
 [docs/ROADMAP_TO_PACMAN.md](./docs/ROADMAP_TO_PACMAN.md).
 
@@ -74,14 +85,17 @@ Do not start the 2,048-update reference on that pin. The capture fix changed
 
 The matched-baseline architecture manifest at
 `configs/baseline-architecture-manifest.json` was regenerated as an intentional
-local freeze on 2026-08-16 and again on 2026-08-17 when the RCQ-v3 recipe
-options changed the matched implementation files. Live digest
-`5decb402bc9ba68a8b8a80317d09f05458b4aa9584dab81a9d3b8575409f49e7` (previous
-`30d4c119…`; both are explicit `new_comparison` identities). The
+local freeze on 2026-08-16, again on 2026-08-17 when the RCQ-v3 recipe
+options changed the matched implementation files, and once more on 2026-08-17
+when the v3 staging-canary smoke-factory squash parity changed
+`training/factory.py`. Live digest
+`eb46988b178d593da6f98f6b99273fd2e791dd62e35f9bcef719c03958d4bb2a` (previous
+`5decb402…` and `30d4c119…`; all are explicit `new_comparison` identities). The
 historical first-matched campaign pin `52bba6a9…` is unchanged and that
 campaign stays blocked. Records:
 [docs/runs/2026-08-16-baseline-architecture-manifest-freeze.md](./docs/runs/2026-08-16-baseline-architecture-manifest-freeze.md),
-[docs/runs/2026-08-17-rcq-v3-recipe-options.md](./docs/runs/2026-08-17-rcq-v3-recipe-options.md).
+[docs/runs/2026-08-17-rcq-v3-recipe-options.md](./docs/runs/2026-08-17-rcq-v3-recipe-options.md),
+[docs/runs/2026-08-17-rcq-v3-reference-v1-preregistration.md](./docs/runs/2026-08-17-rcq-v3-reference-v1-preregistration.md).
 The freeze does not open TEST and does not start DGX training.
 
 Local play-safe verification after the live v2 registration: every isolated

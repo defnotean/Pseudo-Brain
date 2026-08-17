@@ -38,7 +38,9 @@ if (-not $canonicalGitTopLevel.Equals($repoRoot, [StringComparison]::OrdinalIgno
 }
 
 $registrationRelativePath = 'registrations/rcq-v2-reference-v2.json'
-$sourceFiles = @(& $git -C $repoRoot ls-files --cached --others --exclude-standard -- brain $registrationRelativePath)
+$registrationV3RelativePath = 'registrations/rcq-v3-reference-v1.json'
+$allowedRegistrationPaths = @($registrationRelativePath, $registrationV3RelativePath)
+$sourceFiles = @(& $git -C $repoRoot ls-files --cached --others --exclude-standard -- brain $registrationRelativePath $registrationV3RelativePath)
 if ($LASTEXITCODE -ne 0) {
     throw 'git ls-files failed while building the source-only release manifest.'
 }
@@ -57,7 +59,7 @@ if ($sourceFiles.Count -eq 0 -or
 }
 foreach ($relativePath in $sourceFiles) {
     if ($relativePath -match "[`r`n]" -or -not $relativePath.StartsWith('brain/')) {
-        if ($relativePath -ne $registrationRelativePath) {
+        if ($allowedRegistrationPaths -notcontains $relativePath) {
             throw "Unsafe source path was rejected: '$relativePath'"
         }
     }

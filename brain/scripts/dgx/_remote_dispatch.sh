@@ -34,6 +34,14 @@ UNITTEST_ISOLATED_BOOTSTRAP='import sys,unittest;module=sys.argv[1];assert modul
 RCQ_PRECLAIM_ISOLATED_BOOTSTRAP='import runpy,sys;sys.path.insert(0,"/workspace/repo/brain/src");sys.argv=["irene_brain.evaluation.rcq_v2_torch","preclaim"];runpy.run_module("irene_brain.evaluation.rcq_v2_torch",run_name="__main__")'
 RCQ_FINAL_ONCE_ISOLATED_BOOTSTRAP='import runpy,sys;sys.path.insert(0,"/workspace/repo/brain/src");sys.argv=["irene_brain.evaluation.rcq_v2_torch","final-once"];runpy.run_module("irene_brain.evaluation.rcq_v2_torch",run_name="__main__")'
 RCQ_VERIFY_RECEIPT_ISOLATED_BOOTSTRAP='import runpy,sys;sys.path.insert(0,"/workspace/repo/brain/src");sys.argv=["irene_brain.evaluation.rcq_v2_torch","verify-receipt"];runpy.run_module("irene_brain.evaluation.rcq_v2_torch",run_name="__main__")'
+RCQ_V3_STAGING_CANARY_CONFIG='brain/configs/training/dgx-rcq-v3-staging-canary.toml'
+RCQ_V3_REFERENCE_CONFIG='brain/configs/training/dgx-rcq-v3-reference.toml'
+RCQ_V3_REGISTRATION_RELATIVE_PATH='registrations/rcq-v3-reference-v1.json'
+RCQ_V3_REFERENCE_RUN_ID='dgx-rcq-v3-reference-seed-1702'
+RCQ_V3_READINESS_RELATIVE_PATH='preclaim-readiness/rcq-v3-reference-v1.json'
+RCQ_V3_PRECLAIM_ISOLATED_BOOTSTRAP='import runpy,sys;sys.path.insert(0,"/workspace/repo/brain/src");sys.argv=["irene_brain.evaluation.rcq_v3_torch","preclaim"];runpy.run_module("irene_brain.evaluation.rcq_v3_torch",run_name="__main__")'
+RCQ_V3_FINAL_ONCE_ISOLATED_BOOTSTRAP='import runpy,sys;sys.path.insert(0,"/workspace/repo/brain/src");sys.argv=["irene_brain.evaluation.rcq_v3_torch","final-once"];runpy.run_module("irene_brain.evaluation.rcq_v3_torch",run_name="__main__")'
+RCQ_V3_VERIFY_RECEIPT_ISOLATED_BOOTSTRAP='import runpy,sys;sys.path.insert(0,"/workspace/repo/brain/src");sys.argv=["irene_brain.evaluation.rcq_v3_torch","verify-receipt"];runpy.run_module("irene_brain.evaluation.rcq_v3_torch",run_name="__main__")'
 
 fail() {
     local code="$1"
@@ -1078,6 +1086,7 @@ require_rcq_staging_canary_receipt() {
     local image_id="$5"
     local expected_pretraining_file_sha="$6"
     local expected_pretraining_semantic_sha="$7"
+    local canary_config="$8"
     local receipt_root receipt receipt_lines config_sha run_id run_root run_dir artifact
     local final_checkpoint final_checkpoint_sha metrics_sha transition_sha invariance_sha
 
@@ -1107,9 +1116,9 @@ require_rcq_staging_canary_receipt() {
         fail invalid_staging_canary_receipt 'staging canary used a different pretraining pin file'
     [[ "$(metadata_value "$receipt" pretraining_pin_sha256)" == "$expected_pretraining_semantic_sha" ]] ||
         fail invalid_staging_canary_receipt 'staging canary used a different pretraining semantic pin'
-    [[ "$(metadata_value "$receipt" config_path)" == "$RCQ_STAGING_CANARY_CONFIG" ]] ||
+    [[ "$(metadata_value "$receipt" config_path)" == "$canary_config" ]] ||
         fail invalid_staging_canary_receipt 'staging canary used an unexpected configuration path'
-    config_sha="$(sha256sum "$release/$RCQ_STAGING_CANARY_CONFIG" | awk '{print $1}')" ||
+    config_sha="$(sha256sum "$release/$canary_config" | awk '{print $1}')" ||
         fail config_hash_failed 'could not hash the staging-canary configuration'
     [[ "$(metadata_value "$receipt" config_sha256)" == "$config_sha" ]] ||
         fail invalid_staging_canary_receipt 'staging-canary configuration bytes changed'
@@ -1471,7 +1480,7 @@ write_rcq_staging_canary_job() {
     local image_id="$7"
     local container_uid="$8"
     local container_gid="$9"
-    local config_path="$RCQ_STAGING_CANARY_CONFIG"
+    local config_path="${10}"
     local release run_dir log_path job_path lock_path ready_path container_name
 
     release="$(release_dir "$workspace" "$release_id")"
@@ -2596,6 +2605,1139 @@ run_rcq_v2_evaluator_container() {
     return "$status"
 }
 
+# --- begin derived RCQ-v3 qualification family (brain/scripts/build_rcq_v3_lineage.py --dispatcher) ---
+assert_canonical_rcq_v3_registration_file() {
+    local path="$1"
+    local root="$2"
+    assert_safe_regular_file "$path" "$root" 'fixed RCQ-v3 registration'
+    path="$DGX_SAFE_PATH"
+    local size
+    size="$(wc -c < "$path")" || fail registration_probe_failed 'could not size the fixed RCQ-v3 registration'
+    require_uint registration_size_bytes "$size"
+    (( size > 0 && size <= 1048576 )) ||
+        fail invalid_registration 'fixed RCQ-v3 registration size is outside the safe bound'
+    python3 -I - "$path" <<'PY' || fail invalid_registration 'fixed RCQ-v3 registration is not one canonical target-blind object'
+import json
+from pathlib import Path
+import sys
+
+
+def strict_object(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"duplicate JSON key: {key}")
+        result[key] = value
+    return result
+
+
+path = Path(sys.argv[1])
+encoded = path.read_bytes()
+if not encoded.endswith(b"\n") or encoded.endswith(b"\n\n"):
+    raise ValueError("registration must contain one newline-terminated JSON object")
+value = json.loads(
+    encoded[:-1].decode("utf-8", errors="strict"),
+    object_pairs_hook=strict_object,
+    parse_constant=lambda token: (_ for _ in ()).throw(
+        ValueError(f"non-finite JSON constant: {token}")
+    ),
+)
+canonical = (
+    json.dumps(
+        value,
+        allow_nan=False,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    + "\n"
+).encode("utf-8")
+if encoded != canonical:
+    raise ValueError("registration bytes are not canonical")
+if not isinstance(value, dict):
+    raise ValueError("registration root is not an object")
+if value.get("schema_version") != 2:
+    raise ValueError("registration schema is not RCQ-v3 schema 2")
+if value.get("qualification_id") != "rcq_v3_reference_v1":
+    raise ValueError("registration qualification is not fixed")
+protocol = value.get("workspace_protocol")
+if not isinstance(protocol, dict) or protocol.get("contract") != "pseudo-brain-workspace-v2":
+    raise ValueError("registration workspace protocol is not fixed")
+if protocol.get("registration_release_relative_path") != "registrations/rcq-v3-reference-v1.json":
+    raise ValueError("registration path contract is not fixed")
+PY
+    DGX_SAFE_PATH="$path"
+}
+load_rcq_v3_pretraining_pin_summary() {
+    local workspace="$1"
+    local pin_parent pin_dir pin_path
+    pin_parent="$workspace/qualification-pins"
+    assert_account_owned_directory "$pin_parent" "$workspace" 'qualification pin root' 700
+    pin_parent="$DGX_SAFE_PATH"
+    pin_dir="$pin_parent/rcq-v3-reference-v1"
+    assert_account_owned_directory "$pin_dir" "$pin_parent" 'RCQ-v3 qualification pin directory' 700
+    pin_dir="$DGX_SAFE_PATH"
+    pin_path="$pin_dir/$RCQ_PRETRAINING_PIN_FILENAME"
+    assert_account_owned_regular_file "$pin_path" "$pin_dir" 'RCQ-v3 pretraining pin'
+    pin_path="$DGX_SAFE_PATH"
+    [[ "$(stat -c '%a' -- "$pin_path")" == 400 ]] ||
+        fail unsafe_artifact_mode 'RCQ-v3 pretraining pin must have exact mode 0400'
+    python3 -I - "$pin_path" <<'PY' || fail invalid_pretraining_pin 'RCQ-v3 pretraining pin failed strict validation'
+from hashlib import sha256
+import json
+from pathlib import PurePosixPath
+import re
+import sys
+
+
+def strict_object(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"duplicate JSON key: {key}")
+        result[key] = value
+    return result
+
+
+def canonical(value):
+    return json.dumps(
+        value,
+        allow_nan=False,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+
+
+def exact_keys(value, expected, name):
+    if not isinstance(value, dict) or set(value) != set(expected):
+        raise ValueError(f"{name} fields differ")
+
+
+def hash_string(value, name):
+    if type(value) is not str or re.fullmatch(r"[a-f0-9]{64}", value) is None:
+        raise ValueError(f"{name} is not one lowercase SHA-256")
+    return value
+
+
+path = sys.argv[1]
+encoded = open(path, "rb").read()
+if not encoded.endswith(b"\n") or encoded.endswith(b"\n\n"):
+    raise ValueError("pin is not one newline-terminated object")
+value = json.loads(
+    encoded[:-1].decode("utf-8", errors="strict"),
+    object_pairs_hook=strict_object,
+    parse_constant=lambda token: (_ for _ in ()).throw(ValueError(token)),
+)
+if encoded != (canonical(value) + "\n").encode("utf-8"):
+    raise ValueError("pin bytes are not canonical")
+exact_keys(
+    value,
+    {
+        "schema_version", "action", "qualification_id", "workspace", "release",
+        "registration", "config", "source_tree_sha256", "evaluator_bundle_sha256",
+        "batch_source_manifest_sha256", "runtime", "run", "range_claim_id",
+        "created_utc", "pin_sha256",
+    },
+    "pretraining pin",
+)
+if value["schema_version"] != 1 or value["action"] != "rcq_v3_pin_pretraining_v1":
+    raise ValueError("pretraining pin identity differs")
+if value["qualification_id"] != "rcq_v3_reference_v1":
+    raise ValueError("pretraining qualification differs")
+workspace = value["workspace"]
+exact_keys(
+    workspace,
+    {
+        "contract", "host_account_home_relative_path", "marker_relative_path",
+        "marker_file_sha256", "claim_registry_relative_path",
+        "pin_directory_relative_path",
+    },
+    "workspace",
+)
+if workspace != {
+    "contract": "pseudo-brain-workspace-v2",
+    "host_account_home_relative_path": "projects/pseudo-brain",
+    "marker_relative_path": ".pseudo-brain-workspace-v2",
+    "marker_file_sha256": "5657bd63ee6ff61d1d90ea63b4cb02f9dd7d5dc3df223c9cbb028f9e2a096053",
+    "claim_registry_relative_path": "final-claims",
+    "pin_directory_relative_path": "qualification-pins/rcq-v3-reference-v1",
+}:
+    raise ValueError("workspace binding differs")
+release = value["release"]
+exact_keys(release, {"id", "relative_path", "archive_sha256"}, "release")
+release_id = release["id"]
+if type(release_id) is not str or re.fullmatch(r"[a-z0-9][a-z0-9._-]{0,62}", release_id) is None:
+    raise ValueError("release id is unsafe")
+if release["relative_path"] != f"releases/{release_id}":
+    raise ValueError("release relative path differs")
+archive_sha = hash_string(release["archive_sha256"], "archive_sha256")
+registration = value["registration"]
+exact_keys(registration, {"release_relative_path", "sha256"}, "registration")
+if registration["release_relative_path"] != "registrations/rcq-v3-reference-v1.json":
+    raise ValueError("registration path differs")
+registration_sha = hash_string(registration["sha256"], "registration_sha256")
+config = value["config"]
+exact_keys(config, {"release_relative_path", "raw_sha256", "canonical_sha256"}, "config")
+if config["release_relative_path"] != "brain/configs/training/dgx-rcq-v3-reference.toml":
+    raise ValueError("config path differs")
+config_raw_sha = hash_string(config["raw_sha256"], "config_raw_sha256")
+hash_string(config["canonical_sha256"], "config_canonical_sha256")
+hash_string(value["source_tree_sha256"], "source_tree_sha256")
+hash_string(value["evaluator_bundle_sha256"], "evaluator_bundle_sha256")
+hash_string(value["batch_source_manifest_sha256"], "batch_source_manifest_sha256")
+runtime = value["runtime"]
+exact_keys(
+    runtime,
+    {
+        "container_image_reference", "container_image_id", "container_release_root",
+        "container_run_root", "container_claim_registry_root", "container_pin_root",
+        "network",
+    },
+    "runtime",
+)
+image_reference = runtime["container_image_reference"]
+image_id = runtime["container_image_id"]
+if type(image_reference) is not str or not image_reference or any(c.isspace() for c in image_reference):
+    raise ValueError("container image reference is unsafe")
+if type(image_id) is not str or re.fullmatch(r"sha256:[a-f0-9]{64}", image_id) is None:
+    raise ValueError("container image id is not immutable")
+if runtime | {"container_image_reference": image_reference, "container_image_id": image_id} != {
+    "container_image_reference": image_reference,
+    "container_image_id": image_id,
+    "container_release_root": "/workspace/repo",
+    "container_run_root": "/workspace/run",
+    "container_claim_registry_root": "/workspace/final-claims",
+    "container_pin_root": "/workspace/pins",
+    "network": "none",
+}:
+    raise ValueError("container runtime binding differs")
+run = value["run"]
+if run != {
+    "id": "dgx-rcq-v3-reference-seed-1702",
+    "relative_path": "runs/dgx-rcq-v3-reference-seed-1702",
+    "seed": 1702,
+    "final_step": 2048,
+}:
+    raise ValueError("fixed run binding differs")
+range_claim_id = hash_string(value["range_claim_id"], "range_claim_id")
+if re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", value["created_utc"]) is None:
+    raise ValueError("created_utc is not strict RFC3339 UTC")
+pin_sha = hash_string(value["pin_sha256"], "pin_sha256")
+semantic = dict(value)
+del semantic["pin_sha256"]
+expected_pin_sha = sha256(
+    b"PSEUDOBRAINRCQPRETRAINPIN\x01" + canonical(semantic).encode("utf-8")
+).hexdigest()
+if pin_sha != expected_pin_sha:
+    raise ValueError("pretraining semantic digest differs")
+for relative in (
+    release["relative_path"], registration["release_relative_path"],
+    config["release_relative_path"], run["relative_path"],
+):
+    parsed = PurePosixPath(relative)
+    if parsed.is_absolute() or ".." in parsed.parts:
+        raise ValueError("pin contains an unsafe relative path")
+print("\t".join((
+    release_id, archive_sha, registration_sha, config_raw_sha,
+    image_reference, image_id, range_claim_id, pin_sha,
+)))
+PY
+}
+verify_rcq_v3_pretraining_host_bindings() {
+    local workspace="$1"
+    local release_id="$2"
+    local expected_archive_sha="$3"
+    local expected_registration_sha="$4"
+    local expected_config_sha="$5"
+    local image_reference="$6"
+    local expected_image_id="$7"
+    local range_claim_id="$8"
+    local release_root release archive_receipt registration config claim_root claim_leaf actual
+    require_slug release_id "$release_id"
+    require_sha256 release_archive_sha256 "$expected_archive_sha"
+    require_sha256 registration_sha256 "$expected_registration_sha"
+    require_sha256 config_raw_sha256 "$expected_config_sha"
+    require_image_reference "$image_reference"
+    require_image_id "$expected_image_id"
+    require_sha256 range_claim_id "$range_claim_id"
+
+    release_root="$workspace/releases"
+    assert_account_owned_directory "$release_root" "$workspace" 'release root'
+    release_root="$DGX_SAFE_PATH"
+    release="$release_root/$release_id"
+    assert_account_owned_tree "$release" "$release_root" 'pinned release tree'
+    release="$DGX_SAFE_PATH"
+    assert_clean_release_python_source "$release"
+    archive_receipt="$release/.source-archive.sha256"
+    assert_account_owned_regular_file "$archive_receipt" "$release" 'release archive receipt'
+    archive_receipt="$DGX_SAFE_PATH"
+    [[ "$(wc -c < "$archive_receipt")" == 65 && "$(wc -l < "$archive_receipt")" == 1 ]] ||
+        fail invalid_release_receipt 'release archive receipt is not one lowercase SHA-256 line'
+    actual="$(sed -n '1p' "$archive_receipt")"
+    [[ "$actual" == "$expected_archive_sha" ]] || fail release_archive_hash_mismatch 'pinned release archive changed'
+    registration="$release/$RCQ_V3_REGISTRATION_RELATIVE_PATH"
+    assert_canonical_rcq_v3_registration_file "$registration" "$release"
+    registration="$DGX_SAFE_PATH"
+    actual="$(sha256sum "$registration" | awk '{print $1}')"
+    [[ "$actual" == "$expected_registration_sha" ]] || fail registration_hash_mismatch 'pinned registration changed'
+    config="$release/$RCQ_V3_REFERENCE_CONFIG"
+    assert_account_owned_regular_file "$config" "$release" 'fixed RCQ-v3 training configuration'
+    config="$DGX_SAFE_PATH"
+    actual="$(sha256sum "$config" | awk '{print $1}')"
+    [[ "$actual" == "$expected_config_sha" ]] || fail config_hash_mismatch 'pinned training configuration changed'
+    check_container_image "$image_reference"
+    [[ "$DGX_IMAGE_ID" == "$expected_image_id" ]] || fail image_id_mismatch 'pinned immutable container image is unavailable or changed'
+
+    claim_root="$workspace/final-claims"
+    assert_account_owned_directory "$claim_root" "$workspace" 'persistent final-claim registry' 700
+    claim_root="$DGX_SAFE_PATH"
+    assert_account_owned_tree "$claim_root" "$workspace" 'persistent final-claim registry tree'
+    claim_root="$DGX_SAFE_PATH"
+    claim_leaf="$claim_root/$range_claim_id"
+    [[ ! -e "$claim_leaf" && ! -L "$claim_leaf" ]] ||
+        fail range_already_claimed 'the registered final TEST range is already retired in this workspace'
+    DGX_SAFE_PATH="$release"
+}
+bind_rcq_v3_pretraining_authority() {
+    local workspace="$1"
+    local summary pin_parent pin_dir pin_path
+    summary="$(load_rcq_v3_pretraining_pin_summary "$workspace")" ||
+        fail invalid_pretraining_pin 'could not load the RCQ-v3 pretraining trust root'
+    IFS=$'\t' read -r \
+        RCQ_PIN_RELEASE_ID RCQ_PIN_ARCHIVE_SHA256 RCQ_PIN_REGISTRATION_SHA256 \
+        RCQ_PIN_CONFIG_SHA256 RCQ_PIN_IMAGE_REFERENCE RCQ_PIN_IMAGE_ID \
+        RCQ_PIN_RANGE_CLAIM_ID RCQ_PIN_SEMANTIC_SHA256 <<< "$summary"
+    for value in \
+        "$RCQ_PIN_RELEASE_ID" "$RCQ_PIN_ARCHIVE_SHA256" "$RCQ_PIN_REGISTRATION_SHA256" \
+        "$RCQ_PIN_CONFIG_SHA256" "$RCQ_PIN_IMAGE_REFERENCE" "$RCQ_PIN_IMAGE_ID" \
+        "$RCQ_PIN_RANGE_CLAIM_ID" "$RCQ_PIN_SEMANTIC_SHA256"; do
+        [[ -n "$value" ]] || fail invalid_pretraining_pin 'pretraining pin summary is incomplete'
+    done
+    pin_parent="$workspace/qualification-pins"
+    assert_account_owned_directory "$pin_parent" "$workspace" 'qualification pin root' 700
+    pin_parent="$DGX_SAFE_PATH"
+    pin_dir="$pin_parent/rcq-v3-reference-v1"
+    assert_account_owned_directory "$pin_dir" "$pin_parent" 'RCQ-v3 qualification pin directory' 700
+    RCQ_PIN_DIRECTORY="$DGX_SAFE_PATH"
+    pin_path="$RCQ_PIN_DIRECTORY/$RCQ_PRETRAINING_PIN_FILENAME"
+    assert_account_owned_regular_file "$pin_path" "$RCQ_PIN_DIRECTORY" 'RCQ-v3 pretraining pin'
+    RCQ_PIN_PRETRAINING_PATH="$DGX_SAFE_PATH"
+    [[ "$(stat -c '%a' -- "$RCQ_PIN_PRETRAINING_PATH")" == 400 ]] ||
+        fail unsafe_artifact_mode 'RCQ-v3 pretraining pin must have exact mode 0400'
+    RCQ_PIN_FILE_SHA256="$(sha256sum "$RCQ_PIN_PRETRAINING_PATH" | awk '{print $1}')" ||
+        fail pretraining_pin_probe_failed 'could not hash the RCQ-v3 pretraining pin'
+    require_sha256 pretraining_pin_file_sha256 "$RCQ_PIN_FILE_SHA256"
+    verify_rcq_v3_pretraining_host_bindings \
+        "$workspace" "$RCQ_PIN_RELEASE_ID" "$RCQ_PIN_ARCHIVE_SHA256" \
+        "$RCQ_PIN_REGISTRATION_SHA256" "$RCQ_PIN_CONFIG_SHA256" \
+        "$RCQ_PIN_IMAGE_REFERENCE" "$RCQ_PIN_IMAGE_ID" "$RCQ_PIN_RANGE_CLAIM_ID"
+    RCQ_PIN_RELEASE_PATH="$DGX_SAFE_PATH"
+}
+write_rcq_v3_pretraining_pin() {
+    local workspace="$1"
+    local release_id="$2"
+    local expected_archive_sha="$3"
+    local expected_registration_sha="$4"
+    local image_reference="$5"
+    local expected_image_id="$6"
+    local release_root release archive_receipt registration config claim_root range_claim_id claim_leaf
+    local pin_parent pin_dir pin_path campaign_artifact
+    local actual_archive_sha actual_registration_sha actual_config_sha marker_sha created_utc pin_file_sha
+
+    require_slug release_id "$release_id"
+    require_sha256 release_archive_sha256 "$expected_archive_sha"
+    require_sha256 registration_sha256 "$expected_registration_sha"
+    require_image_reference "$image_reference"
+    require_image_id "$expected_image_id"
+    require_command python3
+    require_command sha256sum
+
+    release_root="$workspace/releases"
+    assert_account_owned_directory "$release_root" "$workspace" 'release root'
+    release_root="$DGX_SAFE_PATH"
+    release="$release_root/$release_id"
+    assert_account_owned_tree "$release" "$release_root" 'pretraining release tree'
+    release="$DGX_SAFE_PATH"
+    assert_clean_release_python_source "$release"
+
+    archive_receipt="$release/.source-archive.sha256"
+    assert_account_owned_regular_file "$archive_receipt" "$release" 'release archive receipt'
+    archive_receipt="$DGX_SAFE_PATH"
+    [[ "$(wc -c < "$archive_receipt")" == 65 && "$(wc -l < "$archive_receipt")" == 1 ]] ||
+        fail invalid_release_receipt 'release archive receipt is not one lowercase SHA-256 line'
+    actual_archive_sha="$(sed -n '1p' "$archive_receipt")"
+    require_sha256 release_archive_sha256 "$actual_archive_sha"
+    [[ "$actual_archive_sha" == "$expected_archive_sha" ]] ||
+        fail release_archive_hash_mismatch 'installed release archive differs from the external pretraining pin'
+
+    registration="$release/$RCQ_V3_REGISTRATION_RELATIVE_PATH"
+    assert_canonical_rcq_v3_registration_file "$registration" "$release"
+    registration="$DGX_SAFE_PATH"
+    actual_registration_sha="$(sha256sum "$registration" | awk '{print $1}')" ||
+        fail registration_probe_failed 'could not hash the fixed RCQ-v3 registration'
+    [[ "$actual_registration_sha" == "$expected_registration_sha" ]] ||
+        fail registration_hash_mismatch 'installed registration differs from the external pretraining pin'
+
+    config="$release/$RCQ_V3_REFERENCE_CONFIG"
+    assert_account_owned_regular_file "$config" "$release" 'fixed RCQ-v3 training configuration'
+    config="$DGX_SAFE_PATH"
+    actual_config_sha="$(sha256sum "$config" | awk '{print $1}')" ||
+        fail config_hash_failed 'could not hash the fixed RCQ-v3 training configuration'
+
+    claim_root="$workspace/final-claims"
+    assert_account_owned_directory "$claim_root" "$workspace" 'persistent final-claim registry' 700
+    claim_root="$DGX_SAFE_PATH"
+    assert_account_owned_tree "$claim_root" "$workspace" 'persistent final-claim registry tree'
+    claim_root="$DGX_SAFE_PATH"
+    range_claim_id="$(python3 -I - "$registration" <<'PY'
+import json
+import re
+import sys
+
+value = json.load(open(sys.argv[1], "r", encoding="utf-8"))
+receipt = value.get("receipt_directory") if isinstance(value, dict) else None
+if not isinstance(receipt, str) or re.fullmatch(r"final-claims/[a-f0-9]{64}", receipt) is None:
+    raise ValueError("registration has no fixed range claim")
+print(receipt.split("/", 1)[1])
+PY
+)" || fail invalid_registration 'could not derive the fixed range-claim identity'
+    require_sha256 range_claim_id "$range_claim_id"
+    claim_leaf="$claim_root/$range_claim_id"
+    [[ ! -e "$claim_leaf" && ! -L "$claim_leaf" ]] ||
+        fail range_already_claimed 'the registered final TEST range is already retired in this workspace'
+    for campaign_artifact in \
+        "$workspace/runs/$RCQ_V3_REFERENCE_RUN_ID" \
+        "$workspace/logs/${RCQ_V3_REFERENCE_RUN_ID}.log" \
+        "$workspace/smoke-receipts/${release_id}.env" \
+        "$workspace/rcq-staging-canary-receipts/${release_id}.env" \
+        "$claim_root/$RCQ_V3_READINESS_RELATIVE_PATH"; do
+        [[ ! -e "$campaign_artifact" && ! -L "$campaign_artifact" ]] ||
+            fail pretraining_chronology_violation "qualification artifact already exists before the pretraining pin: $campaign_artifact"
+    done
+
+    check_container_image "$image_reference"
+    [[ "$DGX_IMAGE_ID" == "$expected_image_id" ]] ||
+        fail image_id_mismatch 'cached container image differs from the externally approved immutable image ID'
+
+    pin_parent="$workspace/qualification-pins"
+    assert_account_owned_directory "$pin_parent" "$workspace" 'qualification pin root' 700
+    pin_parent="$DGX_SAFE_PATH"
+    pin_dir="$pin_parent/rcq-v3-reference-v1"
+    ensure_private_directory "$pin_dir" "$pin_parent" 'RCQ-v3 qualification pin directory'
+    pin_dir="$DGX_SAFE_PATH"
+    if find "$pin_dir" -mindepth 1 -print -quit | grep -q .; then
+        fail pretraining_pin_exists 'qualification pin directory is not empty; pretraining trust root is create-only'
+    fi
+    pin_path="$pin_dir/$RCQ_PRETRAINING_PIN_FILENAME"
+    marker_sha="$(sha256sum "$workspace/.pseudo-brain-workspace-v2" | awk '{print $1}')" ||
+        fail marker_probe_failed 'could not hash the canonical workspace marker'
+    [[ "$marker_sha" == "$RCQ_WORKSPACE_MARKER_SHA256" ]] ||
+        fail unowned_workspace 'canonical workspace marker changed before pin publication'
+    created_utc="$(date -u +%Y-%m-%dT%H:%M:%SZ)" || fail clock_failed 'could not record pretraining pin time'
+
+    python3 -I - \
+        "$registration" "$pin_dir" "$RCQ_PRETRAINING_PIN_FILENAME" \
+        "$release_id" "$expected_archive_sha" "$expected_registration_sha" \
+        "$actual_config_sha" "$image_reference" "$expected_image_id" \
+        "$marker_sha" "$created_utc" <<'PY' || fail pretraining_pin_publish_failed 'could not publish the create-only RCQ-v3 pretraining pin'
+from __future__ import annotations
+
+from hashlib import sha256
+import json
+import os
+from pathlib import Path, PurePosixPath
+import re
+import sys
+
+
+def canonical(value: object) -> str:
+    return json.dumps(
+        value,
+        allow_nan=False,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+
+
+def require_hash(value: object, name: str) -> str:
+    if type(value) is not str or re.fullmatch(r"[a-f0-9]{64}", value) is None:
+        raise ValueError(f"{name} is not one lowercase SHA-256")
+    return value
+
+
+def require_relative(value: object, expected: str, name: str) -> str:
+    if value != expected or PurePosixPath(expected).is_absolute() or ".." in PurePosixPath(expected).parts:
+        raise ValueError(f"{name} is not the fixed safe relative path")
+    return expected
+
+
+registration_path = Path(sys.argv[1])
+pin_dir = Path(sys.argv[2])
+pin_filename = sys.argv[3]
+release_id = sys.argv[4]
+archive_sha = require_hash(sys.argv[5], "archive_sha256")
+registration_sha = require_hash(sys.argv[6], "registration_sha256")
+observed_config_sha = require_hash(sys.argv[7], "observed_config_sha256")
+image_reference = sys.argv[8]
+image_id = sys.argv[9]
+marker_sha = require_hash(sys.argv[10], "marker_file_sha256")
+created_utc = sys.argv[11]
+if re.fullmatch(r"[a-z0-9][a-z0-9._-]{0,62}", release_id) is None:
+    raise ValueError("release id is unsafe")
+if re.fullmatch(r"sha256:[a-f0-9]{64}", image_id) is None:
+    raise ValueError("image id is not immutable")
+if re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", created_utc) is None:
+    raise ValueError("created_utc is not strict RFC3339 UTC")
+
+registration = json.loads(registration_path.read_text(encoding="utf-8"))
+protocol = registration.get("workspace_protocol")
+expected_protocol = {
+    "contract": "pseudo-brain-workspace-v2",
+    "host_account_home_relative_path": "projects/pseudo-brain",
+    "host_marker_relative_path": ".pseudo-brain-workspace-v2",
+    "host_marker_exact_utf8": "pseudo-brain-workspace-v2\n",
+    "dedicated_dispatcher_action": "rcq_v3_final_once_v1",
+    "preclaim_dispatcher_action": "rcq_v3_preclaim_v1",
+    "receipt_verifier_dispatcher_action": "rcq_v3_verify_receipt_v1",
+    "container_release_root": "/workspace/repo",
+    "container_run_root": "/workspace/run",
+    "container_claim_registry_root": "/workspace/final-claims",
+    "registration_release_relative_path": "registrations/rcq-v3-reference-v1.json",
+    "readiness_receipt_relative_path": "preclaim-readiness/rcq-v3-reference-v1.json",
+    "host_pin_directory_relative_path": "qualification-pins/rcq-v3-reference-v1",
+    "container_pin_root": "/workspace/pins",
+    "pretraining_pin_filename": "pretraining.json",
+    "final_authorization_filename": "final-authorization.json",
+}
+if protocol != expected_protocol:
+    raise ValueError("registration workspace protocol differs from the pinned host/container contract")
+if registration.get("qualification_id") != "rcq_v3_reference_v1":
+    raise ValueError("registration qualification id differs")
+if registration.get("run_id") != "dgx-rcq-v3-reference-seed-1702":
+    raise ValueError("registration run id differs")
+if registration.get("run_seed") != 1702 or registration.get("final_step") != 2048:
+    raise ValueError("registration run seed/final step differs")
+if registration_path.read_bytes() and sha256(registration_path.read_bytes()).hexdigest() != registration_sha:
+    raise ValueError("registration bytes changed")
+config_raw_sha = require_hash(registration.get("config_raw_sha256"), "config_raw_sha256")
+if config_raw_sha != observed_config_sha:
+    raise ValueError("registered raw configuration hash differs from installed bytes")
+config_canonical_sha = require_hash(
+    registration.get("config_canonical_sha256"), "config_canonical_sha256"
+)
+source_tree_sha = require_hash(registration.get("source_tree_sha256"), "source_tree_sha256")
+evaluator_bundle_sha = require_hash(
+    registration.get("evaluator_bundle_sha256"), "evaluator_bundle_sha256"
+)
+batch_manifest_sha = require_hash(
+    registration.get("batch_source_manifest_sha256"), "batch_source_manifest_sha256"
+)
+receipt_directory = registration.get("receipt_directory")
+if type(receipt_directory) is not str or re.fullmatch(r"final-claims/[a-f0-9]{64}", receipt_directory) is None:
+    raise ValueError("registration range-claim directory differs")
+range_claim_id = receipt_directory.split("/", 1)[1]
+
+payload: dict[str, object] = {
+    "schema_version": 1,
+    "action": "rcq_v3_pin_pretraining_v1",
+    "qualification_id": "rcq_v3_reference_v1",
+    "workspace": {
+        "contract": "pseudo-brain-workspace-v2",
+        "host_account_home_relative_path": "projects/pseudo-brain",
+        "marker_relative_path": ".pseudo-brain-workspace-v2",
+        "marker_file_sha256": marker_sha,
+        "claim_registry_relative_path": "final-claims",
+        "pin_directory_relative_path": "qualification-pins/rcq-v3-reference-v1",
+    },
+    "release": {
+        "id": release_id,
+        "relative_path": require_relative(
+            f"releases/{release_id}", f"releases/{release_id}", "release.relative_path"
+        ),
+        "archive_sha256": archive_sha,
+    },
+    "registration": {
+        "release_relative_path": "registrations/rcq-v3-reference-v1.json",
+        "sha256": registration_sha,
+    },
+    "config": {
+        "release_relative_path": "brain/configs/training/dgx-rcq-v3-reference.toml",
+        "raw_sha256": config_raw_sha,
+        "canonical_sha256": config_canonical_sha,
+    },
+    "source_tree_sha256": source_tree_sha,
+    "evaluator_bundle_sha256": evaluator_bundle_sha,
+    "batch_source_manifest_sha256": batch_manifest_sha,
+    "runtime": {
+        "container_image_reference": image_reference,
+        "container_image_id": image_id,
+        "container_release_root": "/workspace/repo",
+        "container_run_root": "/workspace/run",
+        "container_claim_registry_root": "/workspace/final-claims",
+        "container_pin_root": "/workspace/pins",
+        "network": "none",
+    },
+    "run": {
+        "id": "dgx-rcq-v3-reference-seed-1702",
+        "relative_path": "runs/dgx-rcq-v3-reference-seed-1702",
+        "seed": 1702,
+        "final_step": 2048,
+    },
+    "range_claim_id": range_claim_id,
+    "created_utc": created_utc,
+}
+payload["pin_sha256"] = sha256(
+    b"PSEUDOBRAINRCQPRETRAINPIN\x01" + canonical(payload).encode("utf-8")
+).hexdigest()
+encoded = (canonical(payload) + "\n").encode("utf-8")
+
+if pin_filename != "pretraining.json":
+    raise ValueError("pretraining filename differs")
+directory_fd = os.open(pin_dir, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+try:
+    file_fd = os.open(
+        pin_filename,
+        os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+        0o600,
+        dir_fd=directory_fd,
+    )
+    try:
+        with os.fdopen(file_fd, "wb", closefd=False) as stream:
+            stream.write(encoded)
+            stream.flush()
+            os.fsync(stream.fileno())
+    finally:
+        os.close(file_fd)
+    os.fsync(directory_fd)
+finally:
+    os.close(directory_fd)
+PY
+
+    chmod 400 -- "$pin_path" || fail pretraining_pin_seal_failed 'could not seal the RCQ-v3 pretraining pin read-only'
+    python3 -I - "$pin_path" "$pin_dir" <<'PY' || fail pretraining_pin_seal_failed 'could not fsync and verify the sealed RCQ-v3 pretraining pin'
+import os
+import stat
+import sys
+
+path = sys.argv[1]
+parent = sys.argv[2]
+fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+try:
+    value = os.fstat(fd)
+    if not stat.S_ISREG(value.st_mode) or stat.S_IMODE(value.st_mode) != 0o400:
+        raise ValueError("pretraining pin is not an exact 0400 regular file")
+    if value.st_nlink != 1 or value.st_uid != os.geteuid():
+        raise ValueError("pretraining pin ownership/link count changed")
+    while os.read(fd, 1024 * 1024):
+        pass
+    os.fsync(fd)
+finally:
+    os.close(fd)
+directory_fd = os.open(parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+try:
+    os.fsync(directory_fd)
+finally:
+    os.close(directory_fd)
+PY
+    assert_account_owned_regular_file "$pin_path" "$pin_dir" 'RCQ-v3 pretraining pin'
+    pin_path="$DGX_SAFE_PATH"
+    [[ "$(stat -c '%a' -- "$pin_path")" == 400 ]] ||
+        fail unsafe_artifact_mode 'RCQ-v3 pretraining pin must have mode 400'
+    pin_file_sha="$(sha256sum "$pin_path" | awk '{print $1}')" ||
+        fail pretraining_pin_probe_failed 'could not hash the published pretraining pin'
+    require_sha256 pretraining_pin_sha256 "$pin_file_sha"
+    printf 'pretraining_pin=%s\npretraining_pin_sha256=%s\n' "$pin_path" "$pin_file_sha"
+}
+write_rcq_v3_final_authorization() {
+    local workspace="$1"
+    local expected_pretraining_file_sha="$2"
+    local expected_latest_file_sha="$3"
+    local expected_entry_checkpoint_sha="$4"
+    local expected_checkpoint_sha="$5"
+    local expected_readiness_file_sha="$6"
+    local run_root run_dir checkpoint_root latest_path entry_checkpoint checkpoint readiness_path
+    local final_path reviewed_utc final_file_sha observed_entries
+
+    require_sha256 pretraining_pin_file_sha256 "$expected_pretraining_file_sha"
+    require_sha256 latest_pointer_sha256 "$expected_latest_file_sha"
+    require_sha256 entry_checkpoint_sha256 "$expected_entry_checkpoint_sha"
+    require_sha256 checkpoint_sha256 "$expected_checkpoint_sha"
+    require_sha256 readiness_sha256 "$expected_readiness_file_sha"
+    [[ "$RCQ_PIN_FILE_SHA256" == "$expected_pretraining_file_sha" ]] ||
+        fail pretraining_pin_mismatch 'externally reviewed pretraining pin differs from the canonical pin file'
+
+    observed_entries="$(find "$RCQ_PIN_DIRECTORY" -mindepth 1 -maxdepth 1 -printf '%f\n' | LC_ALL=C sort)" ||
+        fail pin_directory_probe_failed 'could not inspect the RCQ-v3 pin directory'
+    [[ "$observed_entries" == "$RCQ_PRETRAINING_PIN_FILENAME" ]] ||
+        fail final_authorization_exists 'qualification pin directory is not in the pre-authorization state'
+    final_path="$RCQ_PIN_DIRECTORY/$RCQ_FINAL_AUTHORIZATION_FILENAME"
+
+    run_root="$workspace/runs"
+    assert_account_owned_directory "$run_root" "$workspace" 'run root'
+    run_root="$DGX_SAFE_PATH"
+    run_dir="$run_root/$RCQ_V3_REFERENCE_RUN_ID"
+    assert_account_owned_tree "$run_dir" "$run_root" 'fixed RCQ-v3 reference run'
+    run_dir="$DGX_SAFE_PATH"
+    assert_run_inactive "$RCQ_V3_REFERENCE_RUN_ID"
+    assert_run_lock_available "$run_dir"
+    checkpoint_root="$run_dir/checkpoints"
+    assert_account_owned_directory "$checkpoint_root" "$run_dir" 'fixed RCQ-v3 checkpoint directory'
+    checkpoint_root="$DGX_SAFE_PATH"
+    latest_path="$checkpoint_root/latest.json"
+    entry_checkpoint="$checkpoint_root/$RCQ_ENTRY_CHECKPOINT_NAME"
+    checkpoint="$checkpoint_root/$RCQ_FINAL_CHECKPOINT_NAME"
+    assert_account_owned_regular_file "$latest_path" "$checkpoint_root" 'terminal latest pointer'
+    latest_path="$DGX_SAFE_PATH"
+    assert_account_owned_regular_file "$entry_checkpoint" "$checkpoint_root" 'retained entry checkpoint'
+    entry_checkpoint="$DGX_SAFE_PATH"
+    assert_account_owned_regular_file "$checkpoint" "$checkpoint_root" 'terminal checkpoint'
+    checkpoint="$DGX_SAFE_PATH"
+    readiness_path="$RCQ_CLAIM_REGISTRY_PATH/$RCQ_V3_READINESS_RELATIVE_PATH"
+    assert_account_owned_regular_file "$readiness_path" "$RCQ_CLAIM_REGISTRY_PATH" 'preclaim readiness receipt'
+    readiness_path="$DGX_SAFE_PATH"
+    reviewed_utc="$(date -u +%Y-%m-%dT%H:%M:%SZ)" || fail clock_failed 'could not record final authorization review time'
+
+    python3 -I - \
+        "$RCQ_PIN_PRETRAINING_PATH" "$RCQ_PIN_DIRECTORY" "$RCQ_FINAL_AUTHORIZATION_FILENAME" \
+        "$latest_path" "$entry_checkpoint" "$checkpoint" "$readiness_path" \
+        "$expected_pretraining_file_sha" "$expected_latest_file_sha" \
+        "$expected_entry_checkpoint_sha" "$expected_checkpoint_sha" \
+        "$expected_readiness_file_sha" "$RCQ_PIN_RANGE_CLAIM_ID" "$reviewed_utc" <<'PY' || fail final_authorization_publish_failed 'could not validate evidence and publish the create-only final authorization'
+from __future__ import annotations
+
+from hashlib import sha256
+import json
+import os
+from pathlib import Path
+import re
+import stat
+import sys
+
+
+def strict_object(pairs):
+    value = {}
+    for key, item in pairs:
+        if key in value:
+            raise ValueError(f"duplicate JSON key: {key}")
+        value[key] = item
+    return value
+
+
+def canonical(value):
+    return json.dumps(
+        value,
+        allow_nan=False,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+
+
+def hash_string(value, name):
+    if type(value) is not str or re.fullmatch(r"[a-f0-9]{64}", value) is None:
+        raise ValueError(f"{name} is not one lowercase SHA-256")
+    return value
+
+
+def strict_json_line(path):
+    encoded = path.read_bytes()
+    if not encoded.endswith(b"\n") or encoded.endswith(b"\n\n"):
+        raise ValueError(f"{path.name} is not one newline-terminated object")
+    value = json.loads(
+        encoded[:-1].decode("utf-8", errors="strict"),
+        object_pairs_hook=strict_object,
+        parse_constant=lambda token: (_ for _ in ()).throw(ValueError(token)),
+    )
+    if encoded != (canonical(value) + "\n").encode("utf-8"):
+        raise ValueError(f"{path.name} is not byte-canonical")
+    if not isinstance(value, dict):
+        raise ValueError(f"{path.name} is not an object")
+    return value, encoded
+
+
+def file_sha(path):
+    digest = sha256()
+    with path.open("rb") as stream:
+        while block := stream.read(1024 * 1024):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+pretraining_path = Path(sys.argv[1])
+pin_dir = Path(sys.argv[2])
+filename = sys.argv[3]
+latest_path = Path(sys.argv[4])
+entry_path = Path(sys.argv[5])
+checkpoint_path = Path(sys.argv[6])
+readiness_path = Path(sys.argv[7])
+expected_pretraining_file = hash_string(sys.argv[8], "pretraining file sha256")
+expected_latest_file = hash_string(sys.argv[9], "latest file sha256")
+expected_entry = hash_string(sys.argv[10], "entry checkpoint sha256")
+expected_checkpoint = hash_string(sys.argv[11], "checkpoint sha256")
+expected_readiness_file = hash_string(sys.argv[12], "readiness file sha256")
+range_claim_id = hash_string(sys.argv[13], "range claim id")
+reviewed_utc = sys.argv[14]
+if re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", reviewed_utc) is None:
+    raise ValueError("reviewed_utc is not strict RFC3339 UTC")
+if filename != "final-authorization.json":
+    raise ValueError("final authorization filename differs")
+
+pretraining, pretraining_encoded = strict_json_line(pretraining_path)
+if sha256(pretraining_encoded).hexdigest() != expected_pretraining_file:
+    raise ValueError("pretraining pin differs from external review")
+pretraining_semantic = hash_string(pretraining.get("pin_sha256"), "pretraining pin sha256")
+if pretraining.get("range_claim_id") != range_claim_id:
+    raise ValueError("pretraining range claim differs")
+
+latest, latest_encoded = strict_json_line(latest_path)
+if sha256(latest_encoded).hexdigest() != expected_latest_file:
+    raise ValueError("latest pointer differs from external review")
+if set(latest) != {"schema_version", "checkpoint", "checkpoint_sha256", "optimizer_step"}:
+    raise ValueError("latest pointer fields differ")
+if latest != {
+    "schema_version": 1,
+    "checkpoint": "step-00002048.pt",
+    "checkpoint_sha256": expected_checkpoint,
+    "optimizer_step": 2048,
+}:
+    raise ValueError("latest pointer is not the fixed terminal checkpoint")
+if file_sha(entry_path) != expected_entry:
+    raise ValueError("entry checkpoint differs from external review")
+if file_sha(checkpoint_path) != expected_checkpoint:
+    raise ValueError("terminal checkpoint differs from external review")
+
+readiness, readiness_encoded = strict_json_line(readiness_path)
+if sha256(readiness_encoded).hexdigest() != expected_readiness_file:
+    raise ValueError("readiness receipt differs from external review")
+expected_readiness_fields = {
+    "schema_version", "action", "qualification_id", "evaluator_id", "status",
+    "pretraining_pin", "registration_sha256", "config_raw_sha256",
+    "config_canonical_sha256", "source_tree_sha256", "evaluator_bundle_sha256",
+    "batch_source_manifest_sha256", "entry_checkpoint", "checkpoint_sha256",
+    "latest_file_sha256", "checkpoint_step", "checkpoint_stage_index",
+    "runtime_fingerprint_sha256", "entry_gate_report_sha256",
+    "completion_gate_report_sha256", "invariance_report_sha256", "metrics_prefix",
+    "entry_metrics_prefix", "train_lookup_sha256", "entry_development_replay",
+    "development_replay", "entry_terminal_nonvalue_identity", "workspace_protocol",
+    "range_claim_id", "receipt_directory", "range_claim_registry_observed_empty",
+    "sealed_test_datasets_constructed", "sealed_test_examples_opened",
+    "readiness_sha256",
+}
+if set(readiness) != expected_readiness_fields:
+    raise ValueError("readiness receipt fields differ")
+if (
+    readiness["schema_version"] != 1
+    or readiness["action"] != "rcq_v3_preclaim_v1"
+    or readiness["qualification_id"] != "rcq_v3_reference_v1"
+    or readiness["status"] != "ready_for_once_only_final"
+    or readiness["range_claim_id"] != range_claim_id
+    or readiness["receipt_directory"] != f"final-claims/{range_claim_id}"
+    or readiness["range_claim_registry_observed_empty"] is not True
+    or readiness["sealed_test_datasets_constructed"] != 0
+    or readiness["sealed_test_examples_opened"] != 0
+    or readiness["checkpoint_sha256"] != expected_checkpoint
+    or readiness["latest_file_sha256"] != expected_latest_file
+    or readiness["checkpoint_step"] != 2048
+):
+    raise ValueError("readiness receipt identity differs")
+readiness_pretraining = readiness["pretraining_pin"]
+if readiness_pretraining != {
+    "relative_path": "pretraining.json",
+    "file_sha256": expected_pretraining_file,
+    "pin_sha256": pretraining_semantic,
+}:
+    raise ValueError("readiness pretraining binding differs")
+readiness_entry = readiness["entry_checkpoint"]
+if readiness_entry != {
+    "relative_path": "checkpoints/step-00001536.pt",
+    "sha256": expected_entry,
+    "optimizer_step": 1536,
+    "stage_index": 1,
+    "stage_local_optimizer_step": 0,
+}:
+    raise ValueError("readiness entry-checkpoint binding differs")
+observed_readiness_semantic = hash_string(
+    readiness["readiness_sha256"], "readiness semantic sha256"
+)
+readiness_body = dict(readiness)
+readiness_body.pop("readiness_sha256")
+expected_readiness_semantic = sha256(
+    b"IRENERCQREADINESS\x01" + canonical(readiness_body).encode("utf-8")
+).hexdigest()
+if observed_readiness_semantic != expected_readiness_semantic:
+    raise ValueError("readiness semantic digest differs")
+
+body = {
+    "schema_version": 1,
+    "action": "rcq_v3_authorize_final_v1",
+    "qualification_id": "rcq_v3_reference_v1",
+    "pretraining": {
+        "relative_path": "pretraining.json",
+        "file_sha256": expected_pretraining_file,
+        "pin_sha256": pretraining_semantic,
+    },
+    "latest": {
+        "run_relative_path": "runs/dgx-rcq-v3-reference-seed-1702",
+        "relative_path": "checkpoints/latest.json",
+        "file_sha256": expected_latest_file,
+        "checkpoint": "step-00002048.pt",
+        "checkpoint_sha256": expected_checkpoint,
+        "optimizer_step": 2048,
+    },
+    "entry_checkpoint": {
+        "relative_path": "checkpoints/step-00001536.pt",
+        "sha256": expected_entry,
+    },
+    "checkpoint": {
+        "relative_path": "checkpoints/step-00002048.pt",
+        "sha256": expected_checkpoint,
+    },
+    "readiness": {
+        "relative_path": "final-claims/preclaim-readiness/rcq-v3-reference-v1.json",
+        "file_sha256": expected_readiness_file,
+        "readiness_sha256": observed_readiness_semantic,
+    },
+    "range_claim_id": range_claim_id,
+    "reviewed_utc": reviewed_utc,
+}
+body["authorization_sha256"] = sha256(
+    b"PSEUDOBRAINRCQFINALAUTH\x01" + canonical(body).encode("utf-8")
+).hexdigest()
+encoded = (canonical(body) + "\n").encode("utf-8")
+
+directory_fd = os.open(pin_dir, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+descriptor = -1
+try:
+    if set(os.listdir(directory_fd)) != {"pretraining.json"}:
+        raise ValueError("pin directory changed before authorization publication")
+    descriptor = os.open(
+        filename,
+        os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+        0o600,
+        dir_fd=directory_fd,
+    )
+    with os.fdopen(descriptor, "wb", closefd=False) as stream:
+        stream.write(encoded)
+        stream.flush()
+        os.fsync(stream.fileno())
+    os.fchmod(descriptor, 0o400)
+    os.fsync(descriptor)
+    metadata = os.fstat(descriptor)
+    if (
+        not stat.S_ISREG(metadata.st_mode)
+        or stat.S_IMODE(metadata.st_mode) != 0o400
+        or metadata.st_nlink != 1
+        or metadata.st_uid != os.geteuid()
+    ):
+        raise ValueError("published final authorization ownership/mode differs")
+    os.close(descriptor)
+    descriptor = -1
+    os.fsync(directory_fd)
+finally:
+    if descriptor >= 0:
+        os.close(descriptor)
+    os.close(directory_fd)
+PY
+
+    assert_account_owned_regular_file "$final_path" "$RCQ_PIN_DIRECTORY" 'RCQ-v3 final authorization'
+    final_path="$DGX_SAFE_PATH"
+    [[ "$(stat -c '%a' -- "$final_path")" == 400 ]] ||
+        fail unsafe_artifact_mode 'RCQ-v3 final authorization must have exact mode 0400'
+    final_file_sha="$(sha256sum "$final_path" | awk '{print $1}')" ||
+        fail final_authorization_probe_failed 'could not hash the final authorization'
+    require_sha256 final_authorization_file_sha256 "$final_file_sha"
+    printf 'final_authorization=%s\nfinal_authorization_file_sha256=%s\n' \
+        "$final_path" "$final_file_sha"
+}
+bind_rcq_v3_receipt_verification_authority() {
+    local workspace="$1"
+    local summary pin_parent pin_path release_root release archive_receipt registration config actual
+    summary="$(load_rcq_v3_pretraining_pin_summary "$workspace")" ||
+        fail invalid_pretraining_pin 'could not load the receipt-verification pretraining trust root'
+    IFS=$'\t' read -r \
+        RCQ_PIN_RELEASE_ID RCQ_PIN_ARCHIVE_SHA256 RCQ_PIN_REGISTRATION_SHA256 \
+        RCQ_PIN_CONFIG_SHA256 RCQ_PIN_IMAGE_REFERENCE RCQ_PIN_IMAGE_ID \
+        RCQ_PIN_RANGE_CLAIM_ID RCQ_PIN_SEMANTIC_SHA256 <<< "$summary"
+    require_sha256 range_claim_id "$RCQ_PIN_RANGE_CLAIM_ID"
+    require_sha256 pretraining_pin_sha256 "$RCQ_PIN_SEMANTIC_SHA256"
+    pin_parent="$workspace/qualification-pins"
+    assert_account_owned_directory "$pin_parent" "$workspace" 'qualification pin root' 700
+    pin_parent="$DGX_SAFE_PATH"
+    RCQ_PIN_DIRECTORY="$pin_parent/rcq-v3-reference-v1"
+    assert_account_owned_directory "$RCQ_PIN_DIRECTORY" "$pin_parent" 'RCQ-v3 qualification pin directory' 700
+    RCQ_PIN_DIRECTORY="$DGX_SAFE_PATH"
+    pin_path="$RCQ_PIN_DIRECTORY/$RCQ_PRETRAINING_PIN_FILENAME"
+    assert_account_owned_regular_file "$pin_path" "$RCQ_PIN_DIRECTORY" 'RCQ-v3 pretraining pin'
+    RCQ_PIN_PRETRAINING_PATH="$DGX_SAFE_PATH"
+    [[ "$(stat -c '%a' -- "$RCQ_PIN_PRETRAINING_PATH")" == 400 ]] ||
+        fail unsafe_artifact_mode 'RCQ-v3 pretraining pin must have exact mode 0400'
+    RCQ_PIN_FILE_SHA256="$(sha256sum "$RCQ_PIN_PRETRAINING_PATH" | awk '{print $1}')" ||
+        fail pretraining_pin_probe_failed 'could not hash the RCQ-v3 pretraining pin'
+    require_sha256 pretraining_pin_file_sha256 "$RCQ_PIN_FILE_SHA256"
+
+    release_root="$workspace/releases"
+    assert_account_owned_directory "$release_root" "$workspace" 'release root'
+    release_root="$DGX_SAFE_PATH"
+    release="$release_root/$RCQ_PIN_RELEASE_ID"
+    assert_account_owned_tree "$release" "$release_root" 'receipt-verification pinned release tree'
+    release="$DGX_SAFE_PATH"
+    assert_clean_release_python_source "$release"
+    archive_receipt="$release/.source-archive.sha256"
+    assert_account_owned_regular_file "$archive_receipt" "$release" 'release archive receipt'
+    archive_receipt="$DGX_SAFE_PATH"
+    actual="$(sed -n '1p' "$archive_receipt")"
+    [[ "$(wc -c < "$archive_receipt")" == 65 && "$(wc -l < "$archive_receipt")" == 1 &&
+        "$actual" == "$RCQ_PIN_ARCHIVE_SHA256" ]] ||
+        fail release_archive_hash_mismatch 'receipt-verification release archive changed'
+    registration="$release/$RCQ_V3_REGISTRATION_RELATIVE_PATH"
+    assert_canonical_rcq_v3_registration_file "$registration" "$release"
+    registration="$DGX_SAFE_PATH"
+    [[ "$(sha256sum "$registration" | awk '{print $1}')" == "$RCQ_PIN_REGISTRATION_SHA256" ]] ||
+        fail registration_hash_mismatch 'receipt-verification registration changed'
+    config="$release/$RCQ_V3_REFERENCE_CONFIG"
+    assert_account_owned_regular_file "$config" "$release" 'fixed RCQ-v3 training configuration'
+    config="$DGX_SAFE_PATH"
+    [[ "$(sha256sum "$config" | awk '{print $1}')" == "$RCQ_PIN_CONFIG_SHA256" ]] ||
+        fail config_hash_mismatch 'receipt-verification training configuration changed'
+    check_container_image "$RCQ_PIN_IMAGE_REFERENCE"
+    [[ "$DGX_IMAGE_ID" == "$RCQ_PIN_IMAGE_ID" ]] ||
+        fail image_id_mismatch 'receipt-verification image differs from the pretraining pin'
+    RCQ_PIN_RELEASE_PATH="$release"
+}
+prepare_rcq_v3_evaluator_paths() {
+    local workspace="$1"
+    local operation="$2"
+    local pin_entries run_root claim_leaf final_authorization readiness_path
+    [[ "$operation" == preclaim || "$operation" == final-once || "$operation" == verify-receipt ]] ||
+        fail invalid_evaluator_operation 'unsupported trusted evaluator operation'
+
+    pin_entries="$(find "$RCQ_PIN_DIRECTORY" -mindepth 1 -maxdepth 1 -printf '%f\n' | LC_ALL=C sort)" ||
+        fail pin_directory_probe_failed 'could not inspect the RCQ-v3 pin directory'
+    if [[ "$operation" == preclaim ]]; then
+        [[ "$pin_entries" == "$RCQ_PRETRAINING_PIN_FILENAME" ]] ||
+            fail invalid_pin_state 'preclaim requires pretraining.json and no final authorization'
+    else
+        [[ "$pin_entries" == "$RCQ_FINAL_AUTHORIZATION_FILENAME"$'\n'"$RCQ_PRETRAINING_PIN_FILENAME" ]] ||
+            fail invalid_pin_state 'final/verification requires exactly the two frozen qualification pins'
+        final_authorization="$RCQ_PIN_DIRECTORY/$RCQ_FINAL_AUTHORIZATION_FILENAME"
+        assert_account_owned_regular_file "$final_authorization" "$RCQ_PIN_DIRECTORY" 'RCQ-v3 final authorization'
+        final_authorization="$DGX_SAFE_PATH"
+        [[ "$(stat -c '%a' -- "$final_authorization")" == 400 ]] ||
+            fail unsafe_artifact_mode 'RCQ-v3 final authorization must have exact mode 0400'
+    fi
+
+    run_root="$workspace/runs"
+    assert_account_owned_directory "$run_root" "$workspace" 'run root'
+    run_root="$DGX_SAFE_PATH"
+    RCQ_EVALUATOR_RUN_PATH="$run_root/$RCQ_V3_REFERENCE_RUN_ID"
+    assert_account_owned_tree "$RCQ_EVALUATOR_RUN_PATH" "$run_root" 'fixed RCQ-v3 reference run'
+    RCQ_EVALUATOR_RUN_PATH="$DGX_SAFE_PATH"
+    assert_run_inactive "$RCQ_V3_REFERENCE_RUN_ID"
+    assert_run_lock_available "$RCQ_EVALUATOR_RUN_PATH"
+
+    assert_account_owned_directory "$RCQ_CLAIM_REGISTRY_PATH" "$workspace" \
+        'persistent final-claim registry' 700
+    RCQ_CLAIM_REGISTRY_PATH="$DGX_SAFE_PATH"
+    claim_leaf="$RCQ_CLAIM_REGISTRY_PATH/$RCQ_PIN_RANGE_CLAIM_ID"
+    if [[ "$operation" == verify-receipt ]]; then
+        if [[ -e "$claim_leaf" || -L "$claim_leaf" ]]; then
+            assert_account_owned_tree "$claim_leaf" "$RCQ_CLAIM_REGISTRY_PATH" \
+                'retired RCQ-v3 final range receipt tree'
+            claim_leaf="$DGX_SAFE_PATH"
+            assert_account_owned_directory "$claim_leaf" "$RCQ_CLAIM_REGISTRY_PATH" \
+                'retired RCQ-v3 final range receipt directory' 700
+        fi
+    else
+        [[ ! -e "$claim_leaf" && ! -L "$claim_leaf" ]] ||
+            fail range_already_claimed 'the registered final TEST range is already retired in this workspace'
+    fi
+    readiness_path="$RCQ_CLAIM_REGISTRY_PATH/$RCQ_V3_READINESS_RELATIVE_PATH"
+    if [[ "$operation" != preclaim ]]; then
+        assert_account_owned_regular_file "$readiness_path" "$RCQ_CLAIM_REGISTRY_PATH" \
+            'preclaim readiness receipt'
+    fi
+}
+run_rcq_v3_evaluator_container() {
+    local operation="$1"
+    local bootstrap timeout_seconds cpu_limit memory_limit_gib claim_mount_mode container_name
+    local container_uid container_gid status
+    local -a docker_arguments
+    case "$operation" in
+        preclaim)
+            bootstrap="$RCQ_V3_PRECLAIM_ISOLATED_BOOTSTRAP"
+            timeout_seconds=3600
+            cpu_limit=12
+            memory_limit_gib=96
+            claim_mount_mode=rw
+            container_name=pseudo-brain-rcq-v3-preclaim
+            ;;
+        final-once)
+            bootstrap="$RCQ_V3_FINAL_ONCE_ISOLATED_BOOTSTRAP"
+            timeout_seconds=21600
+            cpu_limit=12
+            memory_limit_gib=96
+            claim_mount_mode=rw
+            container_name=pseudo-brain-rcq-v3-final-once
+            ;;
+        verify-receipt)
+            bootstrap="$RCQ_V3_VERIFY_RECEIPT_ISOLATED_BOOTSTRAP"
+            timeout_seconds=600
+            cpu_limit=2
+            memory_limit_gib=16
+            claim_mount_mode=ro
+            container_name=pseudo-brain-rcq-v3-verify-receipt
+            ;;
+        *) fail invalid_evaluator_operation 'unsupported trusted evaluator operation' ;;
+    esac
+    container_uid="$(id -u)" || fail identity_probe_failed 'could not read container UID'
+    container_gid="$(id -g)" || fail identity_probe_failed 'could not read container GID'
+    require_uint container_uid "$container_uid"
+    require_uint container_gid "$container_gid"
+    require_command docker
+    require_command timeout
+    containers="$(docker ps -a --filter "name=^/${container_name}$" --format '{{.Names}}')" ||
+        fail container_probe_failed 'could not inspect trusted evaluator container state'
+    [[ -z "$containers" ]] || fail run_active "trusted evaluator container still exists: $containers"
+    if [[ "$operation" != verify-receipt ]]; then
+        check_gpu_idle
+    fi
+
+    docker_arguments=(
+        run --rm
+        --pull never \
+        --name "$container_name" \
+        --network none \
+        --ipc host \
+        --cpus "$cpu_limit" \
+        --memory "${memory_limit_gib}g" \
+        --pids-limit 2048 \
+        --stop-timeout 30 \
+        --user "$container_uid:$container_gid" \
+        -e HOME=/tmp \
+        -e PATH=/usr/sbin:/usr/bin \
+        -e CUBLAS_WORKSPACE_CONFIG=:4096:8 \
+        -e TOKENIZERS_PARALLELISM=false \
+        -v "$RCQ_PIN_RELEASE_PATH:/workspace/repo:ro" \
+        -v "$RCQ_EVALUATOR_RUN_PATH:/workspace/run:ro" \
+        -v "$RCQ_CLAIM_REGISTRY_PATH:/workspace/final-claims:$claim_mount_mode" \
+        -v "$RCQ_PIN_DIRECTORY:/workspace/pins:ro" \
+        --entrypoint /usr/bin/python3 \
+        "$RCQ_PIN_IMAGE_ID" -I -B -c "$bootstrap"
+    )
+    if [[ "$operation" != verify-receipt ]]; then
+        docker_arguments=(run --rm --pull never --name "$container_name" --gpus all "${docker_arguments[@]:6}")
+    fi
+    set +e
+    timeout --signal=TERM --kill-after=30s "${timeout_seconds}s" \
+        docker "${docker_arguments[@]}"
+    status=$?
+    set -e
+    return "$status"
+}
+# --- end derived RCQ-v3 qualification family ---
+
 action="${1:-}"
 [[ -n "$action" ]] || fail missing_action 'no action was provided'
 shift
@@ -2690,17 +3832,22 @@ case "$action" in
         [[ -f "$archive_path" ]] || fail missing_archive "incoming archive '$archive_name' is missing"
         actual_sha="$(sha256sum "$archive_path" | awk '{print $1}')"
         [[ "$actual_sha" == "$expected_sha" ]] || fail archive_hash_mismatch 'incoming archive hash does not match'
-        registration_members=0
+        v2_registration_members=0
+        v3_registration_members=0
         while IFS= read -r entry; do
-            [[ ( "$entry" == brain/* || "$entry" == registrations/rcq-v2-reference-v2.json ) &&
+            [[ ( "$entry" == brain/* || "$entry" == registrations/rcq-v2-reference-v2.json ||
+                "$entry" == registrations/rcq-v3-reference-v1.json ) &&
                 "/$entry/" != *"/../"* && "$entry" != /* ]] ||
                 fail unsafe_archive "unsafe archive member '$entry'"
             if [[ "$entry" == registrations/rcq-v2-reference-v2.json ]]; then
-                registration_members=$((registration_members + 1))
+                v2_registration_members=$((v2_registration_members + 1))
+            fi
+            if [[ "$entry" == registrations/rcq-v3-reference-v1.json ]]; then
+                v3_registration_members=$((v3_registration_members + 1))
             fi
         done < <(tar -tzf "$archive_path")
-        (( registration_members == 1 )) ||
-            fail incomplete_release 'archive must contain the fixed RCQ-v2 registration exactly once'
+        (( v2_registration_members == 1 && v3_registration_members <= 1 )) ||
+            fail incomplete_release 'archive must contain the fixed RCQ-v2 registration exactly once and the RCQ-v3 registration at most once'
         archive_listing="$(LC_ALL=C tar -tvzf "$archive_path")" ||
             fail unsafe_archive 'could not inspect archive entry types'
         while IFS= read -r listing; do
@@ -2729,6 +3876,10 @@ case "$action" in
         assert_clean_release_python_source "$staging"
         assert_canonical_rcq_v2_registration_file \
             "$staging/registrations/rcq-v2-reference-v2.json" "$staging"
+        if [[ -f "$staging/registrations/rcq-v3-reference-v1.json" ]]; then
+            assert_canonical_rcq_v3_registration_file \
+                "$staging/registrations/rcq-v3-reference-v1.json" "$staging"
+        fi
         (set -o noclobber; printf '%s\n' "$actual_sha" > "$staging/.source-archive.sha256") ||
             fail source_receipt_exists 'release source receipt appeared concurrently'
         chmod -R a-w -- "$staging" || fail release_permission_failed 'could not make release tree read-only'
@@ -2738,18 +3889,24 @@ case "$action" in
         printf 'release_id=%s\nrelease_path=%s\narchive_sha256=%s\n' "$release_id" "$destination" "$actual_sha"
         ;;
 
-    smoke|rcq_v2_smoke_v1)
-        if [[ "$action" == rcq_v2_smoke_v1 ]]; then
+    smoke|rcq_v2_smoke_v1|rcq_v3_smoke_v1)
+        if [[ "$action" == rcq_v2_smoke_v1 || "$action" == rcq_v3_smoke_v1 ]]; then
             [[ $# -eq 0 ]] || fail invalid_arguments \
-                'rcq_v2_smoke_v1 accepts no caller-selected identity or runtime arguments'
+                "$action accepts no caller-selected identity or runtime arguments"
             workspace="$(resolve_canonical_rcq_v2_workspace)"
             pin_parent="$workspace/qualification-pins"
             assert_account_owned_directory "$pin_parent" "$workspace" 'qualification pin root' 700
             pin_parent="$DGX_SAFE_PATH"
             require_command flock
-            open_private_lock "$pin_parent/.rcq-v2-reference-v2.lock" "$pin_parent" \
-                'RCQ-v2 qualification authority lock'
-            bind_rcq_v2_pretraining_authority "$workspace"
+            if [[ "$action" == rcq_v2_smoke_v1 ]]; then
+                open_private_lock "$pin_parent/.rcq-v2-reference-v2.lock" "$pin_parent" \
+                    'RCQ-v2 qualification authority lock'
+                bind_rcq_v2_pretraining_authority "$workspace"
+            else
+                open_private_lock "$pin_parent/.rcq-v3-reference-v1.lock" "$pin_parent" \
+                    'RCQ-v3 qualification authority lock'
+                bind_rcq_v3_pretraining_authority "$workspace"
+            fi
             release_id="$RCQ_PIN_RELEASE_ID"
             image="$RCQ_PIN_IMAGE_REFERENCE"
             config_path="$DGX_SMOKE_CONFIG"
@@ -2769,14 +3926,14 @@ case "$action" in
             cpu_limit="$7"
             memory_limit_gib="$8"
             assert_owned_workspace "$workspace"
-            [[ "$config_path" != "$RCQ_REFERENCE_CONFIG" ]] ||
-                fail dedicated_reference_required 'the RCQ-v2 reference configuration requires Invoke-DgxRcqV2Smoke.ps1'
+            [[ "$config_path" != "$RCQ_REFERENCE_CONFIG" && "$config_path" != "$RCQ_V3_REFERENCE_CONFIG" ]] ||
+                fail dedicated_reference_required 'the RCQ-v2 reference configuration requires Invoke-DgxRcqV2Smoke.ps1; the RCQ-v3 reference configuration requires Invoke-DgxRcqV3Smoke.ps1'
         fi
         check_disk_gib "$workspace" "$min_disk_gib"
         check_memory_gib "$min_memory_gib" "$memory_limit_gib"
         check_gpu_idle
         check_container_image "$image"
-        if [[ "$action" == rcq_v2_smoke_v1 && "$DGX_IMAGE_ID" != "$RCQ_PIN_IMAGE_ID" ]]; then
+        if [[ "$action" != smoke && "$DGX_IMAGE_ID" != "$RCQ_PIN_IMAGE_ID" ]]; then
             fail image_id_mismatch 'cached container image differs from the pretraining pin'
         fi
         mkdir -p -- "$workspace/logs" "$workspace/runs" "$workspace/smoke-receipts" ||
@@ -2786,9 +3943,9 @@ case "$action" in
             "$cpu_limit" "$memory_limit_gib" "$DGX_IMAGE_ID"
         ;;
 
-    rcq_staging_canary)
+    rcq_staging_canary|rcq_v3_staging_canary)
         [[ $# -eq 4 ]] || fail invalid_arguments \
-            'rcq_staging_canary expects min_disk min_memory cpu_limit memory_limit; all identities derive from the pretraining pin'
+            "$action expects min_disk min_memory cpu_limit memory_limit; all identities derive from the pretraining pin"
         min_disk_gib="$1"
         min_memory_gib="$2"
         cpu_limit="$3"
@@ -2798,9 +3955,17 @@ case "$action" in
         assert_account_owned_directory "$pin_parent" "$workspace" 'qualification pin root' 700
         pin_parent="$DGX_SAFE_PATH"
         require_command flock
-        open_private_lock "$pin_parent/.rcq-v2-reference-v2.lock" "$pin_parent" \
-            'RCQ-v2 qualification authority lock'
-        bind_rcq_v2_pretraining_authority "$workspace"
+        if [[ "$action" == rcq_staging_canary ]]; then
+            canary_config="$RCQ_STAGING_CANARY_CONFIG"
+            open_private_lock "$pin_parent/.rcq-v2-reference-v2.lock" "$pin_parent" \
+                'RCQ-v2 qualification authority lock'
+            bind_rcq_v2_pretraining_authority "$workspace"
+        else
+            canary_config="$RCQ_V3_STAGING_CANARY_CONFIG"
+            open_private_lock "$pin_parent/.rcq-v3-reference-v1.lock" "$pin_parent" \
+                'RCQ-v3 qualification authority lock'
+            bind_rcq_v3_pretraining_authority "$workspace"
+        fi
         release_id="$RCQ_PIN_RELEASE_ID"
         image="$RCQ_PIN_IMAGE_REFERENCE"
         current_image_id="$RCQ_PIN_IMAGE_ID"
@@ -2821,8 +3986,8 @@ case "$action" in
         assert_safe_directory_path "$logs_root" "$workspace" 'log root'
         dataset_root="$workspace/datasets"
         assert_safe_directory_path "$dataset_root" "$workspace" 'dataset root'
-        [[ -f "$release/$RCQ_STAGING_CANARY_CONFIG" && ! -L "$release/$RCQ_STAGING_CANARY_CONFIG" ]] ||
-            fail missing_config "config '$RCQ_STAGING_CANARY_CONFIG' is missing or unsafe"
+        [[ -f "$release/$canary_config" && ! -L "$release/$canary_config" ]] ||
+            fail missing_config "config '$canary_config' is missing or unsafe"
         [[ -f "$release/brain/src/irene_brain/training/train.py" && ! -L "$release/brain/src/irene_brain/training/train.py" ]] ||
             fail missing_trainer 'training module is missing or unsafe'
         require_slug release_id "$release_id"
@@ -2874,10 +4039,10 @@ case "$action" in
         write_rcq_staging_canary_job \
             "$workspace" "$release_id" "$image" "$run_id" \
             "$cpu_limit" "$memory_limit_gib" "$current_image_id" \
-            "$container_uid" "$container_gid"
+            "$container_uid" "$container_gid" "$canary_config"
         job_path="$run_root/$run_id/launch.sh"
         run_metadata="$run_root/$run_id/run.env"
-        config_sha="$(sha256sum "$release/$RCQ_STAGING_CANARY_CONFIG" | awk '{print $1}')" ||
+        config_sha="$(sha256sum "$release/$canary_config" | awk '{print $1}')" ||
             fail config_hash_failed 'could not hash the staging-canary configuration'
         launch_sha="$(sha256sum "$job_path" | awk '{print $1}')" ||
             fail launch_hash_failed 'could not hash the staging-canary launch script'
@@ -2893,7 +4058,7 @@ container_image=$image
 container_image_id=$current_image_id
 pretraining_pin_file_sha256=$pretraining_pin_file_sha
 pretraining_pin_sha256=$pretraining_pin_sha
-config_path=$RCQ_STAGING_CANARY_CONFIG
+config_path=$canary_config
 config_sha256=$config_sha
 created_utc=$created_utc
 mode=foreground
@@ -2945,7 +4110,7 @@ container_image=$image
 container_image_id=$current_image_id
 pretraining_pin_file_sha256=$pretraining_pin_file_sha
 pretraining_pin_sha256=$pretraining_pin_sha
-config_path=$RCQ_STAGING_CANARY_CONFIG
+config_path=$canary_config
 config_sha256=$config_sha
 run_id=$run_id
 final_checkpoint=step-00000002.pt
@@ -2964,26 +4129,36 @@ EOF
         printf 'rcq_staging_canary_receipt=%s\nrun_id=%s\n' "$canary_receipt" "$run_id"
         ;;
 
-    train|rcq_v2_reference_train_v1)
+    train|rcq_v2_reference_train_v1|rcq_v3_reference_train_v1)
         production_reference=false
         pretraining_pin_file_sha=none
         pretraining_pin_sha=none
-        if [[ "$action" == rcq_v2_reference_train_v1 ]]; then
+        canary_config="$RCQ_STAGING_CANARY_CONFIG"
+        if [[ "$action" == rcq_v2_reference_train_v1 || "$action" == rcq_v3_reference_train_v1 ]]; then
             [[ $# -eq 0 ]] || fail invalid_arguments \
-                'rcq_v2_reference_train_v1 accepts no caller-selected identity or runtime arguments'
+                "$action accepts no caller-selected identity or runtime arguments"
             production_reference=true
             workspace="$(resolve_canonical_rcq_v2_workspace)"
             pin_parent="$workspace/qualification-pins"
             assert_account_owned_directory "$pin_parent" "$workspace" 'qualification pin root' 700
             pin_parent="$DGX_SAFE_PATH"
             require_command flock
-            open_private_lock "$pin_parent/.rcq-v2-reference-v2.lock" "$pin_parent" \
-                'RCQ-v2 qualification authority lock'
-            bind_rcq_v2_pretraining_authority "$workspace"
+            if [[ "$action" == rcq_v2_reference_train_v1 ]]; then
+                open_private_lock "$pin_parent/.rcq-v2-reference-v2.lock" "$pin_parent" \
+                    'RCQ-v2 qualification authority lock'
+                bind_rcq_v2_pretraining_authority "$workspace"
+                config_path="$RCQ_REFERENCE_CONFIG"
+                run_id="$RCQ_REFERENCE_RUN_ID"
+            else
+                canary_config="$RCQ_V3_STAGING_CANARY_CONFIG"
+                open_private_lock "$pin_parent/.rcq-v3-reference-v1.lock" "$pin_parent" \
+                    'RCQ-v3 qualification authority lock'
+                bind_rcq_v3_pretraining_authority "$workspace"
+                config_path="$RCQ_V3_REFERENCE_CONFIG"
+                run_id="$RCQ_V3_REFERENCE_RUN_ID"
+            fi
             release_id="$RCQ_PIN_RELEASE_ID"
             image="$RCQ_PIN_IMAGE_REFERENCE"
-            config_path="$RCQ_REFERENCE_CONFIG"
-            run_id="$RCQ_REFERENCE_RUN_ID"
             mode=tmux
             min_disk_gib=20
             min_memory_gib=96
@@ -3005,8 +4180,9 @@ EOF
             cpu_limit="$9"
             memory_limit_gib="${10}"
             assert_owned_workspace "$workspace"
-            [[ "$config_path" != "$RCQ_REFERENCE_CONFIG" && "$run_id" != "$RCQ_REFERENCE_RUN_ID" ]] ||
-                fail dedicated_reference_required 'the RCQ-v2 reference config/run requires Start-DgxRcqV2Reference.ps1'
+            [[ "$config_path" != "$RCQ_REFERENCE_CONFIG" && "$run_id" != "$RCQ_REFERENCE_RUN_ID" &&
+                "$config_path" != "$RCQ_V3_REFERENCE_CONFIG" && "$run_id" != "$RCQ_V3_REFERENCE_RUN_ID" ]] ||
+                fail dedicated_reference_required 'the RCQ-v2 reference config/run requires Start-DgxRcqV2Reference.ps1; the RCQ-v3 reference config/run requires Start-DgxRcqV3Reference.ps1'
         fi
         release_root="$workspace/releases"
         assert_safe_directory_path "$release_root" "$workspace" 'release root'
@@ -3023,8 +4199,8 @@ EOF
         dataset_root="$workspace/datasets"
         assert_safe_directory_path "$dataset_root" "$workspace" 'dataset root'
         require_relative_path config_path "$config_path"
-        [[ "$config_path" != "$RCQ_STAGING_CANARY_CONFIG" ]] ||
-            fail dedicated_canary_required 'the schema-3 staging canary must use Invoke-DgxRcqStagingCanary.ps1'
+        [[ "$config_path" != "$RCQ_STAGING_CANARY_CONFIG" && "$config_path" != "$RCQ_V3_STAGING_CANARY_CONFIG" ]] ||
+            fail dedicated_canary_required 'a schema-3 staging canary must use its dedicated qualification canary wrapper'
         [[ -f "$release/$config_path" && ! -L "$release/$config_path" ]] || fail missing_config "config '$config_path' is missing or unsafe"
         [[ -f "$release/brain/src/irene_brain/training/train.py" && ! -L "$release/brain/src/irene_brain/training/train.py" ]] || fail missing_trainer 'training module is missing or unsafe'
         require_slug run_id "$run_id"
@@ -3052,7 +4228,7 @@ EOF
         if [[ "$production_reference" == true ]]; then
             require_rcq_staging_canary_receipt \
                 "$workspace" "$release" "$release_id" "$image" "$current_image_id" \
-                "$pretraining_pin_file_sha" "$pretraining_pin_sha"
+                "$pretraining_pin_file_sha" "$pretraining_pin_sha" "$canary_config"
         fi
         require_uint cpu_limit "$cpu_limit"
         require_uint container_memory_gib "$memory_limit_gib"
@@ -3119,26 +4295,36 @@ EOF
         fi
         ;;
 
-    resume|rcq_v2_reference_resume_v1)
+    resume|rcq_v2_reference_resume_v1|rcq_v3_reference_resume_v1)
         production_reference=false
         pretraining_pin_file_sha=none
         pretraining_pin_sha=none
-        if [[ "$action" == rcq_v2_reference_resume_v1 ]]; then
+        canary_config="$RCQ_STAGING_CANARY_CONFIG"
+        if [[ "$action" == rcq_v2_reference_resume_v1 || "$action" == rcq_v3_reference_resume_v1 ]]; then
             [[ $# -eq 0 ]] || fail invalid_arguments \
-                'rcq_v2_reference_resume_v1 accepts no caller-selected identity or runtime arguments'
+                "$action accepts no caller-selected identity or runtime arguments"
             production_reference=true
             workspace="$(resolve_canonical_rcq_v2_workspace)"
             pin_parent="$workspace/qualification-pins"
             assert_account_owned_directory "$pin_parent" "$workspace" 'qualification pin root' 700
             pin_parent="$DGX_SAFE_PATH"
             require_command flock
-            open_private_lock "$pin_parent/.rcq-v2-reference-v2.lock" "$pin_parent" \
-                'RCQ-v2 qualification authority lock'
-            bind_rcq_v2_pretraining_authority "$workspace"
+            if [[ "$action" == rcq_v2_reference_resume_v1 ]]; then
+                open_private_lock "$pin_parent/.rcq-v2-reference-v2.lock" "$pin_parent" \
+                    'RCQ-v2 qualification authority lock'
+                bind_rcq_v2_pretraining_authority "$workspace"
+                config_path="$RCQ_REFERENCE_CONFIG"
+                run_id="$RCQ_REFERENCE_RUN_ID"
+            else
+                canary_config="$RCQ_V3_STAGING_CANARY_CONFIG"
+                open_private_lock "$pin_parent/.rcq-v3-reference-v1.lock" "$pin_parent" \
+                    'RCQ-v3 qualification authority lock'
+                bind_rcq_v3_pretraining_authority "$workspace"
+                config_path="$RCQ_V3_REFERENCE_CONFIG"
+                run_id="$RCQ_V3_REFERENCE_RUN_ID"
+            fi
             release_id="$RCQ_PIN_RELEASE_ID"
             image="$RCQ_PIN_IMAGE_REFERENCE"
-            config_path="$RCQ_REFERENCE_CONFIG"
-            run_id="$RCQ_REFERENCE_RUN_ID"
             mode=tmux
             selection=latest
             checkpoint_name=auto
@@ -3166,8 +4352,9 @@ EOF
             cpu_limit="${12}"
             memory_limit_gib="${13}"
             assert_owned_workspace "$workspace"
-            [[ "$config_path" != "$RCQ_REFERENCE_CONFIG" && "$run_id" != "$RCQ_REFERENCE_RUN_ID" ]] ||
-                fail dedicated_reference_required 'the RCQ-v2 reference config/run requires Resume-DgxRcqV2Reference.ps1'
+            [[ "$config_path" != "$RCQ_REFERENCE_CONFIG" && "$run_id" != "$RCQ_REFERENCE_RUN_ID" &&
+                "$config_path" != "$RCQ_V3_REFERENCE_CONFIG" && "$run_id" != "$RCQ_V3_REFERENCE_RUN_ID" ]] ||
+                fail dedicated_reference_required 'the RCQ-v2 reference config/run requires Resume-DgxRcqV2Reference.ps1; the RCQ-v3 reference config/run requires Resume-DgxRcqV3Reference.ps1'
         fi
         release_root="$workspace/releases"
         assert_safe_directory_path "$release_root" "$workspace" 'release root'
@@ -3177,8 +4364,8 @@ EOF
         release="$DGX_SAFE_PATH"
         assert_clean_release_python_source "$release"
         require_relative_path config_path "$config_path"
-        [[ "$config_path" != "$RCQ_STAGING_CANARY_CONFIG" ]] ||
-            fail dedicated_canary_required 'the schema-3 staging canary must use Invoke-DgxRcqStagingCanary.ps1'
+        [[ "$config_path" != "$RCQ_STAGING_CANARY_CONFIG" && "$config_path" != "$RCQ_V3_STAGING_CANARY_CONFIG" ]] ||
+            fail dedicated_canary_required 'a schema-3 staging canary must use its dedicated qualification canary wrapper'
         [[ -f "$release/$config_path" && ! -L "$release/$config_path" ]] ||
             fail missing_config "config '$config_path' is missing or unsafe"
         [[ -f "$release/brain/src/irene_brain/training/train.py" && ! -L "$release/brain/src/irene_brain/training/train.py" ]] ||
@@ -3239,7 +4426,7 @@ EOF
         if [[ "$production_reference" == true ]]; then
             require_rcq_staging_canary_receipt \
                 "$workspace" "$release" "$release_id" "$image" "$current_image_id" \
-                "$pretraining_pin_file_sha" "$pretraining_pin_sha"
+                "$pretraining_pin_file_sha" "$pretraining_pin_sha" "$canary_config"
         fi
 
         checkpoint_dir="$run_dir/checkpoints"
@@ -3584,5 +4771,82 @@ EOF
         run_rcq_v2_evaluator_container verify-receipt
         ;;
 
+
+# --- begin derived RCQ-v3 qualification family (brain/scripts/build_rcq_v3_lineage.py --dispatcher) ---
+
+    rcq_v3_pin_pretraining_v1)
+        [[ $# -eq 5 ]] || fail invalid_arguments \
+            'rcq_v3_pin_pretraining_v1 expects release_id archive_sha256 registration_sha256 image_reference image_id'
+        workspace="$(resolve_canonical_rcq_v2_workspace)"
+        assert_architecture
+        pin_parent="$workspace/qualification-pins"
+        assert_account_owned_directory "$pin_parent" "$workspace" 'qualification pin root' 700
+        pin_parent="$DGX_SAFE_PATH"
+        require_command flock
+        open_private_lock "$pin_parent/.rcq-v3-reference-v1.lock" "$pin_parent" \
+            'RCQ-v3 qualification authority lock'
+        write_rcq_v3_pretraining_pin "$workspace" "$1" "$2" "$3" "$4" "$5"
+        ;;
+    rcq_v3_authorize_final_v1)
+        [[ $# -eq 5 ]] || fail invalid_arguments \
+            'rcq_v3_authorize_final_v1 expects pretraining_pin_sha256 latest_pointer_sha256 entry_checkpoint_sha256 checkpoint_sha256 readiness_sha256; all paths derive from the frozen pins'
+        workspace="$(resolve_canonical_rcq_v2_workspace)"
+        pin_parent="$workspace/qualification-pins"
+        assert_account_owned_directory "$pin_parent" "$workspace" 'qualification pin root' 700
+        pin_parent="$DGX_SAFE_PATH"
+        require_command flock
+        require_command python3
+        open_private_lock "$pin_parent/.rcq-v3-reference-v1.lock" "$pin_parent" \
+            'RCQ-v3 qualification authority lock'
+        bind_rcq_v3_pretraining_authority "$workspace"
+        open_rcq_v2_range_authority_lock "$workspace" "$RCQ_PIN_RANGE_CLAIM_ID"
+        write_rcq_v3_final_authorization "$workspace" "$1" "$2" "$3" "$4" "$5"
+        ;;
+    rcq_v3_preclaim_v1)
+        [[ $# -eq 0 ]] || fail invalid_arguments \
+            'rcq_v3_preclaim_v1 accepts no caller-selected identity or runtime arguments'
+        workspace="$(resolve_canonical_rcq_v2_workspace)"
+        pin_parent="$workspace/qualification-pins"
+        assert_account_owned_directory "$pin_parent" "$workspace" 'qualification pin root' 700
+        pin_parent="$DGX_SAFE_PATH"
+        require_command flock
+        open_private_lock "$pin_parent/.rcq-v3-reference-v1.lock" "$pin_parent" \
+            'RCQ-v3 qualification authority lock'
+        bind_rcq_v3_pretraining_authority "$workspace"
+        open_rcq_v2_range_authority_lock "$workspace" "$RCQ_PIN_RANGE_CLAIM_ID"
+        prepare_rcq_v3_evaluator_paths "$workspace" preclaim
+        run_rcq_v3_evaluator_container preclaim
+        ;;
+    rcq_v3_final_once_v1)
+        [[ $# -eq 0 ]] || fail invalid_arguments \
+            'rcq_v3_final_once_v1 accepts no caller-selected identity or runtime arguments'
+        workspace="$(resolve_canonical_rcq_v2_workspace)"
+        pin_parent="$workspace/qualification-pins"
+        assert_account_owned_directory "$pin_parent" "$workspace" 'qualification pin root' 700
+        pin_parent="$DGX_SAFE_PATH"
+        require_command flock
+        open_private_lock "$pin_parent/.rcq-v3-reference-v1.lock" "$pin_parent" \
+            'RCQ-v3 qualification authority lock'
+        bind_rcq_v3_pretraining_authority "$workspace"
+        open_rcq_v2_range_authority_lock "$workspace" "$RCQ_PIN_RANGE_CLAIM_ID"
+        prepare_rcq_v3_evaluator_paths "$workspace" final-once
+        run_rcq_v3_evaluator_container final-once
+        ;;
+    rcq_v3_verify_receipt_v1)
+        [[ $# -eq 0 ]] || fail invalid_arguments \
+            'rcq_v3_verify_receipt_v1 accepts no caller-selected identity or runtime arguments'
+        workspace="$(resolve_canonical_rcq_v2_workspace)"
+        pin_parent="$workspace/qualification-pins"
+        assert_account_owned_directory "$pin_parent" "$workspace" 'qualification pin root' 700
+        pin_parent="$DGX_SAFE_PATH"
+        require_command flock
+        open_private_lock "$pin_parent/.rcq-v3-reference-v1.lock" "$pin_parent" \
+            'RCQ-v3 qualification authority lock'
+        bind_rcq_v3_receipt_verification_authority "$workspace"
+        open_rcq_v2_range_authority_lock "$workspace" "$RCQ_PIN_RANGE_CLAIM_ID"
+        prepare_rcq_v3_evaluator_paths "$workspace" verify-receipt
+        run_rcq_v3_evaluator_container verify-receipt
+        ;;
+# --- end derived RCQ-v3 qualification family ---
     *) fail unknown_action "unsupported action '$action'" ;;
 esac

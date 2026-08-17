@@ -4,18 +4,6 @@ param(
     [string]$SshTarget,
 
     [Parameter(Mandatory)]
-    [string]$RemoteWorkDir,
-
-    [Parameter(Mandatory)]
-    [string]$ReleaseId,
-
-    [Parameter(Mandatory)]
-    [string]$ContainerImage,
-
-    [Parameter(Mandatory)]
-    [string]$ConfigRelativePath,
-
-    [Parameter(Mandatory)]
     [ValidateRange(1, 4096)]
     [int]$MinFreeDiskGiB,
 
@@ -37,27 +25,16 @@ param(
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'Dgx.Common.ps1')
 
-Assert-DgxRemoteWorkDir -RemoteWorkDir $RemoteWorkDir
-Assert-DgxSlug -Value $ReleaseId -Label 'ReleaseId'
-Assert-DgxImageReference -ContainerImage $ContainerImage
-Assert-DgxRelativePath -Path $ConfigRelativePath
-if ($ConfigRelativePath -eq 'brain/configs/training/dgx-rcq-v2-reference.toml') {
-    throw 'the RCQ-v2 reference configuration requires Invoke-DgxRcqV2Smoke.ps1'
-}
-if ($ConfigRelativePath -eq 'brain/configs/training/dgx-rcq-v3-reference.toml') {
-    throw 'the RCQ-v3 reference configuration requires Invoke-DgxRcqV3Smoke.ps1'
-}
 $target = Resolve-DgxSshTarget -SshTarget $SshTarget
 
+# The remote action derives release, approved image, and a collision-resistant
+# fixed run identity from the create-only pretraining pin. It executes both
+# phases in the foreground; there is deliberately no detached launch option.
 Invoke-DgxRemoteScript `
     -TargetInfo $target `
     -ScriptPath (Get-DgxRemoteHelperPath) `
     -RemoteArguments @(
-        'smoke',
-        $RemoteWorkDir,
-        $ReleaseId,
-        $ContainerImage,
-        $ConfigRelativePath,
+        'rcq_v3_staging_canary',
         $MinFreeDiskGiB.ToString(),
         $MinAvailableMemoryGiB.ToString(),
         $ContainerCpuCount.ToString(),

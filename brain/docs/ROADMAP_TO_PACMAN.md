@@ -73,23 +73,28 @@ implemented and config-gated with defaults off
 ([runs/2026-08-17-rcq-v3-recipe-options.md](runs/2026-08-17-rcq-v3-recipe-options.md)).
 The squash bound is 0.046875 (exactly representable, strictly inside the 0.05
 deadzone in float32 and bfloat16). D2(b) was rejected as a geometry change.
-The concrete review candidate is
-`configs/training/dgx-rcq-v3-reference-candidate.toml` (hinge 0.5 @ margin
-0.04, pair penalty 0.25, squash on — proposed values, not yet signed off).
-Still pending before any v3 training: owner sign-off on the candidate values
-plus D3–D5, and new registration/launcher machinery for a new qualification
-identity.
+**All five decisions are now frozen** under the owner's standing delegation:
+D1=(c) both, D2=(c) pair penalty 0.25, D3=same 2,048-update budget,
+D4=seed 1702 reused with a fresh sealed TEST family at `[4194304, 4195840)`,
+D5=thresholds and gate IDs unchanged. The frozen v3 reference config is
+`configs/training/dgx-rcq-v3-reference.toml`, and the full qualification
+machinery (evaluator lineage, dispatcher `rcq_v3_*` family, operator
+wrappers) is implemented and locally verified. Record:
+[runs/2026-08-17-rcq-v3-reference-v1-preregistration.md](runs/2026-08-17-rcq-v3-reference-v1-preregistration.md).
+Still pending before any v3 training: the owner-run registration ceremony and
+DGX sequence below.
 
 ### 2.2 RCQ-v3 execution checklist (mirrors the proven v2 sequence)
 
 1. Implement D1/D2 in `irene_brain` behind the config, with unit tests:
    deadzone-squash or hinge loss exact-zero property tests; conflict-penalty
-   gradient tests; regression: action geometry unchanged.
+   gradient tests; regression: action geometry unchanged. **(Done.)**
 2. Freeze source, regenerate the baseline-architecture manifest, run the
-   play-safe suite, commit and push.
-3. Build the target-blind v3 registration at a new path
-   (`registrations/rcq-v2-reference-v3.json` or a renamed qualification id —
-   decide once), record its SHA-256 off-repo.
+   play-safe suite, commit and push. **(Done; live digest `eb46988b…`.)**
+3. Build the target-blind v3 registration at its own path
+   (`registrations/rcq-v3-reference-v1.json`, qualification id
+   `rcq_v3_reference_v1`), record its SHA-256 off-repo. The builder and
+   wrapper exist; the create-once ceremony is owner-run.
 4. DGX: preflight → immutable release sync → pretraining pin → smoke →
    staging canary (must include the invariance receipt) → pinned reference
    train → entry gate at 1,536 → value stage → completion gate at 2,048.
@@ -163,9 +168,13 @@ PLAN.md §20 defines the ladder; the work items in this repo are:
 
 Near-term slices, each independently committable and test-covered:
 
-1. **RCQ-v3 design doc + frozen decisions** (D1–D5 above, owner sign-off).
-2. **D1/D2 implementation + tests** in model/training code (§2.2 item 1).
-3. **v3 freeze, registration, and DGX sequence** (§2.2 items 2–5).
+1. ~~**RCQ-v3 design doc + frozen decisions** (D1–D5 above, owner sign-off).~~
+   Done 2026-08-17 under the owner's standing delegation; veto window closes
+   at the registration ceremony.
+2. ~~**D1/D2 implementation + tests** in model/training code (§2.2 item 1).~~
+   Done.
+3. **v3 registration ceremony and DGX sequence** (§2.2 items 3–5). Machinery
+   ready; the ceremony itself is owner-run from a console-attached terminal.
 4. **Remaining matched baselines + the multi-seed comparison harness**
    (`evaluation/multiseed_comparison.py` exists; extend to the full baseline
    suite of PLAN.md §28).
