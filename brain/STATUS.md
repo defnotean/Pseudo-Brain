@@ -320,6 +320,20 @@ single-latent controls. Manifest regenerated (digest `1d73c7ef…`) for the
 objective source change (2 new tests; play-safe gate green, 548 tests).
 Record:
 [docs/runs/2026-08-18-thought-collapse-diagnostics.md](./docs/runs/2026-08-18-thought-collapse-diagnostics.md).
+The strategic review's highest-leverage cheap item ran:
+`scripts/compare_baselines_smoke.py` trained all eleven registered
+variants at smoke scale (64 steps, campaign window shape, identical seeds
+and batches) with per-variant JSON rows pinned under
+`docs/runs/artifacts/baseline-smoke-compare/`. Three honest signals: no
+thought collapse anywhere (pairwise cosine 0.44–0.58, duplicates exactly
+zero); the reference does **not** lead at smoke scale — it ties its
+parameter-exact ablations and trails serial_depth (action loss 0.6892,
+movement exact 0.208) and the parameter-matched GRU (0.7029) — so the
+review's smoke-scale proceed-criterion for RCQ-v3 is **not met**, making
+the qualified matched-baseline comparison the highest-value DGX item; and
+B1 behaves as designed (static partition pays the expected world-loss
+price, 0.9786 vs 0.8770). Record:
+[docs/runs/2026-08-18-baseline-smoke-comparison.md](./docs/runs/2026-08-18-baseline-smoke-comparison.md).
 The matched baseline suite gains the PLAN §28 item-12 control:
 `irene.thought_field.independent_ensemble.v1` — four untied members of
 eight slots each at width 352 (29,459,914 trainable, 0.72% under the

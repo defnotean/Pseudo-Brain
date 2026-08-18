@@ -1,0 +1,17 @@
+{
+  "burn_in_steps": 2,
+  "optimizer_steps": 64,
+  "seed": 20260818,
+  "sequence_length": 8,
+  "train_loss_first": 0.8623061887919903,
+  "train_loss_last": 0.8337390162050724,
+  "trainable_parameters": 47258,
+  "val_action_loss_after": 0.7154718041419983,
+  "val_action_loss_before": 1.1175114810466766,
+  "val_movement_exact_match_after": 0.0416666679084301,
+  "val_movement_exact_match_before": 0.0,
+  "val_thought_duplicate_pair_fraction_after": 0.0,
+  "val_thought_pairwise_cosine_mean_after": 0.5586056113243103,
+  "val_world_loss_after": 0.8770332932472229,
+  "variant_id": "irene.thought_field.routed.v1"
+}
