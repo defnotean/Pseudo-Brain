@@ -1,0 +1,2 @@
+{"campaign_success": false, "collisions": 20, "gate": "failed", "movement_mask_histogram": [[2, 469], [4, 9], [8, 2]], "pellets_eaten": 23, "reward_sum": -177.0, "step": 8, "sticky_or_idle": false}
+{"campaign_success": false, "collisions": 18, "gate": "failed", "movement_mask_histogram": [[2, 476], [8, 4]], "pellets_eaten": 15, "reward_sum": -165.0, "step": 16, "sticky_or_idle": false}

@@ -28,14 +28,16 @@ release `r20260818t215024z-ad7ce0bfdd99`)
 **passed** by keeping step 32 (38 pellets, A×377 + S×103) and stopping
 at step 40 (15 pellets, A×450 + D×30). Official `play-gate.json` SHA-256
 `34af40b0…` matches the 32-step champion. Exact resume from that
-checkpoint is messy (config identity). The licensed next GPU job is
-collision-aware `ghost_hit_penalty_v1` with play-peak, 32 steps, one
-GB10 (`dgx-play-maze-chase-distill-ghost-hit-v1`, canonical config
-SHA-256
-`a1a15e5702b161c3afcd017c4cf9ca40eeb3408addaa5280942410a53c64dbf8`).
-Hold ×0.1 is unchanged. Do not scale. Spark GPU is running
-`dgx-play-maze-chase-distill-ghost-hit-v1` on release
-`r20260818t222809z-78b333c9035e`.
+checkpoint is messy (config identity). Collision-aware
+`ghost_hit_penalty_v1`
+(`dgx-play-maze-chase-distill-ghost-hit-v1`, canonical config SHA-256
+`a1a15e5702b161c3afcd017c4cf9ca40eeb3408addaa5280942410a53c64dbf8`,
+release `r20260818t222809z-78b333c9035e`) **failed**: kept step 8
+(A×469 + S×9 + D×2, **23 pellets**, 20 collisions, reward −177),
+stopped at step 16 (15 pellets). Official `play-gate.json` SHA-256
+`ef087215…`. Pellets fell below ≥32, so the 38/43 champion stands.
+Hold ×0.1 is unchanged. Do not scale. Spark GPU is idle. The next GPU
+job must be a new distinct idea.
 Play moved on the
 32-step probe v2 and held on the
 128-step probe at reward_sum **-150**, collisions **16**
@@ -70,7 +72,7 @@ SHA-256
 `df9d88f4…`; 128-step `6401a922…`; window-32 `2cdedaf9…`; episode-windows
 `84331559…`; exclusive-argmax `865927de…`; turn-weighted `34af40b0…`;
 turn-weighted-128 `2c09427c…`; play-peak `34af40b0…` (same JSON as
-turn-weighted; kept step 32).
+turn-weighted; kept step 32); ghost-hit `ef087215…`.
 Logger train loss is not the gate. Workstation is orchestration; all
 compute is Spark. Record:
 [docs/runs/2026-08-18-play-gated-maze-chase-distill.md](./docs/runs/2026-08-18-play-gated-maze-chase-distill.md).

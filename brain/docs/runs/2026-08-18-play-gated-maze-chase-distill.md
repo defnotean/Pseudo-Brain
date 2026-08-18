@@ -1,22 +1,89 @@
 # Play-gated maze-chase distill campaign v1 (2026-08-18)
 
-Status: **current campaign**. Play-peak / early-stop
-(`dgx-play-maze-chase-distill-play-peak-v1`) **completed / passed**:
-closed-loop play peaked at step 32 (A×377 + S×103, **38 pellets**, 43
-collisions, reward −392) and dropped at step 40 (A×450 + D×30, 15
-pellets). The trainer kept the step-32 checkpoint and wrote
-`play-gate.json` on that peak (`campaign_success: true`). The 32-step
-turn-weighted exclusive CE remains the campaign-pass checkpoint; more
-steps still hurt. Do not scale 64 or 128. 128-step turn-weighted
-exclusive CE **completed / failed** sticky S (idle×26 + S×454, 20
-pellets, 390 collisions, reward −3880, val match 0.0). Exact resume
-from the 32-step champion is messy (config identity). The licensed next
-GPU job is collision-aware `ghost_hit_penalty_v1` with play-peak, 32
-steps (`dgx-play-maze-chase-distill-ghost-hit-v1`). Spark GPU is **running**
-that job on release `r20260818t222809z-78b333c9035e`. RCQ-v2 seed 1702
+Status: **current campaign**. Collision-aware `ghost_hit_penalty_v1`
+(`dgx-play-maze-chase-distill-ghost-hit-v1`) **completed / failed**:
+play peaked at step 8 (A×469 + S×9 + D×2, **23 pellets**, 20
+collisions, reward −177) and dropped at step 16 (A×476 + D×4, 15
+pellets). Official `play-gate.json` is that step-8 peak
+(`campaign_success: false`). Pellets fell 38 → 23 (below the ≥32
+keep-champion floor). Collisions fell 43 → 20, which does not beat the
+champion without the pellet floor. Do **not** scale. Do **not** retune
+hold×0.1. The 32-step turn-weighted exclusive CE remains the champion
+(38 pellets, 43 collisions, A×377 + S×103). Play-peak / early-stop
+kept that champion and confirmed more steps hurt. 128-step turn-weighted
+exclusive CE **failed** sticky S. Spark GPU is idle. RCQ-v2 seed 1702
 stays terminal. No v3 registration. No sealed TEST.
 
-## Collision-aware ghost-hit penalty (preregistered)
+## Collision-aware ghost-hit penalty result (2026-08-18)
+
+Official `play-gate.json`:
+[artifacts/play-gated-maze-chase-distill/ghost-hit-v1-play-gate.json](./artifacts/play-gated-maze-chase-distill/ghost-hit-v1-play-gate.json).
+
+Adding `ghost_hit_penalty_v1` (weight 1.0) on a fresh 32-step
+turn-weighted exclusive-CE run with play-peak **did not** beat the
+champion. Closed-loop play never reached 32 pellets. The kept peak is
+step 8: A×469 + S×9 + D×2, **23 pellets**, 20 collisions, reward
+**−177**. Step 16 dropped to 15 pellets (A×476 + D×4, 18 collisions,
+−165) and `play_peak_v1` stopped. Collisions are lower than 43, but
+pellets collapsed toward the sticky band. Champion stays 38/43. Do
+**not** scale.
+
+| Step | Pellets | Collisions | Histogram | Gate |
+|---|---|---|---|
+| **8** | **23** | **20** | **A×469 + S×9 + D×2** | failed (kept) |
+| 16 | 15 | 18 | A×476 + D×4 | failed; early-stop |
+
+| Field | Champion (32-step) | Ghost-hit (this probe) |
+|---|---|---|
+| pellets_eaten | **38** | **23** |
+| histogram | A×377 + S×103 | A×469 + S×9 + D×2 |
+| collisions | 43 | 20 |
+| reward_sum | −392 | −177 |
+| val exclusive-argmax match | 0.25 | n/a (stopped at 16; val every 32) |
+| `campaign_success` | true | **false** |
+| `play_moved` | false | false |
+| mazes_cleared | 0 | 0 |
+
+| Field | Value |
+|---|---|
+| Release | `r20260818t222809z-78b333c9035e` (archive SHA-256 `78b333c9035e…`) |
+| Container image | `sha256:177a406d7cb2…` |
+| Run id | `dgx-play-maze-chase-distill-ghost-hit-v1` |
+| Canonical config SHA-256 | `a1a15e5702b161c3afcd017c4cf9ca40eeb3408addaa5280942410a53c64dbf8` |
+| Launch `run.env` config SHA-256 | `13e1071920da273eff08f2ced89a0964b6080cf1a305d51167aca8818089648b` |
+| Play decode | `exclusive_argmax_wasd_v1` (idle margin −4.0; kept) |
+| Action loss | `exclusive_wasd_softmax_turn_weighted_v1` (hold ×0.1; unchanged) |
+| Extra term | `ghost_hit_penalty_v1` weight 1.0 |
+| Teacher | `irene.maze_chase.planner_teacher.tiled_windows.v1` (90 windows / 3 episodes) |
+| Selected checkpoint | `checkpoints/play-best.pt` from `step-00000008.pt` |
+| Selected checkpoint SHA-256 | `2b8f5df17ac714d267ba3d8c596f4fa0408767a43ae23ecac3fb4d71ba6ff60d` |
+| Terminal checkpoint | `checkpoints/step-00000016.pt` |
+| Terminal checkpoint SHA-256 | `0eff0f717d66cbf4a27b58d8aac915da449564f7460489ae8125e64ee62f0e1b` |
+| `latest.json` SHA-256 | `38f5a1481cc701a588bafe88e563f4478ef0cb166c477d7c75e0aef6484cf3d0` |
+| Metrics SHA-256 | `47be438b31708eec3dca18d005a8deb9ea5e98f49d3635e1c346c4335c7e7f5c` |
+| `play-gate.json` SHA-256 | `ef087215b7283bd1d7b134da317c020d278d6dc5f5e40d59dc97c22060538307` |
+| `play-best.json` SHA-256 | `05d33efa1224cf2e6e1b880bdf9b55f3d6b664d29b91553a897e247e8c3310ae` |
+| `play-peak.json` SHA-256 | `2232970551ab8788851e08e2faa96ea4833c96ed69d4222d1ee3ee231dbff5ec` |
+| `play-trace.jsonl` SHA-256 | `99b2d00d2faf4708f0b21c8229335b8c7601e7f62aa6480d138e214ab4b5d103` |
+| Report SHA-256 | `ebfbfa5b1dfe4335292dc2a34fae5d29b8fc6eecfaf202135880a91e3d2533c5` |
+| `play_moved` | **false** |
+| `campaign_success` | **false** |
+| `gate` | **failed** |
+| `stop_reason` | **play_peak_drop** at step 16 |
+| reward_sum | **−177** |
+| collisions | **20** |
+| pellets_eaten | **23** |
+| mazes_cleared | **0** |
+| movement_mask_histogram | **[[2, 469], [4, 9], [8, 2]]** (A×469 + S×9 + D×2) |
+| sticky_or_idle | **false** |
+
+Logged metrics at the kept step 8: train loss 2.222, action loss 1.291,
+exclusive-argmax match 0.272, `ghost_hit_penalty` 0.022. Step 16 train
+loss 1.512, action loss 0.669, exclusive-argmax match 0.233,
+`ghost_hit_penalty` 0.019. No validation row (eval every 32; stopped at
+16). Spark GPU is idle. Do not scale.
+
+## Collision-aware ghost-hit penalty (preregistered; now completed / failed)
 
 Hypothesis: the 32-step champion is clumsy eating (38 pellets, 43
 collisions), not a player. Exact resume from checkpoint `e58f323f…` is
@@ -1418,7 +1485,7 @@ The matched-baseline architecture manifest is a new comparison identity
 `cc04cb4f…` (previous live `3d7ff5bd…`, then `5e0f2536…`) for the same
 source-file reason.
 
-## Spark sequence (ghost-hit penalty + play-peak, running)
+## Spark sequence (ghost-hit penalty + play-peak, completed / failed)
 
 1. `Invoke-DgxPreflight.ps1`
 2. `Sync-DgxBrainRelease.ps1` (release `r20260818t222809z-78b333c9035e`)
@@ -1427,7 +1494,10 @@ source-file reason.
    `dgx-play-maze-chase-distill-ghost-hit.toml`, run id
    `dgx-play-maze-chase-distill-ghost-hit-v1`, Tmux with
    `-AcknowledgeDetached`
-5. Watch `play-gate.json` vs the 38/43 champion. Spark GPU is running.
+5. `play-gate.json` failed campaign: reward −177 / collisions 20 /
+   23 pellets / histogram [[2, 469], [4, 9], [8, 2]].
+   `stop_reason: play_peak_drop` at step 16 (15 pellets). Spark GPU is
+   idle. Do not scale. Champion remains 38 pellets / 43 collisions.
 
 Generic wrappers only. Never `Start-DgxRcqV2Reference.ps1`. Never point
 generic train at an RCQ config.

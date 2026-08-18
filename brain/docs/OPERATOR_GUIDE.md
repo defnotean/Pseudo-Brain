@@ -25,18 +25,20 @@ parallel on the host. Play-peak / early-stop
 (`dgx-play-maze-chase-distill-play-peak-v1`) **passed** on the kept
 step-32 peak (38 pellets, A×377 + S×103) and stopped at step 40 (15
 pellets). Exact resume from the 32-step champion is messy (config
-identity), so the collision-aware probe is a new 32-step run with
-`ghost_hit_penalty_v1` and play-peak. Spark GPU is running
-`dgx-play-maze-chase-distill-ghost-hit-v1` (release
-`r20260818t222809z-78b333c9035e`). Do not scale 64
-or 128, and do not retune hold×0.1.
+identity), so the collision-aware probe was a new 32-step run with
+`ghost_hit_penalty_v1` and play-peak. That job **failed**: 23 pellets /
+20 collisions at the kept step-8 peak, then 15 pellets at step 16.
+Champion remains 38 pellets / 43 collisions. Spark GPU is idle. Do
+not scale 64 or 128, and do not retune hold×0.1. The next GPU job must
+be a new distinct idea.
 A turn-hold audit found 261/720 change ticks (82/90 windows have a
 change).
 
 The 128-step turn-weighted exclusive-CE launch already ran and **failed**
 sticky S. Do not launch it again. Do not start a 256-step scale. Play-peak
-kept the 32-step champion and confirmed more steps hurt. The licensed
-next GPU job is `dgx-play-maze-chase-distill-ghost-hit-v1`. Record:
+kept the 32-step champion and confirmed more steps hurt. Ghost-hit
+penalty + play-peak **failed** (23 pellets / 20 collisions). Do not
+scale that recipe. Spark GPU is idle. Record:
 [runs/2026-08-18-play-gated-maze-chase-distill.md](runs/2026-08-18-play-gated-maze-chase-distill.md).
 
 Scale only if `play-gate.json` shows `campaign_success: true` (pellets ≥ 32
@@ -44,11 +46,12 @@ and a WASD histogram that is not idle / D-only). Turn-weighted exclusive
 CE passed that gate at 32 steps (38 pellets, A×377 + S×103, collisions
 43, val match 0.25). The 128-step continuation failed sticky S (20
 pellets, 390 collisions). Do not scale 128. Do not retune hold×0.1.
-The licensed next GPU job is collision-aware `ghost_hit_penalty_v1`
-with play-peak, 32 steps (`dgx-play-maze-chase-distill-ghost-hit-v1`).
-Not a longer fixed budget of turn-weighted exclusive CE. Failed recipes stay failed: exclusive-argmax sticky S,
+Ghost-hit penalty + play-peak failed (23 pellets, below the ≥32 floor).
+Do not scale it. Spark GPU is idle. The next GPU job must be a new
+distinct idea, not a longer fixed budget of turn-weighted exclusive CE.
+Failed recipes stay failed: exclusive-argmax sticky S,
 exclusive-CE sticky S, 128-step turn-weighted sticky S,
-action-only/value-only idle, tiled-windows sticky A, episode-update
+ghost-hit 23 pellets, action-only/value-only idle, tiled-windows sticky A, episode-update
 sticky D, multi-episode 17 pellets. Record:
 [runs/2026-08-18-play-gated-maze-chase-distill.md](runs/2026-08-18-play-gated-maze-chase-distill.md).
 
