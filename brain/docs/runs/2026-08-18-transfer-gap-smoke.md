@@ -45,6 +45,43 @@ play configuration. Per-world JSON rows:
    configurations, so every future checkpoint (smoke or DGX) can be
    dropped into the same comparison.
 
+## Addendum: the B2 world-model actor runs the same battery (2026-08-18)
+
+After B2 landed
+([2026-08-18-world-model-actor.md](2026-08-18-world-model-actor.md)), the
+battery gained `--variant world_model_actor`: the latent world-model
+actor (monolithic trunk at smoke width 18) is trained through its
+declared `LatentRolloutObjective` hook — the same resolution discipline
+as train.py — under the identical 128-step protocol, with rows written to
+`docs/runs/artifacts/transfer-gap-smoke/world_model_actor/<world>.json`
+so the pinned reference rows stay untouched.
+
+| world | reference | **B2 actor** | no-op | reactive chaser |
+| --- | --- | --- | --- | --- |
+| moving_shapes (in-distribution) | 0 | 0 | 0 | +57 |
+| pursuit | −29 | −26 | −24 | +30 |
+| junction | −4 | −4 | −4 | −3 |
+| occlusion | 0 | 0 | 0 | +1 |
+| keys_doors | 0 | 0 | 0 | 0 |
+| maze_chase | −3890 | **−1358** | −161 | −161 |
+
+Reading:
+
+1. **The headline stands:** the actor's zero-shot transfer is also at or
+   below the no-op floor everywhere — exactly no-op on four worlds,
+   slightly below on pursuit. The transfer gap is not a direct-head
+   artifact; a learned transition model trained on the same 128 steps
+   does not close it either. Scale remains the open variable.
+2. **One hint worth a campaign question:** the actor's maze_chase failure
+   is markedly less catastrophic than the reference's (−1358 vs −3890,
+   138 vs 391 collisions) at identical seeds and play configuration. One
+   seed pair at smoke scale is not evidence of a transfer advantage — but
+   "does the rollout objective buy hazard avoidance in wall worlds" is
+   now a falsifiable DGX-scale comparison with both zero-points pinned.
+3. The battery now compares recipe families, not just checkpoints: any
+   future variant with a declared objective hook drops into the same
+   table via `--variant`.
+
 ## Verification
 
 Deterministic (fixed seeds, fixed batch order, simulated clock; zero

@@ -9,6 +9,12 @@ non-privileged diagnostic baselines (no-op, random, scripted reactive
 chaser) are evaluated under the identical play configuration, so every
 model row is interpretable against the same zero-points.
 
+``--variant world_model_actor`` swaps the trained agent for the B2
+latent world-model actor (monolithic trunk at the parameter-matched smoke
+width 18) trained through its declared ``LatentRolloutObjective`` hook —
+the same resolution discipline as train.py — and writes its rows to a
+per-variant subdirectory so the pinned reference rows stay untouched.
+
 Per-world JSON rows are written incrementally, so a partial run can be
 resumed. This quantifies the transfer gap named in the 2026-08-18
 strategic review; the qualified transfer study remains DGX-scale.
@@ -16,6 +22,7 @@ strategic review; the qualified transfer study remains DGX-scale.
 Usage (from the repository root, play-safe Python):
 
     python brain/scripts/transfer_gap_smoke.py [--steps 128] [--worlds pursuit,occlusion]
+    python brain/scripts/transfer_gap_smoke.py --variant world_model_actor
 """
 
 from __future__ import annotations
@@ -102,20 +109,10 @@ def _training_config():
     )
 
 
-def _build_trained_model(steps: int):
-    import torch
-
-    torch.set_num_threads(1)
-    torch.manual_seed(SEED)
-
+def _slot_smoke_config():
     from irene_brain.model.spec import ThoughtFieldConfig
-    from irene_brain.model.torch_model import IreneBrainModel
-    from irene_brain.training.batches import MovingShapesBatchSource
-    from irene_brain.training.config import DatasetConfig
-    from irene_brain.training.objective import ThoughtFieldObjective
-    from irene_brain.training.torch_system import TorchTrainingSystem
 
-    model_config = replace(
+    return replace(
         ThoughtFieldConfig.smoke(),
         core_width=16,
         sensor_tokens=4,
@@ -131,8 +128,50 @@ def _build_trained_model(steps: int):
         episodic_memory_entries=8,
         retrieved_entries_per_thoughtlet=1,
     )
-    model = IreneBrainModel(model_config, input_resolution=(8, 8), plan_steps=2)
-    system = TorchTrainingSystem(ThoughtFieldObjective(model), _training_config())
+
+
+def _build_trained_model(steps: int, *, variant: str = "routed"):
+    import importlib
+
+    import torch
+
+    torch.set_num_threads(1)
+    torch.manual_seed(SEED)
+
+    from irene_brain.model.torch_model import IreneBrainModel
+    from irene_brain.model.world_model_actor import LatentWorldModelActor
+    from irene_brain.training.batches import MovingShapesBatchSource
+    from irene_brain.training.config import DatasetConfig
+    from irene_brain.training.objective import ThoughtFieldObjective
+    from irene_brain.training.torch_system import TorchTrainingSystem
+
+    if variant == "routed":
+        model = IreneBrainModel(
+            _slot_smoke_config(), input_resolution=(8, 8), plan_steps=2
+        )
+    elif variant == "world_model_actor":
+        model = LatentWorldModelActor(
+            replace(
+                _slot_smoke_config(),
+                core_width=18,
+                thoughtlets=1,
+                registers_per_thoughtlet=1,
+                routed_neighbors=0,
+            ),
+            input_resolution=(8, 8),
+            plan_steps=2,
+        )
+    else:
+        raise ValueError(f"unknown transfer-battery variant: {variant}")
+    # Own-recipe-family variants declare their objective fail-closed on the
+    # model; resolve it with the same importlib discipline as train.py.
+    objective_class_path = getattr(model, "training_objective_class_path", None)
+    if objective_class_path is None:
+        objective_class = ThoughtFieldObjective
+    else:
+        module_name, attribute = objective_class_path.split(":", 1)
+        objective_class = getattr(importlib.import_module(module_name), attribute)
+    system = TorchTrainingSystem(objective_class(model), _training_config())
     source = MovingShapesBatchSource(
         DatasetConfig(
             kind="moving_shapes",
@@ -214,10 +253,23 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--steps", type=int, default=128)
     parser.add_argument("--worlds", type=str, default=None)
-    parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
+    parser.add_argument(
+        "--variant",
+        type=str,
+        default="routed",
+        choices=("routed", "world_model_actor"),
+    )
+    parser.add_argument("--output-dir", type=Path, default=None)
     arguments = parser.parse_args()
     if arguments.steps < 1:
         raise SystemExit("--steps must be positive")
+    output_dir = arguments.output_dir
+    if output_dir is None:
+        output_dir = (
+            DEFAULT_OUTPUT_DIR
+            if arguments.variant == "routed"
+            else DEFAULT_OUTPUT_DIR / arguments.variant
+        )
 
     from irene_brain.evaluation.cross_world_matrix import default_world_slots
     from irene_brain.evaluation.closed_loop_play import ClosedLoopPlayConfig
@@ -244,8 +296,8 @@ def main() -> int:
         if not slots:
             raise SystemExit(f"no worlds matched {sorted(wanted)}")
 
-    arguments.output_dir.mkdir(parents=True, exist_ok=True)
-    model, train_loss_last = _build_trained_model(arguments.steps)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    model, train_loss_last = _build_trained_model(arguments.steps, variant=arguments.variant)
     agents = (
         ("trained_smoke_model", model),
         ("diagnostic.noop.v1", NoOpPolicy()),
@@ -260,6 +312,7 @@ def main() -> int:
             print(f"{slot.identity} {description}: {rows[0]}")
         payload = {
             "seed": SEED,
+            "variant": arguments.variant,
             "optimizer_steps": arguments.steps,
             "train_loss_last16": train_loss_last,
             "play_config": {
@@ -269,7 +322,7 @@ def main() -> int:
             },
             "rows": world_rows,
         }
-        (arguments.output_dir / f"{slot.identity}.json").write_text(
+        (output_dir / f"{slot.identity}.json").write_text(
             json.dumps(payload, indent=2, sort_keys=True) + "\n"
         )
     return 0

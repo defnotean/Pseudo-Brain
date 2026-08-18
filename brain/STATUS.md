@@ -390,6 +390,16 @@ the expected world-loss premium for rollout prediction (1.0853, highest
 in the suite); serial_depth still leads and the RCQ-v3 smoke
 proceed-criterion remains unmet. Record:
 [docs/runs/2026-08-18-baseline-smoke-comparison.md](./docs/runs/2026-08-18-baseline-smoke-comparison.md).
+The transfer battery now covers the B2 actor too:
+`scripts/transfer_gap_smoke.py --variant world_model_actor` trains the
+actor through its declared rollout objective under the identical 128-step
+protocol and writes rows to a per-variant artifact subdirectory. Result:
+transfer is still at or below the no-op floor on every world — the gap is
+not a direct-head artifact — but the actor's maze_chase failure is
+markedly less catastrophic than the reference's (−1358 vs −3890, 138 vs
+391 collisions), a one-seed-pair hint that is now a falsifiable DGX-scale
+question with both zero-points pinned. Record:
+[docs/runs/2026-08-18-transfer-gap-smoke.md](./docs/runs/2026-08-18-transfer-gap-smoke.md).
 The matched baseline suite gains the PLAN §28 item-12 control:
 `irene.thought_field.independent_ensemble.v1` — four untied members of
 eight slots each at width 352 (29,459,914 trainable, 0.72% under the
