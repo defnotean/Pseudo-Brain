@@ -15,7 +15,10 @@ from irene_brain.evaluation.closed_loop_play import (
     ClosedLoopPlayConfig,
     run_policy_closed_loop_episode,
 )
-from irene_brain.evaluation.diagnostic_policies import NoOpPolicy
+from irene_brain.evaluation.diagnostic_policies import (
+    NoOpPolicy,
+    ScriptedPelletTeacherPolicy,
+)
 from irene_brain.types import GenericControl, HidKey
 
 _KEYS_FOR_DELTA = (
@@ -349,6 +352,21 @@ class MazeChaseClosedLoopTests(unittest.TestCase):
             NoOpPolicy(), seed=7, config=config, environment_factory=factory
         )
         self.assertEqual(first, second)
+
+    def test_scripted_pellet_teacher_eats_from_pixels_only(self) -> None:
+        config = ClosedLoopPlayConfig(episode_seeds=(5,), max_ticks=240)
+        report = run_policy_closed_loop_episode(
+            ScriptedPelletTeacherPolicy(),
+            seed=5,
+            config=config,
+            environment_factory=lambda: MazeChaseEnv(
+                ghost_count=1,
+                ghost_period=MazeChaseEnv.MAX_GHOST_PERIOD,
+                max_ticks=240,
+            ),
+        )
+        self.assertGreater(report.reward_sum, 0.0)
+        self.assertEqual(report.opposite_conflicts, 0)
 
 
 if __name__ == "__main__":

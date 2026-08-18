@@ -39,13 +39,14 @@ def _config(**overrides: object) -> ClosedLoopPlayConfig:
 class PolicyContractTests(unittest.TestCase):
     def test_identities_are_unique_and_stable(self) -> None:
         identities = [policy.identity for policy in default_diagnostic_policies()]
-        self.assertEqual(len(set(identities), ), 4)
+        self.assertEqual(len(set(identities)), 5)
         self.assertEqual(
             identities,
             [
                 "diagnostic.noop.v1",
                 "diagnostic.random_movement.v1",
                 "diagnostic.scripted_chase.v1",
+                "diagnostic.scripted_pellet_teacher.v1",
                 "diagnostic.oracle_privileged.v1",
             ],
         )
@@ -61,6 +62,7 @@ class PolicyContractTests(unittest.TestCase):
                 "diagnostic.noop.v1": False,
                 "diagnostic.random_movement.v1": False,
                 "diagnostic.scripted_chase.v1": False,
+                "diagnostic.scripted_pellet_teacher.v1": False,
                 "diagnostic.oracle_privileged.v1": True,
             },
         )
@@ -159,7 +161,7 @@ class DiagnosticSuiteTests(unittest.TestCase):
         reports = evaluate_diagnostic_policy_suite(
             default_diagnostic_policies(), config=config
         )
-        self.assertEqual(len(reports), 4)
+        self.assertEqual(len(reports), 5)
         for report, policy in zip(reports, default_diagnostic_policies()):
             self.assertEqual(
                 report.model_description, f"diagnostic policy {policy.identity}"
@@ -186,7 +188,7 @@ class DiagnosticSuiteTests(unittest.TestCase):
         )
         totals = [report.to_dict()["totals"] for report in reports]
         noop_targets = totals[0]["targets_collected"]
-        oracle_targets = totals[3]["targets_collected"]
+        oracle_targets = totals[4]["targets_collected"]
         self.assertEqual(noop_targets, 0)
         self.assertGreater(oracle_targets, noop_targets)
 

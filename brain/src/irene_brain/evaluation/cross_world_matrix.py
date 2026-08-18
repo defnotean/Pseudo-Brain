@@ -27,6 +27,7 @@ from ..environments.keys_doors import KeysDoorsEnv
 from ..environments.moving_shapes import MovingShapesEnv
 from ..environments.occlusion import OcclusionEnv
 from ..environments.pursuit import PursuitEnv
+from ..environments.maze_chase import MazeChaseEnv
 from .closed_loop_play import (
     ClosedLoopPlayConfig,
     ClosedLoopPlayReport,
@@ -36,6 +37,7 @@ from .closed_loop_play import (
 from .diagnostic_policies import (
     NoOpPolicy,
     RandomMovementPolicy,
+    ScriptedPelletTeacherPolicy,
     ScriptedTargetChasePolicy,
 )
 
@@ -49,7 +51,7 @@ class WorldSlot:
 
 
 def default_world_slots() -> tuple[WorldSlot, ...]:
-    """The five in-repo ladder worlds in canonical matrix order."""
+    """The six in-repo worlds in canonical matrix order."""
 
     return (
         WorldSlot(
@@ -94,13 +96,28 @@ def default_world_slots() -> tuple[WorldSlot, ...]:
                 max_ticks=config.max_ticks,
             ),
         ),
+        WorldSlot(
+            "world.maze_chase.v1",
+            lambda config: MazeChaseEnv(
+                ghost_count=3,
+                ghost_period=2,
+                extra_loops=16,
+                tick_period_ns=config.tick_period_ns,
+                max_ticks=config.max_ticks,
+            ),
+        ),
     )
 
 
 def matrix_policies() -> tuple[object, ...]:
     """The non-privileged §28 diagnostics in canonical matrix order."""
 
-    return (NoOpPolicy(), RandomMovementPolicy(), ScriptedTargetChasePolicy())
+    return (
+        NoOpPolicy(),
+        RandomMovementPolicy(),
+        ScriptedTargetChasePolicy(),
+        ScriptedPelletTeacherPolicy(),
+    )
 
 
 @dataclass(frozen=True, slots=True)

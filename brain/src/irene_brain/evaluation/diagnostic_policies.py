@@ -29,6 +29,8 @@ from __future__ import annotations
 
 from typing import Sequence
 
+from ..environments.junction import _bfs_distances
+from ..environments.maze_chase import MazeChaseEnv
 from ..environments.moving_shapes import (
     MovingShapesEnv,
     _SplitMix64,
@@ -241,13 +243,116 @@ class OraclePolicy:
         return GenericControl(keys_down=tuple(keys))
 
 
+class ScriptedPelletTeacherPolicy:
+    """Pixel-only greedy pellet teacher for the maze_chase world.
+
+    Reads only the rendered frame: walls and pellets via the public
+    ``WALL_RGB`` / ``PELLET_RGB`` contract, the player via ``PLAYER_RGB``,
+    and ghosts as the visible red cells. It walks the shortest safe path to
+    the nearest visible pellet, treating cells within one BFS step of a ghost
+    as blocked and falling back to the plain shortest path when avoidance
+    makes every pellet unreachable. On worlds without pellets it holds
+    still, so its matrix rows there are honest zeros.
+    """
+
+    __slots__ = ()
+    identity = "diagnostic.scripted_pellet_teacher.v1"
+    uses_privileged_state = False
+
+    def reset(self, episode_seed: int) -> None:
+        if isinstance(episode_seed, bool) or not isinstance(episode_seed, int):
+            raise TypeError("episode_seed must be an integer")
+
+    def act(self, observation: Observation) -> GenericControl:
+        frame = observation.rgb
+        grid = MazeChaseEnv.GRID_SIZE
+        if frame.width != grid or frame.height != grid:
+            raise ValueError("pellet teacher requires the canonical grid frame")
+        # The ghost red is a visible pixel color; the teacher reads it from
+        # the frame, never from simulator state.
+        ghost_color = MazeChaseEnv._GHOST_COLOR
+        pixels = frame.pixels
+        player: tuple[int, int] | None = None
+        walkable: set[tuple[int, int]] = set()
+        pellets: set[tuple[int, int]] = set()
+        ghosts: set[tuple[int, int]] = set()
+        for y in range(grid):
+            for x in range(grid):
+                offset = (y * grid + x) * 3
+                color = (pixels[offset], pixels[offset + 1], pixels[offset + 2])
+                if color == MazeChaseEnv.WALL_RGB:
+                    continue
+                cell = (x, y)
+                walkable.add(cell)
+                if color == MazeChaseEnv.PELLET_RGB:
+                    pellets.add(cell)
+                elif color in (
+                    MazeChaseEnv.PLAYER_RGB,
+                    MazeChaseEnv.PLAYER_GHOST_OVERLAP_RGB,
+                ):
+                    player = cell
+                elif color == ghost_color:
+                    ghosts.add(cell)
+        if player is None:
+            raise RuntimeError("pellet teacher could not locate the player")
+        if not pellets:
+            return GenericControl()
+
+        threatened: set[tuple[int, int]] = set()
+        for ghost in ghosts:
+            for cell, distance in _bfs_distances(ghost, frozenset(walkable)).items():
+                if distance <= 1:
+                    threatened.add(cell)
+
+        frozen_walkable = frozenset(walkable)
+
+        def nearest_goal(blocked: set[tuple[int, int]]) -> tuple[int, int] | None:
+            open_cells = frozen_walkable - blocked
+            if player not in open_cells:
+                return None
+            best = None
+            for cell, distance in _bfs_distances(player, open_cells).items():
+                if distance == 0 or cell not in pellets:
+                    continue
+                key = (distance, cell[1], cell[0])
+                if best is None or key < best:
+                    best = key
+            return None if best is None else (best[2], best[1])
+
+        goal = nearest_goal(threatened)
+        if goal is None:
+            goal = nearest_goal(set())
+        if goal is None:
+            return GenericControl()
+
+        from_goal = _bfs_distances(goal, frozen_walkable)
+        here = from_goal[player]
+        fallback: int | None = None
+        for (dx, dy), key in (
+            ((0, -1), _KEY_W),
+            ((-1, 0), _KEY_A),
+            ((0, 1), _KEY_S),
+            ((1, 0), _KEY_D),
+        ):
+            neighbor = (player[0] + dx, player[1] + dy)
+            if from_goal.get(neighbor) == here - 1:
+                if neighbor in threatened:
+                    fallback = key
+                    continue
+                return GenericControl(keys_down=(key,))
+        if fallback is not None:
+            return GenericControl(keys_down=(fallback,))
+        return GenericControl()
+
+
 def default_diagnostic_policies() -> tuple[object, ...]:
-    """Return the four §28 diagnostic policies in canonical suite order."""
+    """Return the §28 diagnostic policies in canonical suite order."""
 
     return (
         NoOpPolicy(),
         RandomMovementPolicy(),
         ScriptedTargetChasePolicy(),
+        ScriptedPelletTeacherPolicy(),
         OraclePolicy(),
     )
 
@@ -294,6 +399,7 @@ __all__ = [
     "NoOpPolicy",
     "OraclePolicy",
     "RandomMovementPolicy",
+    "ScriptedPelletTeacherPolicy",
     "ScriptedTargetChasePolicy",
     "default_diagnostic_policies",
     "evaluate_diagnostic_policy_suite",

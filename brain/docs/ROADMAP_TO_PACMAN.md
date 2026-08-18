@@ -183,7 +183,11 @@ PLAN.md §20 defines the ladder; the work items in this repo are:
    with a terminated win condition, BFS ghosts;
    [runs/2026-08-17-maze-chase-world.md](runs/2026-08-17-maze-chase-world.md)).
    Remaining variant axes: ghost AI rules beyond direct BFS, speed curves,
-   sticky/delayed input, plus a scripted pellet teacher and matrix inclusion.
+   sticky/delayed input. The scripted pellet teacher and matrix inclusion
+   are done: `diagnostic.scripted_pellet_teacher.v1` and
+   `world.maze_chase.v1` joined the cross-world matrix (now 6 worlds × 4
+   policies), where the teacher's -6,274 canonical row shows reflexive
+   greed losing badly to ghost pressure.
 4. **The arcade proof gate** (PLAN.md §31 Phase 4): kernel p99 ≤ 8 ms,
    end-to-end p99 ≤ 16.67 ms at frame skip 1, ≥10% score over the matched
    real-time recurrent/world-model baseline across ≥100 seeds, positive
