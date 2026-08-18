@@ -33,7 +33,11 @@ idle×26 + S×454, **20 pellets**, 390 collisions, reward **−3880**, val
 match **0.0**. Do not scale 128. Play-peak / early-stop
 (`dgx-play-maze-chase-distill-play-peak-v1`) **passed** by keeping the
 step-32 peak (38 pellets, A×377 + S×103) and stopping at step 40 (15
-pellets). Spark GPU is idle. Spark CPU
+pellets). Exact resume from the 32-step champion is messy (config
+identity). The licensed next GPU job is collision-aware
+`ghost_hit_penalty_v1` with play-peak, 32 steps, one GB10
+(`dgx-play-maze-chase-distill-ghost-hit-v1`). Do not scale. Spark GPU is
+idle until that launch. Spark CPU
 farm added a turn-hold audit (261/720 change ticks, 82/90 windows have a
 change), a multi-episode thoughtlet dump (open-loop A×31+D×1), a
 turn-weighted thoughtlet dump (open-loop A×32 on seeds 5/9), and a
@@ -59,7 +63,7 @@ campaign.
 |---|---|---|
 | 0 | Source lives in this Git repository and on private GitHub | Done. `defnotean/Pseudo-Brain`, branch `defnotean/pseudo-brain` |
 | 1 | Write operator documentation and freeze tooling | Done |
-| 2 | Freeze implementation source and regenerate the matched-baseline architecture manifest | Done. Live digest `3d7ff5bd…` (2026-08-18 turn-weighted exclusive WASD softmax). Historical `5e0f2536…`, `eda3cf38…`, `78ba9cfc…`, `8a41131e…`, `f4e9b355…`, `eb46988b…`, `5decb402…`, `30d4c119…`, and first-matched pin `52bba6a9…` unchanged. |
+| 2 | Freeze implementation source and regenerate the matched-baseline architecture manifest | Done. Live digest `cc04cb4f…` (2026-08-18 ghost-hit penalty). Historical `3d7ff5bd…`, `5e0f2536…`, `eda3cf38…`, `78ba9cfc…`, `8a41131e…`, `f4e9b355…`, `eb46988b…`, `5decb402…`, `30d4c119…`, and first-matched pin `52bba6a9…` unchanged. |
 | 3 | Run local CPU-only tests, including the regenerated manifest identity | Done. 299 tests passed, one expected POSIX skip. |
 | 4 | Build the create-once, target-blind RCQ-v2 registration and record its SHA-256 | Live v2 `6cc98739c78499a990a4b3480524c48dd49243c1e3c63094977a9a917df49690`. Historical v1 `33f7900c…` preserved. Copy the live digest off-repo. |
 | 5 | DGX preflight and immutable release sync | Done for live release `r20260817t021531z-7a2967ebec60`. Historical v1 release stays unused for training. |
@@ -68,7 +72,7 @@ campaign.
 | 8 | Newly named qualification after the invariance capture fix | Done. Live file `registrations/rcq-v2-reference-v2.json`. Do not edit v1. |
 | 9 | Preclaim, independent review, final authorization, one-shot TEST | Blocked. This qualification failed the entry gate. Do not preclaim or open TEST. |
 | — | RCQ-v3 registration ceremony | **Deferred.** Do not run `New-RcqV3Registration.ps1`. |
-| — | Current campaign | Play-gated maze-chase distill v1. Turn-weighted exclusive CE **passed** at 32 steps (A×377 + S×103, 38 pellets). Play-peak kept that step-32 peak and early-stopped at 40 (15 pellets). 128-step continuation **failed** sticky S. Do not scale. Spark GPU idle. |
+| — | Current campaign | Play-gated maze-chase distill v1. Turn-weighted exclusive CE **passed** at 32 steps (A×377 + S×103, 38 pellets). Play-peak kept that step-32 peak and early-stopped at 40 (15 pellets). 128-step continuation **failed** sticky S. Next GPU job: `ghost_hit_penalty_v1` + play-peak, 32 steps. Do not scale. Spark GPU idle until launch. |
 | — | Compute | Spark only. One scientific GPU train at a time on the GB10; many named CPU jobs in parallel on the ARM host. Generic wrappers, never RCQ-v2 start/resume. |
 
 Do not skip ahead. Do not open sealed TEST ranges to "check" labels. Do not

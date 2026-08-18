@@ -27,7 +27,14 @@ retune hold×0.1. Play-peak / early-stop
 release `r20260818t215024z-ad7ce0bfdd99`)
 **passed** by keeping step 32 (38 pellets, A×377 + S×103) and stopping
 at step 40 (15 pellets, A×450 + D×30). Official `play-gate.json` SHA-256
-`34af40b0…` matches the 32-step champion. Spark GPU is idle.
+`34af40b0…` matches the 32-step champion. Exact resume from that
+checkpoint is messy (config identity). The licensed next GPU job is
+collision-aware `ghost_hit_penalty_v1` with play-peak, 32 steps, one
+GB10 (`dgx-play-maze-chase-distill-ghost-hit-v1`, canonical config
+SHA-256
+`a1a15e5702b161c3afcd017c4cf9ca40eeb3408addaa5280942410a53c64dbf8`).
+Hold ×0.1 is unchanged. Do not scale. Spark GPU is idle until that
+launch.
 Play moved on the
 32-step probe v2 and held on the
 128-step probe at reward_sum **-150**, collisions **16**
@@ -154,8 +161,8 @@ local freeze on 2026-08-16, twice on 2026-08-17 (RCQ-v3 recipe options, then
 v3 smoke-factory squash parity), and again on 2026-08-17 when the baseline
 suite gained the reset-slot, dense-routing, reactive, and serial-depth
 ablations. Live digest
-`3d7ff5bd338503a79ea43a4949d48c073615f78bc6fa553cc8169a14d688fba3` (previous
-`5e0f2536…`, `eda3cf38…`, `78ba9cfc…`, `8a41131e…`, `f4e9b355…`, `eb46988b…`, `5decb402…`,
+`cc04cb4f016847683017314033051a8a68c657a907384fa1644fdbc93451dba8` (previous
+`3d7ff5bd…`, `5e0f2536…`, `eda3cf38…`, `78ba9cfc…`, `8a41131e…`, `f4e9b355…`, `eb46988b…`, `5decb402…`,
 and `30d4c119…`; all are
 explicit `new_comparison` identities). The
 historical first-matched campaign pin `52bba6a9…` is unchanged and that
@@ -441,8 +448,9 @@ is inherited unchanged. `train.py` resolves the model's fail-closed
 `training_objective_class_path` hook; the recipe is
 `configs/training/baseline-stagea-world-model-actor.toml`; and the family
 is pinned by its own manifest (`configs/world-model-actor-manifest.json`,
-digest `898e8a0e…`, previous `4e603895…`, `be571ba4…`, `885aff85…`, `3d2e3cc0…`, then `c207401f…`) with a fail-closed 1%-band gate, not the slot-suite
-manifest (regenerated for turn-weighted exclusive WASD softmax, digest `3d7ff5bd…`). B3 (task
+digest `74ec3510…`, previous `898e8a0e…`, `4e603895…`, `be571ba4…`, `885aff85…`, `3d2e3cc0…`, then `c207401f…`) with a fail-closed 1%-band gate, not the slot-suite
+manifest (regenerated for ghost-hit penalty, digest `cc04cb4f…`; previous
+turn-weighted exclusive WASD softmax `3d7ff5bd…`). B3 (task
 specialist) remains blocked on ladder dataset generation (7 new tests;
 play-safe gate green, 558 tests). Record:
 [docs/runs/2026-08-18-world-model-actor.md](./docs/runs/2026-08-18-world-model-actor.md).

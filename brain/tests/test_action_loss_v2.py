@@ -26,7 +26,10 @@ except ModuleNotFoundError:  # The stdlib-only play-safe runtime remains valid.
     torch = None  # type: ignore[assignment]
 
 if torch is not None:
-    from irene_brain.training.objective import _structured_action_loss
+    from irene_brain.training.objective import (
+        _ghost_hit_softmax_penalty,
+        _structured_action_loss,
+    )
 
 
 class CalibratedActionConfigurationTests(unittest.TestCase):
@@ -435,6 +438,23 @@ class ExclusiveWasdSoftmaxLossTests(unittest.TestCase):
         )
         self.assertAlmostEqual(float(turn), float(unweighted), places=6)
         self.assertLess(float(hold), float(turn))
+
+    def test_ghost_hit_penalty_is_higher_when_mass_is_on_the_ghost_step(self) -> None:
+        assert torch is not None
+        movement = torch.tensor(WASD_CONTROL_INDICES, dtype=torch.long)
+        hit_d = torch.tensor([[0.0, 0.0, 0.0, 1.0]])
+        toward = torch.full((1, 256), -4.0)
+        toward[0, int(HidKey.D)] = 3.0
+        away = torch.full((1, 256), -4.0)
+        away[0, int(HidKey.A)] = 3.0
+        toward_loss = _ghost_hit_softmax_penalty(toward, movement, hit_d)
+        away_loss = _ghost_hit_softmax_penalty(away, movement, hit_d)
+        self.assertGreater(float(toward_loss), float(away_loss))
+        toward.requires_grad_(True)
+        _ghost_hit_softmax_penalty(toward, movement, hit_d).backward()
+        assert toward.grad is not None
+        self.assertLess(float(toward.grad[0, int(HidKey.A)]), 0.0)
+        self.assertGreater(float(toward.grad[0, int(HidKey.D)]), 0.0)
 
 
 if __name__ == "__main__":

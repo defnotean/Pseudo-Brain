@@ -536,6 +536,8 @@ class PlayGatedMazeChaseConfigTests(unittest.TestCase):
             "exclusive_argmax_wasd_v1",
         )
         self.assertEqual(play_peak.run.seed, turn_weighted.run.seed)
+        self.assertEqual(play_peak.objective.ghost_hit_penalty_kind, "none")
+        self.assertEqual(play_peak.objective.ghost_hit_penalty_weight, 0.0)
         self.assertNotEqual(play_peak.config_sha256, turn_weighted.config_sha256)
         self.assertNotEqual(play_peak.config_sha256, turn_weighted_128.config_sha256)
         self.assertEqual(
@@ -544,6 +546,43 @@ class PlayGatedMazeChaseConfigTests(unittest.TestCase):
         )
         self.assertEqual(
             dataset_batch_source(play_peak.dataset).manifest_sha256,
+            dataset_batch_source(turn_weighted.dataset).manifest_sha256,
+        )
+        ghost_hit = load_training_config(
+            ROOT
+            / "configs"
+            / "training"
+            / "dgx-play-maze-chase-distill-ghost-hit.toml"
+        )
+        self.assertEqual(ghost_hit.run.max_optimizer_steps, 32)
+        self.assertEqual(ghost_hit.logging.play_eval_every_steps, 8)
+        self.assertEqual(ghost_hit.logging.play_early_stop_kind, "play_peak_v1")
+        self.assertEqual(ghost_hit.logging.checkpoint_every_steps, 8)
+        self.assertEqual(ghost_hit.dataset.window_sampling, "tiled")
+        self.assertEqual(ghost_hit.dataset.train_sequences, 90)
+        self.assertEqual(ghost_hit.optimization.gradient_accumulation_steps, 30)
+        self.assertEqual(
+            ghost_hit.objective.action_loss_kind,
+            "exclusive_wasd_softmax_turn_weighted_v1",
+        )
+        self.assertEqual(
+            ghost_hit.objective.play_decode_kind,
+            "exclusive_argmax_wasd_v1",
+        )
+        self.assertEqual(
+            ghost_hit.objective.ghost_hit_penalty_kind,
+            "ghost_hit_penalty_v1",
+        )
+        self.assertEqual(ghost_hit.objective.ghost_hit_penalty_weight, 1.0)
+        self.assertEqual(ghost_hit.run.seed, turn_weighted.run.seed)
+        self.assertNotEqual(ghost_hit.config_sha256, turn_weighted.config_sha256)
+        self.assertNotEqual(ghost_hit.config_sha256, play_peak.config_sha256)
+        self.assertEqual(
+            ghost_hit.config_sha256,
+            "a1a15e5702b161c3afcd017c4cf9ca40eeb3408addaa5280942410a53c64dbf8",
+        )
+        self.assertEqual(
+            dataset_batch_source(ghost_hit.dataset).manifest_sha256,
             dataset_batch_source(turn_weighted.dataset).manifest_sha256,
         )
 
@@ -576,6 +615,53 @@ class PlayGatedMazeChaseConfigTests(unittest.TestCase):
                     play_eval_every_steps=8,
                 ),
             )
+        with self.assertRaisesRegex(ValueError, "only valid for maze_chase"):
+            replace(
+                smoke,
+                objective=replace(
+                    smoke.objective,
+                    ghost_hit_penalty_kind="ghost_hit_penalty_v1",
+                    ghost_hit_penalty_weight=1.0,
+                ),
+            )
+        with self.assertRaisesRegex(ValueError, "requires exclusive WASD softmax"):
+            replace(
+                exclusive_decode,
+                objective=replace(
+                    exclusive_decode.objective,
+                    action_loss_kind="support_aware_calibrated_v1",
+                    ghost_hit_penalty_kind="ghost_hit_penalty_v1",
+                    ghost_hit_penalty_weight=1.0,
+                ),
+            )
+
+    def test_ghost_hit_mask_marks_the_step_onto_a_visible_ghost(self) -> None:
+        from irene_brain.training.objective import ghost_hit_wasd_mask
+        from irene_brain.types import RgbFrame
+
+        width = height = MazeChaseEnv.GRID_SIZE
+        pixels = bytearray(width * height * 3)
+        player = MazeChaseEnv.PLAYER_RGB
+        ghost = MazeChaseEnv._GHOST_COLOR
+
+        def paint(x: int, y: int, color: tuple[int, int, int]) -> None:
+            offset = (y * width + x) * 3
+            pixels[offset : offset + 3] = bytes(color)
+
+        paint(4, 4, player)
+        paint(5, 4, ghost)
+        frame = RgbFrame(width=width, height=height, pixels=bytes(pixels))
+        self.assertEqual(ghost_hit_wasd_mask(frame), (0.0, 0.0, 0.0, 1.0))
+        paint(5, 4, (0, 0, 0))
+        paint(4, 5, ghost)
+        frame = RgbFrame(width=width, height=height, pixels=bytes(pixels))
+        self.assertEqual(ghost_hit_wasd_mask(frame), (0.0, 0.0, 1.0, 0.0))
+        empty = RgbFrame(
+            width=width,
+            height=height,
+            pixels=bytes(width * height * 3),
+        )
+        self.assertEqual(ghost_hit_wasd_mask(empty), (0.0, 0.0, 0.0, 0.0))
 
     def test_play_gate_floor_is_frozen(self) -> None:
         self.assertEqual(CAMPAIGN_ID, "play_gated_maze_chase_distill_v1")

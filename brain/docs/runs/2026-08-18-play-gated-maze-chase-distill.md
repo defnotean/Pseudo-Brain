@@ -9,9 +9,46 @@ pellets). The trainer kept the step-32 checkpoint and wrote
 turn-weighted exclusive CE remains the campaign-pass checkpoint; more
 steps still hurt. Do not scale 64 or 128. 128-step turn-weighted
 exclusive CE **completed / failed** sticky S (idle×26 + S×454, 20
-pellets, 390 collisions, reward −3880, val match 0.0). Spark GPU is
-idle. RCQ-v2 seed 1702 stays terminal. No v3 registration. No sealed
-TEST.
+pellets, 390 collisions, reward −3880, val match 0.0). Exact resume
+from the 32-step champion is messy (config identity). The licensed next
+GPU job is collision-aware `ghost_hit_penalty_v1` with play-peak, 32
+steps (`dgx-play-maze-chase-distill-ghost-hit-v1`). Spark GPU is idle
+until that launch. RCQ-v2 seed 1702 stays terminal. No v3 registration.
+No sealed TEST.
+
+## Collision-aware ghost-hit penalty (preregistered)
+
+Hypothesis: the 32-step champion is clumsy eating (38 pellets, 43
+collisions), not a player. Exact resume from checkpoint `e58f323f…` is
+messy because checkpoint identity includes the config hash. A new
+bounded 32-step probe keeps turn-weighted exclusive CE (hold ×0.1
+unchanged), exclusive-argmax decode, the exclusive-CE aux mix, 90 tiled
+windows, and accum 30. The named extra term is
+`ghost_hit_penalty_v1`: exclusive-softmax mass on the WASD step that
+would land on a currently visible ghost cell, weight 1.0. Play-peak
+keeps most pellets, then fewest collisions, and stops on a drop so
+training cannot walk through the known step-40 collapse. Goal:
+collisions below 43 with pellets still ≥ 32. If pellets collapse toward
+~20, do not scale.
+
+| Field | Value |
+|---|---|
+| Run id | `dgx-play-maze-chase-distill-ghost-hit-v1` |
+| Config | `brain/configs/training/dgx-play-maze-chase-distill-ghost-hit.toml` |
+| Canonical config SHA-256 | `a1a15e5702b161c3afcd017c4cf9ca40eeb3408addaa5280942410a53c64dbf8` |
+| Play decode | `exclusive_argmax_wasd_v1` (idle margin −4.0; kept) |
+| Action loss | `exclusive_wasd_softmax_turn_weighted_v1` (hold ×0.1; unchanged) |
+| Extra term | `ghost_hit_penalty_v1` weight 1.0 |
+| Teacher | `irene.maze_chase.planner_teacher.tiled_windows.v1` (same 90-window manifest) |
+| Batch-source | `maze_chase_tiled_windows` |
+| Weights | exclusive-CE aux mix (value/world/diversity/continuous restored) |
+| Budget | max 32 optimizer steps, play eval every 8, `play_peak_v1` early-stop |
+| Play eval | seeds 5/9 × 240 ticks during training; official gate on the kept peak |
+| Campaign pass vs champion | collisions < 43 and pellets ≥ 32; histogram not idle / D-only / one-key sticky |
+
+Champion to beat: 38 pellets, 43 collisions, A×377 + S×103, reward
+−392, val match 0.25, checkpoint `e58f323f…`. Do not overwrite it
+without beating that play row.
 
 ## 128-step turn-weighted exclusive CE result (2026-08-18)
 
@@ -1370,10 +1407,27 @@ generic train at an RCQ config.
 Generic wrappers only. Never `Start-DgxRcqV2Reference.ps1`. Never point
 generic train at an RCQ config.
 
-The B2 world-model-actor manifest was regenerated because `train.py` is in
-that family's source set (new digest `898e8a0e…`; previous `4e603895…`,
-`be571ba4…`, `885aff85…`, `3d2e3cc0…`, then `c207401f…`).
+The B2 world-model-actor manifest was regenerated because `train.py` and
+`objective.py` are in that family's source set (new digest `74ec3510…`;
+previous `898e8a0e…`, `4e603895…`, `be571ba4…`, `885aff85…`, `3d2e3cc0…`,
+then `c207401f…`).
 No actor parameter or recipe identity changed.
 The matched-baseline architecture manifest is a new comparison identity
-`3d7ff5bd…` (previous live `5e0f2536…`, then `eda3cf38…`) for the same
+`cc04cb4f…` (previous live `3d7ff5bd…`, then `5e0f2536…`) for the same
 source-file reason.
+
+## Spark sequence (ghost-hit penalty + play-peak, preregistered)
+
+1. `Invoke-DgxPreflight.ps1`
+2. `Sync-DgxBrainRelease.ps1`
+3. `Invoke-DgxBrainSmoke.ps1` on `dgx-smoke.toml`
+4. `Start-DgxBrainTraining.ps1` with
+   `dgx-play-maze-chase-distill-ghost-hit.toml`, run id
+   `dgx-play-maze-chase-distill-ghost-hit-v1`, Tmux with
+   `-AcknowledgeDetached`
+5. Watch `play-gate.json` vs the 38/43 champion. If collisions drop and
+   pellets stay ≥ 32, that is the new champion. If pellets collapse,
+   Spark idle; do not scale.
+
+Generic wrappers only. Never `Start-DgxRcqV2Reference.ps1`. Never point
+generic train at an RCQ config.

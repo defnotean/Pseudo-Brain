@@ -14,6 +14,7 @@ import torch
 from torch import Tensor, nn
 from torch.nn import functional as F
 
+from ..environments.maze_chase import MazeChaseEnv
 from ..model.torch_model import deterministic_thought_identity_codes
 from ..types import HidKey, RgbFrame
 from .batches import (
@@ -39,6 +40,16 @@ EXCLUSIVE_WASD_SOFTMAX_V1 = "exclusive_wasd_softmax_v1"
 EXCLUSIVE_WASD_SOFTMAX_TURN_WEIGHTED_V1 = "exclusive_wasd_softmax_turn_weighted_v1"
 EXCLUSIVE_WASD_SOFTMAX_IDLE_MARGIN = -4.0
 EXCLUSIVE_WASD_HOLD_WEIGHT = 0.1
+# Maze-chase-only extra term: penalize exclusive-softmax mass on the WASD
+# step that would land on a currently visible ghost cell. Default off so
+# every historical recipe stays bit-identical. Hold×0.1 is unchanged.
+GHOST_HIT_PENALTY_V1 = "ghost_hit_penalty_v1"
+_WASD_DELTAS = (
+    (0, -1),
+    (-1, 0),
+    (0, 1),
+    (1, 0),
+)
 _ACTION_LOSS_KINDS = frozenset(
     {
         "sparse_hard_negative_v1",
@@ -119,6 +130,8 @@ class ThoughtFieldObjective(nn.Module):
         deadzone_hinge_weight: float = 0.0,
         deadzone_hinge_margin: float = 0.04,
         opposite_pair_weight: float = 0.0,
+        ghost_hit_penalty_kind: str = "none",
+        ghost_hit_penalty_weight: float = 0.0,
     ) -> None:
         super().__init__()
         self.model = model
@@ -164,6 +177,20 @@ class ThoughtFieldObjective(nn.Module):
             opposite_pair_weight,
             "opposite_pair_weight",
         )
+        if ghost_hit_penalty_kind not in {"none", GHOST_HIT_PENALTY_V1}:
+            raise ValueError("unsupported ghost_hit_penalty_kind")
+        self.ghost_hit_penalty_kind = ghost_hit_penalty_kind
+        self.ghost_hit_penalty_weight = _positive_weight(
+            ghost_hit_penalty_weight,
+            "ghost_hit_penalty_weight",
+        )
+        if self.ghost_hit_penalty_kind == "none" and self.ghost_hit_penalty_weight != 0.0:
+            raise ValueError("ghost_hit_penalty_weight must be 0 when kind is none")
+        if (
+            self.ghost_hit_penalty_kind == GHOST_HIT_PENALTY_V1
+            and self.ghost_hit_penalty_weight == 0.0
+        ):
+            raise ValueError("ghost_hit_penalty_v1 requires a positive weight")
         self.register_buffer(
             "button_target_indices",
             torch.tensor(BUTTON_TARGET_INDICES, dtype=torch.long),
@@ -217,6 +244,7 @@ class ThoughtFieldObjective(nn.Module):
         total_action = parameter.new_zeros(())
         total_value = parameter.new_zeros(())
         total_diversity = parameter.new_zeros(())
+        total_ghost_hit = parameter.new_zeros(())
         world_sums: dict[int, Tensor] = {}
         world_counts: dict[int, int] = {}
         correct_keys = parameter.new_zeros(())
@@ -395,6 +423,25 @@ class ThoughtFieldObjective(nn.Module):
                     )
                 )
             action_loss = torch.stack(exit_losses).mean()
+            if self.ghost_hit_penalty_kind == GHOST_HIT_PENALTY_V1:
+                hit_mask = _ghost_hit_direction_mask(
+                    tuple(transition.observation.rgb for transition in transitions),
+                    device=device,
+                    dtype=action_loss.dtype,
+                )
+                ghost_exit_losses = tuple(
+                    _ghost_hit_softmax_penalty(
+                        prediction.button_logits[:, :256].float(),
+                        self.movement_key_indices,
+                        hit_mask,
+                    )
+                    for prediction in output.anytime_actions
+                )
+                ghost_hit_loss = torch.stack(ghost_exit_losses).mean()
+                action_loss = action_loss + (
+                    self.ghost_hit_penalty_weight * ghost_hit_loss
+                )
+                total_ghost_hit = total_ghost_hit + ghost_hit_loss
             value_loss = F.mse_loss(output.value.float(), value_target)
             horizon_losses, prediction_error = self._world_horizon_losses(
                 output=output,
@@ -502,6 +549,9 @@ class ThoughtFieldObjective(nn.Module):
             for horizon in horizon_offsets
         }
         diversity_mean = total_diversity / optimized_steps
+        ghost_hit_metrics: dict[str, Tensor] = {}
+        if self.ghost_hit_penalty_kind == GHOST_HIT_PENALTY_V1:
+            ghost_hit_metrics["ghost_hit_penalty"] = total_ghost_hit / optimized_steps
         metric_samples = batch.sample_count
         movement_metrics = {
             name: value.float() / metric_samples
@@ -557,6 +607,7 @@ class ThoughtFieldObjective(nn.Module):
                 "total_loss": loss,
                 **movement_metrics,
                 **diagnostic_metrics,
+                **ghost_hit_metrics,
                 **exit_metrics,
             },
             samples=metric_samples,
@@ -1075,6 +1126,65 @@ def _exclusive_wasd_turn_weights(current: Tensor, previous: Tensor) -> Tensor:
         device=current.device,
     )
     return torch.where(change, ones, holds)
+
+
+def _rgb_cells(frame: RgbFrame, color: tuple[int, int, int]) -> tuple[tuple[int, int], ...]:
+    expected = bytes(color)
+    cells: list[tuple[int, int]] = []
+    pixels = frame.pixels
+    width = frame.width
+    for y in range(frame.height):
+        row = y * width
+        for x in range(width):
+            offset = (row + x) * 3
+            if pixels[offset : offset + 3] == expected:
+                cells.append((x, y))
+    return tuple(cells)
+
+
+def ghost_hit_wasd_mask(frame: RgbFrame) -> tuple[float, float, float, float]:
+    """1.0 on the WASD step that would land on a currently visible ghost.
+
+    Player and ghost cells are read from the published maze_chase render
+    contract. Overlap white counts as both. Missing or ambiguous player
+    pixels fail closed to a zero mask. This is a teaching-signal extra
+    term, not privileged simulator state in a model input.
+    """
+
+    player_cells = set(_rgb_cells(frame, MazeChaseEnv.PLAYER_RGB))
+    player_cells.update(_rgb_cells(frame, MazeChaseEnv.PLAYER_GHOST_OVERLAP_RGB))
+    ghost_cells = set(_rgb_cells(frame, MazeChaseEnv._GHOST_COLOR))
+    ghost_cells.update(_rgb_cells(frame, MazeChaseEnv.PLAYER_GHOST_OVERLAP_RGB))
+    if len(player_cells) != 1:
+        return (0.0, 0.0, 0.0, 0.0)
+    px, py = next(iter(player_cells))
+    return tuple(
+        1.0 if (px + dx, py + dy) in ghost_cells else 0.0 for dx, dy in _WASD_DELTAS
+    )
+
+
+def _ghost_hit_direction_mask(
+    frames: tuple[RgbFrame, ...],
+    *,
+    device: torch.device,
+    dtype: torch.dtype,
+) -> Tensor:
+    rows = [ghost_hit_wasd_mask(frame) for frame in frames]
+    return torch.tensor(rows, dtype=dtype, device=device)
+
+
+def _ghost_hit_softmax_penalty(
+    key_logits: Tensor,
+    movement_key_indices: Tensor,
+    hit_mask: Tensor,
+) -> Tensor:
+    if tuple(movement_key_indices.shape) != (4,):
+        raise ValueError("ghost_hit_penalty_v1 requires W/A/S/D movement indices")
+    wasd_logits = key_logits.index_select(1, movement_key_indices)
+    if tuple(wasd_logits.shape) != tuple(hit_mask.shape):
+        raise ValueError("ghost-hit mask must match the WASD batch")
+    probabilities = F.softmax(wasd_logits, dim=1)
+    return (probabilities * hit_mask).sum(dim=1).mean()
 
 
 def _exclusive_wasd_softmax_button_loss(

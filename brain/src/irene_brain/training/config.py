@@ -39,6 +39,10 @@ OBJECTIVE_OPTIONAL_DEFAULTS: dict[str, object] = {
     # JSON at this default so every historical configuration hash stays
     # byte-identical. exclusive_argmax_wasd_v1 is maze_chase-only.
     "play_decode_kind": "independent_logit_gt_zero_v1",
+    # Maze-chase-only extra term. Omitted from canonical JSON at these
+    # defaults so every historical configuration hash stays byte-identical.
+    "ghost_hit_penalty_kind": "none",
+    "ghost_hit_penalty_weight": 0.0,
 }
 
 # Maze-chase episode-window sampling. Omitted from canonical JSON at 0 so
@@ -281,6 +285,8 @@ class ObjectiveConfig:
     opposite_key_pair_weight: float = 0.0
     continuous_output_squash: str = "none"
     play_decode_kind: str = "independent_logit_gt_zero_v1"
+    ghost_hit_penalty_kind: str = "none"
+    ghost_hit_penalty_weight: float = 0.0
 
     def __post_init__(self) -> None:
         action_loss_kind = _string(
@@ -434,6 +440,31 @@ class ObjectiveConfig:
                 "or exclusive_argmax_wasd_v1"
             )
         object.__setattr__(self, "play_decode_kind", play_decode)
+        ghost_kind = _string(
+            self.ghost_hit_penalty_kind,
+            name="objective.ghost_hit_penalty_kind",
+        )
+        if ghost_kind not in {"none", "ghost_hit_penalty_v1"}:
+            raise ValueError(
+                "objective.ghost_hit_penalty_kind must be none or "
+                "ghost_hit_penalty_v1"
+            )
+        object.__setattr__(self, "ghost_hit_penalty_kind", ghost_kind)
+        ghost_weight = _number(
+            self.ghost_hit_penalty_weight,
+            name="objective.ghost_hit_penalty_weight",
+            minimum=0.0,
+        )
+        if ghost_kind == "none" and ghost_weight != 0.0:
+            raise ValueError(
+                "objective.ghost_hit_penalty_weight must be 0 when kind is none"
+            )
+        if ghost_kind == "ghost_hit_penalty_v1" and ghost_weight == 0.0:
+            raise ValueError(
+                "objective.ghost_hit_penalty_kind ghost_hit_penalty_v1 "
+                "requires a positive weight"
+            )
+        object.__setattr__(self, "ghost_hit_penalty_weight", ghost_weight)
 
 
 @dataclass(frozen=True, slots=True)
@@ -771,6 +802,20 @@ class TrainingConfig:
                 raise ValueError(
                     "objective.action_loss_kind exclusive WASD softmax "
                     "requires exclusive_argmax_wasd_v1 play decode"
+                )
+        if self.objective.ghost_hit_penalty_kind != "none":
+            if self.dataset.kind != "maze_chase":
+                raise ValueError(
+                    "objective.ghost_hit_penalty_kind other than none "
+                    "is only valid for maze_chase"
+                )
+            if self.objective.action_loss_kind not in {
+                "exclusive_wasd_softmax_v1",
+                "exclusive_wasd_softmax_turn_weighted_v1",
+            }:
+                raise ValueError(
+                    "objective.ghost_hit_penalty_kind ghost_hit_penalty_v1 "
+                    "requires exclusive WASD softmax"
                 )
         if (
             self.schema_version == 1

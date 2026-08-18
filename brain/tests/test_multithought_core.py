@@ -75,6 +75,7 @@ class ObjectiveConfigurationTests(unittest.TestCase):
                 "dgx-play-maze-chase-distill-turn-weighted",
                 "dgx-play-maze-chase-distill-turn-weighted-128",
                 "dgx-play-maze-chase-distill-play-peak",
+                "dgx-play-maze-chase-distill-ghost-hit",
             }:
                 continue
             self.assertEqual(

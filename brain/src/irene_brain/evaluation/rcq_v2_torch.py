@@ -1503,6 +1503,8 @@ def _objective(config: TrainingConfig) -> object:
         deadzone_hinge_weight=config.objective.continuous_deadzone_hinge_weight,
         deadzone_hinge_margin=config.objective.continuous_deadzone_hinge_margin,
         opposite_pair_weight=config.objective.opposite_key_pair_weight,
+        ghost_hit_penalty_kind=config.objective.ghost_hit_penalty_kind,
+        ghost_hit_penalty_weight=config.objective.ghost_hit_penalty_weight,
     )
 
 

@@ -53,6 +53,8 @@ class RecipeFieldConfigurationTests(unittest.TestCase):
         self.assertNotIn("opposite_key_pair_weight", canonical)
         self.assertNotIn("continuous_output_squash", canonical)
         self.assertNotIn("play_decode_kind", canonical)
+        self.assertNotIn("ghost_hit_penalty_kind", canonical)
+        self.assertNotIn("ghost_hit_penalty_weight", canonical)
         for path in sorted((BRAIN_ROOT / "configs" / "training").glob("*.toml")):
             if path.stem in {
                 "dgx-rcq-v3-reference-candidate",
@@ -68,6 +70,7 @@ class RecipeFieldConfigurationTests(unittest.TestCase):
                 "dgx-play-maze-chase-distill-turn-weighted",
                 "dgx-play-maze-chase-distill-turn-weighted-128",
                 "dgx-play-maze-chase-distill-play-peak",
+                "dgx-play-maze-chase-distill-ghost-hit",
             }:
                 continue
             loaded = load_training_config(path)
@@ -78,6 +81,8 @@ class RecipeFieldConfigurationTests(unittest.TestCase):
                 loaded.objective.continuous_deadzone_hinge_margin, 0.04, path.name
             )
             self.assertEqual(loaded.objective.opposite_key_pair_weight, 0.0, path.name)
+            self.assertEqual(loaded.objective.ghost_hit_penalty_kind, "none", path.name)
+            self.assertEqual(loaded.objective.ghost_hit_penalty_weight, 0.0, path.name)
             self.assertEqual(loaded.objective.continuous_output_squash, "none", path.name)
             self.assertEqual(
                 loaded.objective.play_decode_kind,
@@ -125,6 +130,15 @@ class RecipeFieldConfigurationTests(unittest.TestCase):
             ObjectiveConfig(continuous_output_squash="clamp")
         with self.assertRaisesRegex(ValueError, "non-empty"):
             ObjectiveConfig(continuous_output_squash="")
+        with self.assertRaisesRegex(ValueError, "ghost_hit_penalty"):
+            ObjectiveConfig(ghost_hit_penalty_kind="toward_ghost_v1")
+        with self.assertRaisesRegex(ValueError, "must be 0 when kind is none"):
+            ObjectiveConfig(ghost_hit_penalty_weight=1.0)
+        with self.assertRaisesRegex(ValueError, "positive weight"):
+            ObjectiveConfig(
+                ghost_hit_penalty_kind="ghost_hit_penalty_v1",
+                ghost_hit_penalty_weight=0.0,
+            )
 
 
 @unittest.skipUnless(torch is not None, "PyTorch is not installed in play-safe runtime")
