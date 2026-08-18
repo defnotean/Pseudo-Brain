@@ -302,6 +302,151 @@ class BrainCell(nn.Module):
         return belief, working_memory, thoughts, tuple(routing)
 
 
+class EnsembleMemberBlock(nn.Module):
+    """One lean slot-update block owned by a single ensemble member.
+
+    Used only by the matched-cost independent-ensemble control. The block
+    carries no routing, belief-maintenance, or workspace-write parameters:
+    members never communicate, and belief/working memory are maintained by
+    the model's shared ingest pathway instead of per-block attention. Its
+    thought context mirrors the reference block minus the routed-message
+    token, so a member slot sees its own registers, sensors, belief, goal
+    context, and retrieved memory — nothing from any other member.
+    """
+
+    def __init__(self, *, width: int, heads: int) -> None:
+        super().__init__()
+        self.width = width
+        self.thought_attention = ResidualCrossAttention(width=width, heads=heads)
+        self.thought_blend = ContinuousTimeBlend(width)
+
+    def forward(
+        self,
+        *,
+        belief: Tensor,
+        thoughts: Tensor,
+        sensors: Tensor,
+        goal_context: Tensor,
+        retrieved_memory: Tensor,
+        elapsed_seconds: Tensor,
+    ) -> Tensor:
+        batch, thoughtlets, registers, width = thoughts.shape
+        if width != self.width:
+            raise ValueError("ensemble member thought width mismatch")
+        thought_query = thoughts.reshape(batch * thoughtlets, registers, width)
+        thought_context = torch.cat(
+            (
+                thought_query,
+                StructuredBrainBlock._repeat_per_thoughtlet(sensors, thoughtlets),
+                StructuredBrainBlock._repeat_per_thoughtlet(belief, thoughtlets),
+                StructuredBrainBlock._repeat_per_thoughtlet(goal_context, thoughtlets),
+                retrieved_memory.reshape(
+                    batch * thoughtlets,
+                    retrieved_memory.shape[2],
+                    width,
+                ),
+            ),
+            dim=1,
+        )
+        proposed_thoughts = self.thought_attention(thought_query, thought_context)
+        thought_elapsed = elapsed_seconds.repeat_interleave(thoughtlets, dim=0)
+        return self.thought_blend(
+            thought_query,
+            proposed_thoughts,
+            thought_elapsed,
+        ).reshape_as(thoughts)
+
+
+class EnsembleBrainCell(nn.Module):
+    """Untied independent member stacks over disjoint thought-slot chunks.
+
+    Each of the ``members`` stacks owns ``thoughtlets // members`` slots and
+    its own untied block parameters; slots in different members never share
+    weights or messages. Weights remain tied across cognitive cycles within
+    a member, exactly like the reference ties its cell across cycles. Belief
+    and working memory pass through unchanged. One empty routing diagnostic
+    per block layer preserves the ``BrainCell`` result arity.
+    """
+
+    def __init__(
+        self,
+        *,
+        width: int,
+        heads: int,
+        blocks: int,
+        members: int,
+        thoughtlets: int,
+    ) -> None:
+        super().__init__()
+        if isinstance(members, bool) or not isinstance(members, int) or members < 2:
+            raise ValueError("members must be an integer of at least 2")
+        if thoughtlets % members != 0:
+            raise ValueError("thoughtlets must divide evenly across members")
+        if isinstance(blocks, bool) or not isinstance(blocks, int) or blocks < 1:
+            raise ValueError("blocks must be a positive integer")
+        self.members = members
+        self.member_stacks = nn.ModuleList(
+            nn.ModuleList(
+                EnsembleMemberBlock(width=width, heads=heads) for _ in range(blocks)
+            )
+            for _ in range(members)
+        )
+
+    def forward(
+        self,
+        *,
+        belief: Tensor,
+        working_memory: Tensor,
+        thoughts: Tensor,
+        sensors: Tensor,
+        action_time_tokens: Tensor,
+        goal_context: Tensor,
+        retrieved_memory: Tensor,
+        elapsed_seconds: Tensor,
+        allow_routing: bool,
+        allow_workspace_writes: bool = True,
+    ) -> tuple[Tensor, Tensor, Tensor, tuple[RoutingDiagnostics, ...]]:
+        del action_time_tokens, allow_routing, allow_workspace_writes
+        if thoughts.shape[1] % self.members != 0:
+            raise ValueError("thought slots must divide evenly across members")
+        thought_chunks = thoughts.chunk(self.members, dim=1)
+        memory_chunks = retrieved_memory.chunk(self.members, dim=1)
+        updated: list[Tensor] = []
+        for member_stack, thought_chunk, memory_chunk in zip(
+            self.member_stacks, thought_chunks, memory_chunks
+        ):
+            current = thought_chunk
+            for block in member_stack:
+                current = block(
+                    belief=belief,
+                    thoughts=current,
+                    sensors=sensors,
+                    goal_context=goal_context,
+                    retrieved_memory=memory_chunk,
+                    elapsed_seconds=elapsed_seconds,
+                )
+            updated.append(current)
+        thoughts = torch.cat(updated, dim=1)
+        batch, thoughtlets = thoughts.shape[0], thoughts.shape[1]
+        empty_indices = torch.empty(
+            batch,
+            thoughtlets,
+            0,
+            device=thoughts.device,
+            dtype=torch.long,
+        )
+        empty_weights = thoughts.new_empty((batch, thoughtlets, 0))
+        blocks = len(self.member_stacks[0])
+        return (
+            belief,
+            working_memory,
+            thoughts,
+            tuple(
+                RoutingDiagnostics(empty_indices, empty_weights) for _ in range(blocks)
+            ),
+        )
+
+
 class MonolithicRecurrentBlock(nn.Module):
     """Conventional pooled recurrent latent used only as a control model.
 

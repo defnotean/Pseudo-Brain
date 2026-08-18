@@ -22,7 +22,8 @@
     "parameter_matched": {
       "comparison_variant_ids": [
         "irene.thought_field.isolated_slots.v1",
-        "irene.monolithic_gru.parameter_matched.v1"
+        "irene.monolithic_gru.parameter_matched.v1",
+        "irene.thought_field.independent_ensemble.v1"
       ],
       "fixed_controls": [
         "dataset_bytes_and_order",
@@ -37,19 +38,19 @@
     }
   },
   "implementation": {
-    "source_bundle_sha256": "cf6db1653424144bf224b9577d093e2f0dd1ff76e5d4c29e6fd0410bcbd131b8",
+    "source_bundle_sha256": "af834e9d66db3280770ba361875f59794ab14152600d992c4bac3e7537bd4e89",
     "source_files": {
       "src/irene_brain/model/actuator.py": "d2dad5e74a6fdce1c63cdd84f71508b90989eb9fecfdea1a192b4d82c2aad5ea",
-      "src/irene_brain/model/baselines.py": "1af853f42e663772330b991b490d88f421da651aafb962186de78f23162ce179",
-      "src/irene_brain/model/brain_cell.py": "ab755df7e8551366c91c47ab08aec6e4b067fa282b9f957751bbbb06f66cb955",
+      "src/irene_brain/model/baselines.py": "656aed325e110820976a31fc65ec0003dced476c13c856535359d662573ff59e",
+      "src/irene_brain/model/brain_cell.py": "9e6c8372a0ef1a5b75b9b14750a022d6039f448f6abab8b6695688421090b599",
       "src/irene_brain/model/sensory.py": "bd7ae52907076f9eb19b9fa24a8ddc85abffb9cfee9577ee6a8af11898330dca",
       "src/irene_brain/model/spec.py": "d6c718fa4ee8ff2e031f30746d490603e2a4aac3a31d124bdef1d7c2c2148cf5",
       "src/irene_brain/model/torch_model.py": "102caf0ead1895a913ed1031811596fb69f09839bd571bc2529ea5117f15409b",
-      "src/irene_brain/training/factory.py": "30182b842a1cef3d72ffe71fe832005638b752810a2239e8befeb2efa29f484e",
+      "src/irene_brain/training/factory.py": "9986454220761b213b0771024e1d2f3258c37e7a677c0f5c3fb925123b7498d4",
       "src/irene_brain/training/objective.py": "4c3068d62122c930f5c42acb5acf2b5853d7b85d21de77f91949f29c7d6f355e"
     }
   },
-  "manifest_sha256": "78ba9cfc1eb56782609f586ac7f3ef393a7fb6ddd6f017546861c3e92d0bb0e2",
+  "manifest_sha256": "d19d09bf23f946f593f619ad141d8fa91c756a36e42ccfb4d776b898eca58210",
   "reference_variant_id": "irene.thought_field.routed.v1",
   "schema_version": 1,
   "variants": [
@@ -202,6 +203,57 @@
       },
       "variant_id": "irene.thought_field.dense_routing.v1",
       "variant_identity_sha256": "5dc1acc4f17240156568193cfde9aaeee321ccd7fc84efa4ecd1aa9e29d65044"
+    },
+    {
+      "absolute_trainable_parameter_delta_fraction": 0.007225237661738342,
+      "allocated_parameters": {
+        "architecturally_connected_trainable": 29459914,
+        "architecturally_disconnected_trainable": 0,
+        "total": 29459914,
+        "trainable": 29459914
+      },
+      "identity": {
+        "latent_topology": "4_untied_members_x_8_slots_x_3_registers",
+        "limitations": [
+          "Members share perception, belief, actuator, and prediction heads; only thought-slot updates are independent.",
+          "Member blocks carry no routing, belief-maintenance, or workspace-write parameters, so width is widened to match the reference budget.",
+          "Belief and working memory are maintained by the shared ingest pathway only, not by per-block attention."
+        ],
+        "matching_role": "nearest_width_parameter_matched_independent_ensemble_control",
+        "peer_routing": false,
+        "pooled_recurrent_input": false,
+        "schema_version": 1,
+        "thought_workspace_writes": false,
+        "variant_id": "irene.thought_field.independent_ensemble.v1"
+      },
+      "model_class": "irene_brain.model.baselines.MatchedEnsembleBaseline",
+      "model_factory": "irene_brain.training.factory:build_thesis_matched_ensemble_model",
+      "persistent_state": {
+        "batch_size": 1,
+        "bytes": 118272,
+        "bytes_per_element": 2,
+        "elements": 59136,
+        "thought_elements": 33792
+      },
+      "shape_controls": {
+        "aggregate_retrieved_tokens": 64,
+        "attention_heads": 8,
+        "brain_cell_blocks": 4,
+        "cognitive_cycles": 3,
+        "core_width": 352,
+        "registers_per_thoughtlet": 3,
+        "retrieved_entries_per_thoughtlet": 2,
+        "routed_neighbors": 2,
+        "thoughtlets": 32
+      },
+      "trainable_parameter_delta_from_reference": -214404,
+      "training_recipe": {
+        "canonical_config_sha256": "55486f575ba43591d945d908eb1e8a5d5c94df253f54ba7661bcb99a1aef7ce1",
+        "path": "configs/training/baseline-stagea-matched-ensemble.toml",
+        "raw_sha256": "24c7e7935da1da9018e672befa10b9768505d07a97bde5383bf759357cc57c96"
+      },
+      "variant_id": "irene.thought_field.independent_ensemble.v1",
+      "variant_identity_sha256": "67b878326cb0987aa6e0a3063705014f15bf302bc8bb5758cf14a07cf8f53056"
     },
     {
       "absolute_trainable_parameter_delta_fraction": 0.0,

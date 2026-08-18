@@ -217,13 +217,16 @@ Near-term slices, each independently committable and test-covered:
 4. **Remaining matched baselines + the multi-seed comparison harness**
    (`evaluation/multiseed_comparison.py` exists; extend to the full baseline
    suite of PLAN.md §28). In progress: the statistical harness is complete and
-   the suite now covers eight variants — reference, isolated-slot, reset-slot
+   the suite now covers nine variants — reference, isolated-slot, reset-slot
    (persistence removed), dense-routing (unrestricted communication),
    reactive (no cross-step state), serial-depth (untied twelve-block serial
-   stack at matched block FLOPs), and both monolithic GRU controls
-   ([runs/2026-08-17-baseline-suite-persistence-and-density-ablations.md](runs/2026-08-17-baseline-suite-persistence-and-density-ablations.md)).
+   stack at matched block FLOPs), both monolithic GRU controls, and the
+   matched-cost independent ensemble (four untied members at width 352,
+   0.72% under the reference budget, inside the manifest's parameter
+   regime)
+   ([runs/2026-08-17-baseline-suite-persistence-and-density-ablations.md](runs/2026-08-17-baseline-suite-persistence-and-density-ablations.md),
+   [runs/2026-08-17-matched-ensemble-baseline.md](runs/2026-08-17-matched-ensemble-baseline.md)).
    Still missing from §28: fixed multi-horizon no-persistence heads,
-   matched-cost ensemble,
    recurrent world-model actor, and task specialist. The §28 diagnostic
    policies (no-op, random, scripted chaser, privileged oracle) are
    implemented for the closed-loop evaluator in

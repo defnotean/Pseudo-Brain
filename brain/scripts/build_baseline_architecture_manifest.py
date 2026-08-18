@@ -16,6 +16,7 @@ if str(SRC) not in sys.path:
 
 from irene_brain.model.baselines import (  # noqa: E402
     DENSE_COMMUNICATION_IDENTITY,
+    MATCHED_ENSEMBLE_IDENTITY,
     MONOLITHIC_IDENTITY,
     NO_COMMUNICATION_IDENTITY,
     PARAMETER_MATCHED_MONOLITHIC_IDENTITY,
@@ -30,6 +31,7 @@ from irene_brain.training.config import load_training_config  # noqa: E402
 from irene_brain.training.factory import (  # noqa: E402
     build_thesis_dense_routing_model,
     build_thesis_model,
+    build_thesis_matched_ensemble_model,
     build_thesis_monolithic_model,
     build_thesis_no_communication_model,
     build_thesis_parameter_matched_monolithic_model,
@@ -79,6 +81,11 @@ REGISTRATIONS = {
         "configs/training/baseline-stagea-monolithic-parameter-matched.toml",
         "irene_brain.training.factory:build_thesis_parameter_matched_monolithic_model",
         build_thesis_parameter_matched_monolithic_model,
+    ),
+    MATCHED_ENSEMBLE_IDENTITY.variant_id: (
+        "configs/training/baseline-stagea-matched-ensemble.toml",
+        "irene_brain.training.factory:build_thesis_matched_ensemble_model",
+        build_thesis_matched_ensemble_model,
     ),
 }
 

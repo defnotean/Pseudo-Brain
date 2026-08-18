@@ -166,6 +166,13 @@ The sticky/delayed-input axis completes the registered variant set:
 the effective mask reported as `applied_control`, under snapshot version 4
 (33 tests; play-safe gate green). Record:
 [docs/runs/2026-08-17-maze-chase-sticky-delayed-input.md](./docs/runs/2026-08-17-maze-chase-sticky-delayed-input.md).
+The matched baseline suite gains the PLAN §28 item-12 control:
+`irene.thought_field.independent_ensemble.v1` — four untied members of
+eight slots each at width 352 (29,459,914 trainable, 0.72% under the
+reference budget), registered in the architecture manifest (digest
+`d19d09bf…`) and inside the verified parameter-matched fairness regime.
+Record:
+[docs/runs/2026-08-17-matched-ensemble-baseline.md](./docs/runs/2026-08-17-matched-ensemble-baseline.md).
 
 Local play-safe verification after the live v2 registration: every isolated
 test module passed (299 tests, one expected POSIX skip in the trusted-final

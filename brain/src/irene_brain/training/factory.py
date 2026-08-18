@@ -9,6 +9,7 @@ from torch import nn
 
 from ..model.baselines import (
     DenseCommunicationSlotBaseline,
+    MatchedEnsembleBaseline,
     MonolithicRecurrentBaseline,
     NoCommunicationSlotBaseline,
     ParameterMatchedMonolithicBaseline,
@@ -29,6 +30,11 @@ ModelT = TypeVar("ModelT", bound=IreneBrainModel)
 # MultiheadAttention's projection parameter count is head-invariant.
 PARAMETER_MATCHED_MONOLITH_WIDTH = 396
 PARAMETER_MATCHED_MONOLITH_HEADS = 6
+
+# Selected by exact allocated-parameter enumeration over member counts and
+# widths: four untied members at width 352 land 0.72% under the reference's
+# trainable budget, the nearest allocation inside the 1% tolerance.
+MATCHED_ENSEMBLE_WIDTH = 352
 
 
 def _require_config(config: TrainingConfig) -> None:
@@ -195,12 +201,30 @@ def build_thesis_parameter_matched_monolithic_model(
     return _identity_pixel_grid(model)
 
 
+def build_thesis_matched_ensemble_model(
+    config: TrainingConfig,
+) -> MatchedEnsembleBaseline:
+    _require_config(config)
+    model_config = replace(
+        ThoughtFieldConfig.thesis_mvp(),
+        core_width=MATCHED_ENSEMBLE_WIDTH,
+    )
+    model = MatchedEnsembleBaseline(
+        model_config,
+        input_resolution=(64, 64),
+        plan_steps=3,
+    )
+    return _identity_pixel_grid(model)
+
+
 __all__ = [
+    "MATCHED_ENSEMBLE_WIDTH",
     "PARAMETER_MATCHED_MONOLITH_WIDTH",
     "PARAMETER_MATCHED_MONOLITH_HEADS",
     "build_smoke_model",
     "build_thesis_model",
     "build_thesis_dense_routing_model",
+    "build_thesis_matched_ensemble_model",
     "build_thesis_monolithic_model",
     "build_thesis_no_communication_model",
     "build_thesis_parameter_matched_monolithic_model",

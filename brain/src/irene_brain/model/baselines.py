@@ -14,7 +14,11 @@ from typing import Mapping
 
 from torch import Tensor, nn
 
-from .brain_cell import BrainCell, MonolithicRecurrentCell
+from .brain_cell import (
+    BrainCell,
+    EnsembleBrainCell,
+    MonolithicRecurrentCell,
+)
 from .torch_model import BrainState, IreneBrainModel, ModelOutput
 
 
@@ -170,6 +174,21 @@ SERIAL_DEPTH_IDENTITY = ArchitectureVariantIdentity(
     ),
 )
 
+MATCHED_ENSEMBLE_IDENTITY = ArchitectureVariantIdentity(
+    schema_version=1,
+    variant_id="irene.thought_field.independent_ensemble.v1",
+    latent_topology="4_untied_members_x_8_slots_x_3_registers",
+    peer_routing=False,
+    thought_workspace_writes=False,
+    pooled_recurrent_input=False,
+    matching_role="nearest_width_parameter_matched_independent_ensemble_control",
+    limitations=(
+        "Members share perception, belief, actuator, and prediction heads; only thought-slot updates are independent.",
+        "Member blocks carry no routing, belief-maintenance, or workspace-write parameters, so width is widened to match the reference budget.",
+        "Belief and working memory are maintained by the shared ingest pathway only, not by per-block attention.",
+    ),
+)
+
 
 class NoCommunicationSlotBaseline(IreneBrainModel):
     """Full slot model with both current-cycle communication paths severed."""
@@ -267,6 +286,38 @@ class SerialDepthSlotBaseline(IreneBrainModel):
     def _communication_policy(self, cycle: int) -> tuple[bool, bool]:
         del cycle
         return True, True
+
+
+class MatchedEnsembleBaseline(IreneBrainModel):
+    """Independent untied member stacks as a matched-cost ensemble control.
+
+    Four members each own eight of the 32 thought slots with their own
+    untied lean blocks; members never route messages or write the shared
+    workspace. Per-slot depth and cycle tying match the reference, so the
+    only differences are weight independence across members, the absence of
+    communication, and the widened core that spends the freed routing and
+    workspace parameters. Width is selected before training by nearest
+    allocated trainable parameter count, like the parameter-matched
+    monolithic control.
+    """
+
+    ENSEMBLE_MEMBERS = 4
+
+    architecture_identity = MATCHED_ENSEMBLE_IDENTITY
+    architecture_variant_id = MATCHED_ENSEMBLE_IDENTITY.variant_id
+
+    def _build_brain_cell(self, *, width: int) -> nn.Module:
+        return EnsembleBrainCell(
+            width=width,
+            heads=self.config.attention_heads,
+            blocks=self.config.brain_cell_blocks,
+            members=self.ENSEMBLE_MEMBERS,
+            thoughtlets=self.config.thoughtlets,
+        )
+
+    def _communication_policy(self, cycle: int) -> tuple[bool, bool]:
+        del cycle
+        return False, False
 
 
 class MonolithicRecurrentBaseline(IreneBrainModel):
@@ -439,6 +490,7 @@ def build_architecture_manifest(
     parameter_controls = (
         NO_COMMUNICATION_IDENTITY.variant_id,
         PARAMETER_MATCHED_MONOLITHIC_IDENTITY.variant_id,
+        MATCHED_ENSEMBLE_IDENTITY.variant_id,
     )
     missing = [variant_id for variant_id in parameter_controls if variant_id not in by_id]
     if missing:
@@ -506,6 +558,8 @@ __all__ = [
     "ArchitectureVariantIdentity",
     "DENSE_COMMUNICATION_IDENTITY",
     "DenseCommunicationSlotBaseline",
+    "MATCHED_ENSEMBLE_IDENTITY",
+    "MatchedEnsembleBaseline",
     "MONOLITHIC_IDENTITY",
     "MonolithicRecurrentBaseline",
     "NO_COMMUNICATION_IDENTITY",

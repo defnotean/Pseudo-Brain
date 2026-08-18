@@ -20,6 +20,7 @@ if str(SRC) not in sys.path:
 if torch is not None:
     from irene_brain.model.baselines import (
         DENSE_COMMUNICATION_IDENTITY,
+        MATCHED_ENSEMBLE_IDENTITY,
         MONOLITHIC_IDENTITY,
         NO_COMMUNICATION_IDENTITY,
         PARAMETER_MATCHED_MONOLITHIC_IDENTITY,
@@ -28,6 +29,7 @@ if torch is not None:
         RESET_STATE_IDENTITY,
         SERIAL_DEPTH_IDENTITY,
         DenseCommunicationSlotBaseline,
+        MatchedEnsembleBaseline,
         MonolithicRecurrentBaseline,
         NoCommunicationSlotBaseline,
         ParameterMatchedMonolithicBaseline,
@@ -101,6 +103,7 @@ class MatchedBaselineTests(unittest.TestCase):
             DENSE_COMMUNICATION_IDENTITY,
             REACTIVE_IDENTITY,
             SERIAL_DEPTH_IDENTITY,
+            MATCHED_ENSEMBLE_IDENTITY,
         )
         self.assertEqual(len({item.variant_id for item in identities}), len(identities))
         self.assertEqual(len({item.sha256 for item in identities}), len(identities))
@@ -398,6 +401,9 @@ class MatchedBaselineTests(unittest.TestCase):
         parameter_control = ParameterMatchedMonolithicBaseline(
             self.monolithic_config(width=18), input_resolution=(8, 8)
         )
+        ensemble = MatchedEnsembleBaseline(
+            self.slot_config(), input_resolution=(8, 8)
+        )
         models = {
             REFERENCE_IDENTITY.variant_id: (reference, "tests:reference"),
             NO_COMMUNICATION_IDENTITY.variant_id: (isolated, "tests:isolated"),
@@ -406,6 +412,7 @@ class MatchedBaselineTests(unittest.TestCase):
                 parameter_control,
                 "tests:parameter_control",
             ),
+            MATCHED_ENSEMBLE_IDENTITY.variant_id: (ensemble, "tests:ensemble"),
         }
         manifest = build_architecture_manifest(
             models,
@@ -463,6 +470,7 @@ class MatchedBaselineTests(unittest.TestCase):
                 DENSE_COMMUNICATION_IDENTITY,
                 REACTIVE_IDENTITY,
                 SERIAL_DEPTH_IDENTITY,
+                MATCHED_ENSEMBLE_IDENTITY,
             )
         }
         entries = {entry["variant_id"]: entry for entry in manifest["variants"]}
@@ -504,6 +512,43 @@ class MatchedBaselineTests(unittest.TestCase):
         )
         self.assertEqual(entries[REACTIVE_IDENTITY.variant_id]["allocated_parameters"]["trainable"], 29_674_318)
         self.assertEqual(entries[SERIAL_DEPTH_IDENTITY.variant_id]["allocated_parameters"]["trainable"], 75_849_558)
+        self.assertEqual(entries[MATCHED_ENSEMBLE_IDENTITY.variant_id]["allocated_parameters"]["trainable"], 29_459_914)
+
+    def test_ensemble_members_are_fully_independent(self) -> None:
+        model = MatchedEnsembleBaseline(self.slot_config(), input_resolution=(8, 8))
+        pixels, control, elapsed = self.inputs()
+        baseline = model(pixels, control, elapsed)
+        assert torch is not None
+        with torch.no_grad():
+            for parameter in model.brain_cell.member_stacks[0].parameters():
+                parameter.add_(1.0)
+        perturbed = model(pixels, control, elapsed)
+        slots_per_member = self.slot_config().thoughtlets // model.ENSEMBLE_MEMBERS
+        before = baseline.next_state.thoughts[0]
+        after = perturbed.next_state.thoughts[0]
+        for slot in range(slots_per_member):
+            self.assertFalse(torch.allclose(before[slot], after[slot]))
+        for slot in range(slots_per_member, self.slot_config().thoughtlets):
+            self.assertTrue(torch.allclose(before[slot], after[slot]))
+        # Belief and working memory are maintained by the shared ingest
+        # pathway only, so member weights cannot move them.
+        self.assertTrue(
+            torch.allclose(
+                baseline.next_state.belief, perturbed.next_state.belief
+            )
+        )
+        self.assertTrue(
+            torch.allclose(
+                baseline.next_state.working_memory,
+                perturbed.next_state.working_memory,
+            )
+        )
+        # Diagnostics keep the reference's one-entry-per-block-layer arity.
+        config = self.slot_config()
+        self.assertEqual(
+            len(perturbed.diagnostics.routing_indices),
+            config.brain_cell_blocks * config.cognitive_cycles,
+        )
 
 
 if __name__ == "__main__":
