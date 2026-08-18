@@ -320,6 +320,24 @@ class PlayGatedMazeChaseConfigTests(unittest.TestCase):
             dataset_batch_source(action_only.dataset).manifest_sha256,
             source.manifest_sha256,
         )
+        value_only = load_training_config(
+            ROOT
+            / "configs"
+            / "training"
+            / "dgx-play-maze-chase-distill-exclusive-ce-value-only.toml"
+        )
+        self.assertEqual(value_only.objective.action_loss_kind, "exclusive_wasd_softmax_v1")
+        self.assertEqual(value_only.objective.play_decode_kind, "exclusive_argmax_wasd_v1")
+        self.assertEqual(value_only.objective.action_weight, 1.0)
+        self.assertEqual(value_only.objective.value_weight, 0.1)
+        self.assertEqual(value_only.objective.world_weight, 0.0)
+        self.assertEqual(value_only.objective.diversity_weight, 0.0)
+        self.assertEqual(value_only.objective.continuous_action_weight, 0.0)
+        self.assertNotEqual(value_only.config_sha256, action_only.config_sha256)
+        self.assertEqual(
+            value_only.config_sha256,
+            "868e067ac061f49334077080331ee710d003bacef2325a355e2000766368158d",
+        )
 
         smoke = load_training_config(
             ROOT / "configs" / "training" / "dgx-smoke.toml"
