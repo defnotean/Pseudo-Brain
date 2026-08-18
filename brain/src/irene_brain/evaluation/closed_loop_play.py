@@ -634,13 +634,15 @@ def evaluate_closed_loop_play(
 ) -> ClosedLoopPlayReport:
     """Run every registered seed and assemble the canonical report."""
 
-    import torch
-
     if not isinstance(config, ClosedLoopPlayConfig):
         raise ValueError("config must be a ClosedLoopPlayConfig")
     if not isinstance(model_description, str) or not model_description:
         raise ValueError("model_description must be a non-empty string")
-    device = torch.device("cpu")
+    # Follow the model's parameter device. Spark training leaves the thesis
+    # model on CUDA; hardcoding CPU puts thought_noise on cpu while
+    # noise_projection stays on cuda:0 (2026-08-18 probe v1 play-gate crash).
+    parameter = next(model.parameters())
+    device = parameter.device
     was_training = model.training
     model.eval()
     try:

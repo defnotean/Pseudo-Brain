@@ -101,6 +101,15 @@ class PlayGatedMazeChaseConfigTests(unittest.TestCase):
         self.assertEqual(NOOP_REWARD_FLOOR, -161.0)
         self.assertEqual(NOOP_COLLISION_FLOOR, 17)
 
+    def test_play_eval_does_not_hardcode_cpu_device(self) -> None:
+        import inspect
+
+        from irene_brain.evaluation.closed_loop_play import evaluate_closed_loop_play
+
+        source = inspect.getsource(evaluate_closed_loop_play)
+        self.assertNotIn('torch.device("cpu")', source)
+        self.assertIn("parameters()", source)
+
 
 if __name__ == "__main__":
     unittest.main()

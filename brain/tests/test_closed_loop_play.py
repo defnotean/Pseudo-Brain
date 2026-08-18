@@ -230,6 +230,36 @@ class ClosedLoopPlayEndToEndTests(unittest.TestCase):
         finally:
             self.model.eval()
 
+    def test_evaluator_follows_parameter_device_not_hardcoded_cpu(self) -> None:
+        import inspect
+
+        from irene_brain.evaluation import closed_loop_play as module
+
+        source = inspect.getsource(module.evaluate_closed_loop_play)
+        self.assertNotIn('torch.device("cpu")', source)
+        self.assertIn("parameters()", source)
+        self.assertEqual(
+            next(self.model.parameters()).device.type,
+            "cpu",
+        )
+
+    def test_cuda_resident_model_play_stays_on_cuda(self) -> None:
+        if not torch.cuda.is_available():
+            self.skipTest("CUDA not available")
+        model = IreneBrainModel(self.model.config).to("cuda")
+        try:
+            report = evaluate_closed_loop_play(
+                model,
+                config=self._play_config(episode_seeds=(5,), max_ticks=2),
+                model_description="cuda device follow",
+            )
+            self.assertEqual(len(report.episodes), 1)
+            self.assertEqual(report.episodes[0].ticks_advanced, 2)
+            self.assertEqual(next(model.parameters()).device.type, "cuda")
+        finally:
+            model.to("cpu")
+            torch.cuda.empty_cache()
+
 
 if __name__ == "__main__":
     unittest.main()

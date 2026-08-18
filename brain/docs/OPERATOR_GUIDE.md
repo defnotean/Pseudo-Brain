@@ -7,7 +7,8 @@ value identities, and legal stopping rules are in
 [CURRENT_WORK.md](../../CURRENT_WORK.md).
 
 The live campaign is **play-gated maze-chase distill v1**, not RCQ.
-Spark-only compute. First probe:
+Spark-only compute. Probe v1 trained then crashed before `play-gate.json`
+(CUDA/CPU mismatch). Next bounded probe v2, same 32-step recipe:
 
 ```powershell
 & .\brain\scripts\dgx\Invoke-DgxPreflight.ps1 `
@@ -39,7 +40,7 @@ Spark-only compute. First probe:
   -ReleaseId '<release-id>' `
   -ContainerImage 'vllm/vllm-openai:nightly-aarch64' `
   -ConfigRelativePath 'brain/configs/training/dgx-play-maze-chase-distill-probe.toml' `
-  -RunId 'dgx-play-maze-chase-distill-probe-v1' `
+  -RunId 'dgx-play-maze-chase-distill-probe-v2' `
   -LaunchMode Tmux `
   -AcknowledgeDetached `
   -MinFreeDiskGiB 20 `
