@@ -334,6 +334,18 @@ the qualified matched-baseline comparison the highest-value DGX item; and
 B1 behaves as designed (static partition pays the expected world-loss
 price, 0.9786 vs 0.8770). Record:
 [docs/runs/2026-08-18-baseline-smoke-comparison.md](./docs/runs/2026-08-18-baseline-smoke-comparison.md).
+The transfer-gap battery now has pinned smoke-scale zero-points:
+`scripts/transfer_gap_smoke.py` trains a reference smoke model on
+moving_shapes (128 steps) and plays it zero-shot across all six canonical
+ladder worlds against no-op/random/reactive baselines under one play
+configuration. Result: transfer is at or below the no-op floor
+everywhere — exactly no-op on four worlds, slightly worse on pursuit
+(−29 vs −24), catastrophically worse on maze_chase (−3,890 vs −161) —
+and even in-distribution play is still at the floor after 128 steps.
+The open question is now "how much scale precedes any transfer," and the
+battery is one command that any future checkpoint can be dropped into
+(play-safe gate unaffected, script-only). Record:
+[docs/runs/2026-08-18-transfer-gap-smoke.md](./docs/runs/2026-08-18-transfer-gap-smoke.md).
 The matched baseline suite gains the PLAN §28 item-12 control:
 `irene.thought_field.independent_ensemble.v1` — four untied members of
 eight slots each at width 352 (29,459,914 trainable, 0.72% under the
