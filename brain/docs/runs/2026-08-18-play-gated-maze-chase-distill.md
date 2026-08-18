@@ -8,6 +8,8 @@ no-op** (mask 0 × 480, 9 pellets, reward −161; val exclusive-argmax
 match 0.0; inactive logit max ≈ −4.82). Do not scale exclusive-CE,
 action-only, value-only, or tiled-windows. Next GPU probe is one
 optimizer update over all 30 tiles of the 240-tick tiled episode.
+That GPU run is live: `dgx-play-maze-chase-distill-episode-update-v1`,
+release `r20260818t190103z-ddf0904b5d81`.
 Named Spark CPU farm jobs finished extra planner seeds 116–131, tiled
 coverage, and a tiled-windows thoughtlet dump. Exclusive-argmax play-decode
 stays failed sticky S. Window-32 and episode-windows stay falsified idle
@@ -812,7 +814,7 @@ optimizer update averages all 30 tiles of the 240-tick episode. Same
 ## Spark sequence (full-episode tiled-update probe)
 
 1. `Invoke-DgxPreflight.ps1`
-2. `Sync-DgxBrainRelease.ps1`
+2. `Sync-DgxBrainRelease.ps1` (release `r20260818t190103z-ddf0904b5d81`)
 3. `Invoke-DgxBrainSmoke.ps1` on `dgx-smoke.toml`
 4. `Start-DgxBrainTraining.ps1` with
    `dgx-play-maze-chase-distill-episode-update.toml`, run id

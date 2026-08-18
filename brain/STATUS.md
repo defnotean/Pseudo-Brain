@@ -35,7 +35,9 @@ canonical config SHA-256 `2c126296c820830d037c0fc14053f1cbdbd05ec40d218ea2e84975
 reward **−165**, `sticky_or_idle: false`. Val exclusive-argmax match **0.083**
 (down from exclusive-CE 0.167). Step-16 train movement exact 1.0 is logger
 texture, not the gate. Do not scale tiled-windows. Next GPU probe is one
-optimizer update over all 30 tiles of the 240-tick episode. Named CPU farm
+optimizer update over all 30 tiles of the 240-tick episode, now running
+as `dgx-play-maze-chase-distill-episode-update-v1` on release
+`r20260818t190103z-ddf0904b5d81`. Named CPU farm
 jobs finished planner seeds 116–131, tiled coverage, and a tiled-windows
 thoughtlet dump. Campaign success is **pellets ≥ 32**
 with a non-idle non-D-only histogram. Official 32-step `play-gate.json`

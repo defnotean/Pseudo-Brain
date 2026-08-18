@@ -29,9 +29,12 @@ softmax loss matching that decode **failed sticky S**: histogram S×480,
 A×476 + D×4, 15 pellets, 18 collisions, reward −165; val exclusive-argmax
 match **0.083** (down from exclusive-CE 0.167). Do not scale tiled-windows.
 Next GPU probe is one optimizer update over all 30 tiles of the 240-tick
-episode. Spark CPU farm finished extra planner seeds 116–131 (4/16 clear),
-tiled coverage (1.0 on one episode), and a tiled-windows thoughtlet dump
-(open-loop argmax D×32; closed-loop play was sticky A). Record:
+episode; that run is **live** on Spark as
+`dgx-play-maze-chase-distill-episode-update-v1`, release
+`r20260818t190103z-ddf0904b5d81`. Spark CPU farm finished extra planner
+seeds 116–131 (4/16 clear), tiled coverage (1.0 on one episode), and a
+tiled-windows thoughtlet dump (open-loop argmax D×32; closed-loop play
+was sticky A). Record:
 [brain/docs/runs/2026-08-18-play-gated-maze-chase-distill.md](brain/docs/runs/2026-08-18-play-gated-maze-chase-distill.md).
 
 All training, probes, and play evals run on the Spark. This workstation is
