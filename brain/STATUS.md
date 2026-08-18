@@ -256,6 +256,17 @@ is now 13 worlds × 8 policies = 104 cells (SHA-256 `26a2894130843183…`,
 all pre-existing cells unchanged; play-safe gate green, 518 tests).
 Record:
 [docs/runs/2026-08-17-occlusion-memory-policy.md](./docs/runs/2026-08-17-occlusion-memory-policy.md).
+The two open-field worlds complete the frontier sweep:
+`diagnostic.scripted_open_field_collector.v1` identifies the mover rule
+from observed motion under the shared moving_shapes/pursuit pixel
+signature (full-set stays identify pursuit, diagonal steps identify
+bouncing), remembers the target while a camping mover hides it, and lures
+campers off the goal — collecting with zero contact on both worlds (+236
+vs the greedy chaser's +186 on moving_shapes, +214 vs +134 on pursuit).
+The cross-world matrix is now 13 worlds × 9 policies = 117 cells (SHA-256
+`e76c4dd3f16673cd…`, all pre-existing cells unchanged; play-safe gate
+green, 524 tests). Record:
+[docs/runs/2026-08-17-open-field-collector-policy.md](./docs/runs/2026-08-17-open-field-collector-policy.md).
 The matched baseline suite gains the PLAN §28 item-12 control:
 `irene.thought_field.independent_ensemble.v1` — four untied members of
 eight slots each at width 352 (29,459,914 trainable, 0.72% under the

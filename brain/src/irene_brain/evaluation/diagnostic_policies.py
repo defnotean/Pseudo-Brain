@@ -1330,6 +1330,321 @@ class ScriptedOcclusionMemoryPolicy:
         return GenericControl(keys_down=best_keys)
 
 
+def _parse_open_field_frame(
+    frame: RgbFrame, *, caller: str
+) -> tuple[
+    tuple[int, int],
+    tuple[int, int] | None,
+    set[tuple[int, int]],
+    bool,
+    bool,
+]:
+    """Parse a canonical open-field frame (moving_shapes / pursuit).
+
+    Returns ``(player, target, movers, saw_walls, saw_fog)``. The two
+    open-field worlds share one palette — ``PLAYER_RGB`` / ``TARGET_RGB``,
+    the mover red, the overlap white — and render neither walls nor fog, so
+    ``saw_walls`` / ``saw_fog`` are what distinguish them from the maze and
+    occlusion worlds. Every color read here is part of the public render
+    contract; a pixel-only policy never touches simulator state.
+    """
+
+    grid = MovingShapesEnv.GRID_SIZE
+    if frame.width != grid or frame.height != grid:
+        raise ValueError(f"{caller} requires the canonical grid frame")
+    # The mover red is a visible pixel color; it is read from the frame,
+    # never from simulator state. Both open-field worlds share it.
+    mover_color = MovingShapesEnv._HAZARD_COLOR
+    pixels = frame.pixels
+    player: tuple[int, int] | None = None
+    target: tuple[int, int] | None = None
+    movers: set[tuple[int, int]] = set()
+    saw_walls = False
+    saw_fog = False
+    for y in range(grid):
+        for x in range(grid):
+            offset = (y * grid + x) * 3
+            color = (pixels[offset], pixels[offset + 1], pixels[offset + 2])
+            if color == JunctionEnv.WALL_RGB:
+                saw_walls = True
+                continue
+            if color == OcclusionEnv.FOG_RGB:
+                saw_fog = True
+                continue
+            cell = (x, y)
+            if color in (
+                MovingShapesEnv.PLAYER_RGB,
+                MovingShapesEnv.PLAYER_HAZARD_OVERLAP_RGB,
+            ):
+                player = cell
+            elif color == MovingShapesEnv.TARGET_RGB:
+                target = cell
+            elif color == mover_color:
+                movers.add(cell)
+    if player is None:
+        raise RuntimeError(f"{caller} could not locate the player")
+    return player, target, movers, saw_walls, saw_fog
+
+
+def _sign(value: int) -> int:
+    return (value > 0) - (value < 0)
+
+
+class ScriptedOpenFieldCollectorPolicy:
+    """Pixel-only careful collector for the two open-field worlds.
+
+    moving_shapes and pursuit share one pixel signature — no walls, no
+    fog, a yellow target, red movers — so a pixel-only policy cannot tell
+    them apart from one frame. What differs is the mover rule: hazards
+    bounce diagonally every tick; pursuers step greedily toward the
+    post-move player every ``pursuer_period`` ticks. The policy identifies
+    the rule from observed motion — pixel-derivable behavioral evidence,
+    never simulator state:
+
+    - a full-set stay (the red cells unchanged across a transition, counts
+      included) happens every other tick in pursuit and practically never
+      under diagonal bouncing, so it identifies pursuit;
+    - a red cell with no stay/orthogonal predecessor moved diagonally or
+      jumped, which pursuit never does, so it identifies bouncing;
+    - transitions where a mover vanishes under the overlap pixel or a
+      stack splits (the red count changes) carry no identity information
+      and are skipped.
+
+    Until the rule is identified — the first one or two transitions — the
+    policy avoids the union of both rules' moves. Afterward it avoids only
+    the identified rule's moves: the four diagonal bounce afters, or the
+    pursuit pair {stay, greedy step toward the candidate cell} (larger
+    axis first, horizontal on ties — the world's exact rule). That
+    ordering matters: the permanent union blankets every escape cell once
+    a mover is adjacent, which forces collisions the identified model
+    correctly clears (a bounce hazard never stays, so standing still next
+    to one is often safe).
+
+    One more piece of pixel-derived memory: the target renders *under* the
+    movers, so a mover standing on the target cell hides it. Because the
+    target is static until the player collects it, the policy keeps one
+    cell of target memory — refreshed whenever the yellow pixel is
+    visible, cleared when the player reaches the remembered cell — and
+    navigates to the remembered cell while a camper hides it. The
+    avoidance model treats the camping mover's stay/greedy steps exactly,
+    so the policy hovers until the camper leaves and the cell is safe.
+
+    A camping pursuer never leaves on its own — it always chases the
+    player — so a bare hover deadlocks (the local minimum of goal-seeking
+    plus avoidance). The policy therefore runs a lure: once the goal has
+    been contested (a mover within one cell) for twelve straight ticks
+    with the player nearby, the goal switches to the grid corner farthest
+    from the target; the pursuers trail the player at half speed, and when
+    no mover remains within two cells of the target the goal switches back
+    and the player darts in with a safe margin. Hazards in moving_shapes
+    never camp (they bounce every tick), so the lure is a pursuit-only
+    behavior in practice.
+
+    Move selection is a one-tick exact simulation over the nine king moves
+    (diagonals allowed, boundary clamp included): fewest predicted
+    collisions, then Chebyshev distance to the target, then Manhattan
+    distance, then fixed scan order. The player moves every tick while
+    pursuers move every second tick and hazards ignore the player
+    entirely, so careful play collects nearly as fast as greedy play with
+    almost no contact — the gap to the scripted chaser's row measures what
+    avoidance is worth.
+
+    Honest caveats: the player/mover overlap pixel briefly hides a mover
+    standing on the player's own cell; stacked movers render as one red
+    pixel; and the identification window (plus the theoretical
+    refill-coincidence mimicry of a full-set stay) is a bounded heuristic
+    risk, not a simulator read. On worlds with walls or fog pixels the
+    policy never activates and holds still, so its matrix rows there are
+    honest zeros.
+    """
+
+    __slots__ = (
+        "_activated",
+        "_rule",
+        "_movers_prev",
+        "_target_memory",
+        "_luring",
+        "_contested_ticks",
+    )
+    identity = "diagnostic.scripted_open_field_collector.v1"
+    uses_privileged_state = False
+
+    def reset(self, episode_seed: int) -> None:
+        if isinstance(episode_seed, bool) or not isinstance(episode_seed, int):
+            raise TypeError("episode_seed must be an integer")
+        self._activated = False
+        self._rule: str | None = None
+        self._movers_prev: set[tuple[int, int]] | None = None
+        self._target_memory: tuple[int, int] | None = None
+        self._luring = False
+        self._contested_ticks = 0
+
+    def act(self, observation: Observation) -> GenericControl:
+        player, target, movers, saw_walls, saw_fog = _parse_open_field_frame(
+            observation.rgb, caller="open-field collector"
+        )
+        if (target is not None or movers) and not saw_walls and not saw_fog:
+            # Only the open-field worlds render movers/targets without any
+            # wall or fog pixels.
+            self._activated = True
+        if not self._activated:
+            return GenericControl()
+        self._identify_rule(movers)
+        self._movers_prev = movers
+
+        # Target memory: collection happens exactly when the player reaches
+        # the remembered cell; a visible target pixel always refreshes it.
+        # While a mover camps the target cell the yellow pixel is hidden,
+        # and the memory keeps the goal alive.
+        if self._target_memory is not None and player == self._target_memory:
+            self._target_memory = None
+        if target is not None:
+            self._target_memory = target
+        goal = self._target_memory
+        if goal is None:
+            return GenericControl()
+
+        # The lure: a camping pursuer never leaves on its own, so once the
+        # goal has been contested for twelve straight ticks with the player
+        # nearby, run for the farthest corner until the target clears.
+        if self._luring:
+            if not any(
+                max(abs(m[0] - goal[0]), abs(m[1] - goal[1])) <= 2 for m in movers
+            ):
+                self._luring = False
+        if self._luring:
+            self._contested_ticks = 0
+            goal = self._lure_corner(goal)
+        else:
+            contested = any(
+                max(abs(m[0] - goal[0]), abs(m[1] - goal[1])) <= 1 for m in movers
+            )
+            near = max(abs(player[0] - goal[0]), abs(player[1] - goal[1])) <= 3
+            if contested and near:
+                self._contested_ticks += 1
+                if self._contested_ticks >= 12:
+                    self._luring = True
+                    self._contested_ticks = 0
+                    goal = self._lure_corner(goal)
+            else:
+                self._contested_ticks = 0
+        return self._choose_move(player, movers, goal)
+
+    @staticmethod
+    def _lure_corner(target: tuple[int, int]) -> tuple[int, int]:
+        """The grid corner farthest from the target, fixed tie-break order."""
+        corners = ((0, 0), (15, 0), (0, 15), (15, 15))
+        return max(
+            corners,
+            key=lambda corner: (
+                max(abs(corner[0] - target[0]), abs(corner[1] - target[1])),
+                -corners.index(corner),
+            ),
+        )
+
+    def _identify_rule(self, movers: set[tuple[int, int]]) -> None:
+        """Classify the mover rule from one observed frame transition."""
+        previous = self._movers_prev
+        if self._rule is not None or previous is None:
+            return
+        if len(movers) != len(previous):
+            # A mover hid under the overlap pixel or a stack split: no
+            # identity information in this transition.
+            return
+        if movers == previous:
+            if movers:
+                self._rule = "pursuit"
+            return
+        for cell in movers:
+            if not any(
+                cell == p
+                or (
+                    max(abs(cell[0] - p[0]), abs(cell[1] - p[1])) == 1
+                    and (cell[0] == p[0] or cell[1] == p[1])
+                )
+                for p in previous
+            ):
+                # A diagonal step or a jump: pursuit never does this.
+                self._rule = "bounce"
+                return
+
+    def _mover_afters(
+        self, mover: tuple[int, int], candidate: tuple[int, int]
+    ) -> set[tuple[int, int]]:
+        """Cells the mover could occupy next tick under the current model."""
+        grid = MovingShapesEnv.GRID_SIZE
+        x, y = mover
+        if self._rule == "bounce":
+            return {
+                (
+                    x + vx if 0 <= x + vx < grid else x - vx,
+                    y + vy if 0 <= y + vy < grid else y - vy,
+                )
+                for vx in (-1, 1)
+                for vy in (-1, 1)
+            }
+        dx = _sign(candidate[0] - x)
+        dy = _sign(candidate[1] - y)
+        afters = {(x, y)}  # stay (pursuit off-tick)
+        # Pursuit: larger axis first, horizontal wins ties, targeting the
+        # post-move player — exactly the world's rule.
+        if dx != 0 and abs(candidate[0] - x) >= abs(candidate[1] - y):
+            afters.add((x + dx, y))
+        elif dy != 0:
+            afters.add((x, y + dy))
+        if self._rule == "pursuit":
+            return afters
+        # Unidentified: the union of both rules.
+        for vx in (-1, 1):
+            for vy in (-1, 1):
+                afters.add(
+                    (
+                        x + vx if 0 <= x + vx < grid else x - vx,
+                        y + vy if 0 <= y + vy < grid else y - vy,
+                    )
+                )
+        return afters
+
+    def _choose_move(
+        self,
+        player: tuple[int, int],
+        movers: set[tuple[int, int]],
+        target: tuple[int, int],
+    ) -> GenericControl:
+        """One-tick union-safe simulation over the nine king moves."""
+        grid = MovingShapesEnv.GRID_SIZE
+        best_key: tuple[int, int, int, int, int] | None = None
+        best_keys: tuple[int, ...] = ()
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1):
+                candidate = (
+                    min(grid - 1, max(0, player[0] + dx)),
+                    min(grid - 1, max(0, player[1] + dy)),
+                )
+                collisions = sum(
+                    1
+                    for mover in movers
+                    for after in self._mover_afters(mover, candidate)
+                    if _paths_collide_at_same_time(player, candidate, mover, after)
+                )
+                chebyshev = max(
+                    abs(candidate[0] - target[0]), abs(candidate[1] - target[1])
+                )
+                manhattan = abs(candidate[0] - target[0]) + abs(
+                    candidate[1] - target[1]
+                )
+                key = (collisions, chebyshev, manhattan, dy, dx)
+                if best_key is None or key < best_key:
+                    best_key = key
+                    keys = []
+                    if dy != 0:
+                        keys.append(_KEY_FOR_DELTA[(0, dy)])
+                    if dx != 0:
+                        keys.append(_KEY_FOR_DELTA[(dx, 0)])
+                    best_keys = tuple(keys)
+        return GenericControl(keys_down=best_keys)
+
+
 def default_diagnostic_policies() -> tuple[object, ...]:
     """Return the §28 diagnostic policies in canonical suite order."""
 
@@ -1388,6 +1703,7 @@ __all__ = [
     "ScriptedKeysDoorsSolver",
     "ScriptedMazeChasePlannerPolicy",
     "ScriptedOcclusionMemoryPolicy",
+    "ScriptedOpenFieldCollectorPolicy",
     "ScriptedPelletTeacherPolicy",
     "ScriptedTargetChasePolicy",
     "default_diagnostic_policies",

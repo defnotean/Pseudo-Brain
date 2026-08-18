@@ -60,12 +60,13 @@ class CrossWorldMatrixTests(unittest.TestCase):
                 "diagnostic.scripted_keys_doors_solver.v1",
                 "diagnostic.scripted_junction_solver.v1",
                 "diagnostic.scripted_occlusion_memory.v1",
+                "diagnostic.scripted_open_field_collector.v1",
             ],
         )
 
     def test_matrix_covers_every_policy_world_pair(self) -> None:
         report = evaluate_cross_world_matrix(config=_config())
-        self.assertEqual(len(report.cells), 104)
+        self.assertEqual(len(report.cells), 117)
         for slot in default_world_slots():
             for policy in matrix_policies():
                 cell = report.cell(slot.identity, policy.identity)
@@ -118,7 +119,7 @@ class CrossWorldMatrixTests(unittest.TestCase):
         )
         decoded = json.loads(report.canonical_json)
         self.assertEqual(decoded["schema_version"], 1)
-        self.assertEqual(len(decoded["cells"]), 104)
+        self.assertEqual(len(decoded["cells"]), 117)
         self.assertEqual(decoded["config"]["episode_seeds"], [5])
 
     def test_cell_reports_must_share_the_matrix_config(self) -> None:

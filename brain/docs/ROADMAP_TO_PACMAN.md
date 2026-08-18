@@ -193,6 +193,15 @@ PLAN.md §20 defines the ladder; the work items in this repo are:
    what persistent state is worth on this world — and the matrix is now
    13 worlds × 8 policies = 104 cells
    ([runs/2026-08-17-occlusion-memory-policy.md](runs/2026-08-17-occlusion-memory-policy.md)).
+   The two open-field worlds complete the frontier sweep:
+   `diagnostic.scripted_open_field_collector.v1` handles the shared
+   moving_shapes/pursuit pixel signature by identifying the mover rule
+   from observed motion (bounce vs pursuit), remembering the target while
+   a camping mover hides it, and luring campers off the goal: it collects
+   with zero contact on both worlds (+236 vs the chaser's +186 on
+   moving_shapes, +214 vs +134 on pursuit), and the matrix is now
+   13 worlds × 9 policies = 117 cells
+   ([runs/2026-08-17-open-field-collector-policy.md](runs/2026-08-17-open-field-collector-policy.md)).
 2. **External open worlds** (license-cleared): XLand-MiniGrid, Craftax,
    Procgen — adapters behind `environments/protocol.py`, lifetime recording,
    held-out generator families.

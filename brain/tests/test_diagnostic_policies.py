@@ -14,6 +14,7 @@ from irene_brain.environments.keys_doors import KeysDoorsEnv
 from irene_brain.environments.maze_chase import MazeChaseEnv
 from irene_brain.environments.moving_shapes import MovingShapesEnv
 from irene_brain.environments.occlusion import OcclusionEnv
+from irene_brain.environments.pursuit import PursuitEnv
 from irene_brain.evaluation.closed_loop_play import (
     ClosedLoopPlayConfig,
     control_audit_stats,
@@ -27,6 +28,7 @@ from irene_brain.evaluation.diagnostic_policies import (
     ScriptedKeysDoorsSolver,
     ScriptedMazeChasePlannerPolicy,
     ScriptedOcclusionMemoryPolicy,
+    ScriptedOpenFieldCollectorPolicy,
     ScriptedPelletTeacherPolicy,
     ScriptedTargetChasePolicy,
     default_diagnostic_policies,
@@ -563,6 +565,94 @@ class OcclusionMemoryPolicyTests(unittest.TestCase):
         ):
             report = run_policy_closed_loop_episode(
                 ScriptedOcclusionMemoryPolicy(),
+                seed=5,
+                config=_config(max_ticks=60),
+                environment_factory=factory,
+            )
+            self.assertEqual(report.targets_collected, 0)
+            self.assertEqual(report.movement_mask_histogram, ((0, 60),))
+
+
+class OpenFieldCollectorTests(unittest.TestCase):
+    """The careful collector maps both open-field scripted frontiers."""
+
+    def _run(self, policy: object, seed: int, world: str, max_ticks: int = 600):
+        if world == "moving_shapes":
+            factory = lambda: MovingShapesEnv(hazard_count=3, max_ticks=max_ticks)
+        else:
+            factory = lambda: PursuitEnv(
+                pursuer_count=2, pursuer_period=2, max_ticks=max_ticks
+            )
+        return run_policy_closed_loop_episode(
+            policy,
+            seed=seed,
+            config=_config(max_ticks=max_ticks),
+            environment_factory=factory,
+        )
+
+    def test_contract_flags_and_reset_validation(self) -> None:
+        policy = ScriptedOpenFieldCollectorPolicy()
+        self.assertEqual(
+            policy.identity, "diagnostic.scripted_open_field_collector.v1"
+        )
+        self.assertFalse(policy.uses_privileged_state)
+        with self.assertRaises(TypeError):
+            policy.reset(True)  # type: ignore[arg-type]
+
+    def test_requires_the_canonical_grid_frame(self) -> None:
+        from irene_brain.types import Observation, RgbFrame
+
+        policy = ScriptedOpenFieldCollectorPolicy()
+        policy.reset(1)
+        wrong_size = Observation(
+            frame_id=0,
+            capture_tick=0,
+            elapsed_ns=0,
+            rgb=RgbFrame(width=8, height=8, pixels=bytes(8 * 8 * 3)),
+            previous_control=GenericControl(),
+            audio_pcm_s16le=None,
+            text_inputs=(),
+        )
+        with self.assertRaises(ValueError):
+            policy.act(wrong_size)
+
+    def test_policy_is_deterministic_per_seed(self) -> None:
+        first = self._run(ScriptedOpenFieldCollectorPolicy(), 5, "pursuit")
+        second = self._run(ScriptedOpenFieldCollectorPolicy(), 5, "pursuit")
+        self.assertEqual(first, second)
+
+    def test_collector_avoids_all_contact_on_both_open_fields(self) -> None:
+        for seed in (5, 9):
+            for world in ("moving_shapes", "pursuit"):
+                report = self._run(ScriptedOpenFieldCollectorPolicy(), seed, world)
+                self.assertGreaterEqual(report.targets_collected, 10)
+                self.assertEqual(report.collisions, 0)
+                self.assertEqual(report.decisions_rejected, 0)
+
+    def test_collector_outplays_the_greedy_chaser(self) -> None:
+        for world in ("moving_shapes", "pursuit"):
+            collector_reward = chase_reward = 0.0
+            collector_collisions = chase_collisions = 0
+            for seed in (5, 9):
+                collected = self._run(ScriptedOpenFieldCollectorPolicy(), seed, world)
+                chased = self._run(ScriptedTargetChasePolicy(), seed, world)
+                collector_reward += collected.reward_sum
+                chase_reward += chased.reward_sum
+                collector_collisions += collected.collisions
+                chase_collisions += chased.collisions
+            self.assertGreater(collector_reward, chase_reward)
+            self.assertLess(collector_collisions, chase_collisions)
+
+    def test_policy_holds_still_on_foreign_worlds(self) -> None:
+        for factory in (
+            lambda: OcclusionEnv(hazard_count=3, view_radius=4, max_ticks=60),
+            lambda: JunctionEnv(chaser_count=1, chaser_period=2, max_ticks=60),
+            lambda: MazeChaseEnv(
+                ghost_count=3, ghost_period=2, extra_loops=16, max_ticks=60
+            ),
+        ):
+            report = run_policy_closed_loop_episode(
+                ScriptedOpenFieldCollectorPolicy(),
                 seed=5,
                 config=_config(max_ticks=60),
                 environment_factory=factory,
