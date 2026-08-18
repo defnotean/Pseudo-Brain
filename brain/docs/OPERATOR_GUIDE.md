@@ -7,14 +7,12 @@ value identities, and legal stopping rules are in
 [CURRENT_WORK.md](../../CURRENT_WORK.md).
 
 The live campaign is **play-gated maze-chase distill v1**, not RCQ.
-Spark-only compute. Window-32 probe **failed** (idle no-op, 9 pellets).
-Do not retry or scale it. Next distinct probe samples 8-tick windows from
-across a 240-tick planner episode
-(`dgx-play-maze-chase-distill-episode-windows-v1`). Campaign success is
-pellets ≥ 32 with a non-idle non-D-only histogram, not merely
-`play_moved: true`.
+Spark-only compute. Window-32 and later-tick episode-window probes both
+**failed** as idle no-op (9 pellets, mask 0). Do not retry or scale
+either. Campaign success is pellets ≥ 32 with a non-idle non-D-only
+histogram, not merely `play_moved: true`. Spark is idle.
 
-The episode-windows launch:
+The completed episode-windows launch (failed; do not relaunch):
 
 ```powershell
 & .\brain\scripts\dgx\Invoke-DgxPreflight.ps1 `
@@ -56,8 +54,8 @@ The episode-windows launch:
 ```
 
 Scale only if `play-gate.json` shows `campaign_success: true` (pellets ≥ 32
-and a WASD histogram that is not idle / D-only). Sticky D and no-op are
-fail. Record:
+and a WASD histogram that is not idle / D-only). Episode-windows did not:
+idle no-op, 9 pellets, mask 0. Do not scale. Record:
 [runs/2026-08-18-play-gated-maze-chase-distill.md](runs/2026-08-18-play-gated-maze-chase-distill.md).
 
 The live `rcq_v2_reference_v2` reference on seed 1702 already failed the

@@ -1,19 +1,60 @@
 # Play-gated maze-chase distill campaign v1 (2026-08-18)
 
-Status: **current campaign**. Window-32 probe **failed**: idle no-op
-(`play_moved: false`, reward **-161**, collisions 17, **9 pellets**,
-histogram mask 0 × 480 ticks). Do not retry or scale it. Next distinct
-idea is later-tick / full-episode teacher windows, not a longer
-`sequence_length` on spawn snippets. RCQ-v2 seed 1702 stays terminal. No
-v3 registration. No sealed TEST.
+Status: **current campaign**. Episode-window probe **failed**: idle no-op
+(`play_moved: false`, `campaign_success: false`, reward **-161**,
+collisions 17, **9 pellets**, histogram mask 0 × 480). Spark is idle.
+Do not scale. Window-32 stays falsified. RCQ-v2 seed 1702 stays terminal.
+No v3 registration. No sealed TEST.
 
-## Episode-window probe (preregistered)
+## Episode-window probe result (2026-08-18)
+
+Official `play-gate.json`:
+[artifacts/play-gated-maze-chase-distill/episode-windows-v1-play-gate.json](./artifacts/play-gated-maze-chase-distill/episode-windows-v1-play-gate.json).
+
+The later-tick / full-episode sampling hypothesis is **falsified** at this
+budget. Sampling itself worked: validation teacher D fell from the spawn
+snippet's 45.8% to **16.7%**, with W the plurality at **37.5%**. Closed-loop
+play is still the no-op floor. All WASD predicted-positive rates stayed
+**0.0**; inactive movement logit max **-0.80**. Same idle decode as
+window-32, without that probe's value-loss explosion (val value loss 3.80
+vs ~85).
+
+| Field | Value |
+|---|---|
+| Release | `r20260818t170141z-55b96fa56a6e` (archive SHA-256 `55b96fa56a6e…`) |
+| Container image | `sha256:177a406d7cb2…` |
+| Run id | `dgx-play-maze-chase-distill-episode-windows-v1` |
+| Canonical config SHA-256 | `8738d61a34216dc6749919171ad60eaec64c7e7cf6edc80932cde7a1ff296e7b` |
+| Checkpoint | `checkpoints/step-00000032.pt` |
+| Checkpoint SHA-256 | `72e42ca0f706b8c0fd170d2dcca3b39e19f2c4e8bdd438cde2ae209ff2b38911` |
+| `latest.json` SHA-256 | `1edd611d2a022c9d9817ba385ea7399f0e15e57d4d168b54b23f9ec8cacb6dcf` |
+| Metrics SHA-256 | `67c71b1513c43222e4171ecce5796bb3b69803a224769581e1f09fc660cd4ba7` |
+| `play-gate.json` SHA-256 | `84331559972d836f0b7c1a2766f87d8936885ff29cc844c1ddde1bddb03a0716` |
+| Report SHA-256 | `3dac20c529a1d60396ea05d1598b03921b9b678dad033f515fde29ab5c4607b9` |
+| `play_moved` | **false** |
+| `campaign_success` | **false** |
+| `gate` | **failed** |
+| reward_sum | **-161** (floor) |
+| collisions | **17** (floor) |
+| pellets_eaten | **9** |
+| mazes_cleared | **0** |
+| movement_mask_histogram | **[[0, 480]]** (idle every tick) |
+| sticky_or_idle | **true** |
+
+Logged metrics at step 32 (not the gate): train loss 1.063, action loss
+0.590, movement exact 0.0, value loss 4.51; validation loss 0.945,
+action loss 0.544, movement exact 0.0, value loss 3.80. Val teacher mix
+W/A/S/D = 0.375 / 0.292 / 0.167 / 0.167. Do not scale.
+
+## Episode-window probe (preregistered; now completed / failed)
 
 Hypothesis: 8-tick spawn-only snippets never showed pellet-seeking or
 corridor choice (planner clears seed 5 at tick 208). Sampling the same
 8-tick window length from **across a 240-tick planner trajectory**
 exposes later ticks, including pellets and the clear path, without the
-value-scale blow-up that falsified window-32.
+value-scale blow-up that falsified window-32. **Falsified at 32 steps:**
+the teacher mix unstuck from D, but closed-loop logits stayed below the
+`> 0` decode threshold.
 
 Sampling change:
 
@@ -36,7 +77,7 @@ Sampling change:
 | Budget | 32 optimizer steps, `sequence_length = 8`, `episode_horizon = 240` |
 | Play eval | seeds 5/9 × 240 ticks; honest `pellet_eaten`; WASD histogram |
 | Campaign pass | `pellets_eaten >= 32` and histogram not idle / D-only |
-| Fail | sticky D, idle no-op, or pellets in the 9–10 band |
+| Result | idle no-op; 9 pellets; mask 0 × 480 |
 
 ## Window-32 probe result (2026-08-18)
 
@@ -292,7 +333,8 @@ and not an RCQ qualification.
 | First probe run id | `dgx-play-maze-chase-distill-probe-v1` (trained; play-gate crashed) |
 | Passing 32-step run id | `dgx-play-maze-chase-distill-probe-v2` (`play_moved: true`) |
 | Passing 128-step run id | `dgx-play-maze-chase-distill-probe-128-v1` (`play_moved: true`, same play numbers) |
-| Next probe run id | `dgx-play-maze-chase-distill-episode-windows-v1` |
+| Next probe run id | none started; episode-windows **failed** idle no-op |
+| Failed episode-windows run id | `dgx-play-maze-chase-distill-episode-windows-v1` |
 | Failed window-32 run id | `dgx-play-maze-chase-distill-window32-v1` (idle no-op; do not retry) |
 | 32-step config | `brain/configs/training/dgx-play-maze-chase-distill-probe.toml` |
 | 128-step config | `brain/configs/training/dgx-play-maze-chase-distill-probe-128.toml` |
@@ -316,6 +358,8 @@ no-op pellets are 9 (reward arithmetic). Historical play-gate JSON
   is not idle (mask 0) or D-only (mask 8). A planner-like clear is ~142
   pellets on seed 5.
 - **Window-32 probe** failed as idle no-op. Do not retry or scale it.
+- **Episode-windows probe** failed as idle no-op after the teacher mix
+  unstuck from D. Do not scale it.
 - **Sticky D / no-op is fail**, even if `play_moved` is true.
 
 `train.py` writes `play-gate.json` into the run directory after a
@@ -331,16 +375,18 @@ out of `targets_collected` so the cross-world no-op floor stays world-flat.
 - Transfer to other ladder worlds (one transfer world waits until play
   has moved and hygiene is tight)
 
-## Spark sequence (episode-windows probe)
+## Spark sequence (episode-windows probe, completed; failed)
 
 1. `Invoke-DgxPreflight.ps1`
-2. `Sync-DgxBrainRelease.ps1` (new release after this source change)
+2. `Sync-DgxBrainRelease.ps1` (release `r20260818t170141z-55b96fa56a6e`)
 3. `Invoke-DgxBrainSmoke.ps1` on `dgx-smoke.toml` (receipt written)
 4. `Start-DgxBrainTraining.ps1` with
    `dgx-play-maze-chase-distill-episode-windows.toml`, run id
    `dgx-play-maze-chase-distill-episode-windows-v1`, Tmux with
    `-AcknowledgeDetached`
-5. Watch to `play-gate.json`. Do not scale if sticky D or idle.
+5. `play-gate.json` failed: reward -161 / collisions 17 / 9 pellets /
+   histogram [[0, 480]]. Sampling unstuck teacher D (val D 16.7%, W 37.5%)
+   but WASD logits stayed negative. Spark is idle. Do not scale.
 
 Generic wrappers only. Never `Start-DgxRcqV2Reference.ps1`. Never point
 generic train at an RCQ config.

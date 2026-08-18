@@ -11,12 +11,12 @@ and held on the 128-step probe at reward_sum **-150**, collisions **16**
 **failed** at the no-op floor: reward **-161**, collisions **17**,
 **9 pellets**, idle histogram mask 0 × 480
 (`dgx-play-maze-chase-distill-window32-v1`, `play-gate.json` SHA-256
-`2cdedaf9…`, release `r20260818t164127z-e23fdae191c4`). Do not retry or
-scale window-32. Next distinct idea is later-tick / full-episode teacher
-windows: `irene.maze_chase.planner_teacher.episode_windows.v1` via
-`dataset.episode_horizon = 240`, run id
-`dgx-play-maze-chase-distill-episode-windows-v1`, config SHA-256
-`8738d61a…`. Campaign success is **pellets ≥ 32** with a non-idle
+`2cdedaf9…`). The later-tick episode-window probe also **failed** idle
+no-op at the same floor (`dgx-play-maze-chase-distill-episode-windows-v1`,
+`play-gate.json` SHA-256 `84331559…`, release
+`r20260818t170141z-55b96fa56a6e`). Sampling worked (val teacher D 16.7%,
+W 37.5%) but all WASD logits stayed negative. Do not retry or scale
+either failed idea. Campaign success is **pellets ≥ 32** with a non-idle
 non-D-only histogram, not `reward_sum > -161`. Official 32-step
 `play-gate.json` SHA-256 `df9d88f4…`; 128-step `play-gate.json` SHA-256
 `6401a922…`. Logger train loss is not the gate. Workstation is
