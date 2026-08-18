@@ -60,6 +60,12 @@ task. Each is a campaign-level decision, not a factory entry.
 
 ## Owner veto
 
+**Resolved 2026-08-18 (00:57 local): the owner gave an explicit go for
+B1–B3** ("you have my permission to go ahead … keep working, iterating"),
+which is the sign-off this section required. B3 remains blocked on ladder
+dataset generation regardless (DGX-scale, deferred). Original text below
+for the record.
+
 B4 was implemented under the owner's standing delegation ("do it all for
 me") because it is a pure drop-in variant that changes neither the shared
 objective nor the campaign shape — the same change class as the matched

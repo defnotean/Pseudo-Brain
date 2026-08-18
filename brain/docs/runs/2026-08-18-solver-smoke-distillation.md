@@ -31,6 +31,24 @@ covered by a new dataset test (12 total).
 | closed-loop reward / collisions | 0.0 / 0 | -17.0 / 17 |
 | decisions rejected | 0 | 0 |
 
+## All four solver worlds (2026-08-18, same protocol)
+
+| world | train loss first32→last32 | val action loss | val exact-match | play reward/collisions |
+| --- | --- | --- | --- | --- |
+| keys_doors | 0.6136 → 0.4197 | 0.8469 → 0.4174 | 0.0000 → 0.0887 | 0/0 → 0/0 |
+| junction | 0.4381 → 0.0783 | 0.8110 → 0.0549 | 0.0000 → **1.0000** | −4/4 → −3/4 |
+| occlusion | 0.7623 → 0.4306 | 1.0133 → 0.4316 | 0.0000 → 0.3065 | 0/0 → −17/17 |
+| pursuit | 0.8850 → 0.6064 | 1.0364 → 0.5426 | 0.0242 → 0.0242 | −24/24 → −23/24 |
+
+The four worlds span the full imitability spectrum at smoke scale:
+junction's deterministic corridor policy is learned **perfectly** in
+validation (exact-match 1.0000) yet still gets caught in 240-tick play —
+small errors compound past the 32-step training horizon; occlusion
+imitates well but walks into unremembered hazards; keys_doors learns
+measurable agreement without yet scoring; pursuit's lure-and-dodge
+teacher barely distills at all (exact-match flat at 0.0242). These are
+the pinned zero-points the DGX distillation campaign must move.
+
 ## Reading
 
 Two findings, both pinned for the DGX campaign:
