@@ -30,11 +30,10 @@ W/A/D at 17 pellets / val match 0.083 = teacher A. Do not scale 90-seq
 or retune hold×0.1. The 128-step continuation of that recipe
 (`dgx-play-maze-chase-distill-turn-weighted-128-v1`) **failed** sticky S:
 idle×26 + S×454, **20 pellets**, 390 collisions, reward **−3880**, val
-match **0.0**. Do not scale 128. Next GPU job is play-peak / early-stop
-(`dgx-play-maze-chase-distill-play-peak-v1`): same 32-step-winning recipe,
-bounded 64 steps, closed-loop play every 8 steps on seeds 5/9, keep the
-best-pellet checkpoint, stop when play drops from that peak. Spark GPU
-is running on release `r20260818t215024z-ad7ce0bfdd99`. Spark CPU
+match **0.0**. Do not scale 128. Play-peak / early-stop
+(`dgx-play-maze-chase-distill-play-peak-v1`) **passed** by keeping the
+step-32 peak (38 pellets, A×377 + S×103) and stopping at step 40 (15
+pellets). Spark GPU is idle. Spark CPU
 farm added a turn-hold audit (261/720 change ticks, 82/90 windows have a
 change), a multi-episode thoughtlet dump (open-loop A×31+D×1), a
 turn-weighted thoughtlet dump (open-loop A×32 on seeds 5/9), and a
@@ -69,7 +68,7 @@ campaign.
 | 8 | Newly named qualification after the invariance capture fix | Done. Live file `registrations/rcq-v2-reference-v2.json`. Do not edit v1. |
 | 9 | Preclaim, independent review, final authorization, one-shot TEST | Blocked. This qualification failed the entry gate. Do not preclaim or open TEST. |
 | — | RCQ-v3 registration ceremony | **Deferred.** Do not run `New-RcqV3Registration.ps1`. |
-| — | Current campaign | Play-gated maze-chase distill v1. Turn-weighted exclusive CE **passed** at 32 steps (A×377 + S×103, 38 pellets). 128-step continuation **failed** sticky S (20 pellets, 390 collisions). Do not scale 128 or retune hold×0.1. Next: play-peak / early-stop (`dgx-play-maze-chase-distill-play-peak-v1`), same recipe, max 64, play eval every 8. |
+| — | Current campaign | Play-gated maze-chase distill v1. Turn-weighted exclusive CE **passed** at 32 steps (A×377 + S×103, 38 pellets). Play-peak kept that step-32 peak and early-stopped at 40 (15 pellets). 128-step continuation **failed** sticky S. Do not scale. Spark GPU idle. |
 | — | Compute | Spark only. One scientific GPU train at a time on the GB10; many named CPU jobs in parallel on the ARM host. Generic wrappers, never RCQ-v2 start/resume. |
 
 Do not skip ahead. Do not open sealed TEST ranges to "check" labels. Do not

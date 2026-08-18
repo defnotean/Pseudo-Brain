@@ -1,0 +1,22 @@
+{
+  "campaign_success": true,
+  "checkpoint": "play-best.pt",
+  "checkpoint_sha256": "5df3a7c1d2a67257481c9990ad8af39703f2a6709cefba25c080fdeb16eb767d",
+  "collisions": 43,
+  "kind": "play_peak_v1",
+  "movement_mask_histogram": [
+    [
+      2,
+      377
+    ],
+    [
+      4,
+      103
+    ]
+  ],
+  "pellets_eaten": 38,
+  "reward_sum": -392.0,
+  "source_checkpoint": "step-00000032.pt",
+  "step": 32,
+  "sticky_or_idle": false
+}

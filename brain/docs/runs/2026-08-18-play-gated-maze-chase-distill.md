@@ -1,26 +1,17 @@
 # Play-gated maze-chase distill campaign v1 (2026-08-18)
 
-Status: **current campaign**. Play-peak / early-stop is the next GPU
-job (`dgx-play-maze-chase-distill-play-peak-v1`): same 32-step-winning
-turn-weighted recipe, max 64, closed-loop play every 8 steps, keep the
-best-pellet checkpoint, stop when play drops from that peak. 128-step
-turn-weighted exclusive CE **completed / failed** sticky S (idle×26 +
-S×454, 20 pellets, 390 collisions, reward −3880, val match 0.0). Do
-not scale 128; one-key sticky returned. The 32-step turn-weighted
-exclusive CE **completed / passed** the campaign gate (A×377 + S×103,
-38 pellets, 43 collisions, reward −392, val match 0.25) and remains
-the campaign-pass checkpoint until play-peak reports a better kept
-checkpoint. Multi-episode tiled tiles **completed / failed** mixed
-W/A/D. Full-episode tiled update **completed / failed** sticky D.
-Tiled 1:1 planner windows **completed / failed** sticky A.
-Exclusive-direction softmax probe **completed / failed** sticky S.
-Action-only exclusive CE **completed / failed idle no-op**. Value-only
-exclusive CE **completed / failed idle no-op**. Do not scale
-exclusive-CE, action-only, value-only, tiled-windows, accumulation-30,
-90-seq, or 128-step turn-weighted, and do not retune hold×0.1.
-Exclusive-argmax play-decode stays failed sticky S. Window-32 and
-episode-windows stay falsified idle no-op. RCQ-v2 seed 1702 stays
-terminal. No v3 registration. No sealed TEST.
+Status: **current campaign**. Play-peak / early-stop
+(`dgx-play-maze-chase-distill-play-peak-v1`) **completed / passed**:
+closed-loop play peaked at step 32 (A×377 + S×103, **38 pellets**, 43
+collisions, reward −392) and dropped at step 40 (A×450 + D×30, 15
+pellets). The trainer kept the step-32 checkpoint and wrote
+`play-gate.json` on that peak (`campaign_success: true`). The 32-step
+turn-weighted exclusive CE remains the campaign-pass checkpoint; more
+steps still hurt. Do not scale 64 or 128. 128-step turn-weighted
+exclusive CE **completed / failed** sticky S (idle×26 + S×454, 20
+pellets, 390 collisions, reward −3880, val match 0.0). Spark GPU is
+idle. RCQ-v2 seed 1702 stays terminal. No v3 registration. No sealed
+TEST.
 
 ## 128-step turn-weighted exclusive CE result (2026-08-18)
 
@@ -88,7 +79,65 @@ exclusive-argmax match **0.0**, value loss 1.02. Val teacher mix W/A/S/D
 **0.0**; teacher movement logit gap **−0.115**; inactive movement logit
 max **−5.94**. Spark GPU is idle. Do not scale.
 
-## Play-peak / early-stop (preregistered)
+## Play-peak / early-stop result (2026-08-18)
+
+Official `play-gate.json`:
+[artifacts/play-gated-maze-chase-distill/play-peak-v1-play-gate.json](./artifacts/play-gated-maze-chase-distill/play-peak-v1-play-gate.json).
+
+Scoring play every 8 steps **did** catch the collapse. The kept peak is
+step 32: A×377 + S×103, **38 pellets**, 43 collisions, reward **−392**,
+`campaign_success: true`. That play-gate JSON is byte-identical to the
+32-step turn-weighted champion (`34af40b0…`; report SHA `7e9d916f…`).
+Step 40 dropped to 15 pellets (A×450 + D×30, 18 collisions, −165) and
+`play_peak_v1` stopped. Do **not** scale past the peak.
+
+| Step | Pellets | Collisions | Histogram | Gate |
+|---|---|---|---|---|
+| 8 | 19 | 20 | A×474 + S×4 + D×2 | failed |
+| 16 | 15 | 18 | A×476 + D×4 | failed |
+| 24 | 20 | 391 | A×2 + S×478 | failed sticky S |
+| **32** | **38** | **43** | **A×377 + S×103** | **passed (kept)** |
+| 40 | 15 | 18 | A×450 + D×30 | failed; early-stop |
+
+| Field | Value |
+|---|---|
+| Release | `r20260818t215024z-ad7ce0bfdd99` (archive SHA-256 `ad7ce0bfdd99…`) |
+| Container image | `sha256:177a406d7cb2…` |
+| Run id | `dgx-play-maze-chase-distill-play-peak-v1` |
+| Canonical config SHA-256 | `1d5e29963993766cd945ab344b29d149f47a873057923385251b7af6d6163059` |
+| Launch `run.env` config SHA-256 | `560f9fe3e82d015b51dbe30bc500cd0d63179cc28e6db3481da39cc0205de2a9` |
+| Play decode | `exclusive_argmax_wasd_v1` (idle margin −4.0; kept) |
+| Action loss | `exclusive_wasd_softmax_turn_weighted_v1` (hold ×0.1; unchanged) |
+| Teacher | `irene.maze_chase.planner_teacher.tiled_windows.v1` (90 windows / 3 episodes) |
+| Selected checkpoint | `checkpoints/play-best.pt` from `step-00000032.pt` |
+| Selected checkpoint SHA-256 | `5df3a7c1d2a67257481c9990ad8af39703f2a6709cefba25c080fdeb16eb767d` |
+| Terminal checkpoint | `checkpoints/step-00000040.pt` |
+| Terminal checkpoint SHA-256 | `474c2f1ae04396c0a523135d2548903892da9a8dbc5f94610e0d97981a6b497b` |
+| `latest.json` SHA-256 | `27ba663605001b293116d574c7eaf42d237b00ed881b25ca5f9308ee1d2f71d9` |
+| Metrics SHA-256 | `ca1e4616ae1a5478d3b5b4b7ac652b3a676e124284a0a9bd0a53b54c247c7339` |
+| `play-gate.json` SHA-256 | `34af40b019bc66a80d7204f599b4aa13e7d50db0d4f15e67b1d638f757f28019` |
+| `play-best.json` SHA-256 | `56a5e2694413bc1b22def701e8458402ad58129e22798137265c35f83bcc304f` |
+| `play-peak.json` SHA-256 | `4986a6ad592d3df5e44a0276c9f71aeeeac3774869171a82d15aae91c47bf323` |
+| `play-trace.jsonl` SHA-256 | `0599ee527b4993a71d93c97d61d3529c172dbc735a196f47f774a38b502d56a6` |
+| Report SHA-256 | `7e9d916f6f401ef0cd183596ba0f41b2a3d0a9405163c23382c621281b2357ac` |
+| `play_moved` | **false** (reward below the no-op floor) |
+| `campaign_success` | **true** |
+| `gate` | **passed** |
+| `stop_reason` | **play_peak_drop** at step 40 |
+| reward_sum | **−392** |
+| collisions | **43** |
+| pellets_eaten | **38** |
+| mazes_cleared | **0** |
+| movement_mask_histogram | **[[2, 377], [4, 103]]** (A×377 + S×103) |
+| sticky_or_idle | **false** |
+
+Logged metrics at the kept step 32 match the 32-step champion: train
+loss 1.169, action loss 0.564, exclusive-argmax match 0.256; validation
+loss 0.928, action loss 0.496, exclusive-argmax match **0.25**. Step 40
+train exclusive-argmax match **0.211** (the 128-step log's collapse
+start). Spark GPU is idle. Do not scale.
+
+## Play-peak / early-stop (preregistered; now completed / passed)
 
 Hypothesis: more optimizer steps of the passing 32-step turn-weighted
 recipe **hurt**. Ranking collapsed train steps 40→48 (exclusive-argmax
@@ -811,7 +860,7 @@ and not an RCQ qualification.
 | Passing 128-step run id | `dgx-play-maze-chase-distill-probe-128-v1` (`play_moved: true`, same play numbers) |
 | Passing turn-weighted run id | `dgx-play-maze-chase-distill-turn-weighted-v1` (`campaign_success: true`, 38 pellets) |
 | Failed 128-step turn-weighted run id | `dgx-play-maze-chase-distill-turn-weighted-128-v1` (sticky S, 20 pellets; do not scale) |
-| Play-peak / early-stop run id | `dgx-play-maze-chase-distill-play-peak-v1` (preregistered; max 64, play eval every 8) |
+| Play-peak / early-stop run id | `dgx-play-maze-chase-distill-play-peak-v1` (`campaign_success: true` on kept step 32; early-stop at 40) |
 | Failed multi-episode tiled run id | `dgx-play-maze-chase-distill-multi-episode-v1` |
 | Failed full-episode tiled-update run id | `dgx-play-maze-chase-distill-episode-update-v1` |
 | Failed tiled-window exclusive-CE run id | `dgx-play-maze-chase-distill-tiled-windows-v1` |
@@ -1242,7 +1291,7 @@ generic train at an RCQ config.
 Generic wrappers only. Never `Start-DgxRcqV2Reference.ps1`. Never point
 generic train at an RCQ config.
 
-## Spark sequence (play-peak / early-stop, launching)
+## Spark sequence (play-peak / early-stop, completed / passed)
 
 1. `Invoke-DgxPreflight.ps1`
 2. `Sync-DgxBrainRelease.ps1` (release `r20260818t215024z-ad7ce0bfdd99`)
@@ -1251,9 +1300,10 @@ generic train at an RCQ config.
    `dgx-play-maze-chase-distill-play-peak.toml`, run id
    `dgx-play-maze-chase-distill-play-peak-v1`, Tmux with
    `-AcknowledgeDetached`
-5. Watch `play-trace.jsonl` / `play-best.json` / `play-gate.json`. Official
-   gate is the kept peak checkpoint, not the last optimizer step. Spark GPU
-   is running.
+5. `play-gate.json` passed on the kept step-32 peak: reward −392 /
+   collisions 43 / 38 pellets / histogram [[2, 377], [4, 103]].
+   `stop_reason: play_peak_drop` at step 40 (15 pellets). Spark GPU is
+   idle. Do not scale.
 
 Generic wrappers only. Never `Start-DgxRcqV2Reference.ps1`. Never point
 generic train at an RCQ config.

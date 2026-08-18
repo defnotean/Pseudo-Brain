@@ -1,0 +1,5 @@
+{"campaign_success": false, "collisions": 20, "gate": "failed", "movement_mask_histogram": [[2, 474], [4, 4], [8, 2]], "pellets_eaten": 19, "reward_sum": -181.0, "step": 8, "sticky_or_idle": false}
+{"campaign_success": false, "collisions": 18, "gate": "failed", "movement_mask_histogram": [[2, 476], [8, 4]], "pellets_eaten": 15, "reward_sum": -165.0, "step": 16, "sticky_or_idle": false}
+{"campaign_success": false, "collisions": 391, "gate": "failed", "movement_mask_histogram": [[2, 2], [4, 478]], "pellets_eaten": 20, "reward_sum": -3890.0, "step": 24, "sticky_or_idle": false}
+{"campaign_success": true, "collisions": 43, "gate": "passed", "movement_mask_histogram": [[2, 377], [4, 103]], "pellets_eaten": 38, "reward_sum": -392.0, "step": 32, "sticky_or_idle": false}
+{"campaign_success": false, "collisions": 18, "gate": "failed", "movement_mask_histogram": [[2, 450], [8, 30]], "pellets_eaten": 15, "reward_sum": -165.0, "step": 40, "sticky_or_idle": false}

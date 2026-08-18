@@ -21,18 +21,16 @@ sticky D**. Multi-episode tiled tiles **failed mixed W/A/D** at 17
 pellets. Do not retry or scale those recipes, and do not retune
 hold×0.1. Campaign success is pellets ≥ 32 with a non-idle non-D-only
 histogram. One GB10 train at a time; named CPU farm jobs run in
-parallel on the host. Next GPU job is play-peak / early-stop
-(`dgx-play-maze-chase-distill-play-peak-v1`): same 32-step-winning
-recipe, max 64, play eval every 8 on seeds 5/9, keep best pellets
-then fewest collisions, stop when play drops from that peak. Spark
-GPU is running (release `r20260818t215024z-ad7ce0bfdd99`). A
-turn-hold audit found 261/720 change ticks (82/90 windows have a
+parallel on the host. Play-peak / early-stop
+(`dgx-play-maze-chase-distill-play-peak-v1`) **passed** on the kept
+step-32 peak (38 pellets, A×377 + S×103) and stopped at step 40 (15
+pellets). Spark GPU is idle (release `r20260818t215024z-ad7ce0bfdd99`).
+A turn-hold audit found 261/720 change ticks (82/90 windows have a
 change).
 
 The 128-step turn-weighted exclusive-CE launch already ran and **failed**
-sticky S. Do not launch it again. Do not start a 256-step scale. The
-campaign-pass checkpoint remains the 32-step turn-weighted run until
-play-peak reports a better kept checkpoint. Record:
+sticky S. Do not launch it again. Do not start a 256-step scale. Play-peak
+kept the 32-step champion and confirmed more steps hurt. Record:
 [runs/2026-08-18-play-gated-maze-chase-distill.md](runs/2026-08-18-play-gated-maze-chase-distill.md).
 
 Scale only if `play-gate.json` shows `campaign_success: true` (pellets ≥ 32
@@ -40,8 +38,8 @@ and a WASD histogram that is not idle / D-only). Turn-weighted exclusive
 CE passed that gate at 32 steps (38 pellets, A×377 + S×103, collisions
 43, val match 0.25). The 128-step continuation failed sticky S (20
 pellets, 390 collisions). Do not scale 128. Do not retune hold×0.1.
-The licensed next GPU job is play-peak / early-stop, not a longer
-fixed budget. Failed recipes stay failed: exclusive-argmax sticky S,
+The licensed next GPU job is a new distinct idea, not a longer
+fixed budget of turn-weighted exclusive CE. Failed recipes stay failed: exclusive-argmax sticky S,
 exclusive-CE sticky S, 128-step turn-weighted sticky S,
 action-only/value-only idle, tiled-windows sticky A, episode-update
 sticky D, multi-episode 17 pellets. Record:

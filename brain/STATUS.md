@@ -21,12 +21,13 @@ exclusive-argmax match **0.25** (chance; teacher mix still W/A/S/D
 `7ad447d0e09f304751bcf2337419255b2355875c84b00dc1e682cb13c6fd4ad9`)
 **failed** sticky S: idle×26 + S×454, **20 pellets**, 390 collisions,
 reward **−3880**, val match **0.0**. Do not scale 128. Do not
-retune hold×0.1. Next GPU job is play-peak / early-stop
+retune hold×0.1. Play-peak / early-stop
 (`dgx-play-maze-chase-distill-play-peak-v1`, canonical config SHA-256
 `1d5e29963993766cd945ab344b29d149f47a873057923385251b7af6d6163059`,
-release `r20260818t215024z-ad7ce0bfdd99`):
-same recipe, max 64, play eval every 8, keep best pellets then fewest
-collisions, stop when play drops from that peak. Spark GPU is running.
+release `r20260818t215024z-ad7ce0bfdd99`)
+**passed** by keeping step 32 (38 pellets, A×377 + S×103) and stopping
+at step 40 (15 pellets, A×450 + D×30). Official `play-gate.json` SHA-256
+`34af40b0…` matches the 32-step champion. Spark GPU is idle.
 Play moved on the
 32-step probe v2 and held on the
 128-step probe at reward_sum **-150**, collisions **16**
@@ -60,7 +61,8 @@ with a non-idle non-D-only histogram. Official 32-step `play-gate.json`
 SHA-256
 `df9d88f4…`; 128-step `6401a922…`; window-32 `2cdedaf9…`; episode-windows
 `84331559…`; exclusive-argmax `865927de…`; turn-weighted `34af40b0…`;
-turn-weighted-128 `2c09427c…`.
+turn-weighted-128 `2c09427c…`; play-peak `34af40b0…` (same JSON as
+turn-weighted; kept step 32).
 Logger train loss is not the gate. Workstation is orchestration; all
 compute is Spark. Record:
 [docs/runs/2026-08-18-play-gated-maze-chase-distill.md](./docs/runs/2026-08-18-play-gated-maze-chase-distill.md).

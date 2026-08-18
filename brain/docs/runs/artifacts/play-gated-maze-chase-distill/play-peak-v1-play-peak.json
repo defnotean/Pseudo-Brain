@@ -1,0 +1,22 @@
+{
+  "final_step": 40,
+  "kind": "play_peak_v1",
+  "max_optimizer_steps": 64,
+  "play_best_sha256": "5df3a7c1d2a67257481c9990ad8af39703f2a6709cefba25c080fdeb16eb767d",
+  "play_eval_every_steps": 8,
+  "selected_collisions": 43,
+  "selected_histogram": [
+    [
+      2,
+      377
+    ],
+    [
+      4,
+      103
+    ]
+  ],
+  "selected_pellets": 38,
+  "selected_reward_sum": -392.0,
+  "selected_step": 32,
+  "stop_reason": "play_peak_drop"
+}
