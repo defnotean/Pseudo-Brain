@@ -187,6 +187,13 @@ short-horizon world loss and `horizon_logits` are consumed nowhere — so
 they are now preregistered design proposals (B1–B4) awaiting explicit
 owner sign-off. Record:
 [docs/runs/2026-08-17-remaining-baseline-controls-preregistration.md](./docs/runs/2026-08-17-remaining-baseline-controls-preregistration.md).
+Proposal B4 landed as a drop-in under the standing delegation (no
+objective or campaign change): `irene.recurrent_transformer.carry_token.v1`
+— a standard carry-token Transformer encoder control at width 568
+(29,609,034 trainable, 0.22% under the reference budget), inside the
+verified parameter-matched regime; the suite now covers ten variants.
+Record:
+[docs/runs/2026-08-17-recurrent-transformer-baseline.md](./docs/runs/2026-08-17-recurrent-transformer-baseline.md).
 The rights ledger required by PLAN §20 now exists at
 [docs/RIGHTS_LEDGER.md](./docs/RIGHTS_LEDGER.md): all six in-repo worlds
 (moving shapes, pursuit, junction, occlusion, keys/doors, maze_chase) are

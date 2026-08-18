@@ -22,6 +22,7 @@ from irene_brain.model.baselines import (  # noqa: E402
     PARAMETER_MATCHED_MONOLITHIC_IDENTITY,
     REACTIVE_IDENTITY,
     REFERENCE_IDENTITY,
+    RECURRENT_TRANSFORMER_IDENTITY,
     RESET_STATE_IDENTITY,
     SERIAL_DEPTH_IDENTITY,
     build_architecture_manifest,
@@ -36,6 +37,7 @@ from irene_brain.training.factory import (  # noqa: E402
     build_thesis_no_communication_model,
     build_thesis_parameter_matched_monolithic_model,
     build_thesis_reactive_model,
+    build_thesis_recurrent_transformer_model,
     build_thesis_reset_slots_model,
     build_thesis_serial_depth_model,
 )
@@ -86,6 +88,11 @@ REGISTRATIONS = {
         "configs/training/baseline-stagea-matched-ensemble.toml",
         "irene_brain.training.factory:build_thesis_matched_ensemble_model",
         build_thesis_matched_ensemble_model,
+    ),
+    RECURRENT_TRANSFORMER_IDENTITY.variant_id: (
+        "configs/training/baseline-stagea-recurrent-transformer.toml",
+        "irene_brain.training.factory:build_thesis_recurrent_transformer_model",
+        build_thesis_recurrent_transformer_model,
     ),
 }
 

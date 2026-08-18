@@ -26,6 +26,7 @@ if torch is not None:
         PARAMETER_MATCHED_MONOLITHIC_IDENTITY,
         REACTIVE_IDENTITY,
         REFERENCE_IDENTITY,
+        RECURRENT_TRANSFORMER_IDENTITY,
         RESET_STATE_IDENTITY,
         SERIAL_DEPTH_IDENTITY,
         DenseCommunicationSlotBaseline,
@@ -34,6 +35,7 @@ if torch is not None:
         NoCommunicationSlotBaseline,
         ParameterMatchedMonolithicBaseline,
         ReactiveSlotBaseline,
+        RecurrentTransformerBaseline,
         ResetStateSlotBaseline,
         SerialDepthSlotBaseline,
         allocated_parameter_counts,
@@ -104,6 +106,7 @@ class MatchedBaselineTests(unittest.TestCase):
             REACTIVE_IDENTITY,
             SERIAL_DEPTH_IDENTITY,
             MATCHED_ENSEMBLE_IDENTITY,
+            RECURRENT_TRANSFORMER_IDENTITY,
         )
         self.assertEqual(len({item.variant_id for item in identities}), len(identities))
         self.assertEqual(len({item.sha256 for item in identities}), len(identities))
@@ -404,6 +407,9 @@ class MatchedBaselineTests(unittest.TestCase):
         ensemble = MatchedEnsembleBaseline(
             self.slot_config(), input_resolution=(8, 8)
         )
+        transformer = RecurrentTransformerBaseline(
+            self.monolithic_config(), input_resolution=(8, 8)
+        )
         models = {
             REFERENCE_IDENTITY.variant_id: (reference, "tests:reference"),
             NO_COMMUNICATION_IDENTITY.variant_id: (isolated, "tests:isolated"),
@@ -413,6 +419,10 @@ class MatchedBaselineTests(unittest.TestCase):
                 "tests:parameter_control",
             ),
             MATCHED_ENSEMBLE_IDENTITY.variant_id: (ensemble, "tests:ensemble"),
+            RECURRENT_TRANSFORMER_IDENTITY.variant_id: (
+                transformer,
+                "tests:transformer",
+            ),
         }
         manifest = build_architecture_manifest(
             models,
@@ -471,6 +481,7 @@ class MatchedBaselineTests(unittest.TestCase):
                 REACTIVE_IDENTITY,
                 SERIAL_DEPTH_IDENTITY,
                 MATCHED_ENSEMBLE_IDENTITY,
+                RECURRENT_TRANSFORMER_IDENTITY,
             )
         }
         entries = {entry["variant_id"]: entry for entry in manifest["variants"]}
@@ -513,6 +524,28 @@ class MatchedBaselineTests(unittest.TestCase):
         self.assertEqual(entries[REACTIVE_IDENTITY.variant_id]["allocated_parameters"]["trainable"], 29_674_318)
         self.assertEqual(entries[SERIAL_DEPTH_IDENTITY.variant_id]["allocated_parameters"]["trainable"], 75_849_558)
         self.assertEqual(entries[MATCHED_ENSEMBLE_IDENTITY.variant_id]["allocated_parameters"]["trainable"], 29_459_914)
+        self.assertEqual(entries[RECURRENT_TRANSFORMER_IDENTITY.variant_id]["allocated_parameters"]["trainable"], 29_609_034)
+
+    def test_recurrent_transformer_carry_persists_across_steps(self) -> None:
+        model = RecurrentTransformerBaseline(
+            self.monolithic_config(), input_resolution=(8, 8)
+        )
+        pixels, control, elapsed = self.inputs()
+        first = model(pixels, control, elapsed)
+        continued = model(pixels, control, elapsed, state=first.next_state.detach())
+        fresh = model(pixels, control, elapsed)
+        assert torch is not None
+        # Unlike the reactive control, the carry token crosses steps.
+        self.assertFalse(torch.allclose(continued.value, fresh.value))
+        self.assertEqual(tuple(first.next_state.thoughts.shape), (1, 1, 1, 16))
+        # Diagnostics keep one entry per encoder layer per cycle.
+        config = self.monolithic_config()
+        self.assertEqual(
+            len(first.diagnostics.routing_indices),
+            config.brain_cell_blocks * config.cognitive_cycles,
+        )
+        repeated = model(pixels, control, elapsed)
+        self.assertTrue(torch.allclose(first.value, repeated.value))
 
     def test_ensemble_members_are_fully_independent(self) -> None:
         model = MatchedEnsembleBaseline(self.slot_config(), input_resolution=(8, 8))

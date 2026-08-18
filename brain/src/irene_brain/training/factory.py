@@ -14,6 +14,7 @@ from ..model.baselines import (
     NoCommunicationSlotBaseline,
     ParameterMatchedMonolithicBaseline,
     ReactiveSlotBaseline,
+    RecurrentTransformerBaseline,
     ResetStateSlotBaseline,
     SerialDepthSlotBaseline,
 )
@@ -35,6 +36,11 @@ PARAMETER_MATCHED_MONOLITH_HEADS = 6
 # widths: four untied members at width 352 land 0.72% under the reference's
 # trainable budget, the nearest allocation inside the 1% tolerance.
 MATCHED_ENSEMBLE_WIDTH = 352
+
+# Selected by exact allocated-parameter enumeration: the carry-token
+# Transformer control at width 568 lands 0.22% under the reference's
+# trainable budget, inside the 1% tolerance.
+RECURRENT_TRANSFORMER_WIDTH = 568
 
 
 def _require_config(config: TrainingConfig) -> None:
@@ -217,10 +223,23 @@ def build_thesis_matched_ensemble_model(
     return _identity_pixel_grid(model)
 
 
+def build_thesis_recurrent_transformer_model(
+    config: TrainingConfig,
+) -> RecurrentTransformerBaseline:
+    _require_config(config)
+    model = RecurrentTransformerBaseline(
+        _monolithic_config(width=RECURRENT_TRANSFORMER_WIDTH),
+        input_resolution=(64, 64),
+        plan_steps=3,
+    )
+    return _identity_pixel_grid(model)
+
+
 __all__ = [
     "MATCHED_ENSEMBLE_WIDTH",
     "PARAMETER_MATCHED_MONOLITH_WIDTH",
     "PARAMETER_MATCHED_MONOLITH_HEADS",
+    "RECURRENT_TRANSFORMER_WIDTH",
     "build_smoke_model",
     "build_thesis_model",
     "build_thesis_dense_routing_model",
@@ -229,6 +248,7 @@ __all__ = [
     "build_thesis_no_communication_model",
     "build_thesis_parameter_matched_monolithic_model",
     "build_thesis_reactive_model",
+    "build_thesis_recurrent_transformer_model",
     "build_thesis_reset_slots_model",
     "build_thesis_serial_depth_model",
 ]

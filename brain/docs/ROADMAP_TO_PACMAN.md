@@ -217,21 +217,22 @@ Near-term slices, each independently committable and test-covered:
 4. **Remaining matched baselines + the multi-seed comparison harness**
    (`evaluation/multiseed_comparison.py` exists; extend to the full baseline
    suite of PLAN.md §28). In progress: the statistical harness is complete and
-   the suite now covers nine variants — reference, isolated-slot, reset-slot
+   the suite now covers ten variants — reference, isolated-slot, reset-slot
    (persistence removed), dense-routing (unrestricted communication),
    reactive (no cross-step state), serial-depth (untied twelve-block serial
-   stack at matched block FLOPs), both monolithic GRU controls, and the
+   stack at matched block FLOPs), both monolithic GRU controls, the
    matched-cost independent ensemble (four untied members at width 352,
-   0.72% under the reference budget, inside the manifest's parameter
-   regime)
+   0.72% under the reference budget), and the recurrent carry-token
+   Transformer control (width 568, 0.22% under budget) — the last four
+   inside the manifest's verified parameter-matched regime
    ([runs/2026-08-17-baseline-suite-persistence-and-density-ablations.md](runs/2026-08-17-baseline-suite-persistence-and-density-ablations.md),
-   [runs/2026-08-17-matched-ensemble-baseline.md](runs/2026-08-17-matched-ensemble-baseline.md)).
+   [runs/2026-08-17-matched-ensemble-baseline.md](runs/2026-08-17-matched-ensemble-baseline.md),
+   [runs/2026-08-17-recurrent-transformer-baseline.md](runs/2026-08-17-recurrent-transformer-baseline.md)).
    Still missing from §28: fixed multi-horizon no-persistence heads,
    recurrent world-model actor, and task specialist. Scoping found all
-   three (plus the item-5 recurrent transformer) blocked on
-   shared-objective or campaign-shape changes, so they are preregistered
-   design proposals awaiting explicit owner sign-off rather than drop-in
-   variants
+   three blocked on shared-objective or campaign-shape changes, so they
+   are preregistered design proposals (B1–B3) awaiting explicit owner
+   sign-off rather than drop-in variants
    ([runs/2026-08-17-remaining-baseline-controls-preregistration.md](runs/2026-08-17-remaining-baseline-controls-preregistration.md)). The §28 diagnostic
    policies (no-op, random, scripted chaser, privileged oracle) are
    implemented for the closed-loop evaluator in

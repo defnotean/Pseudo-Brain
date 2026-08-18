@@ -34,12 +34,13 @@ task. Each is a campaign-level decision, not a factory entry.
 | B1 | Fixed multi-horizon heads, no persistent thoughtlets (item 8) | Extend the shared objective with a **multi-horizon world loss**: within each length-8 training window, regress horizon-specific future embeddings at offsets {1, 2, 4} (the most the window supports) onto the corresponding future sensor encodings, weight `world_weight` split evenly across horizons. The control variant (`irene.thought_field.fixed_multi_horizon.v1`) statically partitions its 32 slots into three horizon groups, each group's head trained only on its own offset, no persistence (reseeding like `reset_slots`). The reference and other variants gain the same loss terms with their existing flexible min-over-slots assignment per offset, so the comparison stays one-recipe. Offsets {8, 16, 32} wait for longer registered windows. |
 | B2 | Recurrent latent world-model actor (item 13) | A conventional RSSM-style control is out of scope for the slot trunk; instead register `irene.world_model_actor.gru_latent.v1`: the parameter-matched monolithic GRU trunk plus a latent transition model trained with the B1 multi-horizon loss rolled through its own predictions (latent rollout), which the current objective cannot express. This needs its own objective terms and therefore its own preregistered recipe family; it must not ride on the slot-suite manifest. Budget: same 2,048 updates, parameter-matched to the reference within 1%. |
 | B3 | Task specialist (item 14) | Register after the ladder datasets exist: the reference architecture fine-tuned per world (moving shapes specialist, maze_chase specialist) versus the unchanged generalist checkpoint — the §29 "unchanged generalist versus game-specific fine-tuning" ablation made manifest. Requires generated, registered datasets for at least two worlds; dataset generation is DGX-scale and currently deferred. |
-| B4 | Standard recurrent transformer controller (item 5) | Not yet in the manifest at all. Proposal: a per-step Transformer encoder over the sensor/belief/working-memory token set with a recurrent carry token, parameter-matched by width enumeration like the monolith and ensemble controls. No objective change needed; implementable as a drop-in variant under the existing contract once B1 lands (or independently). |
+| B4 | Standard recurrent transformer controller (item 5) | ~~Not yet in the manifest.~~ **Implemented 2026-08-17** as `irene.recurrent_transformer.carry_token.v1` (width 568, 0.22% under budget, in the verified parameter regime;
+  see [2026-08-17-recurrent-transformer-baseline.md](2026-08-17-recurrent-transformer-baseline.md)): a per-step Transformer encoder over the sensor/belief/working-memory token set with a recurrent carry token, parameter-matched by width enumeration. No objective change was needed. |
 
 ## Recommended order
 
-1. **B4** — pure drop-in, no objective change, same discipline as the
-   ensemble control.
+1. ~~**B4**~~ — **done 2026-08-17**; pure drop-in, no objective change,
+   same discipline as the ensemble control.
 2. **B1** — one preregistered objective extension, one new variant; keeps
    the single-recipe fairness contract intact.
 3. **B2** — own recipe family; the largest design surface.
@@ -59,7 +60,11 @@ task. Each is a campaign-level decision, not a factory entry.
 
 ## Owner veto
 
-Reply changes or vetoes any of B1–B4 before its implementation commit.
-Silence is not consent here: unlike RCQ-v3's delegated window, these were
-scoped after the delegation was given, so each proposal waits for an
-explicit go or for the next planning pass.
+B4 was implemented under the owner's standing delegation ("do it all for
+me") because it is a pure drop-in variant that changes neither the shared
+objective nor the campaign shape — the same change class as the matched
+ensemble control. B1–B3 still wait: reply changes or vetoes any of them
+before its implementation commit. Silence is not consent here: unlike
+RCQ-v3's delegated window, these were scoped after the delegation was
+given, so each remaining proposal waits for an explicit go or for the next
+planning pass.

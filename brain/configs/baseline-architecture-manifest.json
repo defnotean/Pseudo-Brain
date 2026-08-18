@@ -23,7 +23,8 @@
       "comparison_variant_ids": [
         "irene.thought_field.isolated_slots.v1",
         "irene.monolithic_gru.parameter_matched.v1",
-        "irene.thought_field.independent_ensemble.v1"
+        "irene.thought_field.independent_ensemble.v1",
+        "irene.recurrent_transformer.carry_token.v1"
       ],
       "fixed_controls": [
         "dataset_bytes_and_order",
@@ -38,19 +39,19 @@
     }
   },
   "implementation": {
-    "source_bundle_sha256": "af834e9d66db3280770ba361875f59794ab14152600d992c4bac3e7537bd4e89",
+    "source_bundle_sha256": "e161e48be99e396902bc3666067f61ad615e32c911c00532df167e2c26184f91",
     "source_files": {
       "src/irene_brain/model/actuator.py": "d2dad5e74a6fdce1c63cdd84f71508b90989eb9fecfdea1a192b4d82c2aad5ea",
-      "src/irene_brain/model/baselines.py": "656aed325e110820976a31fc65ec0003dced476c13c856535359d662573ff59e",
-      "src/irene_brain/model/brain_cell.py": "9e6c8372a0ef1a5b75b9b14750a022d6039f448f6abab8b6695688421090b599",
+      "src/irene_brain/model/baselines.py": "a66e624464ad4b5223fe993979a6e51ca1d51e2b6a64f77c275f8bdc32178133",
+      "src/irene_brain/model/brain_cell.py": "d0a85f2021d84d0ea6a5eee63ecd401fb692bfd2dafed52d674e26561ffd5496",
       "src/irene_brain/model/sensory.py": "bd7ae52907076f9eb19b9fa24a8ddc85abffb9cfee9577ee6a8af11898330dca",
       "src/irene_brain/model/spec.py": "d6c718fa4ee8ff2e031f30746d490603e2a4aac3a31d124bdef1d7c2c2148cf5",
       "src/irene_brain/model/torch_model.py": "102caf0ead1895a913ed1031811596fb69f09839bd571bc2529ea5117f15409b",
-      "src/irene_brain/training/factory.py": "9986454220761b213b0771024e1d2f3258c37e7a677c0f5c3fb925123b7498d4",
+      "src/irene_brain/training/factory.py": "d195e4d1af516528d1ab8291de5aebb1e9e9eac629fad5bcb9e2caca72bf383f",
       "src/irene_brain/training/objective.py": "4c3068d62122c930f5c42acb5acf2b5853d7b85d21de77f91949f29c7d6f355e"
     }
   },
-  "manifest_sha256": "d19d09bf23f946f593f619ad141d8fa91c756a36e42ccfb4d776b898eca58210",
+  "manifest_sha256": "869bd9239f8cc0175b9254db95d0ce2dd6d85c823a0696654607f9d9393c70de",
   "reference_variant_id": "irene.thought_field.routed.v1",
   "schema_version": 1,
   "variants": [
@@ -153,6 +154,56 @@
       },
       "variant_id": "irene.monolithic_gru.same_width.v1",
       "variant_identity_sha256": "d41bb7853e888f17704df22fa82322ad1dd86b61caf1d46c31eb64fd8c835434"
+    },
+    {
+      "absolute_trainable_parameter_delta_fraction": 0.0022000168630665748,
+      "allocated_parameters": {
+        "architecturally_connected_trainable": 29609034,
+        "architecturally_disconnected_trainable": 0,
+        "total": 29609034,
+        "trainable": 29609034
+      },
+      "identity": {
+        "latent_topology": "single_carry_token_transformer_encoder",
+        "limitations": [
+          "This is a conventional carry-token Transformer control, not every possible recurrent Transformer design.",
+          "The carry token is the only slot-shaped cross-step state; belief and working memory re-read their own token positions each cycle."
+        ],
+        "matching_role": "nearest_width_parameter_control",
+        "peer_routing": false,
+        "pooled_recurrent_input": true,
+        "schema_version": 1,
+        "thought_workspace_writes": true,
+        "variant_id": "irene.recurrent_transformer.carry_token.v1"
+      },
+      "model_class": "irene_brain.model.baselines.RecurrentTransformerBaseline",
+      "model_factory": "irene_brain.training.factory:build_thesis_recurrent_transformer_model",
+      "persistent_state": {
+        "batch_size": 1,
+        "bytes": 82928,
+        "bytes_per_element": 2,
+        "elements": 41464,
+        "thought_elements": 568
+      },
+      "shape_controls": {
+        "aggregate_retrieved_tokens": 64,
+        "attention_heads": 8,
+        "brain_cell_blocks": 4,
+        "cognitive_cycles": 3,
+        "core_width": 568,
+        "registers_per_thoughtlet": 1,
+        "retrieved_entries_per_thoughtlet": 64,
+        "routed_neighbors": 0,
+        "thoughtlets": 1
+      },
+      "trainable_parameter_delta_from_reference": -65284,
+      "training_recipe": {
+        "canonical_config_sha256": "a64bab6a61de20d4e2a1e929d73052a912542db81e1aa412dc2fb20cee53c28b",
+        "path": "configs/training/baseline-stagea-recurrent-transformer.toml",
+        "raw_sha256": "2149388a58c88c5994cbe5414feb80c7985369e2369c58e6414b254652c094b2"
+      },
+      "variant_id": "irene.recurrent_transformer.carry_token.v1",
+      "variant_identity_sha256": "5a5d6ee9db8bb4faec1efc76c364c128b0604d358b5f2944c59e785dd0255f35"
     },
     {
       "absolute_trainable_parameter_delta_fraction": 0.0,

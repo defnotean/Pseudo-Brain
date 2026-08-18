@@ -18,6 +18,7 @@ from .brain_cell import (
     BrainCell,
     EnsembleBrainCell,
     MonolithicRecurrentCell,
+    TransformerCarryCell,
 )
 from .torch_model import BrainState, IreneBrainModel, ModelOutput
 
@@ -190,6 +191,21 @@ MATCHED_ENSEMBLE_IDENTITY = ArchitectureVariantIdentity(
 )
 
 
+RECURRENT_TRANSFORMER_IDENTITY = ArchitectureVariantIdentity(
+    schema_version=1,
+    variant_id="irene.recurrent_transformer.carry_token.v1",
+    latent_topology="single_carry_token_transformer_encoder",
+    peer_routing=False,
+    thought_workspace_writes=True,
+    pooled_recurrent_input=True,
+    matching_role="nearest_width_parameter_control",
+    limitations=(
+        "This is a conventional carry-token Transformer control, not every possible recurrent Transformer design.",
+        "The carry token is the only slot-shaped cross-step state; belief and working memory re-read their own token positions each cycle.",
+    ),
+)
+
+
 class NoCommunicationSlotBaseline(IreneBrainModel):
     """Full slot model with both current-cycle communication paths severed."""
 
@@ -339,6 +355,28 @@ class ParameterMatchedMonolithicBaseline(MonolithicRecurrentBaseline):
 
     architecture_identity = PARAMETER_MATCHED_MONOLITHIC_IDENTITY
     architecture_variant_id = PARAMETER_MATCHED_MONOLITHIC_IDENTITY.variant_id
+
+
+class RecurrentTransformerBaseline(IreneBrainModel):
+    """A standard carry-token Transformer encoder as the item-5 control.
+
+    One Transformer encoder token set per cycle — belief, working memory, a
+    single recurrent carry token, sensors, action/time, goal context, and a
+    pooled retrieved-memory token — with belief, memory, and the carry
+    re-read from their own output positions. Width is selected before
+    training by nearest allocated trainable parameter count, like the other
+    matched controls.
+    """
+
+    architecture_identity = RECURRENT_TRANSFORMER_IDENTITY
+    architecture_variant_id = RECURRENT_TRANSFORMER_IDENTITY.variant_id
+
+    def _build_brain_cell(self, *, width: int) -> nn.Module:
+        return TransformerCarryCell(
+            width=width,
+            heads=self.config.attention_heads,
+            blocks=self.config.brain_cell_blocks,
+        )
 
 
 def allocated_parameter_counts(model: nn.Module) -> dict[str, int]:
@@ -491,6 +529,7 @@ def build_architecture_manifest(
         NO_COMMUNICATION_IDENTITY.variant_id,
         PARAMETER_MATCHED_MONOLITHIC_IDENTITY.variant_id,
         MATCHED_ENSEMBLE_IDENTITY.variant_id,
+        RECURRENT_TRANSFORMER_IDENTITY.variant_id,
     )
     missing = [variant_id for variant_id in parameter_controls if variant_id not in by_id]
     if missing:
@@ -568,8 +607,10 @@ __all__ = [
     "ParameterMatchedMonolithicBaseline",
     "REACTIVE_IDENTITY",
     "REFERENCE_IDENTITY",
+    "RECURRENT_TRANSFORMER_IDENTITY",
     "RESET_STATE_IDENTITY",
     "ReactiveSlotBaseline",
+    "RecurrentTransformerBaseline",
     "ResetStateSlotBaseline",
     "SERIAL_DEPTH_IDENTITY",
     "SerialDepthSlotBaseline",

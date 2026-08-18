@@ -447,6 +447,105 @@ class EnsembleBrainCell(nn.Module):
         )
 
 
+class TransformerCarryCell(nn.Module):
+    """A standard Transformer encoder with one recurrent carry token.
+
+    Used only by the recurrent-transformer control (PLAN section 28 item
+    5). One token set — belief, working memory, the carry, sensors,
+    action/time, goal context, and a pooled retrieved-memory token — passes
+    through untied-per-layer encoder blocks; belief, working memory, and
+    the carry are re-read from their own output positions through
+    continuous-time blends. The carry is the only slot-shaped state, so the
+    config must hold exactly one thoughtlet with one register. One empty
+    routing diagnostic per layer preserves the ``BrainCell`` result arity.
+    """
+
+    def __init__(self, *, width: int, heads: int, blocks: int) -> None:
+        super().__init__()
+        if isinstance(blocks, bool) or not isinstance(blocks, int) or blocks < 1:
+            raise ValueError("blocks must be a positive integer")
+        self.width = width
+        self.layers = nn.ModuleList(
+            nn.TransformerEncoderLayer(
+                d_model=width,
+                nhead=heads,
+                dim_feedforward=width * 4,
+                dropout=0.0,
+                batch_first=True,
+                norm_first=True,
+            )
+            for _ in range(blocks)
+        )
+        self.belief_blend = ContinuousTimeBlend(width)
+        self.memory_blend = ContinuousTimeBlend(width)
+        self.carry_blend = ContinuousTimeBlend(width)
+
+    def forward(
+        self,
+        *,
+        belief: Tensor,
+        working_memory: Tensor,
+        thoughts: Tensor,
+        sensors: Tensor,
+        action_time_tokens: Tensor,
+        goal_context: Tensor,
+        retrieved_memory: Tensor,
+        elapsed_seconds: Tensor,
+        allow_routing: bool,
+        allow_workspace_writes: bool = True,
+    ) -> tuple[Tensor, Tensor, Tensor, tuple[RoutingDiagnostics, ...]]:
+        del allow_routing, allow_workspace_writes
+        batch, thoughtlets, registers, width = thoughts.shape
+        if thoughtlets != 1 or registers != 1 or width != self.width:
+            raise ValueError(
+                "transformer carry state must have shape [batch, 1, 1, width]"
+            )
+        retrieved_token = retrieved_memory.mean(dim=(1, 2)).unsqueeze(1)
+        tokens = torch.cat(
+            (
+                belief,
+                working_memory,
+                thoughts.reshape(batch, 1, width),
+                sensors,
+                action_time_tokens,
+                goal_context,
+                retrieved_token,
+            ),
+            dim=1,
+        )
+        for layer in self.layers:
+            tokens = layer(tokens)
+        belief_count = belief.shape[1]
+        memory_count = working_memory.shape[1]
+        belief = self.belief_blend(
+            belief, tokens[:, :belief_count], elapsed_seconds
+        )
+        working_memory = self.memory_blend(
+            working_memory,
+            tokens[:, belief_count : belief_count + memory_count],
+            elapsed_seconds,
+        )
+        carry_token = tokens[:, belief_count + memory_count]
+        thoughts = self.carry_blend(
+            thoughts.reshape(batch, 1, width),
+            carry_token.unsqueeze(1),
+            elapsed_seconds,
+        ).reshape(batch, 1, 1, width)
+        empty_indices = torch.empty(
+            batch, 1, 0, device=thoughts.device, dtype=torch.long
+        )
+        empty_weights = thoughts.new_empty((batch, 1, 0))
+        return (
+            belief,
+            working_memory,
+            thoughts,
+            tuple(
+                RoutingDiagnostics(empty_indices, empty_weights)
+                for _ in range(len(self.layers))
+            ),
+        )
+
+
 class MonolithicRecurrentBlock(nn.Module):
     """Conventional pooled recurrent latent used only as a control model.
 
