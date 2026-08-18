@@ -29,6 +29,7 @@ def _packed_logits(*channels: int) -> list[float]:
     return logits
 
 if torch is not None:
+    from irene_brain.environments.maze_chase import MazeChaseEnv
     from irene_brain.evaluation.closed_loop_play import evaluate_closed_loop_play
     from irene_brain.model.spec import ThoughtFieldConfig
     from irene_brain.model.torch_model import IreneBrainModel
@@ -151,6 +152,27 @@ class ClosedLoopPlayEndToEndTests(unittest.TestCase):
         self.assertEqual(report.to_dict()["totals"]["decisions_rejected"], 0)
         for episode in report.episodes:
             self.assertEqual(episode.rejections_by_reason, ())
+
+    def test_untrained_model_plays_maze_chase_without_rejections(self) -> None:
+        # The model-side closed-loop path is world-generic: the same smoke
+        # model must drive the maze_chase slot through its environment
+        # factory with every decision accepted.
+        report = evaluate_closed_loop_play(
+            self.model,
+            config=self._play_config(),
+            model_description="untrained smoke model on maze_chase",
+            environment_factory=lambda: MazeChaseEnv(
+                ghost_count=3,
+                ghost_period=2,
+                extra_loops=16,
+                max_ticks=24,
+            ),
+        )
+        self.assertEqual(len(report.episodes), 2)
+        for episode in report.episodes:
+            self.assertEqual(episode.ticks_advanced, 24)
+            self.assertEqual(episode.decisions_submitted, 24)
+            self.assertEqual(episode.decisions_rejected, 0)
 
     def test_high_latency_causes_stale_frame_rejections(self) -> None:
         config = self._play_config(

@@ -210,6 +210,11 @@ robustness study (seeds 100–115) hardens the frontier claim: the planner
 clears 15/16 mazes with 52 total catches (+1,875 reward; every episode
 positive) against the teacher's -39,397 and 4,066 catches. Record:
 [docs/runs/2026-08-17-maze-chase-planner-robustness.md](./docs/runs/2026-08-17-maze-chase-planner-robustness.md).
+The model-side closed-loop path is now pinned as world-generic: the
+untrained smoke model plays the canonical maze_chase slot through
+`evaluate_closed_loop_play` with every decision accepted, retiring the
+Phase 4 integration risk before a trained checkpoint exists. Record:
+[docs/runs/2026-08-17-model-maze-chase-integration-pin.md](./docs/runs/2026-08-17-model-maze-chase-integration-pin.md).
 The matched baseline suite gains the PLAN §28 item-12 control:
 `irene.thought_field.independent_ensemble.v1` — four untied members of
 eight slots each at width 352 (29,459,914 trainable, 0.72% under the
