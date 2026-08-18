@@ -173,6 +173,13 @@ reference budget), registered in the architecture manifest (digest
 `d19d09bf…`) and inside the verified parameter-matched fairness regime.
 Record:
 [docs/runs/2026-08-17-matched-ensemble-baseline.md](./docs/runs/2026-08-17-matched-ensemble-baseline.md).
+Latency evidence now extends from benchmarks to play:
+`evaluation/play_latency.py` converts the closed-loop evaluator's
+manual-clock decision milestones into the fail-closed `LatencyEvidence`
+contract (analytic pre-pinnable schedule, warmup-aware attempt IDs,
+stale-frame rejections as `submission_failed`; 10 tests; play-safe gate
+green). Record:
+[docs/runs/2026-08-17-play-latency-evidence.md](./docs/runs/2026-08-17-play-latency-evidence.md).
 
 Local play-safe verification after the live v2 registration: every isolated
 test module passed (299 tests, one expected POSIX skip in the trusted-final

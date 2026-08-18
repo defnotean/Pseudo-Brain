@@ -336,6 +336,24 @@ _DecisionFn = Callable[
 ]
 
 
+@dataclass(frozen=True, slots=True)
+class DecisionTiming:
+    """Simulated timing milestones for one closed-loop decision.
+
+    The manual clock makes these exact: the decision is scheduled and its
+    observation captured at ``scheduled_ns`` (simulated capture is free), and
+    inference finishes at ``inference_finished_ns`` after the configured
+    latency advance. ``submitted`` records whether the action envelope was
+    accepted; rejections carry the driver's reason string.
+    """
+
+    action_sequence: int
+    scheduled_ns: int
+    inference_finished_ns: int
+    submitted: bool
+    failure_reason: str | None
+
+
 def _run_episode_core(
     *,
     seed: int,
@@ -343,6 +361,7 @@ def _run_episode_core(
     decide: _DecisionFn,
     on_environment: Callable[[object], None] | None = None,
     environment_factory: Callable[[], object] | None = None,
+    attempt_sink: Callable[[DecisionTiming], None] | None = None,
 ) -> ClosedLoopEpisodeReport:
     """Run one deterministic closed-loop episode for any decision source.
 
@@ -350,7 +369,9 @@ def _run_episode_core(
     config knobs; pass any branchable in-repo world (for example
     ``PursuitEnv``) to evaluate decision sources on the environment ladder.
     Contact events are counted as ``collisions`` whether the world calls them
-    "collision" (moving shapes) or "caught" (pursuit).
+    "collision" (moving shapes) or "caught" (pursuit). ``attempt_sink``, when
+    given, receives one :class:`DecisionTiming` per decision for latency
+    evidence recording; it does not alter the episode or its report.
     """
 
     if environment_factory is None:
@@ -437,10 +458,30 @@ def _run_episode_core(
         except PostAdvanceValueError as error:
             reason = str(error).split(":", 1)[0]
             rejections[reason] = rejections.get(reason, 0) + 1
+            if attempt_sink is not None:
+                attempt_sink(
+                    DecisionTiming(
+                        action_sequence=action_sequence,
+                        scheduled_ns=created_tick,
+                        inference_finished_ns=ready_tick,
+                        submitted=False,
+                        failure_reason=reason,
+                    )
+                )
         except PostAdvanceRuntimeError:
             break
         else:
             decisions_submitted += 1
+            if attempt_sink is not None:
+                attempt_sink(
+                    DecisionTiming(
+                        action_sequence=action_sequence,
+                        scheduled_ns=created_tick,
+                        inference_finished_ns=ready_tick,
+                        submitted=True,
+                        failure_reason=None,
+                    )
+                )
 
         next_decision_tick = created_tick + config.decision_interval_ns
         if clock.now_ticks() < next_decision_tick:
@@ -626,6 +667,7 @@ __all__ = [
     "ClosedLoopEpisodeReport",
     "ClosedLoopPlayConfig",
     "ClosedLoopPlayReport",
+    "DecisionTiming",
     "control_audit_stats",
     "decode_closed_loop_control",
     "evaluate_closed_loop_play",

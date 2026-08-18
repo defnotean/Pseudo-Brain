@@ -240,9 +240,13 @@ Near-term slices, each independently committable and test-covered:
    inference latency, and emits canonical SHA-256 evidence records (task
    outcomes, deadline misses, stale-frame rejections, RCQ-v2 action-path
    failure modes) ([runs/2026-08-17-closed-loop-play-evaluator.md](runs/2026-08-17-closed-loop-play-evaluator.md)).
-   Still missing: live-play latency evidence records (extend
-   `evaluation/latency_evidence.py` from benchmarks to play) and Phase 0B
-   harness integration.
+   Simulated play-latency evidence records are implemented:
+   `evaluation/play_latency.py` converts per-decision manual-clock
+   milestones into the fail-closed `LatencyEvidence` contract with an
+   analytic, pre-pinnable decision schedule
+   ([runs/2026-08-17-play-latency-evidence.md](runs/2026-08-17-play-latency-evidence.md)).
+   Still missing: physical live-play records (blocked on the Phase 0B
+   harness) and Phase 0B harness integration.
 7. **Next in-repo worlds** (pursuit/junction/occlusion) + branch-DAG data
    generation at scale on the Spark.
 8. **External world adapters** (XLand-MiniGrid first; smallest integration
