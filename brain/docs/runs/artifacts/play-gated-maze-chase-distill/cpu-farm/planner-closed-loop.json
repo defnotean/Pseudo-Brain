@@ -1,0 +1,72 @@
+{
+  "campaign_id": "play_gated_maze_chase_distill_v1",
+  "episodes": [
+    {
+      "cleared": true,
+      "collisions": 0,
+      "movement_mask_histogram": [
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          51
+        ],
+        [
+          2,
+          43
+        ],
+        [
+          4,
+          67
+        ],
+        [
+          8,
+          47
+        ]
+      ],
+      "pellets_eaten": 142,
+      "reward_sum": 152.0,
+      "seed": 5,
+      "ticks_advanced": 208
+    },
+    {
+      "cleared": true,
+      "collisions": 1,
+      "movement_mask_histogram": [
+        [
+          0,
+          2
+        ],
+        [
+          1,
+          40
+        ],
+        [
+          2,
+          64
+        ],
+        [
+          4,
+          67
+        ],
+        [
+          8,
+          65
+        ]
+      ],
+      "pellets_eaten": 142,
+      "reward_sum": 142.0,
+      "seed": 9,
+      "ticks_advanced": 237
+    }
+  ],
+  "job": "planner",
+  "play_seeds": [
+    5,
+    9
+  ],
+  "play_ticks": 240,
+  "policy": "diagnostic.scripted_maze_chase_planner.v1"
+}

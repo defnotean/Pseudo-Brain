@@ -15,14 +15,19 @@ teacher and 32-step budget (`dgx-play-maze-chase-distill-exclusive-argmax-v1`,
 histogram **S×478 + A×2**, **20 pellets**, 391 collisions, reward **−3890**,
 `sticky_or_idle: false`. Val WASD predicted-positive stayed **0.0**
 (metrics SHA identical to episode-windows). Campaign still failed (pellets
-< 32). Do not scale that recipe. Next named probe is exclusive-direction
-softmax loss `exclusive_wasd_softmax_v1` matching the kept argmax decode
-(`dgx-play-maze-chase-distill-exclusive-ce-v1`). Campaign success is
-**pellets ≥ 32** with a non-idle non-D-only histogram. Official 32-step
-`play-gate.json` SHA-256
+< 32). Exclusive-direction softmax `exclusive_wasd_softmax_v1` on the same
+teacher and decode (`dgx-play-maze-chase-distill-exclusive-ce-v1`,
+`play-gate.json` SHA-256 `17388344…`, release `r20260818t175216z-c804bcd101c1`)
+**failed sticky S**: histogram **S×480**, 20 pellets, 391 collisions,
+reward −3890. Val exclusive-argmax match **0.167** (= teacher S); teacher
+logit gap **−0.445**. Do not scale. Next GPU probe is action-only exclusive
+CE (`dgx-play-maze-chase-distill-exclusive-ce-action-only-v1`). Named CPU
+farm jobs run in parallel on the Spark host. Campaign success is **pellets ≥ 32**
+with a non-idle non-D-only histogram. Official 32-step `play-gate.json`
+SHA-256
 `df9d88f4…`; 128-step `6401a922…`; window-32 `2cdedaf9…`; episode-windows
-`84331559…`. Logger train loss is not the gate. Workstation is
-orchestration; all compute is Spark. Record:
+`84331559…`; exclusive-argmax `865927de…`. Logger train loss is not the
+gate. Workstation is orchestration; all compute is Spark. Record:
 [docs/runs/2026-08-18-play-gated-maze-chase-distill.md](./docs/runs/2026-08-18-play-gated-maze-chase-distill.md).
 
 Historical: live qualification `rcq_v2_reference_v2` is **terminally failed**. The

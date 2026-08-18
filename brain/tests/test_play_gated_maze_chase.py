@@ -283,6 +283,43 @@ class PlayGatedMazeChaseConfigTests(unittest.TestCase):
             source.manifest_sha256,
             dataset_batch_source(exclusive_decode.dataset).manifest_sha256,
         )
+        action_only = load_training_config(
+            ROOT
+            / "configs"
+            / "training"
+            / "dgx-play-maze-chase-distill-exclusive-ce-action-only.toml"
+        )
+        self.assertEqual(action_only.schema_version, 2)
+        self.assertEqual(action_only.dataset.kind, "maze_chase")
+        self.assertEqual(action_only.run.max_optimizer_steps, 32)
+        self.assertEqual(action_only.dataset.episode_horizon, 240)
+        self.assertEqual(
+            action_only.objective.action_loss_kind,
+            "exclusive_wasd_softmax_v1",
+        )
+        self.assertEqual(
+            action_only.objective.play_decode_kind,
+            "exclusive_argmax_wasd_v1",
+        )
+        self.assertEqual(action_only.objective.action_weight, 1.0)
+        self.assertEqual(action_only.objective.value_weight, 0.0)
+        self.assertEqual(action_only.objective.world_weight, 0.0)
+        self.assertEqual(action_only.objective.diversity_weight, 0.0)
+        self.assertEqual(action_only.objective.continuous_action_weight, 0.0)
+        self.assertEqual(action_only.run.seed, exclusive_ce.run.seed)
+        self.assertEqual(
+            action_only.run.model_factory,
+            exclusive_ce.run.model_factory,
+        )
+        self.assertNotEqual(action_only.config_sha256, exclusive_ce.config_sha256)
+        self.assertEqual(
+            action_only.config_sha256,
+            "6af0d222e61175421a819360796422e4f0f9ed0f5ec7405c4c4f9666e21fed3a",
+        )
+        self.assertEqual(
+            dataset_batch_source(action_only.dataset).manifest_sha256,
+            source.manifest_sha256,
+        )
 
         smoke = load_training_config(
             ROOT / "configs" / "training" / "dgx-smoke.toml"

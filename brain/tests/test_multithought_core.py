@@ -67,6 +67,7 @@ class ObjectiveConfigurationTests(unittest.TestCase):
                 "dgx-rcq-v3-staging-canary",
                 "dgx-play-maze-chase-distill-exclusive-argmax",
                 "dgx-play-maze-chase-distill-exclusive-ce",
+                "dgx-play-maze-chase-distill-exclusive-ce-action-only",
             }:
                 continue
             self.assertEqual(

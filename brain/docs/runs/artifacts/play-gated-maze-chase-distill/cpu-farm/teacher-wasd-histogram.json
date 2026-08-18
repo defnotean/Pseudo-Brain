@@ -1,0 +1,88 @@
+{
+  "campaign_id": "play_gated_maze_chase_distill_v1",
+  "episode_windows": {
+    "train": {
+      "exclusive_wasd": 128,
+      "idle": 0,
+      "labels": {
+        "a": 33,
+        "d": 22,
+        "s": 45,
+        "w": 28
+      },
+      "multi_wasd": 0,
+      "rates": {
+        "a": 0.2578125,
+        "d": 0.171875,
+        "idle": 0.0,
+        "s": 0.3515625,
+        "w": 0.21875
+      },
+      "source_manifest_sha256": "ad167a9518bbdc948b98e442f24d14fea6c6297a4b1c08f470bd0804ca5a742d",
+      "ticks": 128
+    },
+    "validation": {
+      "exclusive_wasd": 32,
+      "idle": 0,
+      "labels": {
+        "a": 8,
+        "d": 6,
+        "s": 7,
+        "w": 11
+      },
+      "multi_wasd": 0,
+      "rates": {
+        "a": 0.25,
+        "d": 0.1875,
+        "idle": 0.0,
+        "s": 0.21875,
+        "w": 0.34375
+      },
+      "source_manifest_sha256": "ad167a9518bbdc948b98e442f24d14fea6c6297a4b1c08f470bd0804ca5a742d",
+      "ticks": 32
+    }
+  },
+  "job": "teacher-hist",
+  "spawn": {
+    "train": {
+      "exclusive_wasd": 128,
+      "idle": 0,
+      "labels": {
+        "a": 6,
+        "d": 67,
+        "s": 48,
+        "w": 7
+      },
+      "multi_wasd": 0,
+      "rates": {
+        "a": 0.046875,
+        "d": 0.5234375,
+        "idle": 0.0,
+        "s": 0.375,
+        "w": 0.0546875
+      },
+      "source_manifest_sha256": "19002fce886568d1c2d90d3e1f3a3502e11b7e7daa1a0c1bced17d58b955b88c",
+      "ticks": 128
+    },
+    "validation": {
+      "exclusive_wasd": 32,
+      "idle": 0,
+      "labels": {
+        "a": 4,
+        "d": 14,
+        "s": 9,
+        "w": 5
+      },
+      "multi_wasd": 0,
+      "rates": {
+        "a": 0.125,
+        "d": 0.4375,
+        "idle": 0.0,
+        "s": 0.28125,
+        "w": 0.15625
+      },
+      "source_manifest_sha256": "19002fce886568d1c2d90d3e1f3a3502e11b7e7daa1a0c1bced17d58b955b88c",
+      "ticks": 32
+    }
+  }
+}

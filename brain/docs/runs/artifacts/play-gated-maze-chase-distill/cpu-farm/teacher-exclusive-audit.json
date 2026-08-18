@@ -1,0 +1,27 @@
+{
+  "campaign_id": "play_gated_maze_chase_distill_v1",
+  "exclusive_or_idle": true,
+  "hypothesis": "planner labels are one of WASD or idle, never two keys",
+  "job": "teacher-exclusive",
+  "train": {
+    "exclusive_wasd": 251,
+    "idle": 5,
+    "labels": {
+      "a": 49,
+      "d": 66,
+      "idle": 5,
+      "s": 58,
+      "w": 78
+    },
+    "multi_wasd": 0,
+    "rates": {
+      "a": 0.19140625,
+      "d": 0.2578125,
+      "idle": 0.01953125,
+      "s": 0.2265625,
+      "w": 0.3046875
+    },
+    "source_manifest_sha256": "9d72c3c7f3d7676f7d5cb5840ff45d9e5aab938456c3391585b2bffebddb8cbe",
+    "ticks": 256
+  }
+}

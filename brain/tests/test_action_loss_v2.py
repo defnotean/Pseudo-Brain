@@ -75,7 +75,8 @@ class CalibratedActionConfigurationTests(unittest.TestCase):
                 0.1,
                 name,
             )
-            self.assertEqual(objective.continuous_action_weight, 0.25, name)
+            if name != "dgx-play-maze-chase-distill-exclusive-ce-action-only":
+                self.assertEqual(objective.continuous_action_weight, 0.25, name)
             self.assertEqual(
                 config.to_dict()["objective"]["button_support_control_indices"],
                 [4, 7, 22, 26],
