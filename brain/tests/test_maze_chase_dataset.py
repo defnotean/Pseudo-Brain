@@ -265,6 +265,25 @@ class MazeChaseSequenceDatasetTests(unittest.TestCase):
                 window_sampling="tiled",
             )
 
+    def test_tiled_windows_cover_multiple_episodes_without_overlap(self) -> None:
+        tiled = MazeChaseSequenceDataset(
+            _config(
+                sequence_count=6,
+                sequence_length=8,
+                episode_horizon=24,
+                window_sampling="tiled",
+            )
+        )
+        starts = [
+            sequence.transitions[0].observation.frame_id for sequence in tiled
+        ]
+        seeds = [sequence.episode_seed for sequence in tiled]
+        self.assertEqual(starts, [0, 8, 16, 0, 8, 16])
+        self.assertEqual(len(set(seeds)), 2)
+        self.assertEqual(seeds[:3], [seeds[0]] * 3)
+        self.assertEqual(seeds[3:], [seeds[3]] * 3)
+        self.assertNotEqual(seeds[0], seeds[3])
+
 
 if __name__ == "__main__":
     unittest.main()

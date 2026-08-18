@@ -3,17 +3,15 @@
 set -euo pipefail
 
 workspace="${1:-$HOME/projects/pseudo-brain}"
-release_id="${2:-r20260818t184756z-49bac601d0ca}"
+release_id="${2:-r20260818t190103z-ddf0904b5d81}"
 image="${3:-177a406d7cb2}"
 release="$workspace/releases/$release_id"
 farm="$workspace/runs/play-gated-cpu-farm-scripts"
-ckpt_run="$workspace/runs/dgx-play-maze-chase-distill-tiled-windows-v1"
 uidgid="$(id -u):$(id -g)"
 mkdir -p "$workspace/logs" "$farm"
 
 [[ -d "$release" ]] || { echo "missing release $release" >&2; exit 1; }
 [[ -f "$farm/play_gated_cpu_farm.py" ]] || { echo "missing farm script" >&2; exit 1; }
-[[ -f "$ckpt_run/checkpoints/step-00000032.pt" ]] || { echo "missing tiled-windows checkpoint" >&2; exit 1; }
 
 launch_cpu() {
   local name="$1"
@@ -48,7 +46,6 @@ launch_cpu() {
       -e IRENE_BRAIN_SRC=/workspace/repo/brain/src \
       -v '$release:/workspace/repo:ro' \
       -v '$farm:/workspace/farm:ro' \
-      -v '$ckpt_run:/workspace/ckpt-run:ro' \
       -v '$run_dir:/workspace/run' \
       --entrypoint /bin/bash \
       '$image' --noprofile --norc -c \
@@ -59,9 +56,10 @@ launch_cpu() {
   echo "started $name cpus=$cpus mem=${mem}g job=$job"
 }
 
-launch_cpu play-gated-cpu-planner-seeds-v2 8 16 planner-seeds '--seeds 116-131'
-launch_cpu play-gated-cpu-tiled-coverage-v1 4 8 tiled-coverage ''
-launch_cpu play-gated-cpu-thoughtlets-tiled-v1 4 12 thoughtlets '--config /workspace/repo/brain/configs/training/dgx-play-maze-chase-distill-tiled-windows.toml --checkpoint /workspace/ckpt-run/checkpoints/step-00000032.pt --ticks 32 --seeds 5,9'
+launch_cpu play-gated-cpu-planner-seeds-v3 8 16 planner-seeds '--seeds 132-147'
+launch_cpu play-gated-cpu-tiled-hist-v1 4 8 tiled-hist ''
+launch_cpu play-gated-cpu-multi-episode-coverage-v1 4 12 multi-episode-coverage ''
+launch_cpu play-gated-cpu-offpolicy-teacher-v1 4 8 offpolicy-teacher ''
 
 echo '===TMUX==='
 tmux ls

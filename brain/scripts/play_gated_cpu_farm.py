@@ -22,6 +22,9 @@ JOBS = (
     "teacher-exclusive",
     "coverage",
     "tiled-coverage",
+    "tiled-hist",
+    "multi-episode-coverage",
+    "offpolicy-teacher",
     "play-gate",
     "thoughtlets",
 )
@@ -62,7 +65,12 @@ def _wasd_counts(control: object) -> tuple[str, int]:
     return (",".join(active) if active else "idle", len(active))
 
 
-def _maze_batch_config(*, episode_horizon: int, sequences: int):
+def _maze_batch_config(
+    *,
+    episode_horizon: int,
+    sequences: int,
+    window_sampling: str = "uniform",
+):
     from irene_brain.training.batches import MazeChaseBatchConfig
 
     return MazeChaseBatchConfig(
@@ -78,6 +86,7 @@ def _maze_batch_config(*, episode_horizon: int, sequences: int):
         tick_period_ns=16_666_667,
         discount=0.99,
         episode_horizon=episode_horizon,
+        window_sampling=window_sampling,
     )
 
 
@@ -318,6 +327,138 @@ def job_coverage(out_dir: Path) -> None:
     )
 
 
+def job_tiled_hist(out_dir: Path) -> None:
+    from irene_brain.training.batches import MazeChaseBatchSource
+
+    tiled = MazeChaseBatchSource(
+        _maze_batch_config(
+            episode_horizon=240,
+            sequences=30,
+            window_sampling="tiled",
+        )
+    )
+    _write(
+        out_dir / "tiled-teacher-wasd-histogram.json",
+        {
+            "job": "tiled-hist",
+            "campaign_id": "play_gated_maze_chase_distill_v1",
+            "hypothesis": (
+                "one 240-tick tiled planner episode is mixed WASD, not one-key"
+            ),
+            "tiled_windows": {
+                split: _histogram_from_source(tiled, split=split)
+                for split in ("train", "validation")
+            },
+        },
+    )
+
+
+def job_multi_episode_coverage(out_dir: Path) -> None:
+    from irene_brain.data.maze_chase_dataset import (
+        DatasetSplit,
+        MazeChaseDatasetConfig,
+        MazeChaseSequenceDataset,
+    )
+
+    tiled = MazeChaseSequenceDataset(
+        MazeChaseDatasetConfig(
+            split=DatasetSplit.TRAIN,
+            sequence_count=90,
+            sequence_length=8,
+            episode_horizon=240,
+            window_sampling="tiled",
+        )
+    )
+    _write(
+        out_dir / "multi-episode-tiled-coverage.json",
+        _coverage_payload(
+            tiled,
+            job="multi-episode-coverage",
+            hypothesis=(
+                "90 tiled 8-tick windows cover three 240-tick planner "
+                "episodes 1:1"
+            ),
+            sequence_length=8,
+            episode_horizon=240,
+        ),
+    )
+
+
+def job_offpolicy_teacher(out_dir: Path) -> None:
+    from irene_brain.evaluation.diagnostic_policies import (
+        ScriptedMazeChasePlannerPolicy,
+    )
+    from irene_brain.training.play_gate import maze_chase_environment_factory
+    from irene_brain.types import GenericControl
+
+    ticks = 32
+    seeds = (5, 9)
+    behaviors = {
+        "idle": GenericControl(),
+        "w": GenericControl(keys_down=(26,)),
+        "a": GenericControl(keys_down=(4,)),
+        "s": GenericControl(keys_down=(22,)),
+        "d": GenericControl(keys_down=(7,)),
+    }
+    rows = []
+    for behavior, control in behaviors.items():
+        for seed in seeds:
+            environment = maze_chase_environment_factory()
+            observation = environment.reset(seed)
+            planner = ScriptedMazeChasePlannerPolicy()
+            planner.reset(seed)
+            counts: Counter[str] = Counter()
+            agree = 0
+            for _tick in range(ticks):
+                teacher = planner.act(observation)
+                label, n_active = _wasd_counts(teacher)
+                counts[label] += 1
+                rolled, _rolled_n = _wasd_counts(control)
+                if label == rolled:
+                    agree += 1
+                if n_active > 1:
+                    raise RuntimeError("planner issued a multi-key teacher label")
+                observation = environment.step(control).observation
+            total = sum(counts.values())
+            rows.append(
+                {
+                    "behavior": behavior,
+                    "seed": seed,
+                    "ticks": ticks,
+                    "teacher_labels": dict(sorted(counts.items())),
+                    "teacher_unique_wasd": len(
+                        {name for name, _hid in WASD if counts.get(name, 0)}
+                    ),
+                    "teacher_matches_behavior": agree,
+                    "mixed_wasd": (
+                        len({name for name, _hid in WASD if counts.get(name, 0)})
+                        >= 3
+                    ),
+                    "rates": {
+                        name: (counts.get(name, 0) / total if total else 0.0)
+                        for name, _hid in WASD
+                    }
+                    | {"idle": counts.get("idle", 0) / total if total else 0.0},
+                }
+            )
+    _write(
+        out_dir / "offpolicy-teacher.json",
+        {
+            "job": "offpolicy-teacher",
+            "campaign_id": "play_gated_maze_chase_distill_v1",
+            "hypothesis": (
+                "planner labels on sticky-WASD and idle rollouts stay mixed, "
+                "so closed-loop BC would not copy the sticky key"
+            ),
+            "ticks": ticks,
+            "seeds": list(seeds),
+            "rows": rows,
+            "any_mixed": any(row["mixed_wasd"] for row in rows),
+            "all_mixed": all(row["mixed_wasd"] for row in rows),
+        },
+    )
+
+
 def job_tiled_coverage(out_dir: Path) -> None:
     from irene_brain.data.maze_chase_dataset import (
         DatasetSplit,
@@ -553,6 +694,12 @@ def main() -> int:
         job_coverage(out_dir)
     elif arguments.job == "tiled-coverage":
         job_tiled_coverage(out_dir)
+    elif arguments.job == "tiled-hist":
+        job_tiled_hist(out_dir)
+    elif arguments.job == "multi-episode-coverage":
+        job_multi_episode_coverage(out_dir)
+    elif arguments.job == "offpolicy-teacher":
+        job_offpolicy_teacher(out_dir)
     elif arguments.job == "play-gate":
         if not arguments.config or not arguments.checkpoint:
             raise SystemExit("play-gate requires --config and --checkpoint")
