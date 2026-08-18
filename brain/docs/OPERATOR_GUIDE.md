@@ -7,13 +7,11 @@ value identities, and legal stopping rules are in
 [CURRENT_WORK.md](../../CURRENT_WORK.md).
 
 The live campaign is **play-gated maze-chase distill v1**, not RCQ.
-Spark-only compute. 32-step and 128-step probes both sat at
-`reward_sum -150` / collisions 16: sticky D, not a pellet player. JSON
-zero-pellets was the wrong event. Next bounded job is the 32-tick
-teacher-window probe (same 32-step budget as v2). Do not start an
-unlabeled long train.
+Spark-only compute. Window-32 probe **failed** (idle no-op, 9 pellets).
+Do not start an unlabeled long train. Spark is idle. Next distinct
+named idea is not started.
 
-The window-32 launch:
+The window-32 launch (completed; failed):
 
 ```powershell
 & .\brain\scripts\dgx\Invoke-DgxPreflight.ps1 `
@@ -56,6 +54,7 @@ The window-32 launch:
 
 Scale only if `play-gate.json` shows pellets well above the ~10 D-hug
 band (or a non-D movement histogram), not merely `play_moved: true`.
+Window-32 did not: idle no-op, 9 pellets, mask 0. Do not scale.
 Record:
 [runs/2026-08-18-play-gated-maze-chase-distill.md](runs/2026-08-18-play-gated-maze-chase-distill.md).
 

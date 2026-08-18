@@ -17,12 +17,9 @@ The current experiment is **Play-gated maze-chase distill v1**
 (`play_gated_maze_chase_distill_v1`). It asks whether the existing thesis
 thought-field can learn to play maze-chase closed-loop after planner
 distillation, measured by play (reward / collisions / pellets), not by
-action loss. Probe v2 and the 128-step follow-up both sat at reward
-**-150**, collisions 16: sticky-D wall-hug, not a pellet player. JSON
-`pellets_eaten: 0` was the wrong event (`target_collected`); reward
-arithmetic implies ~10 pellets vs no-op's 9. Next bounded job is the
-32-tick teacher-window probe (`dgx-play-maze-chase-distill-window32-v1`),
-same 32-step budget as v2. Record:
+action loss. Probe v2 and the 128-step follow-up sat at reward **-150**
+(sticky D, ~10 implied pellets). The 32-tick window probe **failed** at
+the no-op floor (idle, 9 pellets). Spark is idle. Do not scale. Record:
 [brain/docs/runs/2026-08-18-play-gated-maze-chase-distill.md](brain/docs/runs/2026-08-18-play-gated-maze-chase-distill.md).
 
 All training, probes, and play evals run on the Spark. This workstation is
@@ -47,7 +44,7 @@ campaign.
 | 8 | Newly named qualification after the invariance capture fix | Done. Live file `registrations/rcq-v2-reference-v2.json`. Do not edit v1. |
 | 9 | Preclaim, independent review, final authorization, one-shot TEST | Blocked. This qualification failed the entry gate. Do not preclaim or open TEST. |
 | — | RCQ-v3 registration ceremony | **Deferred.** Do not run `New-RcqV3Registration.ps1`. |
-| — | Current campaign | Play-gated maze-chase distill v1. 32-step and 128-step probes both sat at reward -150 / collisions 16 (sticky D). JSON zero-pellets was a counting bug. Next: 32-tick teacher-window probe, 32 steps, not a 2048-step train. |
+| — | Current campaign | Play-gated maze-chase distill v1. Sticky D at 32/128 steps (~10 pellets). Window-32 probe failed as idle no-op (9 pellets, mask 0). Spark idle. Do not scale. |
 | — | Compute | Spark only. One bounded job at a time. Generic wrappers, never RCQ-v2 start/resume. |
 
 Do not skip ahead. Do not open sealed TEST ranges to "check" labels. Do not

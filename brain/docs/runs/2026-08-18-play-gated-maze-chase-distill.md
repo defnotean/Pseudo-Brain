@@ -1,11 +1,49 @@
 # Play-gated maze-chase distill campaign v1 (2026-08-18)
 
-Status: **current campaign**. Zero-pellet diagnosis is written. Spark is
-starting the newly named 32-tick teacher-window probe
-(`dgx-play-maze-chase-distill-window32-v1`, 32 optimizer steps). Do not
-start a 2048-step train. RCQ-v2 seed 1702 stays terminal. No v3
-registration. No sealed TEST. Compute is Spark-only; the workstation is
-orchestration.
+Status: **current campaign**. Window-32 probe **failed**: idle no-op
+(`play_moved: false`, reward **-161**, collisions 17, **9 pellets**,
+histogram mask 0 × 480 ticks). Spark is idle. Do not scale. Do not start
+a 2048-step train. Next distinct idea is not started. RCQ-v2 seed 1702
+stays terminal. No v3 registration. No sealed TEST.
+
+## Window-32 probe result (2026-08-18)
+
+Official `play-gate.json`:
+[artifacts/play-gated-maze-chase-distill/window32-v1-play-gate.json](./artifacts/play-gated-maze-chase-distill/window32-v1-play-gate.json).
+
+The 32-tick teacher-window hypothesis is **falsified** at this budget.
+Play is exactly the no-op floor, and the decode histogram is idle, not
+sticky D.
+
+| Field | Value |
+|---|---|
+| Release | `r20260818t164127z-e23fdae191c4` (archive SHA-256 `e23fdae191c4…`) |
+| Container image | `sha256:177a406d7cb2…` |
+| Run id | `dgx-play-maze-chase-distill-window32-v1` |
+| Canonical config SHA-256 | `94829d3d13f66f12dd75f54c87ff57c3eaa19859cbfc1e21bf738f4130316b4e` |
+| Checkpoint | `checkpoints/step-00000032.pt` |
+| Checkpoint SHA-256 | `52ac305793b48973cc526c5a680f57f2dc3994a03858661300547c7cd6b9a658` |
+| `latest.json` SHA-256 | `384bb193f006edb37433fc60098d9704b564d8dedb4fee3ac9e3709f71e2072d` |
+| Metrics SHA-256 | `b1014e6790e7ca02c39a305801b37733665b4e493cf12b0308c5d942eb24a33f` |
+| `play-gate.json` SHA-256 | `2cdedaf93e9fa36e05b9b281f9001054fb018249ca5f865721dcd5b0e53f2a4e` |
+| Report SHA-256 | `d192b59a56b95ec4c04045b8aefb5ca54b1582a7762dd3ea3e2ade4997477276` |
+| `play_moved` | **false** |
+| `gate` | **failed** |
+| reward_sum | **-161** (floor) |
+| collisions | **17** (floor) |
+| pellets_eaten | **9** (matches no-op arithmetic; counting is now honest) |
+| movement_mask_histogram | **[[0, 480]]** (idle every tick; mask 0 = no WASD) |
+| decisions_rejected | 0 |
+
+Logged metrics at step 32 (not the gate): train loss 3.558, action loss
+0.523, movement exact 0.0, value loss 29.83; validation loss 9.092,
+action loss 0.534, movement exact 0.008, value loss 85.06. Lengthening
+the teacher window at the same 32-step budget blew up value targets and
+left closed-loop logits below the `> 0` decode threshold, so the player
+never pressed a key. Worse than sticky D. Do not scale.
+
+Pellet counting is confirmed: no-op-equivalent play now reports 9
+pellets, matching 17×−10 + 9 = −161.
 
 ## Zero-pellet diagnosis (2026-08-18)
 
@@ -69,20 +107,20 @@ swapped.
 the val targets) but not the first junction. 4× optimizer steps over the
 same 8-tick openings overfit D and froze val exact-match at 0.458.
 
-### Next bounded probe (preregistered)
+### Next bounded probe (completed; failed)
 
 Hypothesis: **32-tick teacher windows at the same 32-step budget as v2**
-unstick D because each batch now contains the first turn, not six
-majority-D labels. Not a longer train. If `play-gate.json` still shows
-~16 collisions, ~10 pellets, and a D-only histogram (mask 8), do not
-scale — next distinct idea.
+unstick D. **Falsified.** Play is idle no-op (mask 0 × 480). Next
+distinct idea is not started: do not scale; a later named probe must
+attack sticky D without exploding value loss (for example freeze
+`value_weight` on 8-tick windows, or rare-class / entropy unstick).
 
 | Field | Value |
 |---|---|
 | Run id | `dgx-play-maze-chase-distill-window32-v1` |
 | Config | `brain/configs/training/dgx-play-maze-chase-distill-window32.toml` |
 | Budget | 32 optimizer steps, `sequence_length = 32`, seeds 5/9 × 240 ticks |
-| Pass | `play_moved: true` **and** pellets well above the ~10 D-hug band, or a non-D histogram |
+| Result | `play_moved: false`; 9 pellets; idle histogram |
 
 ## Probe v2 result (2026-08-18)
 
@@ -223,7 +261,7 @@ and not an RCQ qualification.
 | First probe run id | `dgx-play-maze-chase-distill-probe-v1` (trained; play-gate crashed) |
 | Passing 32-step run id | `dgx-play-maze-chase-distill-probe-v2` (`play_moved: true`) |
 | Passing 128-step run id | `dgx-play-maze-chase-distill-probe-128-v1` (`play_moved: true`, same play numbers) |
-| Next probe run id | `dgx-play-maze-chase-distill-window32-v1` |
+| Next probe run id | `dgx-play-maze-chase-distill-window32-v1` (**failed**; idle no-op) |
 | 32-step config | `brain/configs/training/dgx-play-maze-chase-distill-probe.toml` |
 | 128-step config | `brain/configs/training/dgx-play-maze-chase-distill-probe-128.toml` |
 | Window-32 config | `brain/configs/training/dgx-play-maze-chase-distill-window32.toml` |
@@ -240,14 +278,9 @@ no-op pellets are 9 (reward arithmetic). Historical play-gate JSON
 `pellets_eaten: 0` is the wrong event name, not a world fact.
 
 - **Play moved** (thin probe pass): `reward_sum > -161`.
-- **Window-32 probe pass** (may consider a longer named run): pellets
-  well above the ~10 D-hug band, or a movement histogram that is not
-  D-only (mask 8). Reward-only "one fewer collision" is not enough.
-- **Probe fail**: play at or below the floor, or still the D-hug band,
-  even if action loss drops.
-- **Stop**: if window-32 fails, do not start a longer Spark train.
-  Next distinct named idea (play-conditioned loss, unstick decode, more
-  sequences) — still bounded.
+- **Window-32 probe** failed as idle no-op. Do not scale. Next distinct
+  named idea (value-weight freeze on 8-tick windows, rare-class /
+  entropy unstick) is not started.
 - **Campaign pass** (later): neural play that eats pellets / clears, not
   one less collision than no-op.
 
@@ -264,17 +297,17 @@ out of `targets_collected` so the cross-world no-op floor stays world-flat.
 - Transfer to other ladder worlds (one transfer world waits until play
   has moved and hygiene is tight)
 
-## Spark sequence (window-32 probe)
+## Spark sequence (window-32 probe, completed; failed)
 
 1. `Invoke-DgxPreflight.ps1`
-2. `Sync-DgxBrainRelease.ps1`
+2. `Sync-DgxBrainRelease.ps1` (release `r20260818t164127z-e23fdae191c4`)
 3. `Invoke-DgxBrainSmoke.ps1` on `dgx-smoke.toml` (receipt written)
 4. `Start-DgxBrainTraining.ps1` with
    `dgx-play-maze-chase-distill-window32.toml`, run id
    `dgx-play-maze-chase-distill-window32-v1`, Tmux with
    `-AcknowledgeDetached`
-5. Watch `play-gate.json`. If pellets stay in the D-hug band and the
-   histogram is mask 8, Spark idle; do not scale.
+5. `play-gate.json` failed: reward -161 / collisions 17 / 9 pellets /
+   histogram [[0, 480]]. Spark is idle. Do not scale.
 
 Generic wrappers only. Never `Start-DgxRcqV2Reference.ps1`. Never point
 generic train at an RCQ config.

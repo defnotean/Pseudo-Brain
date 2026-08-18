@@ -6,17 +6,15 @@ Updated: 2026-08-18
 
 Status: **play-gated maze-chase distill v1** is the live campaign
 (`play_gated_maze_chase_distill_v1`). Play moved on the 32-step probe v2
-and **held** on the 128-step probe, both at reward_sum **-150**,
-collisions **16**. That play is sticky D (val D predicted-positive 1.0
-at every 128-step eval), not pellet-seeking. JSON `pellets_eaten: 0` was
-`target_collected`; reward arithmetic implies ~10 pellets vs no-op 9.
-Next named probe is `dgx-play-maze-chase-distill-window32-v1` (32 steps,
-`sequence_length=32`). Do not start a 2048-step train. Official 32-step
-`play-gate.json` SHA-256 `df9d88f4…` (release
-`r20260818t160829z-82aef6dbc370`); 128-step `play-gate.json` SHA-256
-`6401a922…` (release `r20260818t162040z-2382206346a0`, checkpoint
-`6b0d64c2…`). Logger train loss is not the gate. Workstation is
-orchestration; all compute is Spark. Record:
+and held on the 128-step probe at reward_sum **-150**, collisions **16**
+(sticky D, ~10 implied pellets). The 32-tick teacher-window probe
+**failed** at the no-op floor: reward **-161**, collisions **17**,
+**9 pellets**, idle histogram mask 0 × 480
+(`dgx-play-maze-chase-distill-window32-v1`, `play-gate.json` SHA-256
+`2cdedaf9…`, release `r20260818t164127z-e23fdae191c4`). Spark is idle.
+Do not scale. Official 32-step `play-gate.json` SHA-256 `df9d88f4…`;
+128-step `play-gate.json` SHA-256 `6401a922…`. Logger train loss is not
+the gate. Workstation is orchestration; all compute is Spark. Record:
 [docs/runs/2026-08-18-play-gated-maze-chase-distill.md](./docs/runs/2026-08-18-play-gated-maze-chase-distill.md).
 
 Historical: live qualification `rcq_v2_reference_v2` is **terminally failed**. The
