@@ -279,6 +279,12 @@ Near-term slices, each independently committable and test-covered:
    curves, sticky/delayed input), and the rights ledger
    ([RIGHTS_LEDGER.md](RIGHTS_LEDGER.md)) with all six in-repo worlds
    accepted as original works and every external source marked unreviewed.
+   The planner-teacher dataset
+   (`data/maze_chase_dataset.py`, `irene.maze_chase.planner_teacher.v1`)
+   closes the loop to training: lazy, mechanics-matched demonstrations from
+   the frontier planner through the same sequence interface the trainer
+   already consumes
+   ([runs/2026-08-17-maze-chase-planner-dataset.md](runs/2026-08-17-maze-chase-planner-dataset.md)).
 10. **Arcade-scale training and the Phase 4 gate.**
 
 ## 7. Resources and constraints

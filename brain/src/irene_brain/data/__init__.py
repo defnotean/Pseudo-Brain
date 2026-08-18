@@ -1,6 +1,13 @@
 """Canonical lifetime records, deterministic replay, and branch rollouts."""
 
 from .branching import evaluate_branches
+from .maze_chase_dataset import (
+    MazeChaseDatasetConfig,
+    MazeChaseSequence,
+    MazeChaseSequenceDataset,
+    MazeChaseTransition,
+    maze_chase_dataset_manifest_sha256,
+)
 from .moving_shapes_dataset import (
     DatasetSplit,
     MovingShapesDatasetConfig,
@@ -24,6 +31,10 @@ __all__ = [
     "BranchRecord",
     "DatasetSplit",
     "LifetimeRecord",
+    "MazeChaseDatasetConfig",
+    "MazeChaseSequence",
+    "MazeChaseSequenceDataset",
+    "MazeChaseTransition",
     "MovingShapesDatasetConfig",
     "MovingShapesSequence",
     "MovingShapesSequenceDataset",
@@ -38,6 +49,7 @@ __all__ = [
     "audit_split_integrity",
     "dataset_manifest_sha256",
     "evaluate_branches",
+    "maze_chase_dataset_manifest_sha256",
     "record_trace",
     "require_split_integrity",
     "split_episode_seed",

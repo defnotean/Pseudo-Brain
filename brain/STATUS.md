@@ -186,6 +186,14 @@ compensation recovers the delayed-input slot from -147 to +386 and cuts
 elroy catches from 20 to 11, while player-period compensation is pinned as
 outcome-neutral. Record:
 [docs/runs/2026-08-17-planner-actuation-compensation.md](./docs/runs/2026-08-17-planner-actuation-compensation.md).
+The planner now also labels training data:
+`src/irene_brain/data/maze_chase_dataset.py`
+(`irene.maze_chase.planner_teacher.v1`) is a lazy, deterministic dataset
+whose action targets come from the mechanics-matched frontier planner
+through the same sequence interface the trainer already consumes — the
+distillation path from scripted frontier to trained model is now in-repo
+(11 tests; play-safe gate green, 490 tests). Record:
+[docs/runs/2026-08-17-maze-chase-planner-dataset.md](./docs/runs/2026-08-17-maze-chase-planner-dataset.md).
 The matched baseline suite gains the PLAN §28 item-12 control:
 `irene.thought_field.independent_ensemble.v1` — four untied members of
 eight slots each at width 352 (29,459,914 trainable, 0.72% under the
