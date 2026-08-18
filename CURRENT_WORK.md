@@ -36,7 +36,8 @@ D×232**, 17 pellets, 17 collisions, −153; val exclusive-argmax match
 **0.083** (= teacher A). Do not scale 90-seq. Closed-loop BC at spawn is
 not next: off-policy planner labels on idle/W/A/D were S×32. Next GPU
 probe is turn-weighted exclusive CE on the same 90 tiled windows
-(`dgx-play-maze-chase-distill-turn-weighted-v1`). Spark CPU farm
+(`dgx-play-maze-chase-distill-turn-weighted-v1`), now live on Spark
+release `r20260818t195814z-872818a4fa68`. Spark CPU farm
 also finished planner seeds 132–147 (5/16 clear), tiled teacher mix,
 three-episode coverage, an episode-update thoughtlet dump
 (open-loop A; closed-loop sticky D), and a window-majority audit

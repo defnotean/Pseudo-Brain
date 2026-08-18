@@ -10,8 +10,9 @@ no-op** (mask 0 × 480, 9 pellets, reward −161; val exclusive-argmax
 match 0.0; inactive logit max ≈ −4.82). Do not scale exclusive-CE,
 action-only, value-only, tiled-windows, accumulation-30, or the 90-seq
 multi-episode recipe (pellets 17, not ≫ 20). Next GPU probe is
-turn-weighted exclusive CE on the same 90 tiled windows / accum 30.
-Exclusive-argmax play-decode stays failed sticky S. Window-32 and
+turn-weighted exclusive CE on the same 90 tiled windows / accum 30, now
+live: `dgx-play-maze-chase-distill-turn-weighted-v1`, release
+`r20260818t195814z-872818a4fa68`. Exclusive-argmax play-decode stays failed sticky S. Window-32 and
 episode-windows stay falsified idle no-op. RCQ-v2 seed 1702 stays
 terminal. No v3 registration. No sealed TEST.
 
@@ -1011,8 +1012,8 @@ more episodes.
 ## Spark sequence (turn-weighted exclusive-CE probe)
 
 1. `Invoke-DgxPreflight.ps1`
-2. `Sync-DgxBrainRelease.ps1`
-3. `Invoke-DgxBrainSmoke.ps1` on `dgx-smoke.toml`
+2. `Sync-DgxBrainRelease.ps1` (release `r20260818t195814z-872818a4fa68`)
+3. `Invoke-DgxBrainSmoke.ps1` on `dgx-smoke.toml` (receipt written)
 4. `Start-DgxBrainTraining.ps1` with
    `dgx-play-maze-chase-distill-turn-weighted.toml`, run id
    `dgx-play-maze-chase-distill-turn-weighted-v1`, Tmux with

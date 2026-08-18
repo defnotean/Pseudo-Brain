@@ -3,7 +3,7 @@
 set -euo pipefail
 
 workspace="${1:-$HOME/projects/pseudo-brain}"
-release_id="${2:-r20260818t192855z-6d85cc69dd69}"
+release_id="${2:-r20260818t195814z-872818a4fa68}"
 image="${3:-177a406d7cb2}"
 release="$workspace/releases/$release_id"
 farm="$workspace/runs/play-gated-cpu-farm-scripts"

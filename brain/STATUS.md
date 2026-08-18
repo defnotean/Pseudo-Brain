@@ -48,7 +48,8 @@ ranking gain. Do not scale accumulation-30. Multi-episode tiled tiles
 **failed mixed W/A/D**: histogram **W×48 + A×200 + D×232**, 17 pellets,
 17 collisions, reward **−153**. Val exclusive-argmax match **0.083**
 equals teacher A. Do not scale 90-seq. Next GPU probe is turn-weighted
-exclusive CE (`dgx-play-maze-chase-distill-turn-weighted-v1`). Named CPU
+exclusive CE (`dgx-play-maze-chase-distill-turn-weighted-v1`), now running
+on release `r20260818t195814z-872818a4fa68`. Named CPU
 farm jobs finished planner seeds 132–147, tiled teacher mix, multi-episode
 coverage, off-policy teacher labels, an episode-update thoughtlet dump,
 and a 90-window majority audit (79 mixed / 10 pure, mean majority 0.614).
