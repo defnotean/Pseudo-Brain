@@ -27,12 +27,14 @@ then stuck on S. Exclusive softmax, action-only, and value-only exclusive
 CE failed sticky S or idle. Tiled 1:1 windows failed sticky A. Full-episode
 tiled update failed sticky D. Multi-episode tiled tiles failed mixed
 W/A/D at 17 pellets / val match 0.083 = teacher A. Do not scale 90-seq
-or retune hold×0.1. Next GPU is the same turn-weighted recipe at 128
-steps (`dgx-play-maze-chase-distill-turn-weighted-128-v1`), now live on
-Spark release `r20260818t202732z-ab1001f8af37`. Spark CPU
+or retune hold×0.1. The 128-step continuation of that recipe
+(`dgx-play-maze-chase-distill-turn-weighted-128-v1`) **failed** sticky S:
+idle×26 + S×454, **20 pellets**, 390 collisions, reward **−3880**, val
+match **0.0**. Do not scale 128. Spark CPU
 farm added a turn-hold audit (261/720 change ticks, 82/90 windows have a
-change), a multi-episode thoughtlet dump (open-loop A×31+D×1), and a
-turn-weighted thoughtlet dump (open-loop A×32 on seeds 5/9). Closed-loop
+change), a multi-episode thoughtlet dump (open-loop A×31+D×1), a
+turn-weighted thoughtlet dump (open-loop A×32 on seeds 5/9), and a
+128-step thoughtlet dump (open-loop **S×32**). Closed-loop
 GIFs of the 32-step turn-weighted checkpoint (seeds 5 and 9, 240 ticks,
 `exclusive_argmax_wasd_v1`) are at
 [brain/docs/runs/artifacts/play-gated-maze-chase-distill/turn-weighted-v1-seed5.gif](brain/docs/runs/artifacts/play-gated-maze-chase-distill/turn-weighted-v1-seed5.gif)
@@ -63,7 +65,7 @@ campaign.
 | 8 | Newly named qualification after the invariance capture fix | Done. Live file `registrations/rcq-v2-reference-v2.json`. Do not edit v1. |
 | 9 | Preclaim, independent review, final authorization, one-shot TEST | Blocked. This qualification failed the entry gate. Do not preclaim or open TEST. |
 | — | RCQ-v3 registration ceremony | **Deferred.** Do not run `New-RcqV3Registration.ps1`. |
-| — | Current campaign | Play-gated maze-chase distill v1. Turn-weighted exclusive CE **passed** (A×377 + S×103, 38 pellets, 43 collisions, −392, val match 0.25). Multi-episode mixed W/A/D failed at 17 pellets. Do not scale 90-seq or retune hold×0.1. Next GPU: same recipe at 128 steps. |
+| — | Current campaign | Play-gated maze-chase distill v1. Turn-weighted exclusive CE **passed** at 32 steps (A×377 + S×103, 38 pellets). 128-step continuation **failed** sticky S (20 pellets, 390 collisions). Do not scale 128 or retune hold×0.1. |
 | — | Compute | Spark only. One scientific GPU train at a time on the GB10; many named CPU jobs in parallel on the ARM host. Generic wrappers, never RCQ-v2 start/resume. |
 
 Do not skip ahead. Do not open sealed TEST ranges to "check" labels. Do not

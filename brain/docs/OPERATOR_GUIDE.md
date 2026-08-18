@@ -8,69 +8,36 @@ value identities, and legal stopping rules are in
 
 The live campaign is **play-gated maze-chase distill v1**, not RCQ.
 Spark-only compute. Turn-weighted exclusive CE **passed** the campaign
-gate (A×377 + S×103, 38 pellets, 43 collisions, reward −392, val match
-0.25). `play_moved` is false because reward is below the no-op floor.
-Window-32 and episode-windows both **failed** idle no-op.
+gate at 32 steps (A×377 + S×103, 38 pellets, 43 collisions, reward −392,
+val match 0.25). The 128-step continuation **failed** sticky S (idle×26
++ S×454, 20 pellets, 390 collisions, reward −3880, val match 0.0). Do
+not scale 128. `play_moved` is false because reward is below the no-op
+floor. Window-32 and episode-windows both **failed** idle no-op.
 Exclusive-argmax play decode **unstuck idle** then sticky S.
 Exclusive-direction softmax **failed sticky S**. Action-only and
 value-only exclusive CE **failed idle no-op**. Tiled 1:1 planner
 windows **failed sticky A**. Full-episode tiled update **failed
 sticky D**. Multi-episode tiled tiles **failed mixed W/A/D** at 17
 pellets. Do not retry or scale those recipes, and do not retune
-hold×0.1. The next named GPU probe is the same turn-weighted recipe at
-128 steps. Campaign success is pellets ≥ 32 with a non-idle non-D-only
+hold×0.1. Campaign success is pellets ≥ 32 with a non-idle non-D-only
 histogram. One GB10 train at a time; named CPU farm jobs run in
-parallel on the host. A turn-hold audit found 261/720 change ticks
-(82/90 windows have a change).
+parallel on the host. Spark GPU is idle. A turn-hold audit found
+261/720 change ticks (82/90 windows have a change).
 
-The 128-step turn-weighted exclusive-CE launch (preregistered; one GB10):
-
-```powershell
-& .\brain\scripts\dgx\Invoke-DgxPreflight.ps1 `
-  -SshTarget defnotean `
-  -RemoteWorkDir '~/projects/pseudo-brain' `
-  -ContainerImage 'vllm/vllm-openai:nightly-aarch64' `
-  -MinFreeDiskGiB 20 `
-  -MinAvailableMemoryGiB 16
-
-& .\brain\scripts\dgx\Sync-DgxBrainRelease.ps1 `
-  -SshTarget defnotean `
-  -RemoteWorkDir '~/projects/pseudo-brain' `
-  -MinFreeDiskGiB 20
-
-& .\brain\scripts\dgx\Invoke-DgxBrainSmoke.ps1 `
-  -SshTarget defnotean `
-  -RemoteWorkDir '~/projects/pseudo-brain' `
-  -ReleaseId '<release-id>' `
-  -ContainerImage 'vllm/vllm-openai:nightly-aarch64' `
-  -ConfigRelativePath 'brain/configs/training/dgx-smoke.toml' `
-  -MinFreeDiskGiB 20 `
-  -MinAvailableMemoryGiB 16 `
-  -ContainerCpuCount 2 `
-  -ContainerMemoryGiB 8
-
-& .\brain\scripts\dgx\Start-DgxBrainTraining.ps1 `
-  -SshTarget defnotean `
-  -RemoteWorkDir '~/projects/pseudo-brain' `
-  -ReleaseId '<release-id>' `
-  -ContainerImage 'vllm/vllm-openai:nightly-aarch64' `
-  -ConfigRelativePath 'brain/configs/training/dgx-play-maze-chase-distill-turn-weighted-128.toml' `
-  -RunId 'dgx-play-maze-chase-distill-turn-weighted-128-v1' `
-  -LaunchMode Tmux `
-  -AcknowledgeDetached `
-  -MinFreeDiskGiB 20 `
-  -MinAvailableMemoryGiB 48 `
-  -ContainerCpuCount 8 `
-  -ContainerMemoryGiB 48
-```
+The 128-step turn-weighted exclusive-CE launch already ran and **failed**
+sticky S. Do not launch it again. Do not start a 256-step scale. The
+campaign-pass checkpoint remains the 32-step turn-weighted run. Record:
+[runs/2026-08-18-play-gated-maze-chase-distill.md](runs/2026-08-18-play-gated-maze-chase-distill.md).
 
 Scale only if `play-gate.json` shows `campaign_success: true` (pellets ≥ 32
 and a WASD histogram that is not idle / D-only). Turn-weighted exclusive
 CE passed that gate at 32 steps (38 pellets, A×377 + S×103, collisions
-43, val match 0.25). The next named GPU probe is the same recipe at 128
-steps. Do not retune hold×0.1. Failed recipes stay failed: exclusive-argmax
-sticky S, exclusive-CE sticky S, action-only/value-only idle, tiled-windows
-sticky A, episode-update sticky D, multi-episode 17 pellets. Record:
+43, val match 0.25). The 128-step continuation failed sticky S (20
+pellets, 390 collisions). Do not scale 128. Do not retune hold×0.1.
+Failed recipes stay failed: exclusive-argmax sticky S, exclusive-CE sticky
+S, 128-step turn-weighted sticky S, action-only/value-only idle,
+tiled-windows sticky A, episode-update sticky D, multi-episode 17 pellets.
+Record:
 [runs/2026-08-18-play-gated-maze-chase-distill.md](runs/2026-08-18-play-gated-maze-chase-distill.md).
 
 The live `rcq_v2_reference_v2` reference on seed 1702 already failed the

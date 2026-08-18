@@ -1,21 +1,88 @@
 # Play-gated maze-chase distill campaign v1 (2026-08-18)
 
-Status: **current campaign**. Turn-weighted exclusive CE **completed /
+Status: **current campaign**. 128-step turn-weighted exclusive CE
+**completed / failed** sticky S (idle×26 + S×454, 20 pellets, 390
+collisions, reward −3880, val match 0.0). Do not scale 128; one-key
+sticky returned. The 32-step turn-weighted exclusive CE **completed /
 passed** the campaign gate (A×377 + S×103, 38 pellets, 43 collisions,
-reward −392, val match 0.25). Multi-episode tiled tiles **completed /
-failed** mixed W/A/D. Full-episode tiled update **completed /
-failed** sticky D. Tiled 1:1 planner windows **completed /
-failed** sticky A. Exclusive-direction softmax probe **completed /
-failed** sticky S. Action-only exclusive CE **completed /
-failed idle no-op**. Value-only exclusive CE **completed / failed idle
-no-op**. Do not scale exclusive-CE, action-only, value-only, tiled-windows,
-accumulation-30, or the 90-seq multi-episode recipe, and do not retune
-hold×0.1. Next GPU probe is the same turn-weighted recipe at 128 steps:
-`dgx-play-maze-chase-distill-turn-weighted-128-v1`, now live on release
-`r20260818t202732z-ab1001f8af37`. Exclusive-argmax
+reward −392, val match 0.25) and remains the campaign-pass checkpoint.
+Multi-episode tiled tiles **completed / failed** mixed W/A/D.
+Full-episode tiled update **completed / failed** sticky D. Tiled 1:1
+planner windows **completed / failed** sticky A. Exclusive-direction
+softmax probe **completed / failed** sticky S. Action-only exclusive CE
+**completed / failed idle no-op**. Value-only exclusive CE **completed
+/ failed idle no-op**. Do not scale exclusive-CE, action-only,
+value-only, tiled-windows, accumulation-30, 90-seq, or 128-step
+turn-weighted, and do not retune hold×0.1. Exclusive-argmax
 play-decode stays failed sticky S. Window-32 and episode-windows stay
 falsified idle no-op. RCQ-v2 seed 1702 stays terminal. No v3
 registration. No sealed TEST.
+
+## 128-step turn-weighted exclusive CE result (2026-08-18)
+
+Official `play-gate.json`:
+[artifacts/play-gated-maze-chase-distill/turn-weighted-128-v1-play-gate.json](./artifacts/play-gated-maze-chase-distill/turn-weighted-128-v1-play-gate.json).
+
+More updates of the same recipe **destroyed** the 32-step pass. Pellets
+dropped 38 → **20** (sticky-S band, toward 17). The mixed A/S histogram
+collapsed to **idle×26 + S×454**. Collisions exploded 43 → **390**
+(exclusive-CE sticky-S floor was 391). Reward **−3880**. Val
+exclusive-argmax match **0.0** (was chance 0.25; not copy-majority).
+`campaign_success: false`. Do **not** scale to 256. Do **not** retune
+hold×0.1.
+
+The 128-step run matched the passing 32-step metrics at step 32 (train
+loss 1.169, val match 0.25). Exclusive-argmax ranking then collapsed
+between train step 40 (0.211) and 48 (0.033). From val step 64 onward
+match stayed 0.0 and inactive movement logit max sat near **−5.9**
+(step 32 was −0.69). CPU open-loop thoughtlets on the 128-step
+checkpoint rank **S×32** on seeds 5/9 (the 32-step checkpoint ranked
+A×32). Closed-loop and open-loop now agree on sticky S.
+
+| Field | 32-step (pass) | 128-step (fail) |
+|---|---|---|
+| pellets_eaten | **38** | **20** |
+| histogram | A×377 + S×103 | idle×26 + S×454 |
+| collisions | 43 | **390** |
+| reward_sum | −392 | **−3880** |
+| val exclusive-argmax match | 0.25 | **0.0** |
+| `campaign_success` | true | **false** |
+| `play_moved` | false | false |
+| mazes_cleared | 0 | 0 |
+
+| Field | Value |
+|---|---|
+| Release | `r20260818t202732z-ab1001f8af37` (archive SHA-256 `ab1001f8af37…`) |
+| Container image | `sha256:177a406d7cb2…` |
+| Run id | `dgx-play-maze-chase-distill-turn-weighted-128-v1` |
+| Canonical config SHA-256 | `7ad447d0e09f304751bcf2337419255b2355875c84b00dc1e682cb13c6fd4ad9` |
+| Launch `run.env` config SHA-256 | `c1a2873afd241187e0c3901996ecffca9e5b7de30043e8cbe9268c055be5b7bf` |
+| Play decode | `exclusive_argmax_wasd_v1` (idle margin −4.0; kept) |
+| Action loss | `exclusive_wasd_softmax_turn_weighted_v1` (hold ×0.1; unchanged) |
+| Teacher | `irene.maze_chase.planner_teacher.tiled_windows.v1` (90 windows / 3 episodes) |
+| Checkpoint | `checkpoints/step-00000128.pt` |
+| Checkpoint SHA-256 | `d1feae85b5a13ee36c5c2c899ccac3c53418416d250f7afaf87242bbf970ee28` |
+| `latest.json` SHA-256 | `12eea18eae874ed77bbc9a03674815870f5eb12202f47881797ef58d6a5c6968` |
+| Metrics SHA-256 | `9e99c263540dd4c73af34e1782c3eeb28fec900bdef2ed19da465ff2c924c6d4` |
+| `play-gate.json` SHA-256 | `2c09427c60f354fa6b1b5f76ecbb599c727bfba917aea19202ed6dd277a6cdb8` |
+| Report SHA-256 | `372fa0fddbd3bc3f4eda9697e22d0dc6b73e2a7d1d750f5c7a2e46099c1ce1ba` |
+| `play_moved` | **false** |
+| `campaign_success` | **false** |
+| `gate` | **failed** |
+| reward_sum | **−3880** |
+| collisions | **390** |
+| pellets_eaten | **20** |
+| mazes_cleared | **0** |
+| movement_mask_histogram | **[[0, 26], [4, 454]]** (idle×26 + S×454) |
+| sticky_or_idle | **false** (not idle-only, not D-only; still one-key sticky S) |
+
+Logged metrics at step 128: train loss 1.552, action loss 0.449, movement
+exact 0.022, exclusive-argmax match 0.022, value loss (train not the
+gate); validation loss 0.525, action loss 0.409, movement exact 0.0,
+exclusive-argmax match **0.0**, value loss 1.02. Val teacher mix W/A/S/D
+≈ 0.250 / 0.083 / 0.250 / 0.417. Every val WASD predicted-positive
+**0.0**; teacher movement logit gap **−0.115**; inactive movement logit
+max **−5.94**. Spark GPU is idle. Do not scale.
 
 ## Turn-weighted exclusive CE result (2026-08-18)
 
@@ -29,8 +96,8 @@ beat the pellet floor. Closed-loop play mixed A and S, ate **38 pellets**
 not copy-majority (teacher A 0.083 / D 0.417). `play_moved` is still
 **false**: 43 collisions pulled reward to **−392**, below the −161 no-op
 floor. A is dominant (377/480). Every val WASD predicted-positive stayed
-**0.0**. This licenses a longer bounded train of the same recipe, not a
-hold-weight retune.
+**0.0**. The licensed 128-step continuation of this recipe then
+**failed** sticky S. Do not retune hold×0.1.
 
 | Field | Value |
 |---|---|
@@ -711,7 +778,7 @@ and not an RCQ qualification.
 | Passing 32-step run id | `dgx-play-maze-chase-distill-probe-v2` (`play_moved: true`) |
 | Passing 128-step run id | `dgx-play-maze-chase-distill-probe-128-v1` (`play_moved: true`, same play numbers) |
 | Passing turn-weighted run id | `dgx-play-maze-chase-distill-turn-weighted-v1` (`campaign_success: true`, 38 pellets) |
-| Next probe run id | `dgx-play-maze-chase-distill-turn-weighted-128-v1` |
+| Failed 128-step turn-weighted run id | `dgx-play-maze-chase-distill-turn-weighted-128-v1` (sticky S, 20 pellets; do not scale) |
 | Failed multi-episode tiled run id | `dgx-play-maze-chase-distill-multi-episode-v1` |
 | Failed full-episode tiled-update run id | `dgx-play-maze-chase-distill-episode-update-v1` |
 | Failed tiled-window exclusive-CE run id | `dgx-play-maze-chase-distill-tiled-windows-v1` |
@@ -837,6 +904,7 @@ Named CPU jobs. No GB10. Artifacts:
 | Turn/hold audit | `play-gated-cpu-turn-hold-v1` | Same 90 tiled windows: **261/720 change ticks** (36.3%), **459 holds**, 8 idle, **82/90 windows have a change**. Artifact SHA-256 `84099816…`. Turn-weighted CE had signal; the 32-step pass used it. |
 | Thoughtlet dump multi-episode | `play-gated-cpu-thoughtlets-multi-episode-v1` | Multi-episode ckpt, 32 ticks seeds 5 and 9 on CPU idle-step. Argmax **A×31 + D×1** both seeds. Closed-loop play was mixed W/A/D; open-loop idle ranks A. Artifact SHA-256 `cc104343…`. |
 | Thoughtlet dump turn-weighted | `play-gated-cpu-thoughtlets-turn-weighted-v1` | 32-step turn-weighted ckpt, 32 ticks seeds 5 and 9 on CPU idle-step. Argmax **A×32** both seeds. Closed-loop play mixed A×377 + S×103; open-loop idle ranks A. Artifact SHA-256 `deaa5526…`. |
+| Thoughtlet dump turn-weighted 128 | `play-gated-cpu-thoughtlets-turn-weighted-128-v1` | 128-step turn-weighted ckpt, 32 ticks seeds 5 and 9 on CPU idle-step. Argmax **S×32** both seeds. Closed-loop play is sticky S (S×454 + idle×26); open-loop now agrees. Artifact SHA-256 `1e13d99c…`. |
 
 ## Action-only exclusive CE result (2026-08-18)
 
@@ -1035,13 +1103,15 @@ val match 0.25 (chance, not copy-majority). Do not retune hold×0.1.
 | Campaign pass | `pellets_eaten >= 32` and histogram not idle / D-only / one-key sticky |
 | Result | A×377 + S×103; 38 pellets; 43 collisions; reward −392; val match 0.25 |
 
-## 128-step turn-weighted exclusive CE (preregistered)
+## 128-step turn-weighted exclusive CE (preregistered; completed / failed)
 
 Hypothesis: 32-step turn-weighted exclusive CE already passed pellets ≥ 32
 with a mixed A/S histogram and collisions far below the 391 S-sticky
 explosion. Val match is chance (0.25), not copy-majority. A longer
 bounded train of the **same** recipe tests whether more updates raise
 pellets, spread keys, and cut collisions without retuning hold×0.1.
+**Failed sticky S:** idle×26 + S×454, 20 pellets, 390 collisions,
+reward −3880, val match 0.0. Do not scale 128.
 
 | Field | Value |
 |---|---|
@@ -1056,8 +1126,7 @@ pellets, spread keys, and cut collisions without retuning hold×0.1.
 | Budget | 128 optimizer steps, `batch_size = 1`, `gradient_accumulation_steps = 30`, `train_sequences = 90` |
 | Play eval | seeds 5/9 × 240 ticks; honest `pellet_eaten`; WASD histogram |
 | Campaign pass | `pellets_eaten >= 32` and histogram not idle / D-only / one-key sticky |
-
-## Spark sequence (value-only exclusive-CE probe, completed; failed idle)
+| Result | **failed** sticky S: idle×26 + S×454; 20 pellets; 390 collisions; reward −3880; val match 0.0 |
 
 1. `Invoke-DgxPreflight.ps1`
 2. `Sync-DgxBrainRelease.ps1` (release `r20260818t181900z-85606667a9fa`)
@@ -1123,7 +1192,7 @@ pellets, spread keys, and cut collisions without retuning hold×0.1.
 Generic wrappers only. Never `Start-DgxRcqV2Reference.ps1`. Never point
 generic train at an RCQ config.
 
-## Spark sequence (128-step turn-weighted exclusive-CE probe)
+## Spark sequence (128-step turn-weighted exclusive-CE probe, completed; failed sticky S)
 
 1. `Invoke-DgxPreflight.ps1`
 2. `Sync-DgxBrainRelease.ps1` (release `r20260818t202732z-ab1001f8af37`)
@@ -1132,7 +1201,9 @@ generic train at an RCQ config.
    `dgx-play-maze-chase-distill-turn-weighted-128.toml`, run id
    `dgx-play-maze-chase-distill-turn-weighted-128-v1`, Tmux with
    `-AcknowledgeDetached`
-5. Keep named CPU farm jobs on the Spark host while the GB10 trains.
+5. `play-gate.json` failed sticky S: reward −3880 / collisions 390 /
+   20 pellets / histogram [[0, 26], [4, 454]] (idle×26 + S×454). Val
+   match 0.0. Do not scale 128. Spark GPU is idle.
 
 Generic wrappers only. Never `Start-DgxRcqV2Reference.ps1`. Never point
 generic train at an RCQ config.

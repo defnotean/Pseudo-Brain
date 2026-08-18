@@ -14,9 +14,13 @@ Status: **play-gated maze-chase distill v1** is the live campaign
 43 collisions, reward **−392**, `campaign_success: true`.
 `play_moved` is false (reward below the −161 no-op floor). Val
 exclusive-argmax match **0.25** (chance; teacher mix still W/A/S/D
-0.250/0.083/0.250/0.417, not copy-majority). Next GPU is the same recipe
-at 128 steps (`dgx-play-maze-chase-distill-turn-weighted-128-v1`), now
-running on release `r20260818t202732z-ab1001f8af37`. Do not
+0.250/0.083/0.250/0.417, not copy-majority). The 128-step continuation
+(`dgx-play-maze-chase-distill-turn-weighted-128-v1`,
+`play-gate.json` SHA-256 `2c09427c…`, release
+`r20260818t202732z-ab1001f8af37`, canonical config SHA-256
+`7ad447d0e09f304751bcf2337419255b2355875c84b00dc1e682cb13c6fd4ad9`)
+**failed** sticky S: idle×26 + S×454, **20 pellets**, 390 collisions,
+reward **−3880**, val match **0.0**. Do not scale 128. Do not
 retune hold×0.1. Play moved on the 32-step probe v2 and held on the
 128-step probe at reward_sum **-150**, collisions **16**
 (sticky D, ~10 implied pellets). Window-32 and episode-windows **failed**
@@ -34,8 +38,9 @@ Multi-episode tiled tiles **failed mixed W/A/D** (W×48 + A×200 + D×232,
 17 pellets, 17 collisions, −153; val match 0.083 = teacher A). Do not
 scale 90-seq. CPU farm added a turn-hold audit (261/720 change ticks,
 82/90 windows have a change), a multi-episode thoughtlet dump
-(open-loop A×31+D×1), and a turn-weighted thoughtlet dump
-(open-loop A×32 on seeds 5/9). Closed-loop GIFs of the 32-step
+(open-loop A×31+D×1), a turn-weighted thoughtlet dump
+(open-loop A×32 on seeds 5/9), and a 128-step thoughtlet dump
+(open-loop **S×32**). Closed-loop GIFs of the 32-step
 turn-weighted checkpoint (same `exclusive_argmax_wasd_v1` decode, 240
 ticks) sit next to the play-gate JSON:
 [docs/runs/artifacts/play-gated-maze-chase-distill/turn-weighted-v1-seed5.gif](./docs/runs/artifacts/play-gated-maze-chase-distill/turn-weighted-v1-seed5.gif)
@@ -47,7 +52,8 @@ Campaign success is **pellets ≥ 32**
 with a non-idle non-D-only histogram. Official 32-step `play-gate.json`
 SHA-256
 `df9d88f4…`; 128-step `6401a922…`; window-32 `2cdedaf9…`; episode-windows
-`84331559…`; exclusive-argmax `865927de…`; turn-weighted `34af40b0…`.
+`84331559…`; exclusive-argmax `865927de…`; turn-weighted `34af40b0…`;
+turn-weighted-128 `2c09427c…`.
 Logger train loss is not the gate. Workstation is orchestration; all
 compute is Spark. Record:
 [docs/runs/2026-08-18-play-gated-maze-chase-distill.md](./docs/runs/2026-08-18-play-gated-maze-chase-distill.md).

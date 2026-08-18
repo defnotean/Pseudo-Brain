@@ -145,6 +145,50 @@ else
   echo "started $tw_name cpus=4 mem=12g job=thoughtlets"
 fi
 
+# Open-loop thoughtlets for the 128-step turn-weighted exclusive-CE checkpoint
+# (collapsed to sticky S). Uses the 128-step release and weights.
+tw128_name='play-gated-cpu-thoughtlets-turn-weighted-128-v1'
+tw128_run="$workspace/runs/$tw128_name"
+tw128_log="$workspace/logs/${tw128_name}.log"
+tw128_ckpt="$workspace/runs/dgx-play-maze-chase-distill-turn-weighted-128-v1"
+tw128_release="$workspace/releases/r20260818t202732z-ab1001f8af37"
+if tmux has-session -t "$tw128_name" 2>/dev/null; then
+  echo "tmux $tw128_name already running"
+elif docker inspect "$tw128_name" >/dev/null 2>&1; then
+  echo "container $tw128_name already running"
+elif [[ ! -f "$tw128_ckpt/checkpoints/step-00000128.pt" ]]; then
+  echo "missing 128-step turn-weighted checkpoint; skip $tw128_name" >&2
+elif [[ ! -d "$tw128_release" ]]; then
+  echo "missing 128-step release; skip $tw128_name" >&2
+else
+  mkdir -p "$tw128_run"
+  tmux new-session -d -s "$tw128_name" -- bash -lc "
+    set -o pipefail
+    docker run --rm --pull never \
+      --name '$tw128_name' \
+      --network none \
+      --cpus 4 \
+      --memory 12g \
+      --pids-limit 256 \
+      --user '$uidgid' \
+      -e HOME=/workspace/run \
+      -e PATH=/usr/sbin:/usr/bin \
+      -e CUDA_VISIBLE_DEVICES=-1 \
+      -e OMP_NUM_THREADS=4 \
+      -e IRENE_BRAIN_SRC=/workspace/repo/brain/src \
+      -v '$tw128_release:/workspace/repo:ro' \
+      -v '$farm:/workspace/farm:ro' \
+      -v '$tw128_run:/workspace/run' \
+      -v '$tw128_ckpt:/workspace/ckpt:ro' \
+      --entrypoint /bin/bash \
+      '$image' --noprofile --norc -c \
+      'python3 -I /workspace/farm/play_gated_cpu_farm.py --job thoughtlets --out-dir /workspace/run --config /workspace/repo/brain/configs/training/dgx-play-maze-chase-distill-turn-weighted-128.toml --checkpoint /workspace/ckpt/checkpoints/step-00000128.pt --ticks 32 --seeds 5,9' \
+      2>&1 | tee '$tw128_log'
+    echo EXIT:\${PIPESTATUS[0]} | tee -a '$tw128_log'
+  "
+  echo "started $tw128_name cpus=4 mem=12g job=thoughtlets"
+fi
+
 echo '===TMUX==='
 tmux ls
 echo '===DOCKER==='

@@ -1,0 +1,33 @@
+{
+  "campaign_id": "play_gated_maze_chase_distill_v1",
+  "campaign_pellet_floor": 32,
+  "campaign_success": false,
+  "collisions": 390,
+  "decisions_rejected": 0,
+  "gate": "failed",
+  "mazes_cleared": 0,
+  "movement_mask_histogram": [
+    [
+      0,
+      26
+    ],
+    [
+      4,
+      454
+    ]
+  ],
+  "noop_collision_floor": 17,
+  "noop_reward_floor": -161.0,
+  "pellets_eaten": 20,
+  "play_decode_idle_margin": -4.0,
+  "play_decode_kind": "exclusive_argmax_wasd_v1",
+  "play_moved": false,
+  "play_seeds": [
+    5,
+    9
+  ],
+  "play_ticks": 240,
+  "report_sha256": "372fa0fddbd3bc3f4eda9697e22d0dc6b73e2a7d1d750f5c7a2e46099c1ce1ba",
+  "reward_sum": -3880.0,
+  "sticky_or_idle": false
+}
