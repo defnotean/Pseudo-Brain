@@ -39,19 +39,19 @@
     }
   },
   "implementation": {
-    "source_bundle_sha256": "e161e48be99e396902bc3666067f61ad615e32c911c00532df167e2c26184f91",
+    "source_bundle_sha256": "6ff80da118bc9dd65f84fd007f7ab45b5e887acab2db52a91175b21a0356f376",
     "source_files": {
       "src/irene_brain/model/actuator.py": "d2dad5e74a6fdce1c63cdd84f71508b90989eb9fecfdea1a192b4d82c2aad5ea",
-      "src/irene_brain/model/baselines.py": "a66e624464ad4b5223fe993979a6e51ca1d51e2b6a64f77c275f8bdc32178133",
+      "src/irene_brain/model/baselines.py": "045a8c5d7330fbc24823a5481c8c8b0a402af47559942a66b80eee72e76db663",
       "src/irene_brain/model/brain_cell.py": "d0a85f2021d84d0ea6a5eee63ecd401fb692bfd2dafed52d674e26561ffd5496",
       "src/irene_brain/model/sensory.py": "bd7ae52907076f9eb19b9fa24a8ddc85abffb9cfee9577ee6a8af11898330dca",
       "src/irene_brain/model/spec.py": "d6c718fa4ee8ff2e031f30746d490603e2a4aac3a31d124bdef1d7c2c2148cf5",
       "src/irene_brain/model/torch_model.py": "102caf0ead1895a913ed1031811596fb69f09839bd571bc2529ea5117f15409b",
-      "src/irene_brain/training/factory.py": "d195e4d1af516528d1ab8291de5aebb1e9e9eac629fad5bcb9e2caca72bf383f",
-      "src/irene_brain/training/objective.py": "4c3068d62122c930f5c42acb5acf2b5853d7b85d21de77f91949f29c7d6f355e"
+      "src/irene_brain/training/factory.py": "fb2bef9c46b56072d59a6e250c5d8c70b5a883f074f642d662a210c34b57a62f",
+      "src/irene_brain/training/objective.py": "57d66e19b6551e509235919ea1b5669bd8379f07840496df41ce8b4e05c625ab"
     }
   },
-  "manifest_sha256": "869bd9239f8cc0175b9254db95d0ce2dd6d85c823a0696654607f9d9393c70de",
+  "manifest_sha256": "8d93eeca8eea9130886afcf80b85d7fef8b7b817398fcc0cac96d31fbb756827",
   "reference_variant_id": "irene.thought_field.routed.v1",
   "schema_version": 1,
   "variants": [
@@ -254,6 +254,56 @@
       },
       "variant_id": "irene.thought_field.dense_routing.v1",
       "variant_identity_sha256": "5dc1acc4f17240156568193cfde9aaeee321ccd7fc84efa4ecd1aa9e29d65044"
+    },
+    {
+      "absolute_trainable_parameter_delta_fraction": 0.0,
+      "allocated_parameters": {
+        "architecturally_connected_trainable": 29673163,
+        "architecturally_disconnected_trainable": 1155,
+        "total": 29674318,
+        "trainable": 29674318
+      },
+      "identity": {
+        "latent_topology": "32_factorized_slots_x_3_registers",
+        "limitations": [
+          "Slots are statically partitioned into even contiguous horizon groups; each group's future embedding is trained only on its assigned offset.",
+          "Incoming thought state is discarded every step; slots reseed from sensors and belief."
+        ],
+        "matching_role": "exact_allocated_parameter_fixed_horizon_partition_control",
+        "peer_routing": true,
+        "pooled_recurrent_input": false,
+        "schema_version": 1,
+        "thought_workspace_writes": true,
+        "variant_id": "irene.thought_field.fixed_multi_horizon.v1"
+      },
+      "model_class": "irene_brain.model.baselines.FixedMultiHorizonSlotBaseline",
+      "model_factory": "irene_brain.training.factory:build_thesis_fixed_multi_horizon_model",
+      "persistent_state": {
+        "batch_size": 1,
+        "bytes": 129024,
+        "bytes_per_element": 2,
+        "elements": 64512,
+        "thought_elements": 36864
+      },
+      "shape_controls": {
+        "aggregate_retrieved_tokens": 64,
+        "attention_heads": 8,
+        "brain_cell_blocks": 4,
+        "cognitive_cycles": 3,
+        "core_width": 384,
+        "registers_per_thoughtlet": 3,
+        "retrieved_entries_per_thoughtlet": 2,
+        "routed_neighbors": 2,
+        "thoughtlets": 32
+      },
+      "trainable_parameter_delta_from_reference": 0,
+      "training_recipe": {
+        "canonical_config_sha256": "25f83540dacd8603e9168055afb6f93d73d356b08f4331648e96d2e360db438c",
+        "path": "configs/training/baseline-stagea-fixed-multi-horizon.toml",
+        "raw_sha256": "028555f380419c0340396e7f69cf976241d5b56a5e4881624d573b6ec823f053"
+      },
+      "variant_id": "irene.thought_field.fixed_multi_horizon.v1",
+      "variant_identity_sha256": "0b4aed284035f2fc27c2cb5d11249bc9a09ead639817f64bc1c1c5d61165ad9f"
     },
     {
       "absolute_trainable_parameter_delta_fraction": 0.007225237661738342,

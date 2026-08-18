@@ -20,6 +20,7 @@ if str(SRC) not in sys.path:
 if torch is not None:
     from irene_brain.model.baselines import (
         DENSE_COMMUNICATION_IDENTITY,
+        FIXED_MULTI_HORIZON_IDENTITY,
         MATCHED_ENSEMBLE_IDENTITY,
         MONOLITHIC_IDENTITY,
         NO_COMMUNICATION_IDENTITY,
@@ -30,6 +31,7 @@ if torch is not None:
         RESET_STATE_IDENTITY,
         SERIAL_DEPTH_IDENTITY,
         DenseCommunicationSlotBaseline,
+        FixedMultiHorizonSlotBaseline,
         MatchedEnsembleBaseline,
         MonolithicRecurrentBaseline,
         NoCommunicationSlotBaseline,
@@ -45,7 +47,11 @@ if torch is not None:
     from irene_brain.model.torch_model import IreneBrainModel
     from irene_brain.training.batches import MovingShapesBatchSource
     from irene_brain.training.config import load_training_config
-    from irene_brain.training.objective import ThoughtFieldObjective
+    from irene_brain.training.objective import (
+        ThoughtFieldObjective,
+        _even_slot_groups,
+        _multi_horizon_offsets,
+    )
 
 
 @unittest.skipUnless(torch is not None, "PyTorch is not installed")
@@ -107,6 +113,7 @@ class MatchedBaselineTests(unittest.TestCase):
             SERIAL_DEPTH_IDENTITY,
             MATCHED_ENSEMBLE_IDENTITY,
             RECURRENT_TRANSFORMER_IDENTITY,
+            FIXED_MULTI_HORIZON_IDENTITY,
         )
         self.assertEqual(len({item.variant_id for item in identities}), len(identities))
         self.assertEqual(len({item.sha256 for item in identities}), len(identities))
@@ -482,6 +489,7 @@ class MatchedBaselineTests(unittest.TestCase):
                 SERIAL_DEPTH_IDENTITY,
                 MATCHED_ENSEMBLE_IDENTITY,
                 RECURRENT_TRANSFORMER_IDENTITY,
+                FIXED_MULTI_HORIZON_IDENTITY,
             )
         }
         entries = {entry["variant_id"]: entry for entry in manifest["variants"]}
@@ -525,6 +533,11 @@ class MatchedBaselineTests(unittest.TestCase):
         self.assertEqual(entries[SERIAL_DEPTH_IDENTITY.variant_id]["allocated_parameters"]["trainable"], 75_849_558)
         self.assertEqual(entries[MATCHED_ENSEMBLE_IDENTITY.variant_id]["allocated_parameters"]["trainable"], 29_459_914)
         self.assertEqual(entries[RECURRENT_TRANSFORMER_IDENTITY.variant_id]["allocated_parameters"]["trainable"], 29_609_034)
+        self.assertEqual(entries[FIXED_MULTI_HORIZON_IDENTITY.variant_id]["allocated_parameters"]["trainable"], 29_674_318)
+        self.assertEqual(
+            entries[FIXED_MULTI_HORIZON_IDENTITY.variant_id]["allocated_parameters"]["architecturally_disconnected_trainable"],
+            384 * 3 + 3,
+        )
 
     def test_recurrent_transformer_carry_persists_across_steps(self) -> None:
         model = RecurrentTransformerBaseline(
@@ -582,6 +595,116 @@ class MatchedBaselineTests(unittest.TestCase):
             len(perturbed.diagnostics.routing_indices),
             config.brain_cell_blocks * config.cognitive_cycles,
         )
+
+    def test_multi_horizon_offsets_follow_the_window(self) -> None:
+        assert torch is not None
+        self.assertEqual(_multi_horizon_offsets(8, 2), (1, 2, 4))
+        self.assertEqual(_multi_horizon_offsets(8, 1), (1, 2, 4))
+        self.assertEqual(_multi_horizon_offsets(5, 1), (1, 2))
+        self.assertEqual(_multi_horizon_offsets(2, 1), (1,))
+        self.assertEqual(_multi_horizon_offsets(2, 0), (1,))
+        # Offsets beyond 4 wait for a longer-window preregistration.
+        self.assertEqual(_multi_horizon_offsets(32, 1), (1, 2, 4))
+        for thoughtlets, groups in ((32, 3), (4, 3), (4, 2), (1, 1)):
+            partition = _even_slot_groups(thoughtlets, groups)
+            self.assertEqual(len(partition), groups)
+            flat = tuple(slot for group in partition for slot in group)
+            self.assertEqual(flat, tuple(range(thoughtlets)))
+
+    def _length_eight_batch(self) -> object:
+        from irene_brain.training.config import DatasetConfig
+
+        source = MovingShapesBatchSource(
+            DatasetConfig(
+                kind="moving_shapes",
+                train_sequences=2,
+                validation_sequences=1,
+                test_sequences=1,
+                sequence_length=8,
+                burn_in_steps=2,
+                seed_offset=0,
+                hazard_count=3,
+                tick_period_ns=16_666_667,
+                discount=0.99,
+            )
+        )
+        return next(
+            source.iter_batches(
+                split="train", epoch=0, start_batch=0, batch_size=1, max_batches=1
+            )
+        )
+
+    def test_multi_horizon_world_loss_reports_per_horizon_metrics(self) -> None:
+        assert torch is not None
+        torch.manual_seed(11)
+        model = IreneBrainModel(self.slot_config(), input_resolution=(8, 8))
+        result = ThoughtFieldObjective(model)(self._length_eight_batch())
+        self.assertTrue(torch.isfinite(result.loss))
+        metrics = result.metrics
+        self.assertIn("world_loss_h1", metrics)
+        self.assertIn("world_loss_h2", metrics)
+        self.assertIn("world_loss_h4", metrics)
+        self.assertNotIn("world_loss_h8", metrics)
+        combined = (
+            metrics["world_loss_h1"] + metrics["world_loss_h2"] + metrics["world_loss_h4"]
+        ) / 3
+        self.assertTrue(torch.allclose(metrics["world_loss"], combined))
+        # A length-2 smoke window keeps the bit-exact single-horizon loss.
+        training = load_training_config(ROOT / "configs" / "training" / "dgx-smoke.toml")
+        source = MovingShapesBatchSource(training.dataset)
+        short_batch = next(
+            source.iter_batches(
+                split="train", epoch=0, start_batch=0, batch_size=1, max_batches=1
+            )
+        )
+        short = ThoughtFieldObjective(model)(short_batch)
+        self.assertIn("world_loss_h1", short.metrics)
+        self.assertNotIn("world_loss_h2", short.metrics)
+        self.assertTrue(
+            torch.equal(short.metrics["world_loss"], short.metrics["world_loss_h1"])
+        )
+
+    def test_fixed_multi_horizon_partitions_slots_and_drops_persistence(self) -> None:
+        assert torch is not None
+        torch.manual_seed(11)
+        reference = ResetStateSlotBaseline(self.slot_config(), input_resolution=(8, 8))
+        torch.manual_seed(11)
+        fixed = FixedMultiHorizonSlotBaseline(self.slot_config(), input_resolution=(8, 8))
+        self.assertTrue(getattr(fixed, "fixed_horizon_partition", False))
+        self.assertFalse(getattr(reference, "fixed_horizon_partition", False))
+        reference_counts = allocated_parameter_counts(reference)
+        fixed_counts = allocated_parameter_counts(fixed)
+        self.assertEqual(reference_counts, fixed_counts)
+        self.assertEqual(set(reference.state_dict()), set(fixed.state_dict()))
+        self.assertTrue(
+            all(
+                torch.equal(reference.state_dict()[name], fixed.state_dict()[name])
+                for name in reference.state_dict()
+            )
+        )
+
+        # Persistence is removed exactly like the reset-slots ablation.
+        pixels, control, elapsed = self.inputs()
+        state = fixed.initial_state(1)
+        changed_state = replace(state, thoughts=state.thoughts + 3.0)
+        fixed.eval()
+        with torch.no_grad():
+            first = fixed(pixels, control, elapsed, state=state, max_cycles=2)
+            changed = fixed(pixels, control, elapsed, state=changed_state, max_cycles=2)
+        self.assertTrue(torch.equal(first.action.control, changed.action.control))
+
+        # The group-restricted minimum cannot beat the flexible minimum on
+        # identical weights, so the control's world loss bounds the
+        # reference's from above on every horizon.
+        batch = self._length_eight_batch()
+        flexible = ThoughtFieldObjective(reference)(batch)
+        restricted = ThoughtFieldObjective(fixed)(batch)
+        self.assertTrue(torch.isfinite(restricted.loss))
+        for horizon in (1, 2, 4):
+            self.assertGreaterEqual(
+                float(restricted.metrics[f"world_loss_h{horizon}"]),
+                float(flexible.metrics[f"world_loss_h{horizon}"]) - 1e-6,
+            )
 
 
 if __name__ == "__main__":

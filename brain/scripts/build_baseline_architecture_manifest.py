@@ -16,6 +16,7 @@ if str(SRC) not in sys.path:
 
 from irene_brain.model.baselines import (  # noqa: E402
     DENSE_COMMUNICATION_IDENTITY,
+    FIXED_MULTI_HORIZON_IDENTITY,
     MATCHED_ENSEMBLE_IDENTITY,
     MONOLITHIC_IDENTITY,
     NO_COMMUNICATION_IDENTITY,
@@ -31,6 +32,7 @@ from irene_brain.project_paths import resolve_workspace_path  # noqa: E402
 from irene_brain.training.config import load_training_config  # noqa: E402
 from irene_brain.training.factory import (  # noqa: E402
     build_thesis_dense_routing_model,
+    build_thesis_fixed_multi_horizon_model,
     build_thesis_model,
     build_thesis_matched_ensemble_model,
     build_thesis_monolithic_model,
@@ -58,6 +60,11 @@ REGISTRATIONS = {
         "configs/training/baseline-stagea-reset-slots.toml",
         "irene_brain.training.factory:build_thesis_reset_slots_model",
         build_thesis_reset_slots_model,
+    ),
+    FIXED_MULTI_HORIZON_IDENTITY.variant_id: (
+        "configs/training/baseline-stagea-fixed-multi-horizon.toml",
+        "irene_brain.training.factory:build_thesis_fixed_multi_horizon_model",
+        build_thesis_fixed_multi_horizon_model,
     ),
     DENSE_COMMUNICATION_IDENTITY.variant_id: (
         "configs/training/baseline-stagea-dense-communication.toml",

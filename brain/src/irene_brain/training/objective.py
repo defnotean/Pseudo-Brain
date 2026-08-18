@@ -31,6 +31,42 @@ _MOVEMENT_KEYS = (
 )
 
 
+def _multi_horizon_offsets(sequence_length: int, burn_in_steps: int) -> tuple[int, ...]:
+    """Powers-of-two prediction offsets the recorded window fully supports.
+
+    Offset 1 is always trained: at an optimized step ``t`` its target frame
+    ``t + 1`` is the transition's own ``next_observation_target``, which
+    exists even at the final step. Longer offsets ``k`` target frame
+    ``t + k`` inside the recorded window, so they require
+    ``k <= sequence_length - 1 - burn_in_steps`` to keep at least the first
+    optimized step eligible. A length-8, burn-in-2 campaign window yields
+    exactly ``(1, 2, 4)`` — the preregistered B1 multi-horizon world loss.
+    Offsets beyond 4 are capped pending a future preregistration with
+    longer registered windows, and a length-2 smoke window yields ``(1,)``,
+    bit-identical to the original single-horizon world loss.
+    """
+
+    offsets: list[int] = [1]
+    offset = 2
+    while offset <= 4 and offset <= sequence_length - 1 - burn_in_steps:
+        offsets.append(offset)
+        offset *= 2
+    return tuple(offsets)
+
+
+def _even_slot_groups(thoughtlets: int, groups: int) -> tuple[tuple[int, ...], ...]:
+    """Contiguous, disjoint, complete, even partition of slot indices."""
+
+    base, remainder = divmod(thoughtlets, groups)
+    result: list[tuple[int, ...]] = []
+    start = 0
+    for group_index in range(groups):
+        size = base + (1 if group_index < remainder else 0)
+        result.append(tuple(range(start, start + size)))
+        start += size
+    return tuple(result)
+
+
 @dataclass(frozen=True, slots=True)
 class LossOutput:
     loss: Tensor
@@ -159,8 +195,9 @@ class ThoughtFieldObjective(nn.Module):
         device = parameter.device
         total_action = parameter.new_zeros(())
         total_value = parameter.new_zeros(())
-        total_world = parameter.new_zeros(())
         total_diversity = parameter.new_zeros(())
+        world_sums: dict[int, Tensor] = {}
+        world_counts: dict[int, int] = {}
         correct_keys = parameter.new_zeros(())
         positive_key_recall_sum = parameter.new_zeros(())
         movement_metric_sums: dict[str, Tensor] = {}
@@ -171,6 +208,17 @@ class ThoughtFieldObjective(nn.Module):
         key_elements = 0
         optimized_steps = batch.sequence_length - batch.burn_in_steps
         state = None
+        horizon_offsets = _multi_horizon_offsets(
+            batch.sequence_length, batch.burn_in_steps
+        )
+        # The B1 fixed-horizon control statically partitions its slots across
+        # the window's supported horizons; every other variant keeps the
+        # flexible min-over-slots assignment per horizon.
+        slot_groups: tuple[tuple[int, ...], ...] | None = None
+        if getattr(self.model, "fixed_horizon_partition", False):
+            slot_groups = _even_slot_groups(
+                self.model.config.thoughtlets, len(horizon_offsets)
+            )
         # The same deterministic Gaussian identities are supplied on every
         # recurrent timestep in both train and evaluation.  The model has the
         # identical default for direct/live calls, while this explicit tensor
@@ -308,15 +356,51 @@ class ThoughtFieldObjective(nn.Module):
                 )
             action_loss = torch.stack(exit_losses).mean()
             value_loss = F.mse_loss(output.value.float(), value_target)
-            with torch.no_grad():
-                next_sensor_target = self.model.pixel_encoder(next_pixels).mean(dim=1)
-            prediction_error = (
-                output.world.future_embedding.float()
-                - next_sensor_target.float().unsqueeze(1)
-            ).square().mean(dim=-1)
-            # Any thoughtlet may own this short-horizon prediction. A hard
-            # minimum avoids forcing all slots toward the same target vector.
-            world_loss = prediction_error.min(dim=1).values.mean()
+            for horizon_index, horizon in enumerate(horizon_offsets):
+                if horizon == 1:
+                    horizon_pixels = next_pixels
+                else:
+                    target_index = time_index + horizon - 1
+                    if target_index >= batch.sequence_length:
+                        continue
+                    horizon_pixels = _rgb_tensor(
+                        tuple(
+                            sequence.transitions[target_index]
+                            .next_observation_target.rgb
+                            for sequence in batch.sequences
+                        ),
+                        device=device,
+                        resolution=getattr(self.model, "input_resolution", None),
+                    )
+                with torch.no_grad():
+                    sensor_target = self.model.pixel_encoder(horizon_pixels).mean(
+                        dim=1
+                    )
+                horizon_error = (
+                    output.world.future_embedding.float()
+                    - sensor_target.float().unsqueeze(1)
+                ).square().mean(dim=-1)
+                if horizon == 1:
+                    # Diagnostics below keep the short-horizon error surface.
+                    prediction_error = horizon_error
+                # Any thoughtlet may own this prediction — or, on the fixed
+                # horizon control, any thoughtlet inside the statically
+                # assigned group. A hard minimum avoids forcing all slots
+                # toward the same target vector.
+                if slot_groups is None:
+                    horizon_loss = horizon_error.min(dim=1).values.mean()
+                else:
+                    horizon_loss = (
+                        horizon_error[:, list(slot_groups[horizon_index])]
+                        .min(dim=1)
+                        .values.mean()
+                    )
+                if horizon in world_sums:
+                    world_sums[horizon] = world_sums[horizon] + horizon_loss
+                    world_counts[horizon] += 1
+                else:
+                    world_sums[horizon] = horizon_loss
+                    world_counts[horizon] = 1
             similarity = output.diagnostics.thought_cosine_similarity.float()
             thoughtlets = similarity.shape[-1]
             if thoughtlets == 1:
@@ -391,12 +475,21 @@ class ThoughtFieldObjective(nn.Module):
 
             total_action = total_action + action_loss
             total_value = total_value + value_loss
-            total_world = total_world + world_loss
             total_diversity = total_diversity + diversity_loss
 
         action_mean = total_action / optimized_steps
         value_mean = total_value / optimized_steps
-        world_mean = total_world / optimized_steps
+        # The world weight splits evenly across the window's supported
+        # horizons; each horizon's mean is taken over its eligible steps.
+        horizon_means = {
+            horizon: world_sums[horizon] / world_counts[horizon]
+            for horizon in horizon_offsets
+        }
+        world_mean = sum(horizon_means.values()) / len(horizon_offsets)
+        world_metrics = {
+            f"world_loss_h{horizon}": horizon_means[horizon]
+            for horizon in horizon_offsets
+        }
         diversity_mean = total_diversity / optimized_steps
         metric_samples = batch.sample_count
         movement_metrics = {
@@ -445,6 +538,7 @@ class ThoughtFieldObjective(nn.Module):
                 "action_loss": action_mean,
                 "value_loss": value_mean,
                 "world_loss": world_mean,
+                **world_metrics,
                 "diversity_loss": diversity_mean,
                 "key_accuracy": correct_keys.float() / key_elements,
                 "positive_key_recall": positive_key_recall_sum.float()

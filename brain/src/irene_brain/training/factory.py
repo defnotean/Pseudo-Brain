@@ -9,6 +9,7 @@ from torch import nn
 
 from ..model.baselines import (
     DenseCommunicationSlotBaseline,
+    FixedMultiHorizonSlotBaseline,
     MatchedEnsembleBaseline,
     MonolithicRecurrentBaseline,
     NoCommunicationSlotBaseline,
@@ -136,6 +137,18 @@ def build_thesis_reset_slots_model(
     return _identity_pixel_grid(model)
 
 
+def build_thesis_fixed_multi_horizon_model(
+    config: TrainingConfig,
+) -> FixedMultiHorizonSlotBaseline:
+    _require_config(config)
+    model = FixedMultiHorizonSlotBaseline(
+        ThoughtFieldConfig.thesis_mvp(),
+        input_resolution=(64, 64),
+        plan_steps=3,
+    )
+    return _identity_pixel_grid(model)
+
+
 def build_thesis_dense_routing_model(
     config: TrainingConfig,
 ) -> DenseCommunicationSlotBaseline:
@@ -243,6 +256,7 @@ __all__ = [
     "build_smoke_model",
     "build_thesis_model",
     "build_thesis_dense_routing_model",
+    "build_thesis_fixed_multi_horizon_model",
     "build_thesis_matched_ensemble_model",
     "build_thesis_monolithic_model",
     "build_thesis_no_communication_model",

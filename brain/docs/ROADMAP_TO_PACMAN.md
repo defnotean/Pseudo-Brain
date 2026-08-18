@@ -292,12 +292,19 @@ Near-term slices, each independently committable and test-covered:
    ([runs/2026-08-17-baseline-suite-persistence-and-density-ablations.md](runs/2026-08-17-baseline-suite-persistence-and-density-ablations.md),
    [runs/2026-08-17-matched-ensemble-baseline.md](runs/2026-08-17-matched-ensemble-baseline.md),
    [runs/2026-08-17-recurrent-transformer-baseline.md](runs/2026-08-17-recurrent-transformer-baseline.md)).
-   Still missing from §28: fixed multi-horizon no-persistence heads,
-   recurrent world-model actor, and task specialist. Scoping found all
-   three blocked on shared-objective or campaign-shape changes, so they
-   are preregistered design proposals (B1–B3) awaiting explicit owner
-   sign-off rather than drop-in variants
-   ([runs/2026-08-17-remaining-baseline-controls-preregistration.md](runs/2026-08-17-remaining-baseline-controls-preregistration.md)). The §28 diagnostic
+   Still missing from §28: recurrent world-model actor (B2, own recipe
+   family) and task specialist (B3, blocked on ladder dataset generation).
+   The owner gave an explicit go for B1–B3 on 2026-08-18
+   ([runs/2026-08-17-remaining-baseline-controls-preregistration.md](runs/2026-08-17-remaining-baseline-controls-preregistration.md)),
+   and **B1 is now implemented**: the shared objective gained the
+   preregistered multi-horizon world loss (window-derived offsets {1, 2, 4}
+   on the registered length-8 window, `world_weight` split evenly, flexible
+   min-over-slots per horizon for all existing variants), and
+   `irene.thought_field.fixed_multi_horizon.v1` joined the architecture
+   manifest (digest `8d93eeca…`) at exactly the reference parameter count
+   with slots statically partitioned across horizons and persistence
+   removed
+   ([runs/2026-08-18-multi-horizon-world-loss.md](runs/2026-08-18-multi-horizon-world-loss.md)). The §28 diagnostic
    policies (no-op, random, scripted chaser, privileged oracle) are
    implemented for the closed-loop evaluator in
    `evaluation/diagnostic_policies.py`

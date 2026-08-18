@@ -205,6 +205,20 @@ RECURRENT_TRANSFORMER_IDENTITY = ArchitectureVariantIdentity(
     ),
 )
 
+FIXED_MULTI_HORIZON_IDENTITY = ArchitectureVariantIdentity(
+    schema_version=1,
+    variant_id="irene.thought_field.fixed_multi_horizon.v1",
+    latent_topology="32_factorized_slots_x_3_registers",
+    peer_routing=True,
+    thought_workspace_writes=True,
+    pooled_recurrent_input=False,
+    matching_role="exact_allocated_parameter_fixed_horizon_partition_control",
+    limitations=(
+        "Slots are statically partitioned into even contiguous horizon groups; each group's future embedding is trained only on its assigned offset.",
+        "Incoming thought state is discarded every step; slots reseed from sensors and belief.",
+    ),
+)
+
 
 class NoCommunicationSlotBaseline(IreneBrainModel):
     """Full slot model with both current-cycle communication paths severed."""
@@ -355,6 +369,23 @@ class ParameterMatchedMonolithicBaseline(MonolithicRecurrentBaseline):
 
     architecture_identity = PARAMETER_MATCHED_MONOLITHIC_IDENTITY
     architecture_variant_id = PARAMETER_MATCHED_MONOLITHIC_IDENTITY.variant_id
+
+
+class FixedMultiHorizonSlotBaseline(ResetStateSlotBaseline):
+    """Static horizon-partitioned slots with persistence removed (B1 control).
+
+    Slots are split into even contiguous groups, one per supported
+    prediction horizon of the training window; the shared objective trains
+    each group's future embedding only on its assigned offset, while the
+    reference and other variants keep the flexible min-over-slots
+    assignment per offset. Persistence is removed exactly like the
+    reset-slots ablation, so the variant isolates "fixed horizon structure
+    without persistent thoughtlets" under the identical parameter count.
+    """
+
+    architecture_identity = FIXED_MULTI_HORIZON_IDENTITY
+    architecture_variant_id = FIXED_MULTI_HORIZON_IDENTITY.variant_id
+    fixed_horizon_partition = True
 
 
 class RecurrentTransformerBaseline(IreneBrainModel):
@@ -597,6 +628,8 @@ __all__ = [
     "ArchitectureVariantIdentity",
     "DENSE_COMMUNICATION_IDENTITY",
     "DenseCommunicationSlotBaseline",
+    "FIXED_MULTI_HORIZON_IDENTITY",
+    "FixedMultiHorizonSlotBaseline",
     "MATCHED_ENSEMBLE_IDENTITY",
     "MatchedEnsembleBaseline",
     "MONOLITHIC_IDENTITY",

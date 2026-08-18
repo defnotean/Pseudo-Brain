@@ -292,6 +292,23 @@ close. Play evaluation uses the new public
 from the canonical teaching configurations (12 dataset tests; play-safe
 gate green, 544 tests). Record:
 [docs/runs/2026-08-18-solver-smoke-distillation.md](./docs/runs/2026-08-18-solver-smoke-distillation.md).
+The owner gave an explicit go for the B1–B3 preregistered baseline
+controls (2026-08-18), and **B1 is implemented**: the shared objective
+gained the preregistered multi-horizon world loss — window-derived
+power-of-two offsets, exactly {1, 2, 4} on the registered length-8,
+burn-in-2 campaign window with `world_weight` split evenly across
+horizons, bit-identical single-horizon behavior on length-2 smoke
+windows, and flexible min-over-slots per horizon for all existing
+variants — plus the control variant
+`irene.thought_field.fixed_multi_horizon.v1`: 32 slots statically
+partitioned 11/11/10 across horizons, each group trained only on its own
+offset, persistence removed exactly like reset_slots, at precisely the
+reference parameter count (29,674,318 trainable) inside the regenerated
+architecture manifest (digest `8d93eeca…`). B2 (recurrent world-model
+actor) and B3 (task specialist) remain: B2 needs its own recipe family,
+B3 stays blocked on ladder dataset generation (4 new baseline tests;
+play-safe gate green, 547 tests). Record:
+[docs/runs/2026-08-18-multi-horizon-world-loss.md](./docs/runs/2026-08-18-multi-horizon-world-loss.md).
 The matched baseline suite gains the PLAN §28 item-12 control:
 `irene.thought_field.independent_ensemble.v1` — four untied members of
 eight slots each at width 352 (29,459,914 trainable, 0.72% under the
