@@ -41,8 +41,9 @@ on the same play config: **reward_sum -161, collisions 17, zero pellets**.
   above 17. Not opened by this probe.
 
 `train.py` writes `play-gate.json` into the run directory after a
-maze_chase train or evaluate-only pass. The closed-loop evaluator now
-counts maze `pellet_eaten` events as `targets_collected`.
+maze_chase train or evaluate-only pass. The play gate uses reward_sum
+against the no-op floor. Maze `pellet_eaten` stays out of
+`targets_collected` so the cross-world no-op floor stays world-flat.
 
 ## What this probe will not claim
 
