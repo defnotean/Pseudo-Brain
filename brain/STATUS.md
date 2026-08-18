@@ -180,6 +180,13 @@ contract (analytic pre-pinnable schedule, warmup-aware attempt IDs,
 stale-frame rejections as `submission_failed`; 10 tests; play-safe gate
 green). Record:
 [docs/runs/2026-08-17-play-latency-evidence.md](./docs/runs/2026-08-17-play-latency-evidence.md).
+The remaining §28 controls (fixed multi-horizon heads, world-model actor,
+task specialist, recurrent transformer) were scoped and found blocked on
+shared-objective or campaign-shape changes — the objective trains only a
+short-horizon world loss and `horizon_logits` are consumed nowhere — so
+they are now preregistered design proposals (B1–B4) awaiting explicit
+owner sign-off. Record:
+[docs/runs/2026-08-17-remaining-baseline-controls-preregistration.md](./docs/runs/2026-08-17-remaining-baseline-controls-preregistration.md).
 
 Local play-safe verification after the live v2 registration: every isolated
 test module passed (299 tests, one expected POSIX skip in the trusted-final

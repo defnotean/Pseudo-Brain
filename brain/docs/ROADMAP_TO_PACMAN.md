@@ -227,7 +227,12 @@ Near-term slices, each independently committable and test-covered:
    ([runs/2026-08-17-baseline-suite-persistence-and-density-ablations.md](runs/2026-08-17-baseline-suite-persistence-and-density-ablations.md),
    [runs/2026-08-17-matched-ensemble-baseline.md](runs/2026-08-17-matched-ensemble-baseline.md)).
    Still missing from §28: fixed multi-horizon no-persistence heads,
-   recurrent world-model actor, and task specialist. The §28 diagnostic
+   recurrent world-model actor, and task specialist. Scoping found all
+   three (plus the item-5 recurrent transformer) blocked on
+   shared-objective or campaign-shape changes, so they are preregistered
+   design proposals awaiting explicit owner sign-off rather than drop-in
+   variants
+   ([runs/2026-08-17-remaining-baseline-controls-preregistration.md](runs/2026-08-17-remaining-baseline-controls-preregistration.md)). The §28 diagnostic
    policies (no-op, random, scripted chaser, privileged oracle) are
    implemented for the closed-loop evaluator in
    `evaluation/diagnostic_policies.py`
