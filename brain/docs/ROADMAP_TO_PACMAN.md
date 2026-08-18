@@ -297,10 +297,11 @@ Near-term slices, each independently committable and test-covered:
    ([runs/2026-08-17-baseline-suite-persistence-and-density-ablations.md](runs/2026-08-17-baseline-suite-persistence-and-density-ablations.md),
    [runs/2026-08-17-matched-ensemble-baseline.md](runs/2026-08-17-matched-ensemble-baseline.md),
    [runs/2026-08-17-recurrent-transformer-baseline.md](runs/2026-08-17-recurrent-transformer-baseline.md)).
-   Still missing from §28: task specialist (B3). Campaign-scale ladder
-   materialization remains DGX-window work, but the lazy moving_shapes and
-   maze_chase datasets already exist, so smoke-scale B3 machinery is the
-   next local slice.
+   Still missing from §28 at campaign scale: B3 dataset materialization on
+   the Spark. **B3 smoke machinery is implemented**: mixed-world generalist
+   source plus per-world fine-tune on the existing lazy moving_shapes and
+   maze_chase datasets
+   ([runs/2026-08-18-task-specialist.md](runs/2026-08-18-task-specialist.md)).
    The owner gave an explicit go for B1–B3 on 2026-08-18
    ([runs/2026-08-17-remaining-baseline-controls-preregistration.md](runs/2026-08-17-remaining-baseline-controls-preregistration.md)),
    and **B1 is now implemented**: the shared objective gained the

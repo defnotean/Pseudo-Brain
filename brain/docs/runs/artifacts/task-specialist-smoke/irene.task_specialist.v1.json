@@ -1,0 +1,54 @@
+{
+  "burn_in_steps": 2,
+  "generalist_steps": 16,
+  "mixed_manifest_sha256": "17c36a349972ef434c4655b30c9e80999374b2f8b0d285d097295061d626935c",
+  "scheduler_kind": "constant_after_warmup",
+  "schema_version": 2,
+  "seed": 20260818,
+  "sequence_length": 8,
+  "specialist_steps": 8,
+  "train_loss": {
+    "generalist_first": 2.095163345336914,
+    "generalist_last": 1.4533783197402954,
+    "maze_chase_specialist_last": 1.2052996158599854,
+    "moving_shapes_specialist_last": 0.6203417181968689
+  },
+  "validation": {
+    "generalist": {
+      "maze_chase": {
+        "action_loss": 0.5779517292976379,
+        "movement_exact_match": 0.0,
+        "world_loss": 0.444744348526001
+      },
+      "moving_shapes": {
+        "action_loss": 0.7151481807231903,
+        "movement_exact_match": 0.0,
+        "world_loss": 0.41601189970970154
+      }
+    },
+    "maze_chase_specialist": {
+      "maze_chase": {
+        "action_loss": 0.49020732939243317,
+        "movement_exact_match": 0.0,
+        "world_loss": 0.6951793432235718
+      },
+      "moving_shapes": {
+        "action_loss": 0.7331253886222839,
+        "movement_exact_match": 0.0,
+        "world_loss": 0.5817507803440094
+      }
+    },
+    "moving_shapes_specialist": {
+      "maze_chase": {
+        "action_loss": 0.6084557771682739,
+        "movement_exact_match": 0.0,
+        "world_loss": 0.3520128130912781
+      },
+      "moving_shapes": {
+        "action_loss": 0.7550791203975677,
+        "movement_exact_match": 0.0,
+        "world_loss": 0.36120331287384033
+      }
+    }
+  }
+}

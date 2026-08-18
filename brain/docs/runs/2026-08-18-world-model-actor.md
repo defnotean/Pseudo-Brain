@@ -87,4 +87,5 @@ play-safe suite exits 0 (558 tests).
 - Smoke-scale comparisons should now include this variant;
   `scripts/compare_baselines_smoke.py` covers the slot-suite registry and
   can be extended to recipe-family manifests as a follow-up.
-- B3 (task specialist) remains blocked on ladder dataset generation.
+- B3 (task specialist) is implemented at smoke scale on the existing lazy
+  datasets; campaign-scale materialization remains DGX.

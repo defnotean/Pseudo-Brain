@@ -425,6 +425,19 @@ collisions) while the reference stays catastrophic (−2198/221); and the
 first above-floor in-distribution play appears at 512 steps (reference,
 non-monotonic) and 1024 steps (actor, never below floor). Record:
 [docs/runs/2026-08-18-smoke-probe-schedule-erratum.md](./docs/runs/2026-08-18-smoke-probe-schedule-erratum.md).
+**B3 is implemented** at smoke scale: `MixedWorldBatchSource` mixes the
+existing lazy moving_shapes and maze_chase datasets for a generalist
+(round-robin, affine-shuffled train epochs, identity distinct from either
+member; `DatasetConfig.kind` untouched), and specialists fine-tune copies
+of that checkpoint on each member source — the §29 unchanged-generalist
+versus game-specific fine-tune, not a new factory. A 16+8-step
+constant-LR probe pins the maze specialist beating the frozen generalist
+on maze_chase action loss (0.490 vs 0.578) and paying a transfer cost on
+moving_shapes; the moving_shapes specialist does not beat the generalist
+in-distribution at this scale. Campaign-scale materialization remains
+DGX; the first-matched architecture campaign stays blocked. 9 new tests;
+play-safe gate green, 566 tests, one expected POSIX skip. Record:
+[docs/runs/2026-08-18-task-specialist.md](./docs/runs/2026-08-18-task-specialist.md).
 The matched baseline suite gains the PLAN §28 item-12 control:
 `irene.thought_field.independent_ensemble.v1` — four untied members of
 eight slots each at width 352 (29,459,914 trainable, 0.72% under the

@@ -5,7 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from hashlib import sha256
 import json
-from math import ceil
+from math import ceil, gcd
+from struct import pack
 from typing import Iterator
 
 from ..data import (
@@ -592,6 +593,235 @@ class SolverBatchSource:
             emitted += 1
 
 
+_MIXED_WORLD_ORDER = ("moving_shapes", "maze_chase")
+
+
+@dataclass(frozen=True, slots=True)
+class MixedWorldBatchConfig:
+    """Equal-count mix of moving_shapes and maze_chase for the B3 generalist.
+
+    Kept separate from the pinned ``DatasetConfig`` (whose ``kind`` only
+    supports moving_shapes) so registered moving_shapes configuration hashes
+    are untouched. Both member configs must share split counts,
+    sequence_length, burn_in_steps, seed_offset, and discount; per-world
+    timing knobs may differ. Campaign-scale materialization of either world
+    remains accelerator-window work; this config only names the lazy mix.
+    """
+
+    moving_shapes: DatasetConfig
+    maze_chase: MazeChaseBatchConfig
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.moving_shapes, DatasetConfig):
+            raise ValueError("mixed.moving_shapes must be a DatasetConfig")
+        if not isinstance(self.maze_chase, MazeChaseBatchConfig):
+            raise ValueError("mixed.maze_chase must be a MazeChaseBatchConfig")
+        moving = self.moving_shapes
+        maze = self.maze_chase
+        for name in (
+            "train_sequences",
+            "validation_sequences",
+            "test_sequences",
+            "sequence_length",
+            "burn_in_steps",
+            "seed_offset",
+        ):
+            if getattr(moving, name) != getattr(maze, name):
+                raise ValueError(f"mixed worlds must share {name}")
+        if float(moving.discount) != float(maze.discount):
+            raise ValueError("mixed worlds must share discount")
+
+
+class MixedWorldBatchSource:
+    """Lazy round-robin mix of moving_shapes and maze_chase trajectories.
+
+    Unshuffled order is moving_shapes[0], maze_chase[0], moving_shapes[1],
+    maze_chase[1], … so early batches already see both worlds. Train epochs
+    apply the same affine bijection the single-world sources use, over the
+    combined index space, keyed by this source's manifest. Batches require
+    equal-length sequences (:class:`TrajectoryBatch` fails closed otherwise);
+    the shared ``sequence_length`` makes mixed batches legal.
+
+    This is the B3 generalist data identity. Specialists consume the member
+    sources (:class:`MovingShapesBatchSource`, :class:`MazeChaseBatchSource`)
+    under the same knobs. ``DatasetConfig.kind`` stays ``moving_shapes``.
+    """
+
+    def __init__(self, config: MixedWorldBatchConfig) -> None:
+        if not isinstance(config, MixedWorldBatchConfig):
+            raise ValueError("config must be a MixedWorldBatchConfig")
+        self.config = config
+        moving = config.moving_shapes
+        maze = config.maze_chase
+        counts = {
+            DatasetSplit.TRAIN: moving.train_sequences,
+            DatasetSplit.VALIDATION: moving.validation_sequences,
+            DatasetSplit.TEST: moving.test_sequences,
+        }
+        self._moving = {
+            split: MovingShapesSequenceDataset(
+                MovingShapesDatasetConfig(
+                    split=split,
+                    sequence_count=count,
+                    sequence_length=moving.sequence_length,
+                    seed_offset=moving.seed_offset,
+                    hazard_count=moving.hazard_count,
+                    tick_period_ns=moving.tick_period_ns,
+                    discount=moving.discount,
+                )
+            )
+            for split, count in counts.items()
+        }
+        self._maze = {
+            split: MazeChaseSequenceDataset(
+                MazeChaseDatasetConfig(
+                    split=split,
+                    sequence_count=count,
+                    sequence_length=maze.sequence_length,
+                    seed_offset=maze.seed_offset,
+                    ghost_count=maze.ghost_count,
+                    ghost_period=maze.ghost_period,
+                    player_period=maze.player_period,
+                    extra_loops=maze.extra_loops,
+                    ghost_rule=maze.ghost_rule,
+                    ghost_elroy=maze.ghost_elroy,
+                    input_delay_ticks=maze.input_delay_ticks,
+                    sticky_direction=maze.sticky_direction,
+                    tick_period_ns=maze.tick_period_ns,
+                    discount=maze.discount,
+                )
+            )
+            for split, count in counts.items()
+        }
+        manifest = {
+            "schema_version": 1,
+            "batch_source": "mixed_world_split_namespaces",
+            "worlds": list(_MIXED_WORLD_ORDER),
+            "interleave": "round_robin_moving_shapes_then_maze_chase",
+            "control_layout": CONTROL_LAYOUT_ID,
+            "input_boundary": "ModelObservation-v1",
+            "burn_in_steps": moving.burn_in_steps,
+            "splits": {
+                split.value: {
+                    "moving_shapes": self._moving[split].manifest_sha256,
+                    "maze_chase": self._maze[split].manifest_sha256,
+                }
+                for split in sorted(counts, key=lambda item: item.value)
+            },
+        }
+        encoded = json.dumps(
+            manifest,
+            allow_nan=False,
+            ensure_ascii=True,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("ascii")
+        self._manifest_sha256 = sha256(b"IRTRAINBATCH\x01" + encoded).hexdigest()
+
+    @property
+    def manifest_sha256(self) -> str:
+        return self._manifest_sha256
+
+    @staticmethod
+    def _split(value: str) -> DatasetSplit:
+        try:
+            return DatasetSplit(value)
+        except (TypeError, ValueError) as error:
+            raise ValueError("split must be train, validation, or test") from error
+
+    def split_world_manifests(self, split: str) -> dict[str, str]:
+        partition = self._split(split)
+        return {
+            "moving_shapes": self._moving[partition].manifest_sha256,
+            "maze_chase": self._maze[partition].manifest_sha256,
+        }
+
+    def _epoch_tags(
+        self, *, partition: DatasetSplit, epoch: int
+    ) -> tuple[tuple[str, int], ...]:
+        moving_count = len(self._moving[partition])
+        maze_count = len(self._maze[partition])
+        if moving_count != maze_count:
+            raise ValueError("mixed worlds must contribute equally many sequences")
+        total = moving_count + maze_count
+        tags = tuple(
+            (_MIXED_WORLD_ORDER[index % 2], index // 2) for index in range(total)
+        )
+        shuffle = partition is DatasetSplit.TRAIN
+        if not shuffle or total <= 1:
+            return tags
+        seed = sha256(
+            b"IRMIXEPOCH\x01"
+            + bytes.fromhex(self.manifest_sha256)
+            + pack(">Q", epoch)
+        ).digest()
+        multiplier = int.from_bytes(seed[:8], "big") % total
+        if multiplier == 0:
+            multiplier = 1
+        while gcd(multiplier, total) != 1:
+            multiplier = (multiplier + 1) % total
+            if multiplier == 0:
+                multiplier = 1
+        offset = int.from_bytes(seed[8:16], "big") % total
+        order = tuple((multiplier * index + offset) % total for index in range(total))
+        return tuple(tags[position] for position in order)
+
+    def _sequence(self, partition: DatasetSplit, world: str, index: int):
+        if world == "moving_shapes":
+            return self._moving[partition][index]
+        if world == "maze_chase":
+            return self._maze[partition][index]
+        raise ValueError(f"unknown mixed world: {world}")
+
+    def batches_per_epoch(self, *, split: str, batch_size: int) -> int:
+        if type(batch_size) is not int or batch_size < 1:
+            raise ValueError("batch_size must be a positive integer")
+        partition = self._split(split)
+        total = len(self._moving[partition]) + len(self._maze[partition])
+        return ceil(total / batch_size)
+
+    def iter_batches(
+        self,
+        *,
+        split: str,
+        epoch: int,
+        start_batch: int,
+        batch_size: int,
+        max_batches: int | None = None,
+    ) -> Iterator[TrajectoryBatch]:
+        partition = self._split(split)
+        if type(epoch) is not int or epoch < 0:
+            raise ValueError("epoch must be a nonnegative integer")
+        if type(start_batch) is not int or start_batch < 0:
+            raise ValueError("start_batch must be a nonnegative integer")
+        if type(batch_size) is not int or batch_size < 1:
+            raise ValueError("batch_size must be a positive integer")
+        if max_batches is not None and (
+            type(max_batches) is not int or max_batches < 1
+        ):
+            raise ValueError("max_batches must be a positive integer or None")
+
+        total_batches = self.batches_per_epoch(split=split, batch_size=batch_size)
+        if start_batch > total_batches:
+            raise ValueError("start_batch exceeds the number of batches")
+        tags = self._epoch_tags(partition=partition, epoch=epoch)
+        emitted = 0
+        for batch_index in range(start_batch, total_batches):
+            if max_batches is not None and emitted >= max_batches:
+                break
+            start = batch_index * batch_size
+            selected = tags[start : start + batch_size]
+            yield TrajectoryBatch(
+                split=partition.value,
+                burn_in_steps=self.config.moving_shapes.burn_in_steps,
+                sequences=tuple(
+                    self._sequence(partition, world, index)
+                    for world, index in selected
+                ),
+            )
+            emitted += 1
+
+
 __all__ = [
     "BUTTON_TARGET_INDICES",
     "CONTINUOUS_TARGET_INDICES",
@@ -604,6 +834,8 @@ __all__ = [
     "MOUSE_BUTTON_SLICE",
     "MazeChaseBatchConfig",
     "MazeChaseBatchSource",
+    "MixedWorldBatchConfig",
+    "MixedWorldBatchSource",
     "MovingShapesBatchSource",
     "SCROLL_INDEX",
     "SolverBatchConfig",

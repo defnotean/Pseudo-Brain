@@ -26,8 +26,9 @@ yet**. The 2026-08-18 smoke-probe schedule erratum re-ran the matched
 baseline suite under real constant-LR updates; the reference still does not
 lead, so the review's proceed-criterion (reference leading on ≥3/10 metrics
 at smoke scale) remains unmet. Another RCQ round is not justified. The
-highest-value **local** work is B3 (task specialist versus generalist) on
-the existing lazy ladder datasets. The highest-value **DGX** item is a
+highest-value **local** work after the 2026-08-18 erratum was B3 (task
+specialist versus generalist) on the existing lazy ladder datasets; that
+slice is now in-repo. The highest-value **DGX** item is a
 qualified matched-baseline comparison; the historical first-matched
 campaign stays blocked until a reference actually qualifies.
 
@@ -46,7 +47,7 @@ campaign stays blocked until a reference actually qualifies.
 | 8 | Newly named qualification after the invariance capture fix | Done. Live file `registrations/rcq-v2-reference-v2.json`. Do not edit v1. |
 | 9 | Preclaim, independent review, final authorization, one-shot TEST | Blocked. This qualification failed the entry gate. Do not preclaim or open TEST. |
 | — | RCQ-v3 registration ceremony | **Deferred.** Machinery ready; registration file absent on purpose. Smoke proceed-criterion unmet after the 2026-08-18 constant-LR erratum. Do not run `New-RcqV3Registration.ps1`. |
-| — | Next local work | B3 task-specialist machinery on the existing lazy moving_shapes and maze_chase datasets (owner go 2026-08-18). Campaign-scale materialization stays DGX. |
+| — | Next local work | **B3 done 2026-08-18.** Mixed-world generalist source plus per-world fine-tune on the existing lazy moving_shapes and maze_chase datasets. Campaign-scale materialization stays DGX. |
 | — | Highest-value DGX item | Qualified matched-baseline comparison. Historical first-matched 8×3 campaign remains blocked on its old pin. Do not start a detached Spark train. |
 
 Do not skip ahead. Do not open sealed TEST ranges to "check" labels. Do not
