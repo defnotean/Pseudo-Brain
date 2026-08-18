@@ -374,6 +374,38 @@ class PlayGatedMazeChaseConfigTests(unittest.TestCase):
         tiled_source = dataset_batch_source(tiled.dataset)
         self.assertIsInstance(tiled_source, MazeChaseBatchSource)
         self.assertNotEqual(tiled_source.manifest_sha256, source.manifest_sha256)
+        episode_update = load_training_config(
+            ROOT
+            / "configs"
+            / "training"
+            / "dgx-play-maze-chase-distill-episode-update.toml"
+        )
+        self.assertEqual(episode_update.dataset.window_sampling, "tiled")
+        self.assertEqual(episode_update.dataset.train_sequences, 30)
+        self.assertEqual(episode_update.optimization.batch_size, 1)
+        self.assertEqual(episode_update.optimization.gradient_accumulation_steps, 30)
+        self.assertEqual(tiled.optimization.gradient_accumulation_steps, 1)
+        self.assertEqual(
+            episode_update.objective.action_loss_kind,
+            "exclusive_wasd_softmax_v1",
+        )
+        self.assertEqual(
+            episode_update.objective.play_decode_kind,
+            "exclusive_argmax_wasd_v1",
+        )
+        self.assertEqual(episode_update.objective.value_weight, 0.1)
+        self.assertEqual(episode_update.objective.world_weight, 0.1)
+        self.assertEqual(episode_update.objective.diversity_weight, 0.05)
+        self.assertEqual(episode_update.objective.continuous_action_weight, 0.25)
+        self.assertNotEqual(episode_update.config_sha256, tiled.config_sha256)
+        self.assertEqual(
+            episode_update.config_sha256,
+            "b9b7888c194f72d91b6464b6e3e99dc2e52103db35c9a4d441ca69b60ee80c40",
+        )
+        self.assertEqual(
+            dataset_batch_source(episode_update.dataset).manifest_sha256,
+            tiled_source.manifest_sha256,
+        )
 
         smoke = load_training_config(
             ROOT / "configs" / "training" / "dgx-smoke.toml"

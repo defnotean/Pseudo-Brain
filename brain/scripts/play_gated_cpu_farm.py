@@ -21,6 +21,7 @@ JOBS = (
     "teacher-hist",
     "teacher-exclusive",
     "coverage",
+    "tiled-coverage",
     "play-gate",
     "thoughtlets",
 )
@@ -233,6 +234,60 @@ def job_teacher_exclusive(out_dir: Path) -> None:
     )
 
 
+def _coverage_payload(
+    dataset,
+    *,
+    job: str,
+    hypothesis: str,
+    sequence_length: int,
+    episode_horizon: int,
+) -> dict[str, object]:
+    rows = []
+    by_episode: dict[int, list[int]] = {}
+    for index, sequence in enumerate(dataset):
+        start = int(sequence.transitions[0].observation.frame_id)
+        rows.append(
+            {
+                "sequence_index": index,
+                "episode_seed": sequence.episode_seed,
+                "window_start": start,
+            }
+        )
+        by_episode.setdefault(sequence.episode_seed, []).append(start)
+    per_episode = []
+    for seed, starts in sorted(by_episode.items()):
+        covered: set[int] = set()
+        for start in starts:
+            covered.update(range(start, start + sequence_length))
+        per_episode.append(
+            {
+                "episode_seed": seed,
+                "windows": len(starts),
+                "window_starts": starts,
+                "ticks_covered": len(covered),
+                "coverage_fraction": len(covered) / float(episode_horizon),
+            }
+        )
+    return {
+        "job": job,
+        "campaign_id": "play_gated_maze_chase_distill_v1",
+        "hypothesis": hypothesis,
+        "generator_id": dataset.config.generator_id,
+        "window_sampling": dataset.config.manifest_dict().get("window_sampling"),
+        "source_manifest_sha256": dataset.manifest_sha256,
+        "sequence_length": sequence_length,
+        "episode_horizon": episode_horizon,
+        "sequences": rows,
+        "unique_episodes": len(by_episode),
+        "per_episode": per_episode,
+        "mean_coverage_fraction": (
+            sum(row["coverage_fraction"] for row in per_episode) / len(per_episode)
+            if per_episode
+            else 0.0
+        ),
+    }
+
+
 def job_coverage(out_dir: Path) -> None:
     from irene_brain.data.maze_chase_dataset import (
         DatasetSplit,
@@ -248,52 +303,49 @@ def job_coverage(out_dir: Path) -> None:
             episode_horizon=240,
         )
     )
-    rows = []
-    by_episode: dict[int, list[int]] = {}
-    for index, sequence in enumerate(uniform):
-        start = int(sequence.transitions[0].observation.frame_id)
-        rows.append(
-            {
-                "sequence_index": index,
-                "episode_seed": sequence.episode_seed,
-                "window_start": start,
-            }
-        )
-        by_episode.setdefault(sequence.episode_seed, []).append(start)
-    per_episode = []
-    for seed, starts in sorted(by_episode.items()):
-        covered: set[int] = set()
-        for start in starts:
-            covered.update(range(start, start + 8))
-        per_episode.append(
-            {
-                "episode_seed": seed,
-                "windows": len(starts),
-                "ticks_covered": len(covered),
-                "coverage_fraction": len(covered) / 240.0,
-            }
-        )
     _write(
         out_dir / "dataset-coverage.json",
-        {
-            "job": "coverage",
-            "campaign_id": "play_gated_maze_chase_distill_v1",
-            "hypothesis": (
+        _coverage_payload(
+            uniform,
+            job="coverage",
+            hypothesis=(
                 "uniform 8-tick windows on 16 train sequences never cover a "
                 "full 240-tick planner episode 1:1"
             ),
-            "generator_id": uniform.config.generator_id,
-            "window_sampling": uniform.config.manifest_dict().get("window_sampling"),
-            "source_manifest_sha256": uniform.manifest_sha256,
-            "sequences": rows,
-            "unique_episodes": len(by_episode),
-            "per_episode": per_episode,
-            "mean_coverage_fraction": (
-                sum(row["coverage_fraction"] for row in per_episode) / len(per_episode)
-                if per_episode
-                else 0.0
+            sequence_length=8,
+            episode_horizon=240,
+        ),
+    )
+
+
+def job_tiled_coverage(out_dir: Path) -> None:
+    from irene_brain.data.maze_chase_dataset import (
+        DatasetSplit,
+        MazeChaseDatasetConfig,
+        MazeChaseSequenceDataset,
+    )
+
+    tiled = MazeChaseSequenceDataset(
+        MazeChaseDatasetConfig(
+            split=DatasetSplit.TRAIN,
+            sequence_count=30,
+            sequence_length=8,
+            episode_horizon=240,
+            window_sampling="tiled",
+        )
+    )
+    _write(
+        out_dir / "tiled-dataset-coverage.json",
+        _coverage_payload(
+            tiled,
+            job="tiled-coverage",
+            hypothesis=(
+                "tiled 8-tick windows on 30 train sequences cover one "
+                "240-tick planner episode 1:1"
             ),
-        },
+            sequence_length=8,
+            episode_horizon=240,
+        ),
     )
 
 
@@ -499,6 +551,8 @@ def main() -> int:
         job_teacher_exclusive(out_dir)
     elif arguments.job == "coverage":
         job_coverage(out_dir)
+    elif arguments.job == "tiled-coverage":
+        job_tiled_coverage(out_dir)
     elif arguments.job == "play-gate":
         if not arguments.config or not arguments.checkpoint:
             raise SystemExit("play-gate requires --config and --checkpoint")

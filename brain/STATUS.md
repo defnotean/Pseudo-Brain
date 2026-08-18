@@ -27,11 +27,17 @@ match **0.0**; inactive logit max ≈ −4.81. Value-only exclusive CE
 (`dgx-play-maze-chase-distill-exclusive-ce-value-only-v1`,
 `play-gate.json` SHA-256 `7dc8959c…`, release `r20260818t181900z-85606667a9fa`)
 **failed idle no-op**: mask 0 × 480, 9 pellets, 17 collisions, reward −161;
-val exclusive-argmax match **0.0**; inactive logit max ≈ −4.82. Value_weight
-alone is not the idle-margin hack. Do not scale. Next GPU probe is tiled
-1:1 planner windows with the exclusive-CE aux mix that stayed above idle.
-Named CPU farm jobs ran extra planner seeds, uniform-window coverage, and
-a longer exclusive-CE routing dump. Campaign success is **pellets ≥ 32**
+val exclusive-argmax match **0.0**; inactive logit max ≈ −4.82. Tiled 1:1
+planner windows (`dgx-play-maze-chase-distill-tiled-windows-v1`,
+`play-gate.json` SHA-256 `9fac7fd9…`, release `r20260818t184756z-49bac601d0ca`,
+canonical config SHA-256 `2c126296c820830d037c0fc14053f1cbdbd05ec40d218ea2e84975cb02002b83`)
+**failed sticky A**: histogram **A×476 + D×4**, 15 pellets, 18 collisions,
+reward **−165**, `sticky_or_idle: false`. Val exclusive-argmax match **0.083**
+(down from exclusive-CE 0.167). Step-16 train movement exact 1.0 is logger
+texture, not the gate. Do not scale tiled-windows. Next GPU probe is one
+optimizer update over all 30 tiles of the 240-tick episode. Named CPU farm
+jobs finished planner seeds 116–131, tiled coverage, and a tiled-windows
+thoughtlet dump. Campaign success is **pellets ≥ 32**
 with a non-idle non-D-only histogram. Official 32-step `play-gate.json`
 SHA-256
 `df9d88f4…`; 128-step `6401a922…`; window-32 `2cdedaf9…`; episode-windows

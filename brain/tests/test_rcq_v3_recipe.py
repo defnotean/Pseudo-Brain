@@ -63,6 +63,7 @@ class RecipeFieldConfigurationTests(unittest.TestCase):
                 "dgx-play-maze-chase-distill-exclusive-ce-action-only",
                 "dgx-play-maze-chase-distill-exclusive-ce-value-only",
                 "dgx-play-maze-chase-distill-tiled-windows",
+                "dgx-play-maze-chase-distill-episode-update",
             }:
                 continue
             loaded = load_training_config(path)

@@ -3,17 +3,17 @@
 set -euo pipefail
 
 workspace="${1:-$HOME/projects/pseudo-brain}"
-release_id="${2:-r20260818t175216z-c804bcd101c1}"
+release_id="${2:-r20260818t184756z-49bac601d0ca}"
 image="${3:-177a406d7cb2}"
 release="$workspace/releases/$release_id"
 farm="$workspace/runs/play-gated-cpu-farm-scripts"
-ckpt_run="$workspace/runs/dgx-play-maze-chase-distill-exclusive-ce-v1"
+ckpt_run="$workspace/runs/dgx-play-maze-chase-distill-tiled-windows-v1"
 uidgid="$(id -u):$(id -g)"
 mkdir -p "$workspace/logs" "$farm"
 
 [[ -d "$release" ]] || { echo "missing release $release" >&2; exit 1; }
 [[ -f "$farm/play_gated_cpu_farm.py" ]] || { echo "missing farm script" >&2; exit 1; }
-[[ -f "$ckpt_run/checkpoints/step-00000032.pt" ]] || { echo "missing exclusive-ce checkpoint" >&2; exit 1; }
+[[ -f "$ckpt_run/checkpoints/step-00000032.pt" ]] || { echo "missing tiled-windows checkpoint" >&2; exit 1; }
 
 launch_cpu() {
   local name="$1"
@@ -59,11 +59,11 @@ launch_cpu() {
   echo "started $name cpus=$cpus mem=${mem}g job=$job"
 }
 
-launch_cpu play-gated-cpu-planner-seeds-v1 8 16 planner-seeds '--seeds 100-115'
-launch_cpu play-gated-cpu-coverage-v1 4 8 coverage ''
-launch_cpu play-gated-cpu-thoughtlets-long-v1 4 12 thoughtlets '--config /workspace/repo/brain/configs/training/dgx-play-maze-chase-distill-exclusive-ce.toml --checkpoint /workspace/ckpt-run/checkpoints/step-00000032.pt --ticks 32 --seeds 5,9'
+launch_cpu play-gated-cpu-planner-seeds-v2 8 16 planner-seeds '--seeds 116-131'
+launch_cpu play-gated-cpu-tiled-coverage-v1 4 8 tiled-coverage ''
+launch_cpu play-gated-cpu-thoughtlets-tiled-v1 4 12 thoughtlets '--config /workspace/repo/brain/configs/training/dgx-play-maze-chase-distill-tiled-windows.toml --checkpoint /workspace/ckpt-run/checkpoints/step-00000032.pt --ticks 32 --seeds 5,9'
 
 echo '===TMUX==='
 tmux ls
 echo '===DOCKER==='
-docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.RunningFor}}'
+docker ps

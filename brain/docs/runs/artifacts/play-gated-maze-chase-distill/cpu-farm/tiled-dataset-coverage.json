@@ -1,0 +1,204 @@
+{
+  "campaign_id": "play_gated_maze_chase_distill_v1",
+  "episode_horizon": 240,
+  "generator_id": "irene.maze_chase.planner_teacher.tiled_windows.v1",
+  "hypothesis": "tiled 8-tick windows on 30 train sequences cover one 240-tick planner episode 1:1",
+  "job": "tiled-coverage",
+  "mean_coverage_fraction": 1.0,
+  "per_episode": [
+    {
+      "coverage_fraction": 1.0,
+      "episode_seed": 0,
+      "ticks_covered": 240,
+      "window_starts": [
+        0,
+        8,
+        16,
+        24,
+        32,
+        40,
+        48,
+        56,
+        64,
+        72,
+        80,
+        88,
+        96,
+        104,
+        112,
+        120,
+        128,
+        136,
+        144,
+        152,
+        160,
+        168,
+        176,
+        184,
+        192,
+        200,
+        208,
+        216,
+        224,
+        232
+      ],
+      "windows": 30
+    }
+  ],
+  "sequence_length": 8,
+  "sequences": [
+    {
+      "episode_seed": 0,
+      "sequence_index": 0,
+      "window_start": 0
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 1,
+      "window_start": 8
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 2,
+      "window_start": 16
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 3,
+      "window_start": 24
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 4,
+      "window_start": 32
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 5,
+      "window_start": 40
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 6,
+      "window_start": 48
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 7,
+      "window_start": 56
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 8,
+      "window_start": 64
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 9,
+      "window_start": 72
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 10,
+      "window_start": 80
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 11,
+      "window_start": 88
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 12,
+      "window_start": 96
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 13,
+      "window_start": 104
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 14,
+      "window_start": 112
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 15,
+      "window_start": 120
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 16,
+      "window_start": 128
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 17,
+      "window_start": 136
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 18,
+      "window_start": 144
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 19,
+      "window_start": 152
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 20,
+      "window_start": 160
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 21,
+      "window_start": 168
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 22,
+      "window_start": 176
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 23,
+      "window_start": 184
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 24,
+      "window_start": 192
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 25,
+      "window_start": 200
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 26,
+      "window_start": 208
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 27,
+      "window_start": 216
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 28,
+      "window_start": 224
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 29,
+      "window_start": 232
+    }
+  ],
+  "source_manifest_sha256": "f433daca27377708335cc6aa6142438a669110e47b7447dbc07c238e5475e5a1",
+  "unique_episodes": 1,
+  "window_sampling": "tiled_stride_across_episode"
+}
