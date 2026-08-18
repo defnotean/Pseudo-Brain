@@ -7,13 +7,15 @@ Updated: 2026-08-18
 Status: **play-gated maze-chase distill v1** is the live campaign
 (`play_gated_maze_chase_distill_v1`). Play moved on the 32-step probe v2
 and **held** on the 128-step probe, both at reward_sum **-150**,
-collisions **16**, pellets **0** (`play_moved: true`). Spark is idle.
-Official 32-step `play-gate.json` SHA-256 `df9d88f4…` (release
+collisions **16**. That play is sticky D (val D predicted-positive 1.0
+at every 128-step eval), not pellet-seeking. JSON `pellets_eaten: 0` was
+`target_collected`; reward arithmetic implies ~10 pellets vs no-op 9.
+Next named probe is `dgx-play-maze-chase-distill-window32-v1` (32 steps,
+`sequence_length=32`). Do not start a 2048-step train. Official 32-step
+`play-gate.json` SHA-256 `df9d88f4…` (release
 `r20260818t160829z-82aef6dbc370`); 128-step `play-gate.json` SHA-256
 `6401a922…` (release `r20260818t162040z-2382206346a0`, checkpoint
-`6b0d64c2…`). Probe v1 crashed before the gate. Logger train loss is not
-the gate. 4× optimizer steps did not produce pellets, so the next bounded
-step is a zero-pellet diagnosis, not a 2048-step train. Workstation is
+`6b0d64c2…`). Logger train loss is not the gate. Workstation is
 orchestration; all compute is Spark. Record:
 [docs/runs/2026-08-18-play-gated-maze-chase-distill.md](./docs/runs/2026-08-18-play-gated-maze-chase-distill.md).
 

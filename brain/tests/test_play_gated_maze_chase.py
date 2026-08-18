@@ -9,6 +9,11 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
+from irene_brain.environments.maze_chase import MazeChaseEnv
+from irene_brain.evaluation.closed_loop_play import (
+    ClosedLoopPlayConfig,
+    run_policy_closed_loop_episode,
+)
 from irene_brain.training.batches import (
     MazeChaseBatchSource,
     MovingShapesBatchSource,
@@ -22,6 +27,7 @@ from irene_brain.training.play_gate import (
     PLAY_SEEDS,
     PLAY_TICKS,
 )
+from irene_brain.types import GenericControl, HidKey
 
 
 def _moving() -> DatasetConfig:
@@ -109,6 +115,27 @@ class PlayGatedMazeChaseConfigTests(unittest.TestCase):
         self.assertEqual(longer.optimization.scheduler_kind, short.optimization.scheduler_kind)
         self.assertNotEqual(short.config_sha256, longer.config_sha256)
 
+    def test_window32_probe_keeps_the_step_budget_and_lengthens_teacher(self) -> None:
+        short = load_training_config(
+            ROOT / "configs" / "training" / "dgx-play-maze-chase-distill-probe.toml"
+        )
+        windowed = load_training_config(
+            ROOT / "configs" / "training" / "dgx-play-maze-chase-distill-window32.toml"
+        )
+        self.assertEqual(windowed.schema_version, 2)
+        self.assertEqual(windowed.dataset.kind, "maze_chase")
+        self.assertEqual(windowed.run.max_optimizer_steps, 32)
+        self.assertEqual(windowed.dataset.sequence_length, 32)
+        self.assertEqual(short.dataset.sequence_length, 8)
+        self.assertEqual(windowed.run.seed, short.run.seed)
+        self.assertEqual(windowed.run.model_factory, short.run.model_factory)
+        self.assertEqual(
+            windowed.optimization.scheduler_kind, short.optimization.scheduler_kind
+        )
+        self.assertNotEqual(short.config_sha256, windowed.config_sha256)
+        source = dataset_batch_source(windowed.dataset)
+        self.assertIsInstance(source, MazeChaseBatchSource)
+
     def test_play_gate_floor_is_frozen(self) -> None:
         self.assertEqual(CAMPAIGN_ID, "play_gated_maze_chase_distill_v1")
         self.assertEqual(PLAY_SEEDS, (5, 9))
@@ -124,6 +151,54 @@ class PlayGatedMazeChaseConfigTests(unittest.TestCase):
         source = inspect.getsource(evaluate_closed_loop_play)
         self.assertNotIn('torch.device("cpu")', source)
         self.assertIn("parameters()", source)
+
+    def test_play_gate_reads_pellet_eaten_not_target_collected(self) -> None:
+        import inspect
+
+        from irene_brain.training import play_gate as module
+
+        source = inspect.getsource(module.evaluate_maze_chase_play)
+        self.assertIn('totals["pellets_eaten"]', source)
+        self.assertNotIn('totals["targets_collected"]', source)
+        self.assertIn("movement_mask_histogram", source)
+
+    def test_maze_chase_play_counts_pellets_not_targets(self) -> None:
+        class _Cycle:
+            uses_privileged_state = False
+
+            def __init__(self) -> None:
+                self._index = 0
+                self._keys = (
+                    int(HidKey.D),
+                    int(HidKey.S),
+                    int(HidKey.A),
+                    int(HidKey.W),
+                )
+
+            def reset(self, episode_seed: int) -> None:
+                del episode_seed
+                self._index = 0
+
+            def act(self, observation: object) -> GenericControl:
+                del observation
+                key = self._keys[self._index % 4]
+                self._index += 1
+                return GenericControl(keys_down=(key,))
+
+        config = ClosedLoopPlayConfig(episode_seeds=(5,), max_ticks=24)
+        episode = run_policy_closed_loop_episode(
+            _Cycle(),
+            seed=5,
+            config=config,
+            environment_factory=lambda: MazeChaseEnv(
+                ghost_count=3,
+                ghost_period=2,
+                extra_loops=16,
+                max_ticks=24,
+            ),
+        )
+        self.assertEqual(episode.targets_collected, 0)
+        self.assertGreater(episode.pellets_eaten, 0)
 
 
 if __name__ == "__main__":

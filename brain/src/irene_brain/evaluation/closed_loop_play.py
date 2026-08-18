@@ -239,6 +239,7 @@ class ClosedLoopEpisodeReport:
     ticks_advanced: int
     reward_sum: float
     targets_collected: int
+    pellets_eaten: int
     collisions: int
     decisions_submitted: int
     decisions_rejected: int
@@ -266,6 +267,7 @@ class ClosedLoopEpisodeReport:
             "non_movement_key_activations": self.non_movement_key_activations,
             "observations_dropped": self.observations_dropped,
             "opposite_conflicts": self.opposite_conflicts,
+            "pellets_eaten": self.pellets_eaten,
             "rejections_by_reason": [
                 [reason, count] for reason, count in self.rejections_by_reason
             ],
@@ -298,6 +300,7 @@ class ClosedLoopPlayReport:
 
     def to_dict(self) -> dict[str, object]:
         targets = sum(episode.targets_collected for episode in self.episodes)
+        pellets = sum(episode.pellets_eaten for episode in self.episodes)
         collisions = sum(episode.collisions for episode in self.episodes)
         rejected = sum(episode.decisions_rejected for episode in self.episodes)
         submitted = sum(episode.decisions_submitted for episode in self.episodes)
@@ -311,6 +314,7 @@ class ClosedLoopPlayReport:
                 "decisions_rejected": rejected,
                 "decisions_submitted": submitted,
                 "episodes": len(self.episodes),
+                "pellets_eaten": pellets,
                 "reward_sum": sum(episode.reward_sum for episode in self.episodes),
                 "targets_collected": targets,
                 "ticks_advanced": sum(
@@ -492,10 +496,12 @@ def _run_episode_core(
         ticks_advanced=driver.step_count,
         reward_sum=environment.reward_sum,
         targets_collected=environment.events.count("target_collected"),
+        # maze_chase emits `pellet_eaten`, not `target_collected`. Keep the
+        # target column world-flat for no-op floors; play-gate reads this
+        # pellet field so a D-wall-hug cannot hide as "zero pellets".
+        pellets_eaten=environment.events.count("pellet_eaten"),
         # Moving shapes reports "collision"; pursuit reports "caught". Both
         # are the same column: the player made contact with a threat.
-        # maze_chase pellets are `pellet_eaten` and stay out of this column
-        # so the no-op floor test remains world-flat. Play-gate uses reward.
         collisions=(
             environment.events.count("collision")
             + environment.events.count("caught")

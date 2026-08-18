@@ -1,11 +1,88 @@
 # Play-gated maze-chase distill campaign v1 (2026-08-18)
 
-Status: **current campaign**. 32-step probe v2 and 128-step probe both
-**passed** play at the same numbers: `play_moved: true`, reward_sum
-**-150**, collisions 16, **0 pellets**. 4× steps did not add pellets.
-Spark is idle. Next bounded idea is a zero-pellet diagnosis, not a
-2048-step train. RCQ-v2 seed 1702 stays terminal. No v3 registration. No
-sealed TEST. Compute is Spark-only; the workstation is orchestration.
+Status: **current campaign**. Zero-pellet diagnosis is written. Spark is
+starting the newly named 32-tick teacher-window probe
+(`dgx-play-maze-chase-distill-window32-v1`, 32 optimizer steps). Do not
+start a 2048-step train. RCQ-v2 seed 1702 stays terminal. No v3
+registration. No sealed TEST. Compute is Spark-only; the workstation is
+orchestration.
+
+## Zero-pellet diagnosis (2026-08-18)
+
+The 32-step and 128-step probes are the same closed-loop player: reward
+**-150**, collisions **16**, JSON `pellets_eaten` **0**. Train loss moved;
+play did not. That is not "need more steps."
+
+### 1. The JSON "zero pellets" column is the wrong event
+
+`play-gate.json` mapped `totals["targets_collected"]`, which counts
+`target_collected`. maze_chase emits `pellet_eaten`. Historical JSON files
+therefore always print 0 pellets even if the player ate some.
+
+Reward arithmetic on the frozen play config (pellet +1, caught −10):
+
+| Policy | collisions | reward | implied pellets |
+|---|---|---|---|
+| no-op floor | 17 | −161 | **9** (17×−10 + 9) |
+| v2 / 128-step neural | 16 | −150 | **10** (16×−10 + 10) |
+
+So the neural player is not pellet-blind in the world; it is one extra
+corridor pellet and one fewer catch than no-op. Campaign success is still
+eating / clearing, not this.
+
+Play-gate now counts `pellet_eaten` and writes `movement_mask_histogram`
+(W=bit0, A=bit1, S=bit2, D=bit3; mask 8 is D-only).
+
+### 2. 240 ticks on seeds 5/9 can show pellet collection
+
+The pixel-only planner on the same canonical slot clears seed 5 at tick
+**208** (142 pellets, 0 catches). Seed 9 is in the same 3-seed planner
+row that clears 3/3. Lengthening eval ticks is not the next idea.
+
+### 3. The policy is sticky D, not idle, not a player
+
+128-step Spark `metrics.jsonl` (run
+`dgx-play-maze-chase-distill-probe-128-v1`): every validation row at
+steps 32, 64, 96, and 128 is bit-identical on actions:
+
+| Field | Value (val, all four evals) |
+|---|---|
+| `movement_d_predicted_positive_rate` | **1.0** |
+| `movement_w/a/s_predicted_positive_rate` | **0.0** |
+| `movement_d_true_positive_rate` | 0.458 |
+| `movement_w/a/s_true_positive_rate` | **0.0** |
+| `movement_exact_match` | **0.458** (= teacher D rate) |
+| `movement_false_positive_count` | 0.542 |
+
+The teacher is **not** sticky D: val target D is 45.8%, W 20.8%, A 16.7%,
+S 16.7%. Closed-loop decode is independent `logit > 0` on WASD (HID 26 / 4
+/ 22 / 7, same as `button_support_control_indices`). Always-D plus
+`sticky_direction=False` is a wall-hug east / respawn loop. Eval device
+was already fixed (probe v1 CUDA/CPU crash). Action mapping is not
+swapped.
+
+### 4. Teacher covers pellets; the window does not cover turns
+
+`irene.maze_chase.planner_teacher.v1` labels the planner. Dataset
+`max_ticks = sequence_length`, so the 8-tick probe only ever sees ticks
+0–7 from spawn. Those snippets include pellet-path actions (W/A/S are in
+the val targets) but not the first junction. 4× optimizer steps over the
+same 8-tick openings overfit D and froze val exact-match at 0.458.
+
+### Next bounded probe (preregistered)
+
+Hypothesis: **32-tick teacher windows at the same 32-step budget as v2**
+unstick D because each batch now contains the first turn, not six
+majority-D labels. Not a longer train. If `play-gate.json` still shows
+~16 collisions, ~10 pellets, and a D-only histogram (mask 8), do not
+scale — next distinct idea.
+
+| Field | Value |
+|---|---|
+| Run id | `dgx-play-maze-chase-distill-window32-v1` |
+| Config | `brain/configs/training/dgx-play-maze-chase-distill-window32.toml` |
+| Budget | 32 optimizer steps, `sequence_length = 32`, seeds 5/9 × 240 ticks |
+| Pass | `play_moved: true` **and** pellets well above the ~10 D-hug band, or a non-D histogram |
 
 ## Probe v2 result (2026-08-18)
 
@@ -113,15 +190,6 @@ Logged metrics at step 128 (not the gate): train loss 0.438, action loss
 movement exact 0.458. Teacher agreement moved; closed-loop play did not.
 Do not treat this as a green light for an unlabeled long train.
 
-## Next bounded idea (not started)
-
-Zero-pellet diagnosis: the model is one collision below no-op and eats
-nothing at 32 and 128 steps. Check closed-loop action decode vs the
-planner teacher (sticky D? no pellet approach), reset/horizon, and
-whether 240 ticks on seeds 5/9 can show pellet play at all for this
-checkpoint family. A newly named short Spark probe only after that
-hypothesis is written down.
-
 ## 128-step probe (preregistered, now completed)
 
 | Field | Value |
@@ -155,33 +223,38 @@ and not an RCQ qualification.
 | First probe run id | `dgx-play-maze-chase-distill-probe-v1` (trained; play-gate crashed) |
 | Passing 32-step run id | `dgx-play-maze-chase-distill-probe-v2` (`play_moved: true`) |
 | Passing 128-step run id | `dgx-play-maze-chase-distill-probe-128-v1` (`play_moved: true`, same play numbers) |
-| Next probe run id | none running; next idea is a zero-pellet diagnosis |
+| Next probe run id | `dgx-play-maze-chase-distill-window32-v1` |
 | 32-step config | `brain/configs/training/dgx-play-maze-chase-distill-probe.toml` |
 | 128-step config | `brain/configs/training/dgx-play-maze-chase-distill-probe-128.toml` |
+| Window-32 config | `brain/configs/training/dgx-play-maze-chase-distill-window32.toml` |
 | Model factory | `irene_brain.training.factory:build_thesis_model` |
 | Data | lazy `irene.maze_chase.planner_teacher.v1` via `dataset.kind = "maze_chase"` |
-| Probe budget | 32-step pass done; next bounded budget 128 steps, schema 2, constant after warmup |
+| Probe budget | 32 optimizer steps with `sequence_length = 32`; schema 2, constant after warmup |
 | Play eval | seeds 5/9, 240 ticks, canonical maze slot (3 ghosts, period 2, 16 extra loops) |
 
 ## Success / fail / stop
 
 The no-op floor is frozen from the 2026-08-18 constant-LR transfer table
-on the same play config: **reward_sum -161, collisions 17, zero pellets**.
+on the same play config: **reward_sum -161, collisions 17**. Implied
+no-op pellets are 9 (reward arithmetic). Historical play-gate JSON
+`pellets_eaten: 0` is the wrong event name, not a world fact.
 
-- **Play moved** (probe pass, may scale): `reward_sum > -161`.
-- **Probe fail**: play at or below that floor, even if action loss drops.
-  Action-loss-only improvement is a fail for this campaign.
-- **Stop**: if the probe fails, do not start a longer Spark train. Diagnose
-  (teacher/closed-loop mismatch, action decode, reset, horizon, twitch)
-  and run the next **newly named** bounded probe.
-- **Campaign pass** (later): a preregistered longer run that stays above
-  the floor and does not regress collisions above 17. The 128-step probe
-  is the next bounded step, not that campaign pass.
+- **Play moved** (thin probe pass): `reward_sum > -161`.
+- **Window-32 probe pass** (may consider a longer named run): pellets
+  well above the ~10 D-hug band, or a movement histogram that is not
+  D-only (mask 8). Reward-only "one fewer collision" is not enough.
+- **Probe fail**: play at or below the floor, or still the D-hug band,
+  even if action loss drops.
+- **Stop**: if window-32 fails, do not start a longer Spark train.
+  Next distinct named idea (play-conditioned loss, unstick decode, more
+  sequences) — still bounded.
+- **Campaign pass** (later): neural play that eats pellets / clears, not
+  one less collision than no-op.
 
 `train.py` writes `play-gate.json` into the run directory after a
 maze_chase train or evaluate-only pass. The play gate uses reward_sum
-against the no-op floor. Maze `pellet_eaten` stays out of
-`targets_collected` so the cross-world no-op floor stays world-flat.
+against the no-op floor and now counts `pellet_eaten`. Maze pellets stay
+out of `targets_collected` so the cross-world no-op floor stays world-flat.
 
 ## What this probe will not claim
 
@@ -190,6 +263,21 @@ against the no-op floor. Maze `pellet_eaten` stays out of
 - Physical 60 Hz latency
 - Transfer to other ladder worlds (one transfer world waits until play
   has moved and hygiene is tight)
+
+## Spark sequence (window-32 probe)
+
+1. `Invoke-DgxPreflight.ps1`
+2. `Sync-DgxBrainRelease.ps1`
+3. `Invoke-DgxBrainSmoke.ps1` on `dgx-smoke.toml` (receipt written)
+4. `Start-DgxBrainTraining.ps1` with
+   `dgx-play-maze-chase-distill-window32.toml`, run id
+   `dgx-play-maze-chase-distill-window32-v1`, Tmux with
+   `-AcknowledgeDetached`
+5. Watch `play-gate.json`. If pellets stay in the D-hug band and the
+   histogram is mask 8, Spark idle; do not scale.
+
+Generic wrappers only. Never `Start-DgxRcqV2Reference.ps1`. Never point
+generic train at an RCQ config.
 
 ## Spark sequence (128-step probe, completed)
 

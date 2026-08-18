@@ -2,9 +2,12 @@
 
 This is the campaign instrument, not a teacher-agreement metric. The frozen
 no-op floor comes from the 2026-08-18 transfer-battery constant-LR table
-(seeds 5/9, 240 ticks): reward_sum -161, collisions 17, zero pellets.
-Play has moved only when reward exceeds that floor. Action-loss drops
-alone are a fail for this campaign.
+(seeds 5/9, 240 ticks): reward_sum -161, collisions 17. Play has moved only
+when reward exceeds that floor. Action-loss drops alone are a fail.
+
+``pellets_eaten`` counts maze_chase ``pellet_eaten`` events. Historical
+probe JSON files mapped the world-flat ``target_collected`` column and
+always printed 0; reward arithmetic on those runs is the pellet record.
 """
 
 from __future__ import annotations
@@ -48,7 +51,11 @@ def evaluate_maze_chase_play(model: object) -> dict[str, object]:
     totals = report.to_dict()["totals"]
     reward = float(totals["reward_sum"])
     collisions = int(totals["collisions"])
-    pellets = int(totals["targets_collected"])
+    pellets = int(totals["pellets_eaten"])
+    histogram: dict[int, int] = {}
+    for episode in report.episodes:
+        for mask, count in episode.movement_mask_histogram:
+            histogram[int(mask)] = histogram.get(int(mask), 0) + int(count)
     play_moved = reward > NOOP_REWARD_FLOOR
     return {
         "campaign_id": CAMPAIGN_ID,
@@ -59,6 +66,10 @@ def evaluate_maze_chase_play(model: object) -> dict[str, object]:
         "reward_sum": reward,
         "collisions": collisions,
         "pellets_eaten": pellets,
+        # W=bit0, A=bit1, S=bit2, D=bit3. Mask 8 is D-only; mask 0 is idle.
+        "movement_mask_histogram": [
+            [mask, count] for mask, count in sorted(histogram.items())
+        ],
         "decisions_rejected": int(totals["decisions_rejected"]),
         "play_moved": play_moved,
         "gate": "passed" if play_moved else "failed",

@@ -7,11 +7,13 @@ value identities, and legal stopping rules are in
 [CURRENT_WORK.md](../../CURRENT_WORK.md).
 
 The live campaign is **play-gated maze-chase distill v1**, not RCQ.
-Spark-only compute. 32-step and 128-step probes both passed play
-(`reward_sum -150`, 0 pellets). Spark is idle. Do not start an unlabeled
-long train; the next bounded step is a zero-pellet diagnosis.
+Spark-only compute. 32-step and 128-step probes both sat at
+`reward_sum -150` / collisions 16: sticky D, not a pellet player. JSON
+zero-pellets was the wrong event. Next bounded job is the 32-tick
+teacher-window probe (same 32-step budget as v2). Do not start an
+unlabeled long train.
 
-The previous 128-step launch (completed):
+The window-32 launch:
 
 ```powershell
 & .\brain\scripts\dgx\Invoke-DgxPreflight.ps1 `
@@ -42,8 +44,8 @@ The previous 128-step launch (completed):
   -RemoteWorkDir '~/projects/pseudo-brain' `
   -ReleaseId '<release-id>' `
   -ContainerImage 'vllm/vllm-openai:nightly-aarch64' `
-  -ConfigRelativePath 'brain/configs/training/dgx-play-maze-chase-distill-probe-128.toml' `
-  -RunId 'dgx-play-maze-chase-distill-probe-128-v1' `
+  -ConfigRelativePath 'brain/configs/training/dgx-play-maze-chase-distill-window32.toml' `
+  -RunId 'dgx-play-maze-chase-distill-window32-v1' `
   -LaunchMode Tmux `
   -AcknowledgeDetached `
   -MinFreeDiskGiB 20 `
@@ -52,9 +54,8 @@ The previous 128-step launch (completed):
   -ContainerMemoryGiB 48
 ```
 
-Scale only if `play-gate.json` reports `play_moved: true` (reward > -161)
-and collisions stay at or below 17. Both completed probes still have zero
-pellets; 128 steps did not improve on 32.
+Scale only if `play-gate.json` shows pellets well above the ~10 D-hug
+band (or a non-D movement histogram), not merely `play_moved: true`.
 Record:
 [runs/2026-08-18-play-gated-maze-chase-distill.md](runs/2026-08-18-play-gated-maze-chase-distill.md).
 

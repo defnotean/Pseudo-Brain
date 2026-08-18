@@ -173,6 +173,9 @@ class ClosedLoopPlayEndToEndTests(unittest.TestCase):
             self.assertEqual(episode.ticks_advanced, 24)
             self.assertEqual(episode.decisions_submitted, 24)
             self.assertEqual(episode.decisions_rejected, 0)
+            self.assertEqual(episode.targets_collected, 0)
+            self.assertGreaterEqual(episode.pellets_eaten, 0)
+        self.assertIn("pellets_eaten", report.to_dict()["totals"])
 
     def test_high_latency_causes_stale_frame_rejections(self) -> None:
         config = self._play_config(
