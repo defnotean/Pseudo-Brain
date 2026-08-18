@@ -67,6 +67,23 @@ teacher movement logit gap **−0.139**; inactive movement logit max
 **−0.690**. CPU turn-hold on the same 90 tiles: 261/720 change ticks
 (36.3%), 82/90 windows have a change. Do not retune hold×0.1.
 
+Closed-loop GIFs of this checkpoint on Spark **CPU** (CUDA hidden; the
+128-step GB10 train was left running). Same play-gate decode
+`exclusive_argmax_wasd_v1`, 240 ticks, seeds 5 and 9. Combined they
+reproduce the gate row (38 pellets, 43 collisions, A×377 + S×103).
+The play looks clumsy: A/S sticky-ish, lots of ghost hits, no maze
+clear.
+
+| Seed | Pellets | Catches | Histogram | GIF |
+|---|---|---|---|---|
+| 5 | 21 | 12 | A×188 + S×52 | [turn-weighted-v1-seed5.gif](./artifacts/play-gated-maze-chase-distill/turn-weighted-v1-seed5.gif) |
+| 9 | 17 | 31 | A×189 + S×51 | [turn-weighted-v1-seed9.gif](./artifacts/play-gated-maze-chase-distill/turn-weighted-v1-seed9.gif) |
+
+Teacher comparison (planner, not the model):
+[planner-teacher-seed5.gif](./artifacts/play-gated-maze-chase-distill/planner-teacher-seed5.gif)
+(copy of the 2026-08-17 seed-5 planner clear). Renderer:
+`brain/scripts/render_maze_chase_neural_replay.py`.
+
 ## Multi-episode tiled tiles result (2026-08-18)
 
 Official `play-gate.json`:

@@ -35,7 +35,15 @@ Multi-episode tiled tiles **failed mixed W/A/D** (W×48 + A×200 + D×232,
 scale 90-seq. CPU farm added a turn-hold audit (261/720 change ticks,
 82/90 windows have a change), a multi-episode thoughtlet dump
 (open-loop A×31+D×1), and a turn-weighted thoughtlet dump
-(open-loop A×32 on seeds 5/9). Campaign success is **pellets ≥ 32**
+(open-loop A×32 on seeds 5/9). Closed-loop GIFs of the 32-step
+turn-weighted checkpoint (same `exclusive_argmax_wasd_v1` decode, 240
+ticks) sit next to the play-gate JSON:
+[docs/runs/artifacts/play-gated-maze-chase-distill/turn-weighted-v1-seed5.gif](./docs/runs/artifacts/play-gated-maze-chase-distill/turn-weighted-v1-seed5.gif)
+(21 pellets / 12 catches) and
+[seed 9](./docs/runs/artifacts/play-gated-maze-chase-distill/turn-weighted-v1-seed9.gif)
+(17 pellets / 31 catches). Teacher seed-5 planner clear:
+[planner-teacher-seed5.gif](./docs/runs/artifacts/play-gated-maze-chase-distill/planner-teacher-seed5.gif).
+Campaign success is **pellets ≥ 32**
 with a non-idle non-D-only histogram. Official 32-step `play-gate.json`
 SHA-256
 `df9d88f4…`; 128-step `6401a922…`; window-32 `2cdedaf9…`; episode-windows

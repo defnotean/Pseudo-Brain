@@ -32,7 +32,13 @@ steps (`dgx-play-maze-chase-distill-turn-weighted-128-v1`), now live on
 Spark release `r20260818t202732z-ab1001f8af37`. Spark CPU
 farm added a turn-hold audit (261/720 change ticks, 82/90 windows have a
 change), a multi-episode thoughtlet dump (open-loop A×31+D×1), and a
-turn-weighted thoughtlet dump (open-loop A×32 on seeds 5/9). Record:
+turn-weighted thoughtlet dump (open-loop A×32 on seeds 5/9). Closed-loop
+GIFs of the 32-step turn-weighted checkpoint (seeds 5 and 9, 240 ticks,
+`exclusive_argmax_wasd_v1`) are at
+[brain/docs/runs/artifacts/play-gated-maze-chase-distill/turn-weighted-v1-seed5.gif](brain/docs/runs/artifacts/play-gated-maze-chase-distill/turn-weighted-v1-seed5.gif)
+and
+[turn-weighted-v1-seed9.gif](brain/docs/runs/artifacts/play-gated-maze-chase-distill/turn-weighted-v1-seed9.gif).
+The play is clumsy A/S, not a maze clear. Record:
 [brain/docs/runs/2026-08-18-play-gated-maze-chase-distill.md](brain/docs/runs/2026-08-18-play-gated-maze-chase-distill.md).
 
 All training, probes, and play evals run on the Spark. This workstation is
