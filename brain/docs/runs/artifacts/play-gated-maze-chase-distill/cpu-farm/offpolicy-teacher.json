@@ -1,0 +1,197 @@
+{
+  "all_mixed": false,
+  "any_mixed": true,
+  "campaign_id": "play_gated_maze_chase_distill_v1",
+  "hypothesis": "planner labels on sticky-WASD and idle rollouts stay mixed, so closed-loop BC would not copy the sticky key",
+  "job": "offpolicy-teacher",
+  "rows": [
+    {
+      "behavior": "idle",
+      "mixed_wasd": false,
+      "rates": {
+        "a": 0.0,
+        "d": 0.0,
+        "idle": 0.0,
+        "s": 1.0,
+        "w": 0.0
+      },
+      "seed": 5,
+      "teacher_labels": {
+        "s": 32
+      },
+      "teacher_matches_behavior": 0,
+      "teacher_unique_wasd": 1,
+      "ticks": 32
+    },
+    {
+      "behavior": "idle",
+      "mixed_wasd": false,
+      "rates": {
+        "a": 0.0,
+        "d": 0.0,
+        "idle": 0.0,
+        "s": 1.0,
+        "w": 0.0
+      },
+      "seed": 9,
+      "teacher_labels": {
+        "s": 32
+      },
+      "teacher_matches_behavior": 0,
+      "teacher_unique_wasd": 1,
+      "ticks": 32
+    },
+    {
+      "behavior": "w",
+      "mixed_wasd": false,
+      "rates": {
+        "a": 0.0,
+        "d": 0.0,
+        "idle": 0.0,
+        "s": 1.0,
+        "w": 0.0
+      },
+      "seed": 5,
+      "teacher_labels": {
+        "s": 32
+      },
+      "teacher_matches_behavior": 0,
+      "teacher_unique_wasd": 1,
+      "ticks": 32
+    },
+    {
+      "behavior": "w",
+      "mixed_wasd": false,
+      "rates": {
+        "a": 0.0,
+        "d": 0.0,
+        "idle": 0.0,
+        "s": 1.0,
+        "w": 0.0
+      },
+      "seed": 9,
+      "teacher_labels": {
+        "s": 32
+      },
+      "teacher_matches_behavior": 0,
+      "teacher_unique_wasd": 1,
+      "ticks": 32
+    },
+    {
+      "behavior": "a",
+      "mixed_wasd": false,
+      "rates": {
+        "a": 0.0,
+        "d": 0.0,
+        "idle": 0.0,
+        "s": 1.0,
+        "w": 0.0
+      },
+      "seed": 5,
+      "teacher_labels": {
+        "s": 32
+      },
+      "teacher_matches_behavior": 0,
+      "teacher_unique_wasd": 1,
+      "ticks": 32
+    },
+    {
+      "behavior": "a",
+      "mixed_wasd": false,
+      "rates": {
+        "a": 0.0,
+        "d": 0.0,
+        "idle": 0.0,
+        "s": 1.0,
+        "w": 0.0
+      },
+      "seed": 9,
+      "teacher_labels": {
+        "s": 32
+      },
+      "teacher_matches_behavior": 0,
+      "teacher_unique_wasd": 1,
+      "ticks": 32
+    },
+    {
+      "behavior": "s",
+      "mixed_wasd": false,
+      "rates": {
+        "a": 0.0,
+        "d": 0.625,
+        "idle": 0.0,
+        "s": 0.375,
+        "w": 0.0
+      },
+      "seed": 5,
+      "teacher_labels": {
+        "d": 20,
+        "s": 12
+      },
+      "teacher_matches_behavior": 12,
+      "teacher_unique_wasd": 2,
+      "ticks": 32
+    },
+    {
+      "behavior": "s",
+      "mixed_wasd": true,
+      "rates": {
+        "a": 0.0,
+        "d": 0.5,
+        "idle": 0.0,
+        "s": 0.1875,
+        "w": 0.3125
+      },
+      "seed": 9,
+      "teacher_labels": {
+        "d": 16,
+        "s": 6,
+        "w": 10
+      },
+      "teacher_matches_behavior": 6,
+      "teacher_unique_wasd": 3,
+      "ticks": 32
+    },
+    {
+      "behavior": "d",
+      "mixed_wasd": false,
+      "rates": {
+        "a": 0.0,
+        "d": 0.0,
+        "idle": 0.0,
+        "s": 1.0,
+        "w": 0.0
+      },
+      "seed": 5,
+      "teacher_labels": {
+        "s": 32
+      },
+      "teacher_matches_behavior": 0,
+      "teacher_unique_wasd": 1,
+      "ticks": 32
+    },
+    {
+      "behavior": "d",
+      "mixed_wasd": false,
+      "rates": {
+        "a": 0.0,
+        "d": 0.0,
+        "idle": 0.0,
+        "s": 1.0,
+        "w": 0.0
+      },
+      "seed": 9,
+      "teacher_labels": {
+        "s": 32
+      },
+      "teacher_matches_behavior": 0,
+      "teacher_unique_wasd": 1,
+      "ticks": 32
+    }
+  ],
+  "seeds": [
+    5,
+    9
+  ],
+  "ticks": 32
+}

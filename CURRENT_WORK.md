@@ -27,14 +27,16 @@ softmax loss matching that decode **failed sticky S**: histogram S×480,
 0 × 480, 9 pellets, reward −161; val match 0.0; inactive logit max
 ≈ −4.82). Tiled 1:1 planner windows **failed sticky A**: histogram
 A×476 + D×4, 15 pellets, 18 collisions, reward −165; val exclusive-argmax
-match **0.083** (down from exclusive-CE 0.167). Do not scale tiled-windows.
-Next GPU probe is one optimizer update over all 30 tiles of the 240-tick
-episode; that run is **live** on Spark as
-`dgx-play-maze-chase-distill-episode-update-v1`, release
-`r20260818t190103z-ddf0904b5d81`. Spark CPU farm finished extra planner
-seeds 116–131 (4/16 clear), tiled coverage (1.0 on one episode), and a
-tiled-windows thoughtlet dump (open-loop argmax D×32; closed-loop play
-was sticky A). Record:
+match **0.083** (down from exclusive-CE 0.167). Full-episode tiled
+update (accum 30) **failed sticky D**: histogram **D×431 + A×49**, 10
+pellets, 16 collisions, −150; val exclusive-argmax match **0.417**
+(= teacher D, not a ranking gain). Do not scale accumulation-30.
+Closed-loop BC at spawn is not next: off-policy planner labels on
+idle/W/A/D were S×32. Next GPU probe is multi-episode tiled tiles at
+the same accum 30 (`dgx-play-maze-chase-distill-multi-episode-v1`).
+Spark CPU farm also finished planner seeds 132–147 (5/16 clear), tiled
+teacher mix, three-episode coverage, and an episode-update thoughtlet
+dump (open-loop A; closed-loop sticky D). Record:
 [brain/docs/runs/2026-08-18-play-gated-maze-chase-distill.md](brain/docs/runs/2026-08-18-play-gated-maze-chase-distill.md).
 
 All training, probes, and play evals run on the Spark. This workstation is
@@ -59,7 +61,7 @@ campaign.
 | 8 | Newly named qualification after the invariance capture fix | Done. Live file `registrations/rcq-v2-reference-v2.json`. Do not edit v1. |
 | 9 | Preclaim, independent review, final authorization, one-shot TEST | Blocked. This qualification failed the entry gate. Do not preclaim or open TEST. |
 | — | RCQ-v3 registration ceremony | **Deferred.** Do not run `New-RcqV3Registration.ps1`. |
-| — | Current campaign | Play-gated maze-chase distill v1. Sticky D at 32/128 spawn-only. Window-32 and episode-windows failed idle. Exclusive argmax unstuck idle then sticky S. Exclusive softmax failed S×480. Action-only exclusive CE failed idle no-op. Value-only exclusive CE failed idle no-op. Tiled 1:1 windows failed sticky A (A×476 + D×4, 15 pellets, val match 0.083). Next GPU: full-episode tiled update (accum 30). Do not scale the failed recipes. |
+| — | Current campaign | Play-gated maze-chase distill v1. Sticky D at 32/128 spawn-only. Window-32 and episode-windows failed idle. Exclusive argmax unstuck idle then sticky S. Exclusive softmax failed S×480. Action-only exclusive CE failed idle no-op. Value-only exclusive CE failed idle no-op. Tiled 1:1 windows failed sticky A (A×476 + D×4, 15 pellets, val match 0.083). Full-episode tiled update failed sticky D (D×431 + A×49, 10 pellets, val match 0.417 = teacher D). Next GPU: multi-episode tiled tiles at accum 30. Do not scale the failed recipes. |
 | — | Compute | Spark only. One scientific GPU train at a time on the GB10; many named CPU jobs in parallel on the ARM host. Generic wrappers, never RCQ-v2 start/resume. |
 
 Do not skip ahead. Do not open sealed TEST ranges to "check" labels. Do not

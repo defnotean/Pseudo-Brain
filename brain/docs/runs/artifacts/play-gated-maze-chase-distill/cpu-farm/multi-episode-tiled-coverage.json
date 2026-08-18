@@ -1,0 +1,580 @@
+{
+  "campaign_id": "play_gated_maze_chase_distill_v1",
+  "episode_horizon": 240,
+  "generator_id": "irene.maze_chase.planner_teacher.tiled_windows.v1",
+  "hypothesis": "90 tiled 8-tick windows cover three 240-tick planner episodes 1:1",
+  "job": "multi-episode-coverage",
+  "mean_coverage_fraction": 1.0,
+  "per_episode": [
+    {
+      "coverage_fraction": 1.0,
+      "episode_seed": 0,
+      "ticks_covered": 240,
+      "window_starts": [
+        0,
+        8,
+        16,
+        24,
+        32,
+        40,
+        48,
+        56,
+        64,
+        72,
+        80,
+        88,
+        96,
+        104,
+        112,
+        120,
+        128,
+        136,
+        144,
+        152,
+        160,
+        168,
+        176,
+        184,
+        192,
+        200,
+        208,
+        216,
+        224,
+        232
+      ],
+      "windows": 30
+    },
+    {
+      "coverage_fraction": 1.0,
+      "episode_seed": 1,
+      "ticks_covered": 240,
+      "window_starts": [
+        0,
+        8,
+        16,
+        24,
+        32,
+        40,
+        48,
+        56,
+        64,
+        72,
+        80,
+        88,
+        96,
+        104,
+        112,
+        120,
+        128,
+        136,
+        144,
+        152,
+        160,
+        168,
+        176,
+        184,
+        192,
+        200,
+        208,
+        216,
+        224,
+        232
+      ],
+      "windows": 30
+    },
+    {
+      "coverage_fraction": 1.0,
+      "episode_seed": 2,
+      "ticks_covered": 240,
+      "window_starts": [
+        0,
+        8,
+        16,
+        24,
+        32,
+        40,
+        48,
+        56,
+        64,
+        72,
+        80,
+        88,
+        96,
+        104,
+        112,
+        120,
+        128,
+        136,
+        144,
+        152,
+        160,
+        168,
+        176,
+        184,
+        192,
+        200,
+        208,
+        216,
+        224,
+        232
+      ],
+      "windows": 30
+    }
+  ],
+  "sequence_length": 8,
+  "sequences": [
+    {
+      "episode_seed": 0,
+      "sequence_index": 0,
+      "window_start": 0
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 1,
+      "window_start": 8
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 2,
+      "window_start": 16
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 3,
+      "window_start": 24
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 4,
+      "window_start": 32
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 5,
+      "window_start": 40
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 6,
+      "window_start": 48
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 7,
+      "window_start": 56
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 8,
+      "window_start": 64
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 9,
+      "window_start": 72
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 10,
+      "window_start": 80
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 11,
+      "window_start": 88
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 12,
+      "window_start": 96
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 13,
+      "window_start": 104
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 14,
+      "window_start": 112
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 15,
+      "window_start": 120
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 16,
+      "window_start": 128
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 17,
+      "window_start": 136
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 18,
+      "window_start": 144
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 19,
+      "window_start": 152
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 20,
+      "window_start": 160
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 21,
+      "window_start": 168
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 22,
+      "window_start": 176
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 23,
+      "window_start": 184
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 24,
+      "window_start": 192
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 25,
+      "window_start": 200
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 26,
+      "window_start": 208
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 27,
+      "window_start": 216
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 28,
+      "window_start": 224
+    },
+    {
+      "episode_seed": 0,
+      "sequence_index": 29,
+      "window_start": 232
+    },
+    {
+      "episode_seed": 1,
+      "sequence_index": 30,
+      "window_start": 0
+    },
+    {
+      "episode_seed": 1,
+      "sequence_index": 31,
+      "window_start": 8
+    },
+    {
+      "episode_seed": 1,
+      "sequence_index": 32,
+      "window_start": 16
+    },
+    {
+      "episode_seed": 1,
+      "sequence_index": 33,
+      "window_start": 24
+    },
+    {
+      "episode_seed": 1,
+      "sequence_index": 34,
+      "window_start": 32
+    },
+    {
+      "episode_seed": 1,
+      "sequence_index": 35,
+      "window_start": 40
+    },
+    {
+      "episode_seed": 1,
+      "sequence_index": 36,
+      "window_start": 48
+    },
+    {
+      "episode_seed": 1,
+      "sequence_index": 37,
+      "window_start": 56
+    },
+    {
+      "episode_seed": 1,
+      "sequence_index": 38,
+      "window_start": 64
+    },
+    {
+      "episode_seed": 1,
+      "sequence_index": 39,
+      "window_start": 72
+    },
+    {
+      "episode_seed": 1,
+      "sequence_index": 40,
+      "window_start": 80
+    },
+    {
+      "episode_seed": 1,
+      "sequence_index": 41,
+      "window_start": 88
+    },
+    {
+      "episode_seed": 1,
+      "sequence_index": 42,
+      "window_start": 96
+    },
+    {
+      "episode_seed": 1,
+      "sequence_index": 43,
+      "window_start": 104
+    },
+    {
+      "episode_seed": 1,
+      "sequence_index": 44,
+      "window_start": 112
+    },
+    {
+      "episode_seed": 1,
+      "sequence_index": 45,
+      "window_start": 120
+    },
+    {
+      "episode_seed": 1,
+      "sequence_index": 46,
+      "window_start": 128
+    },
+    {
+      "episode_seed": 1,
+      "sequence_index": 47,
+      "window_start": 136
+    },
+    {
+      "episode_seed": 1,
+      "sequence_index": 48,
+      "window_start": 144
+    },
+    {
+      "episode_seed": 1,
+      "sequence_index": 49,
+      "window_start": 152
+    },
+    {
+      "episode_seed": 1,
+      "sequence_index": 50,
+      "window_start": 160
+    },
+    {
+      "episode_seed": 1,
+      "sequence_index": 51,
+      "window_start": 168
+    },
+    {
+      "episode_seed": 1,
+      "sequence_index": 52,
+      "window_start": 176
+    },
+    {
+      "episode_seed": 1,
+      "sequence_index": 53,
+      "window_start": 184
+    },
+    {
+      "episode_seed": 1,
+      "sequence_index": 54,
+      "window_start": 192
+    },
+    {
+      "episode_seed": 1,
+      "sequence_index": 55,
+      "window_start": 200
+    },
+    {
+      "episode_seed": 1,
+      "sequence_index": 56,
+      "window_start": 208
+    },
+    {
+      "episode_seed": 1,
+      "sequence_index": 57,
+      "window_start": 216
+    },
+    {
+      "episode_seed": 1,
+      "sequence_index": 58,
+      "window_start": 224
+    },
+    {
+      "episode_seed": 1,
+      "sequence_index": 59,
+      "window_start": 232
+    },
+    {
+      "episode_seed": 2,
+      "sequence_index": 60,
+      "window_start": 0
+    },
+    {
+      "episode_seed": 2,
+      "sequence_index": 61,
+      "window_start": 8
+    },
+    {
+      "episode_seed": 2,
+      "sequence_index": 62,
+      "window_start": 16
+    },
+    {
+      "episode_seed": 2,
+      "sequence_index": 63,
+      "window_start": 24
+    },
+    {
+      "episode_seed": 2,
+      "sequence_index": 64,
+      "window_start": 32
+    },
+    {
+      "episode_seed": 2,
+      "sequence_index": 65,
+      "window_start": 40
+    },
+    {
+      "episode_seed": 2,
+      "sequence_index": 66,
+      "window_start": 48
+    },
+    {
+      "episode_seed": 2,
+      "sequence_index": 67,
+      "window_start": 56
+    },
+    {
+      "episode_seed": 2,
+      "sequence_index": 68,
+      "window_start": 64
+    },
+    {
+      "episode_seed": 2,
+      "sequence_index": 69,
+      "window_start": 72
+    },
+    {
+      "episode_seed": 2,
+      "sequence_index": 70,
+      "window_start": 80
+    },
+    {
+      "episode_seed": 2,
+      "sequence_index": 71,
+      "window_start": 88
+    },
+    {
+      "episode_seed": 2,
+      "sequence_index": 72,
+      "window_start": 96
+    },
+    {
+      "episode_seed": 2,
+      "sequence_index": 73,
+      "window_start": 104
+    },
+    {
+      "episode_seed": 2,
+      "sequence_index": 74,
+      "window_start": 112
+    },
+    {
+      "episode_seed": 2,
+      "sequence_index": 75,
+      "window_start": 120
+    },
+    {
+      "episode_seed": 2,
+      "sequence_index": 76,
+      "window_start": 128
+    },
+    {
+      "episode_seed": 2,
+      "sequence_index": 77,
+      "window_start": 136
+    },
+    {
+      "episode_seed": 2,
+      "sequence_index": 78,
+      "window_start": 144
+    },
+    {
+      "episode_seed": 2,
+      "sequence_index": 79,
+      "window_start": 152
+    },
+    {
+      "episode_seed": 2,
+      "sequence_index": 80,
+      "window_start": 160
+    },
+    {
+      "episode_seed": 2,
+      "sequence_index": 81,
+      "window_start": 168
+    },
+    {
+      "episode_seed": 2,
+      "sequence_index": 82,
+      "window_start": 176
+    },
+    {
+      "episode_seed": 2,
+      "sequence_index": 83,
+      "window_start": 184
+    },
+    {
+      "episode_seed": 2,
+      "sequence_index": 84,
+      "window_start": 192
+    },
+    {
+      "episode_seed": 2,
+      "sequence_index": 85,
+      "window_start": 200
+    },
+    {
+      "episode_seed": 2,
+      "sequence_index": 86,
+      "window_start": 208
+    },
+    {
+      "episode_seed": 2,
+      "sequence_index": 87,
+      "window_start": 216
+    },
+    {
+      "episode_seed": 2,
+      "sequence_index": 88,
+      "window_start": 224
+    },
+    {
+      "episode_seed": 2,
+      "sequence_index": 89,
+      "window_start": 232
+    }
+  ],
+  "source_manifest_sha256": "3fde33e9a8d867e8060b94f699a39ea5c14a4d9b609b37abf0cc603529fcde2f",
+  "unique_episodes": 3,
+  "window_sampling": "tiled_stride_across_episode"
+}

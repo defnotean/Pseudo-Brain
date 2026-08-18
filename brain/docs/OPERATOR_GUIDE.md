@@ -16,13 +16,15 @@ predicted-positive stayed 0.0. Exclusive-direction softmax
 (mask 0 × 480). Value-only exclusive CE **failed idle no-op** (mask
 0 × 480; val match 0.0; inactive logit max ≈ −4.82). Tiled 1:1 planner
 windows **failed sticky A** (A×476 + D×4; 15 pellets; 18 collisions;
-reward −165; val match 0.083). Do not retry or scale those recipes.
-The next named GPU probe is one optimizer update over all 30 tiles of
-the 240-tick tiled episode. Campaign success is
+reward −165; val match 0.083). Full-episode tiled update **failed
+sticky D** (D×431 + A×49; 10 pellets; 16 collisions; reward −150; val
+match 0.417 = teacher D). Do not retry or scale those recipes.
+The next named GPU probe is 90 tiled windows covering three planner
+episodes at the same accum 30. Campaign success is
 pellets ≥ 32 with a non-idle non-D-only histogram. One GB10 train at a
 time; named CPU farm jobs run in parallel on the host.
 
-The full-episode tiled-update launch (preregistered; 32 steps; one GB10):
+The multi-episode tiled launch (preregistered; 32 steps; one GB10):
 
 ```powershell
 & .\brain\scripts\dgx\Invoke-DgxPreflight.ps1 `
@@ -53,8 +55,8 @@ The full-episode tiled-update launch (preregistered; 32 steps; one GB10):
   -RemoteWorkDir '~/projects/pseudo-brain' `
   -ReleaseId '<release-id>' `
   -ContainerImage 'vllm/vllm-openai:nightly-aarch64' `
-  -ConfigRelativePath 'brain/configs/training/dgx-play-maze-chase-distill-episode-update.toml' `
-  -RunId 'dgx-play-maze-chase-distill-episode-update-v1' `
+  -ConfigRelativePath 'brain/configs/training/dgx-play-maze-chase-distill-multi-episode.toml' `
+  -RunId 'dgx-play-maze-chase-distill-multi-episode-v1' `
   -LaunchMode Tmux `
   -AcknowledgeDetached `
   -MinFreeDiskGiB 20 `
@@ -69,8 +71,9 @@ and a WASD histogram that is not idle / D-only / one-key sticky). Exclusive-argm
 S×480 / val match 0.167. Action-only exclusive CE failed idle no-op.
 Value-only exclusive CE failed idle no-op (val match 0.0). Tiled 1:1
 windows failed sticky A (A×476 + D×4 / 15 pellets / val match 0.083).
-Do not scale those recipes. Full-episode tiled update (accum 30) is the
-next named GPU probe. Record:
+Full-episode tiled update failed sticky D (D×431 + A×49 / 10 pellets /
+val match 0.417 = teacher D). Do not scale those recipes. Multi-episode
+tiled tiles at accum 30 is the next named GPU probe. Record:
 [runs/2026-08-18-play-gated-maze-chase-distill.md](runs/2026-08-18-play-gated-maze-chase-distill.md).
 
 The live `rcq_v2_reference_v2` reference on seed 1702 already failed the

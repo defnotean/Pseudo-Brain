@@ -1,0 +1,49 @@
+{
+  "campaign_id": "play_gated_maze_chase_distill_v1",
+  "hypothesis": "one 240-tick tiled planner episode is mixed WASD, not one-key",
+  "job": "tiled-hist",
+  "tiled_windows": {
+    "train": {
+      "exclusive_wasd": 237,
+      "idle": 3,
+      "labels": {
+        "a": 61,
+        "d": 71,
+        "idle": 3,
+        "s": 66,
+        "w": 39
+      },
+      "multi_wasd": 0,
+      "rates": {
+        "a": 0.25416666666666665,
+        "d": 0.29583333333333334,
+        "idle": 0.0125,
+        "s": 0.275,
+        "w": 0.1625
+      },
+      "source_manifest_sha256": "a4dd45290db7ee8283d9c6d54d7460b638a8cddd6217f612d96e375266b5d2da",
+      "ticks": 240
+    },
+    "validation": {
+      "exclusive_wasd": 55,
+      "idle": 1,
+      "labels": {
+        "a": 5,
+        "d": 24,
+        "idle": 1,
+        "s": 13,
+        "w": 13
+      },
+      "multi_wasd": 0,
+      "rates": {
+        "a": 0.08928571428571429,
+        "d": 0.42857142857142855,
+        "idle": 0.017857142857142856,
+        "s": 0.23214285714285715,
+        "w": 0.23214285714285715
+      },
+      "source_manifest_sha256": "a4dd45290db7ee8283d9c6d54d7460b638a8cddd6217f612d96e375266b5d2da",
+      "ticks": 56
+    }
+  }
+}

@@ -33,13 +33,18 @@ planner windows (`dgx-play-maze-chase-distill-tiled-windows-v1`,
 canonical config SHA-256 `2c126296c820830d037c0fc14053f1cbdbd05ec40d218ea2e84975cb02002b83`)
 **failed sticky A**: histogram **A×476 + D×4**, 15 pellets, 18 collisions,
 reward **−165**, `sticky_or_idle: false`. Val exclusive-argmax match **0.083**
-(down from exclusive-CE 0.167). Step-16 train movement exact 1.0 is logger
-texture, not the gate. Do not scale tiled-windows. Next GPU probe is one
-optimizer update over all 30 tiles of the 240-tick episode, now running
-as `dgx-play-maze-chase-distill-episode-update-v1` on release
-`r20260818t190103z-ddf0904b5d81`. Named CPU farm
-jobs finished planner seeds 116–131, tiled coverage, and a tiled-windows
-thoughtlet dump. Campaign success is **pellets ≥ 32**
+(down from exclusive-CE 0.167). Full-episode tiled update
+(`dgx-play-maze-chase-distill-episode-update-v1`,
+`play-gate.json` SHA-256 `ba622c99…`, release
+`r20260818t190103z-ddf0904b5d81`, canonical config SHA-256
+`b9b7888c194f72d91b6464b6e3e99dc2e52103db35c9a4d441ca69b60ee80c40`)
+**failed sticky D**: histogram **D×431 + A×49**, 10 pellets, 16 collisions,
+reward **−150**. Val exclusive-argmax match **0.417** equals teacher D, not a
+ranking gain. Do not scale accumulation-30. Next GPU probe is 90 tiled
+windows covering three planner episodes at the same accum 30. Named CPU
+farm jobs finished planner seeds 132–147, tiled teacher mix, multi-episode
+coverage, off-policy teacher labels, and an episode-update thoughtlet dump.
+Campaign success is **pellets ≥ 32**
 with a non-idle non-D-only histogram. Official 32-step `play-gate.json`
 SHA-256
 `df9d88f4…`; 128-step `6401a922…`; window-32 `2cdedaf9…`; episode-windows
