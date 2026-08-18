@@ -1,11 +1,11 @@
 # Play-gated maze-chase distill campaign v1 (2026-08-18)
 
-Status: **current campaign**. Probe v2 **passed** play: `play_moved: true`,
-reward_sum **-150**, collisions 16, 0 pellets. Probe v1 trained then
-crashed before `play-gate.json`. Next bounded Spark job is 128 steps
-(`dgx-play-maze-chase-distill-probe-128-v1`), still play-gated. RCQ-v2
-seed 1702 stays terminal. No v3 registration. No sealed TEST. Compute is
-Spark-only; the workstation is orchestration.
+Status: **current campaign**. 32-step probe v2 and 128-step probe both
+**passed** play at the same numbers: `play_moved: true`, reward_sum
+**-150**, collisions 16, **0 pellets**. 4× steps did not add pellets.
+Spark is idle. Next bounded idea is a zero-pellet diagnosis, not a
+2048-step train. RCQ-v2 seed 1702 stays terminal. No v3 registration. No
+sealed TEST. Compute is Spark-only; the workstation is orchestration.
 
 ## Probe v2 result (2026-08-18)
 
@@ -84,11 +84,45 @@ device from `next(model.parameters()).device`, the same pattern as the
 RCQ evaluators. Do not resume v1: checkpoint `code_sha256` would
 disagree with the fixed tree. Next job is a newly named 32-step probe.
 
-## 128-step probe (preregistered)
+## 128-step probe result (2026-08-18)
 
-Same play floor and recipe as v2. Horizon is 128 optimizer steps, not a
-campaign-scale train. Fail if `play_moved` is false or collisions exceed
-17.
+Play held, did not improve. Official `play-gate.json`:
+[artifacts/play-gated-maze-chase-distill/probe-128-v1-play-gate.json](./artifacts/play-gated-maze-chase-distill/probe-128-v1-play-gate.json).
+
+| Field | Value |
+|---|---|
+| Release | `r20260818t162040z-2382206346a0` (archive SHA-256 `2382206346a0…`) |
+| Container image | `sha256:177a406d7cb2…` |
+| Run id | `dgx-play-maze-chase-distill-probe-128-v1` |
+| Canonical config SHA-256 | `267d8e8c99a00a73e2781464f3985ceabadd1933951b2d52669c0b78fcb8e397` |
+| Checkpoint | `checkpoints/step-00000128.pt` |
+| Checkpoint SHA-256 | `6b0d64c22db576178d8f98a4d9811c37bdd4cea688d121050ec24733764ef7c2` |
+| `latest.json` SHA-256 | `d00a23272ff0e77c5b4b51af09f1af4bc78c3a67320535569fe2c072745cad95` |
+| Metrics SHA-256 | `a78a3e75c68066a3e88f20797eeeb1e1badd361635157e0141b2b7b4e0275061` |
+| `play-gate.json` SHA-256 | `6401a9223032fc30dc6418470fbc15a6fd5f1f45888b6dada938d53babf784a2` |
+| Report SHA-256 | `c0b2efb2c9d6414f074fc75c7acf77626a5783cc91d6f5d5d237e117efde7158` |
+| `play_moved` | **true** |
+| `gate` | `passed` |
+| reward_sum | **-150** (same as 32-step) |
+| collisions | **16** (same as 32-step) |
+| pellets_eaten | **0** |
+| decisions_rejected | 0 |
+
+Logged metrics at step 128 (not the gate): train loss 0.438, action loss
+0.422, movement exact 0.667; validation loss 0.501, action loss 0.485,
+movement exact 0.458. Teacher agreement moved; closed-loop play did not.
+Do not treat this as a green light for an unlabeled long train.
+
+## Next bounded idea (not started)
+
+Zero-pellet diagnosis: the model is one collision below no-op and eats
+nothing at 32 and 128 steps. Check closed-loop action decode vs the
+planner teacher (sticky D? no pellet approach), reset/horizon, and
+whether 240 ticks on seeds 5/9 can show pellet play at all for this
+checkpoint family. A newly named short Spark probe only after that
+hypothesis is written down.
+
+## 128-step probe (preregistered, now completed)
 
 | Field | Value |
 |---|---|
@@ -120,7 +154,8 @@ and not an RCQ qualification.
 | Campaign id | `play_gated_maze_chase_distill_v1` |
 | First probe run id | `dgx-play-maze-chase-distill-probe-v1` (trained; play-gate crashed) |
 | Passing 32-step run id | `dgx-play-maze-chase-distill-probe-v2` (`play_moved: true`) |
-| Next probe run id | `dgx-play-maze-chase-distill-probe-128-v1` |
+| Passing 128-step run id | `dgx-play-maze-chase-distill-probe-128-v1` (`play_moved: true`, same play numbers) |
+| Next probe run id | none running; next idea is a zero-pellet diagnosis |
 | 32-step config | `brain/configs/training/dgx-play-maze-chase-distill-probe.toml` |
 | 128-step config | `brain/configs/training/dgx-play-maze-chase-distill-probe-128.toml` |
 | Model factory | `irene_brain.training.factory:build_thesis_model` |
@@ -156,17 +191,17 @@ against the no-op floor. Maze `pellet_eaten` stays out of
 - Transfer to other ladder worlds (one transfer world waits until play
   has moved and hygiene is tight)
 
-## Spark sequence (128-step probe)
+## Spark sequence (128-step probe, completed)
 
 1. `Invoke-DgxPreflight.ps1`
-2. `Sync-DgxBrainRelease.ps1` (new immutable release; do not chmod it)
-3. `Invoke-DgxBrainSmoke.ps1` on `dgx-smoke.toml` (required receipt)
+2. `Sync-DgxBrainRelease.ps1` (release `r20260818t162040z-2382206346a0`)
+3. `Invoke-DgxBrainSmoke.ps1` on `dgx-smoke.toml` (receipt written)
 4. `Start-DgxBrainTraining.ps1` with
    `dgx-play-maze-chase-distill-probe-128.toml`, run id
    `dgx-play-maze-chase-distill-probe-128-v1`, Tmux with
    `-AcknowledgeDetached`
-5. Read `play-gate.json`. Continue only if `play_moved` stays true and
-   collisions stay ≤ 17.
+5. `play-gate.json` held `play_moved: true` at reward -150 / collisions 16
+   / 0 pellets. Spark is idle.
 
 Generic wrappers only. Never `Start-DgxRcqV2Reference.ps1`. Never point
 generic train at an RCQ config.

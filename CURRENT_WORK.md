@@ -17,11 +17,10 @@ The current experiment is **Play-gated maze-chase distill v1**
 (`play_gated_maze_chase_distill_v1`). It asks whether the existing thesis
 thought-field can learn to play maze-chase closed-loop after planner
 distillation, measured by play (reward / collisions / pellets), not by
-action loss. Probe v2 **passed** the play gate: `play_moved: true`,
-reward_sum **-150** vs floor **-161**, collisions 16 vs 17, **0 pellets**.
-Next bounded probe: 128 optimizer steps, run id
-`dgx-play-maze-chase-distill-probe-128-v1`. Do not jump to an unlabeled
-long train. Record:
+action loss. Probe v2 **passed** (`play_moved: true`, reward **-150**,
+collisions 16, 0 pellets). The 128-step follow-up **held** the same play
+numbers (still 0 pellets). No Spark job is running. Next bounded idea is
+a diagnosis of zero-pellet closed-loop, not a 2048-step train. Record:
 [brain/docs/runs/2026-08-18-play-gated-maze-chase-distill.md](brain/docs/runs/2026-08-18-play-gated-maze-chase-distill.md).
 
 All training, probes, and play evals run on the Spark. This workstation is
@@ -46,7 +45,7 @@ campaign.
 | 8 | Newly named qualification after the invariance capture fix | Done. Live file `registrations/rcq-v2-reference-v2.json`. Do not edit v1. |
 | 9 | Preclaim, independent review, final authorization, one-shot TEST | Blocked. This qualification failed the entry gate. Do not preclaim or open TEST. |
 | — | RCQ-v3 registration ceremony | **Deferred.** Do not run `New-RcqV3Registration.ps1`. |
-| — | Current campaign | Play-gated maze-chase distill v1. Probe v2 **passed** (`play_moved: true`, reward -150, collisions 16, 0 pellets). Next: 128-step play-gated probe `dgx-play-maze-chase-distill-probe-128-v1`. Not a 2048-step scale-up. |
+| — | Current campaign | Play-gated maze-chase distill v1. 32-step and 128-step probes both **passed** (`play_moved: true`, reward -150, collisions 16, 0 pellets). 4× steps did not add pellets. Spark idle. Next: diagnose zero-pellet play, not an unlabeled long train. |
 | — | Compute | Spark only. One bounded job at a time. Generic wrappers, never RCQ-v2 start/resume. |
 
 Do not skip ahead. Do not open sealed TEST ranges to "check" labels. Do not

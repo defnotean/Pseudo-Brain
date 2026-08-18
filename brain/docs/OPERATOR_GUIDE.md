@@ -7,8 +7,11 @@ value identities, and legal stopping rules are in
 [CURRENT_WORK.md](../../CURRENT_WORK.md).
 
 The live campaign is **play-gated maze-chase distill v1**, not RCQ.
-Spark-only compute. Probe v2 passed play (`reward_sum -150`, `play_moved:
-true`). Next bounded probe is 128 steps, still play-gated:
+Spark-only compute. 32-step and 128-step probes both passed play
+(`reward_sum -150`, 0 pellets). Spark is idle. Do not start an unlabeled
+long train; the next bounded step is a zero-pellet diagnosis.
+
+The previous 128-step launch (completed):
 
 ```powershell
 & .\brain\scripts\dgx\Invoke-DgxPreflight.ps1 `
@@ -50,7 +53,8 @@ true`). Next bounded probe is 128 steps, still play-gated:
 ```
 
 Scale only if `play-gate.json` reports `play_moved: true` (reward > -161)
-and collisions stay at or below 17. The 32-step pass still has zero pellets.
+and collisions stay at or below 17. Both completed probes still have zero
+pellets; 128 steps did not improve on 32.
 Record:
 [runs/2026-08-18-play-gated-maze-chase-distill.md](runs/2026-08-18-play-gated-maze-chase-distill.md).
 

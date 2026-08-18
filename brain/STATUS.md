@@ -5,17 +5,16 @@ Updated: 2026-08-18
 ## Current campaign: play-gated maze-chase distill v1
 
 Status: **play-gated maze-chase distill v1** is the live campaign
-(`play_gated_maze_chase_distill_v1`). Probe v2 **passed** the play gate
-on release `r20260818t160829z-82aef6dbc370`, run
-`dgx-play-maze-chase-distill-probe-v2`: `play_moved: true`, reward_sum
-**-150** (floor -161), collisions **16** (floor 17), pellets **0**,
-decisions_rejected 0. Official `play-gate.json` SHA-256 `df9d88f4…`,
-checkpoint SHA-256 `e0515628…`. Probe v1 trained the same 32 steps then
-crashed before the gate (CUDA/CPU eval mismatch); that `play_moved` is
-missing. Logger train loss is not the gate. Next bounded Spark job is
-128 steps (`dgx-play-maze-chase-distill-probe-128-v1`), still play-gated;
-not a 2048-step scale-up. Workstation is orchestration; all compute is
-Spark. Record:
+(`play_gated_maze_chase_distill_v1`). Play moved on the 32-step probe v2
+and **held** on the 128-step probe, both at reward_sum **-150**,
+collisions **16**, pellets **0** (`play_moved: true`). Spark is idle.
+Official 32-step `play-gate.json` SHA-256 `df9d88f4…` (release
+`r20260818t160829z-82aef6dbc370`); 128-step `play-gate.json` SHA-256
+`6401a922…` (release `r20260818t162040z-2382206346a0`, checkpoint
+`6b0d64c2…`). Probe v1 crashed before the gate. Logger train loss is not
+the gate. 4× optimizer steps did not produce pellets, so the next bounded
+step is a zero-pellet diagnosis, not a 2048-step train. Workstation is
+orchestration; all compute is Spark. Record:
 [docs/runs/2026-08-18-play-gated-maze-chase-distill.md](./docs/runs/2026-08-18-play-gated-maze-chase-distill.md).
 
 Historical: live qualification `rcq_v2_reference_v2` is **terminally failed**. The
