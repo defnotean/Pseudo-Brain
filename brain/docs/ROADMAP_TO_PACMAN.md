@@ -257,6 +257,10 @@ Near-term slices, each independently committable and test-covered:
 8. **External world adapters** (XLand-MiniGrid first; smallest integration
    surface).
 9. **`maze_chase` environment** + variant generator + rights ledger entry.
+   Done: the environment, every registered variant axis (ghost rules, speed
+   curves, sticky/delayed input), and the rights ledger
+   ([RIGHTS_LEDGER.md](RIGHTS_LEDGER.md)) with all six in-repo worlds
+   accepted as original works and every external source marked unreviewed.
 10. **Arcade-scale training and the Phase 4 gate.**
 
 ## 7. Resources and constraints

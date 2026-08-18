@@ -187,6 +187,12 @@ short-horizon world loss and `horizon_logits` are consumed nowhere — so
 they are now preregistered design proposals (B1–B4) awaiting explicit
 owner sign-off. Record:
 [docs/runs/2026-08-17-remaining-baseline-controls-preregistration.md](./docs/runs/2026-08-17-remaining-baseline-controls-preregistration.md).
+The rights ledger required by PLAN §20 now exists at
+[docs/RIGHTS_LEDGER.md](./docs/RIGHTS_LEDGER.md): all six in-repo worlds
+(moving shapes, pursuit, junction, occlusion, keys/doors, maze_chase) are
+accepted as original works across the four required records, and every
+external source — including Namco Pac-Man — is marked unreviewed and
+un-ingested.
 
 Local play-safe verification after the live v2 registration: every isolated
 test module passed (299 tests, one expected POSIX skip in the trusted-final
