@@ -86,14 +86,18 @@ class MazeChaseEnv:
     ``mixed`` assigns the three cyclically by ghost index. Contact under the
     shared swept-path same-time test emits ``caught``, costs 10 reward, and
     respawns the player at the spawn cell (or a sampled empty cell if a
-    ghost occupies it). Simulator labels are returned only in
-    :class:`StepOutcome`, never in :class:`Observation`.
+    ghost occupies it). The speed-curve variant axis adds ``player_period``
+    (the player acts once every N ticks; input is sampled on move ticks) and
+    ``ghost_elroy`` (ghosts move one tick faster, minimum period 1, once at
+    least half of the pellets are eaten). Simulator labels are returned only
+    in :class:`StepOutcome`, never in :class:`Observation`.
     """
 
     GRID_SIZE = 16
-    SNAPSHOT_VERSION = 2
+    SNAPSHOT_VERSION = 3
     DEFAULT_TICK_PERIOD_NS = 16_666_667
     MAX_GHOST_PERIOD = 64
+    MAX_PLAYER_PERIOD = 64
     MAX_EXTRA_LOOPS = 64
 
     # Public render-contract colors used by pixel-only procedural teachers.
@@ -105,7 +109,7 @@ class MazeChaseEnv:
     PLAYER_GHOST_OVERLAP_RGB = (255, 255, 255)
 
     _SNAPSHOT_MAGIC = b"IBMC"
-    _SNAPSHOT_HEADER = Struct("<4sHHIQQQQBBBBIIBBBbbB")
+    _SNAPSHOT_HEADER = Struct("<4sHHIQQQQBBBBIIBBBbbBBB")
     _SNAPSHOT_GHOST = Struct("<BB")
     _SNAPSHOT_PELLET_BYTES = (GRID_SIZE * GRID_SIZE) // 8
     _SNAPSHOT_DIGEST_BYTES = 32
@@ -131,8 +135,10 @@ class MazeChaseEnv:
         *,
         ghost_count: int = 3,
         ghost_period: int = 2,
+        player_period: int = 1,
         extra_loops: int = 16,
         ghost_rule: str = "direct",
+        ghost_elroy: bool = False,
         tick_period_ns: int = DEFAULT_TICK_PERIOD_NS,
         max_ticks: int = 10_000,
     ) -> None:
@@ -146,6 +152,12 @@ class MazeChaseEnv:
             raise ValueError(
                 f"ghost_period must be in [1, {self.MAX_GHOST_PERIOD}]"
             )
+        if isinstance(player_period, bool) or not isinstance(player_period, int):
+            raise TypeError("player_period must be an integer")
+        if player_period < 1 or player_period > self.MAX_PLAYER_PERIOD:
+            raise ValueError(
+                f"player_period must be in [1, {self.MAX_PLAYER_PERIOD}]"
+            )
         if isinstance(extra_loops, bool) or not isinstance(extra_loops, int):
             raise TypeError("extra_loops must be an integer")
         if extra_loops < 0 or extra_loops > self.MAX_EXTRA_LOOPS:
@@ -154,6 +166,8 @@ class MazeChaseEnv:
             )
         if not isinstance(ghost_rule, str) or ghost_rule not in _GHOST_RULES:
             raise ValueError(f"ghost_rule must be one of {sorted(_GHOST_RULES)}")
+        if not isinstance(ghost_elroy, bool):
+            raise TypeError("ghost_elroy must be a boolean")
         if isinstance(tick_period_ns, bool) or not isinstance(tick_period_ns, int):
             raise TypeError("tick_period_ns must be an integer")
         if tick_period_ns <= 0 or tick_period_ns > _UINT64_MASK:
@@ -165,8 +179,10 @@ class MazeChaseEnv:
 
         self._ghost_count = ghost_count
         self._ghost_period = ghost_period
+        self._player_period = player_period
         self._extra_loops = extra_loops
         self._ghost_rule = ghost_rule
+        self._ghost_elroy = ghost_elroy
         self._tick_period_ns = tick_period_ns
         self._max_ticks = max_ticks
         self._episode_seed = 0
@@ -282,23 +298,29 @@ class MazeChaseEnv:
         applied_control = self._control_from_mask(applied_mask)
         old_player = (self._player_x, self._player_y)
 
-        horizontal = int(bool(applied_mask & self._KEY_BITS[int(HidKey.D)])) - int(
-            bool(applied_mask & self._KEY_BITS[int(HidKey.A)])
-        )
-        vertical = int(bool(applied_mask & self._KEY_BITS[int(HidKey.S)])) - int(
-            bool(applied_mask & self._KEY_BITS[int(HidKey.W)])
-        )
-        candidate = (
-            min(self.GRID_SIZE - 1, max(0, self._player_x + horizontal)),
-            min(self.GRID_SIZE - 1, max(0, self._player_y + vertical)),
-        )
-        if candidate in self._maze:
-            self._player_x, self._player_y = candidate
-        # Facing tracks control intent, not achieved motion: a wall-refused
-        # press still turns the player, matching how the ambush rule reads
-        # the player's last input rather than simulator state.
-        if horizontal or vertical:
-            self._player_dx, self._player_dy = horizontal, vertical
+        # The player acts once every player_period ticks; control input is
+        # sampled on move ticks only, so a direction pressed and released
+        # between move ticks is ignored entirely (the speed curve slows the
+        # player's whole decision loop, not just its motion).
+        player_moves = self._tick % self._player_period == 0
+        if player_moves:
+            horizontal = int(bool(applied_mask & self._KEY_BITS[int(HidKey.D)])) - int(
+                bool(applied_mask & self._KEY_BITS[int(HidKey.A)])
+            )
+            vertical = int(bool(applied_mask & self._KEY_BITS[int(HidKey.S)])) - int(
+                bool(applied_mask & self._KEY_BITS[int(HidKey.W)])
+            )
+            candidate = (
+                min(self.GRID_SIZE - 1, max(0, self._player_x + horizontal)),
+                min(self.GRID_SIZE - 1, max(0, self._player_y + vertical)),
+            )
+            if candidate in self._maze:
+                self._player_x, self._player_y = candidate
+            # Facing tracks control intent, not achieved motion: a wall-refused
+            # press still turns the player, matching how the ambush rule reads
+            # the player's last input rather than simulator state.
+            if horizontal or vertical:
+                self._player_dx, self._player_dy = horizontal, vertical
         new_player = (self._player_x, self._player_y)
 
         events: list[str] = []
@@ -310,7 +332,7 @@ class MazeChaseEnv:
             events.append("pellet_eaten")
 
         ghost_paths: list[tuple[tuple[int, int], tuple[int, int]]] = []
-        ghosts_move = self._tick % self._ghost_period == 0
+        ghosts_move = self._tick % self._effective_ghost_period() == 0
         player_field = _bfs_distances(new_player, self._maze) if ghosts_move else {}
         moved_ghosts: list[tuple[int, int]] = []
         for index, ghost in enumerate(self._ghosts):
@@ -365,7 +387,7 @@ class MazeChaseEnv:
         )
 
     def snapshot(self) -> bytes:
-        """Return a canonical, checksummed, version-2 snapshot."""
+        """Return a canonical, checksummed, version-3 snapshot."""
         payload = bytearray(
             self._SNAPSHOT_HEADER.pack(
                 self._SNAPSHOT_MAGIC,
@@ -388,6 +410,8 @@ class MazeChaseEnv:
                 self._player_dx,
                 self._player_dy,
                 _GHOST_RULES[self._ghost_rule],
+                self._player_period,
+                int(self._ghost_elroy),
             )
         )
         payload.extend(self._pellets)
@@ -417,7 +441,7 @@ class MazeChaseEnv:
             tuple[
                 bytes, int, int, int, int, int, int, int,
                 int, int, int, int, int, int, int, int, int, int,
-                int, int, int,
+                int, int, int, int, int,
             ],
             self._SNAPSHOT_HEADER.unpack_from(payload),
         )
@@ -442,6 +466,8 @@ class MazeChaseEnv:
             player_dx,
             player_dy,
             ghost_rule_code,
+            player_period,
+            ghost_elroy,
         ) = header
         if magic != self._SNAPSHOT_MAGIC:
             raise ValueError("snapshot magic mismatch")
@@ -480,6 +506,12 @@ class MazeChaseEnv:
             raise ValueError("snapshot ghost rule is unknown")
         if ghost_rule_code != _GHOST_RULES[self._ghost_rule]:
             raise ValueError("snapshot ghost rule mismatch")
+        if player_period != self._player_period:
+            raise ValueError("snapshot player period mismatch")
+        if ghost_elroy not in (0, 1):
+            raise ValueError("snapshot elroy flag must be 0 or 1")
+        if bool(ghost_elroy) != self._ghost_elroy:
+            raise ValueError("snapshot elroy flag mismatch")
 
         maze = _carve_maze_with_loops(episode_seed, self.GRID_SIZE, extra_loops)
         if (player_x, player_y) not in maze:
@@ -551,6 +583,18 @@ class MazeChaseEnv:
         if self._ghost_rule == "mixed":
             return ("direct", "ambush", "shy")[index % 3]
         return self._ghost_rule
+
+    def _effective_ghost_period(self) -> int:
+        """Return the current ghost period under the elroy speed curve.
+
+        With ``ghost_elroy`` enabled, ghosts move one tick faster (minimum
+        period 1) once at least half of the pellets have been eaten. The
+        curve derives from ``pellets_remaining`` and the regenerated maze, so
+        snapshots need no extra state beyond the config flag.
+        """
+        if self._ghost_elroy and self._pellets_remaining * 2 <= len(self._maze) - 1:
+            return max(1, self._ghost_period - 1)
+        return self._ghost_period
 
     def _ambush_target(self, player: tuple[int, int]) -> tuple[int, int]:
         """Return the corridor cell four steps ahead of the player's facing.

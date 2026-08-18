@@ -155,6 +155,11 @@ selects direct chase, four-cell ambush off the player's control-intent
 facing, shy far-chase/near-retreat, or a cyclical mix, under snapshot
 version 2 (25 tests; play-safe gate green). Record:
 [docs/runs/2026-08-17-maze-chase-ghost-rules.md](./docs/runs/2026-08-17-maze-chase-ghost-rules.md).
+The speed-curve axis followed: `player_period` gates player action and
+input sampling to every Nth tick, and `ghost_elroy` speeds the ghosts up by
+one tick once half the pellets are eaten, under snapshot version 3
+(28 tests; play-safe gate green). Record:
+[docs/runs/2026-08-17-maze-chase-speed-curves.md](./docs/runs/2026-08-17-maze-chase-speed-curves.md).
 
 Local play-safe verification after the live v2 registration: every isolated
 test module passed (299 tests, one expected POSIX skip in the trusted-final

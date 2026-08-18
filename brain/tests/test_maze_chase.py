@@ -289,6 +289,74 @@ class MazeChaseEnvironmentTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             MazeChaseEnv(ghost_rule="shy").restore(snapshot)
 
+    def test_player_period_gates_movement_and_input_sampling(self) -> None:
+        env = MazeChaseEnv(player_period=2, max_ticks=100)
+        env.reset(5)
+        open_key = None
+        for key, delta in (
+            (HidKey.D, (1, 0)),
+            (HidKey.S, (0, 1)),
+            (HidKey.W, (0, -1)),
+            (HidKey.A, (-1, 0)),
+        ):
+            if (env._player_x + delta[0], env._player_y + delta[1]) in env._maze:
+                open_key = (key, delta)
+                break
+        self.assertIsNotNone(open_key)
+        key, delta = open_key
+        start = (env._player_x, env._player_y)
+        env.step(GenericControl(keys_down=(int(key),)))  # tick 0: a move tick
+        self.assertEqual(
+            (env._player_x, env._player_y),
+            (start[0] + delta[0], start[1] + delta[1]),
+        )
+        after_move = (env._player_x, env._player_y)
+        env.step(GenericControl(keys_down=(int(key),)))  # tick 1: gated
+        self.assertEqual((env._player_x, env._player_y), after_move)
+        # A different direction pressed only on a gated tick changes neither
+        # the position nor the facing: input is sampled on move ticks only.
+        other = HidKey.W if key != HidKey.W else HidKey.A
+        env.step(GenericControl(keys_down=(int(key),)))  # tick 2: a move tick
+        env.step(GenericControl(keys_down=(int(other),)))  # tick 3: gated
+        self.assertEqual((env._player_dx, env._player_dy), delta)
+
+    def test_elroy_curve_speeds_ghosts_up_after_half_the_pellets(self) -> None:
+        env = MazeChaseEnv(ghost_period=2, ghost_elroy=True)
+        env.reset(5)
+        self.assertEqual(env._effective_ghost_period(), 2)
+        total = len(env._maze) - 1
+        for y in range(env.GRID_SIZE):
+            for x in range(env.GRID_SIZE):
+                if env._pellets_remaining * 2 <= total:
+                    break
+                if env._has_pellet(x, y):
+                    env._eat_pellet(x, y)
+                    env._pellets_eaten += 1
+        self.assertEqual(env._effective_ghost_period(), 1)
+        # The curve derives from pellets_remaining, so a restore recomputes it.
+        restored = MazeChaseEnv(ghost_period=2, ghost_elroy=True)
+        restored.restore(env.snapshot())
+        self.assertEqual(restored._effective_ghost_period(), 1)
+        # Without the flag the period never changes.
+        plain = MazeChaseEnv(ghost_period=2, ghost_elroy=False)
+        plain.reset(5)
+        self.assertEqual(plain._effective_ghost_period(), 2)
+
+    def test_restore_rejects_speed_curve_mismatches(self) -> None:
+        source = MazeChaseEnv(
+            player_period=3, ghost_elroy=True, ghost_rule="mixed"
+        )
+        source.reset(9)
+        snapshot = source.snapshot()
+        with self.assertRaises(ValueError):
+            MazeChaseEnv(
+                player_period=2, ghost_elroy=True, ghost_rule="mixed"
+            ).restore(snapshot)
+        with self.assertRaises(ValueError):
+            MazeChaseEnv(
+                player_period=3, ghost_elroy=False, ghost_rule="mixed"
+            ).restore(snapshot)
+
     def test_one_thousand_step_replay_is_exact(self) -> None:
         source = MazeChaseEnv(max_ticks=2_000)
         initial = source.reset(83)
@@ -314,7 +382,7 @@ class MazeChaseEnvironmentTests(unittest.TestCase):
         )
         self.assertEqual(
             replay.state_hash(),
-            "d08096a33df8f12fe15df5248c2c6964d0911c3af9ab99b914c503b1b4c090f5",
+            "cc1d5ef1e6b7dd873c2d2c4104ac49f1cfcf7364e34765ee8332dd4b15942273",
         )
 
     def test_snapshot_restore_is_atomic_on_corruption(self) -> None:
@@ -397,6 +465,14 @@ class MazeChaseEnvironmentTests(unittest.TestCase):
             MazeChaseEnv(ghost_rule="random")
         with self.assertRaises(ValueError):
             MazeChaseEnv(ghost_rule=3)  # type: ignore[arg-type]
+        with self.assertRaises(ValueError):
+            MazeChaseEnv(player_period=0)
+        with self.assertRaises(ValueError):
+            MazeChaseEnv(player_period=MazeChaseEnv.MAX_PLAYER_PERIOD + 1)
+        with self.assertRaises(TypeError):
+            MazeChaseEnv(player_period=True)  # type: ignore[arg-type]
+        with self.assertRaises(TypeError):
+            MazeChaseEnv(ghost_elroy=1)  # type: ignore[arg-type]
         env = MazeChaseEnv()
         with self.assertRaises(TypeError):
             env.reset(True)  # type: ignore[arg-type]
