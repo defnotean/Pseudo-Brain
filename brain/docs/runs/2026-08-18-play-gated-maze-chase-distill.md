@@ -9,7 +9,9 @@ no-op** (mask 0 × 480, 9 pellets, reward −161; val exclusive-argmax
 match 0.0; inactive logit max ≈ −4.82). Do not scale exclusive-CE,
 action-only, value-only, tiled-windows, or accumulation-30. Next GPU
 probe is 90 tiled windows covering three 240-tick planner episodes at
-the same accum 30. Exclusive-argmax play-decode
+the same accum 30. That GPU run is live:
+`dgx-play-maze-chase-distill-multi-episode-v1`, release
+`r20260818t192855z-6d85cc69dd69`. Exclusive-argmax play-decode
 stays failed sticky S. Window-32 and episode-windows stay falsified idle
 no-op. RCQ-v2 seed 1702 stays terminal. No v3 registration. No sealed TEST.
 
@@ -913,7 +915,7 @@ openings. Not an accumulation scale-up.
 ## Spark sequence (multi-episode tiled probe)
 
 1. `Invoke-DgxPreflight.ps1`
-2. `Sync-DgxBrainRelease.ps1` (fresh release after this commit)
+2. `Sync-DgxBrainRelease.ps1` (release `r20260818t192855z-6d85cc69dd69`)
 3. `Invoke-DgxBrainSmoke.ps1` on `dgx-smoke.toml`
 4. `Start-DgxBrainTraining.ps1` with
    `dgx-play-maze-chase-distill-multi-episode.toml`, run id

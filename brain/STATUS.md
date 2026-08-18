@@ -41,7 +41,9 @@ reward **−165**, `sticky_or_idle: false`. Val exclusive-argmax match **0.083**
 **failed sticky D**: histogram **D×431 + A×49**, 10 pellets, 16 collisions,
 reward **−150**. Val exclusive-argmax match **0.417** equals teacher D, not a
 ranking gain. Do not scale accumulation-30. Next GPU probe is 90 tiled
-windows covering three planner episodes at the same accum 30. Named CPU
+windows covering three planner episodes at the same accum 30, now running
+as `dgx-play-maze-chase-distill-multi-episode-v1` on release
+`r20260818t192855z-6d85cc69dd69`. Named CPU
 farm jobs finished planner seeds 132–147, tiled teacher mix, multi-episode
 coverage, off-policy teacher labels, and an episode-update thoughtlet dump.
 Campaign success is **pellets ≥ 32**

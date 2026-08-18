@@ -33,10 +33,11 @@ pellets, 16 collisions, −150; val exclusive-argmax match **0.417**
 (= teacher D, not a ranking gain). Do not scale accumulation-30.
 Closed-loop BC at spawn is not next: off-policy planner labels on
 idle/W/A/D were S×32. Next GPU probe is multi-episode tiled tiles at
-the same accum 30 (`dgx-play-maze-chase-distill-multi-episode-v1`).
-Spark CPU farm also finished planner seeds 132–147 (5/16 clear), tiled
-teacher mix, three-episode coverage, and an episode-update thoughtlet
-dump (open-loop A; closed-loop sticky D). Record:
+the same accum 30 (`dgx-play-maze-chase-distill-multi-episode-v1`), now
+live on Spark release `r20260818t192855z-6d85cc69dd69`. Spark CPU farm
+also finished planner seeds 132–147 (5/16 clear), tiled teacher mix,
+three-episode coverage, and an episode-update thoughtlet dump
+(open-loop A; closed-loop sticky D). Record:
 [brain/docs/runs/2026-08-18-play-gated-maze-chase-distill.md](brain/docs/runs/2026-08-18-play-gated-maze-chase-distill.md).
 
 All training, probes, and play evals run on the Spark. This workstation is

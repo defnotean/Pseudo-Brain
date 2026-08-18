@@ -20,7 +20,8 @@ reward −165; val match 0.083). Full-episode tiled update **failed
 sticky D** (D×431 + A×49; 10 pellets; 16 collisions; reward −150; val
 match 0.417 = teacher D). Do not retry or scale those recipes.
 The next named GPU probe is 90 tiled windows covering three planner
-episodes at the same accum 30. Campaign success is
+episodes at the same accum 30, live on release
+`r20260818t192855z-6d85cc69dd69`. Campaign success is
 pellets ≥ 32 with a non-idle non-D-only histogram. One GB10 train at a
 time; named CPU farm jobs run in parallel on the host.
 
