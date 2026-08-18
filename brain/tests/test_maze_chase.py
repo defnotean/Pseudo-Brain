@@ -357,6 +357,105 @@ class MazeChaseEnvironmentTests(unittest.TestCase):
                 player_period=3, ghost_elroy=False, ghost_rule="mixed"
             ).restore(snapshot)
 
+    def test_input_delay_postpones_controls(self) -> None:
+        env = MazeChaseEnv(
+            input_delay_ticks=2,
+            ghost_period=MazeChaseEnv.MAX_GHOST_PERIOD,
+            max_ticks=100,
+        )
+        env.reset(5)
+        open_key = None
+        for key, delta in (
+            (HidKey.D, (1, 0)),
+            (HidKey.S, (0, 1)),
+            (HidKey.W, (0, -1)),
+            (HidKey.A, (-1, 0)),
+        ):
+            if (env._player_x + delta[0], env._player_y + delta[1]) in env._maze:
+                open_key = (key, delta)
+                break
+        self.assertIsNotNone(open_key)
+        key, delta = open_key
+        start = (env._player_x, env._player_y)
+        env.step(GenericControl(keys_down=(int(key),)))  # enters the queue
+        self.assertEqual((env._player_x, env._player_y), start)
+        env.step(GenericControl())  # still draining zeros
+        self.assertEqual((env._player_x, env._player_y), start)
+        outcome = env.step(GenericControl())  # the press takes effect
+        self.assertEqual(
+            (env._player_x, env._player_y),
+            (start[0] + delta[0], start[1] + delta[1]),
+        )
+        self.assertEqual(outcome.applied_control.keys_down, (int(key),))
+
+    def test_sticky_direction_persists_until_replaced(self) -> None:
+        kwargs = dict(  # noqa: C408
+            ghost_period=MazeChaseEnv.MAX_GHOST_PERIOD,
+            max_ticks=100,
+        )
+        sticky = MazeChaseEnv(sticky_direction=True, **kwargs)
+        plain = MazeChaseEnv(sticky_direction=False, **kwargs)
+        sticky.reset(5)
+        plain.reset(5)
+        press = GenericControl(keys_down=(int(HidKey.S),))
+        sticky.step(press)
+        plain.step(press)
+        # Released on both: the sticky mask persists, the plain mask clears.
+        sticky_outcome = sticky.step(GenericControl())
+        plain_outcome = plain.step(GenericControl())
+        self.assertEqual(sticky_outcome.applied_control.keys_down, (int(HidKey.S),))
+        self.assertEqual(plain_outcome.applied_control.keys_down, ())
+        # A new direction replaces the sticky one.
+        outcome = sticky.step(GenericControl(keys_down=(int(HidKey.W),)))
+        self.assertEqual(outcome.applied_control.keys_down, (int(HidKey.W),))
+
+    def test_delay_and_sticky_survive_a_snapshot_roundtrip(self) -> None:
+        env = MazeChaseEnv(
+            input_delay_ticks=3,
+            sticky_direction=True,
+            ghost_rule="mixed",
+            player_period=2,
+            ghost_elroy=True,
+        )
+        env.reset(11)
+        keys = (int(HidKey.W), int(HidKey.D), int(HidKey.S), int(HidKey.A))
+        for step in range(60):
+            env.step(GenericControl(keys_down=(keys[step % 4],)))
+        restored = MazeChaseEnv(
+            input_delay_ticks=3,
+            sticky_direction=True,
+            ghost_rule="mixed",
+            player_period=2,
+            ghost_elroy=True,
+        )
+        restored.restore(env.snapshot())
+        self.assertEqual(restored.state_hash(), env.state_hash())
+        for step in range(60, 120):
+            control = GenericControl(keys_down=(keys[step % 4],))
+            self.assertEqual(restored.step(control), env.step(control))
+        self.assertEqual(restored.state_hash(), env.state_hash())
+
+    def test_restore_rejects_input_pipeline_mismatches(self) -> None:
+        source = MazeChaseEnv(input_delay_ticks=3, sticky_direction=True)
+        source.reset(9)
+        snapshot = source.snapshot()
+        with self.assertRaises(ValueError):
+            MazeChaseEnv(input_delay_ticks=2, sticky_direction=True).restore(snapshot)
+        with self.assertRaises(ValueError):
+            MazeChaseEnv(input_delay_ticks=3, sticky_direction=False).restore(snapshot)
+
+    def test_restore_rejects_tampered_delay_queue_bits(self) -> None:
+        from hashlib import sha256
+
+        env = MazeChaseEnv(input_delay_ticks=2)
+        env.reset(5)
+        snapshot = bytearray(env.snapshot())
+        # Queue bytes sit immediately before the trailing digest.
+        snapshot[-33] |= 0xF0
+        snapshot[-32:] = sha256(bytes(snapshot[:-32])).digest()
+        with self.assertRaises(ValueError):
+            MazeChaseEnv(input_delay_ticks=2).restore(bytes(snapshot))
+
     def test_one_thousand_step_replay_is_exact(self) -> None:
         source = MazeChaseEnv(max_ticks=2_000)
         initial = source.reset(83)
@@ -382,7 +481,7 @@ class MazeChaseEnvironmentTests(unittest.TestCase):
         )
         self.assertEqual(
             replay.state_hash(),
-            "cc1d5ef1e6b7dd873c2d2c4104ac49f1cfcf7364e34765ee8332dd4b15942273",
+            "3613c576422f0d54c1631dd00760a458b9358f2b433c47a8e6b40ab84f1931ea",
         )
 
     def test_snapshot_restore_is_atomic_on_corruption(self) -> None:
@@ -473,6 +572,14 @@ class MazeChaseEnvironmentTests(unittest.TestCase):
             MazeChaseEnv(player_period=True)  # type: ignore[arg-type]
         with self.assertRaises(TypeError):
             MazeChaseEnv(ghost_elroy=1)  # type: ignore[arg-type]
+        with self.assertRaises(ValueError):
+            MazeChaseEnv(input_delay_ticks=-1)
+        with self.assertRaises(ValueError):
+            MazeChaseEnv(input_delay_ticks=MazeChaseEnv.MAX_INPUT_DELAY + 1)
+        with self.assertRaises(TypeError):
+            MazeChaseEnv(input_delay_ticks=True)  # type: ignore[arg-type]
+        with self.assertRaises(TypeError):
+            MazeChaseEnv(sticky_direction=1)  # type: ignore[arg-type]
         env = MazeChaseEnv()
         with self.assertRaises(TypeError):
             env.reset(True)  # type: ignore[arg-type]

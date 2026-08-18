@@ -89,16 +89,22 @@ class MazeChaseEnv:
     ghost occupies it). The speed-curve variant axis adds ``player_period``
     (the player acts once every N ticks; input is sampled on move ticks) and
     ``ghost_elroy`` (ghosts move one tick faster, minimum period 1, once at
-    least half of the pellets are eaten). Simulator labels are returned only
+    least half of the pellets are eaten). The sticky/delayed-input axis adds
+    ``input_delay_ticks`` (controls take effect N ticks late through a fixed
+    FIFO) and ``sticky_direction`` (a direction, once pressed, persists
+    until another direction is pressed; delay applies before stickiness).
+    ``applied_control`` and the observation's ``previous_control`` report
+    the effective post-pipeline mask. Simulator labels are returned only
     in :class:`StepOutcome`, never in :class:`Observation`.
     """
 
     GRID_SIZE = 16
-    SNAPSHOT_VERSION = 3
+    SNAPSHOT_VERSION = 4
     DEFAULT_TICK_PERIOD_NS = 16_666_667
     MAX_GHOST_PERIOD = 64
     MAX_PLAYER_PERIOD = 64
     MAX_EXTRA_LOOPS = 64
+    MAX_INPUT_DELAY = 16
 
     # Public render-contract colors used by pixel-only procedural teachers.
     # Dataset generators may inspect these visible pixels, but must never route
@@ -109,7 +115,7 @@ class MazeChaseEnv:
     PLAYER_GHOST_OVERLAP_RGB = (255, 255, 255)
 
     _SNAPSHOT_MAGIC = b"IBMC"
-    _SNAPSHOT_HEADER = Struct("<4sHHIQQQQBBBBIIBBBbbBBB")
+    _SNAPSHOT_HEADER = Struct("<4sHHIQQQQBBBBIIBBBbbBBBBBB")
     _SNAPSHOT_GHOST = Struct("<BB")
     _SNAPSHOT_PELLET_BYTES = (GRID_SIZE * GRID_SIZE) // 8
     _SNAPSHOT_DIGEST_BYTES = 32
@@ -139,6 +145,8 @@ class MazeChaseEnv:
         extra_loops: int = 16,
         ghost_rule: str = "direct",
         ghost_elroy: bool = False,
+        input_delay_ticks: int = 0,
+        sticky_direction: bool = False,
         tick_period_ns: int = DEFAULT_TICK_PERIOD_NS,
         max_ticks: int = 10_000,
     ) -> None:
@@ -168,6 +176,16 @@ class MazeChaseEnv:
             raise ValueError(f"ghost_rule must be one of {sorted(_GHOST_RULES)}")
         if not isinstance(ghost_elroy, bool):
             raise TypeError("ghost_elroy must be a boolean")
+        if isinstance(input_delay_ticks, bool) or not isinstance(
+            input_delay_ticks, int
+        ):
+            raise TypeError("input_delay_ticks must be an integer")
+        if input_delay_ticks < 0 or input_delay_ticks > self.MAX_INPUT_DELAY:
+            raise ValueError(
+                f"input_delay_ticks must be in [0, {self.MAX_INPUT_DELAY}]"
+            )
+        if not isinstance(sticky_direction, bool):
+            raise TypeError("sticky_direction must be a boolean")
         if isinstance(tick_period_ns, bool) or not isinstance(tick_period_ns, int):
             raise TypeError("tick_period_ns must be an integer")
         if tick_period_ns <= 0 or tick_period_ns > _UINT64_MASK:
@@ -183,6 +201,8 @@ class MazeChaseEnv:
         self._extra_loops = extra_loops
         self._ghost_rule = ghost_rule
         self._ghost_elroy = ghost_elroy
+        self._input_delay_ticks = input_delay_ticks
+        self._sticky_direction = sticky_direction
         self._tick_period_ns = tick_period_ns
         self._max_ticks = max_ticks
         self._episode_seed = 0
@@ -196,6 +216,8 @@ class MazeChaseEnv:
         self._player_dx = 0
         self._player_dy = -1
         self._previous_key_mask = 0
+        self._sticky_mask = 0
+        self._delay_queue: list[int] = []
         self._pellets_eaten = 0
         self._times_caught = 0
         self._cleared = 0
@@ -248,6 +270,8 @@ class MazeChaseEnv:
         self._player_dx = 0
         self._player_dy = -1
         self._previous_key_mask = 0
+        self._sticky_mask = 0
+        self._delay_queue = [0] * self._input_delay_ticks
         self._pellets_eaten = 0
         self._times_caught = 0
         self._cleared = 0
@@ -294,7 +318,20 @@ class MazeChaseEnv:
         if self._tick >= self._max_ticks:
             raise RuntimeError("the lifetime is truncated; call reset or restore before stepping")
 
-        applied_mask = self._mask_from_control(control)
+        # Input pipeline: the requested mask enters a fixed-length delay
+        # queue (input_delay_ticks), then sticky persistence replaces a
+        # directionless delayed mask with the last direction the player
+        # pressed. applied_control and the observation's previous_control
+        # report the effective mask — what the environment actually did.
+        requested_mask = self._mask_from_control(control)
+        self._delay_queue.append(requested_mask)
+        delayed_mask = self._delay_queue.pop(0)
+        if self._sticky_direction:
+            if delayed_mask:
+                self._sticky_mask = delayed_mask
+            applied_mask = self._sticky_mask
+        else:
+            applied_mask = delayed_mask
         applied_control = self._control_from_mask(applied_mask)
         old_player = (self._player_x, self._player_y)
 
@@ -387,7 +424,7 @@ class MazeChaseEnv:
         )
 
     def snapshot(self) -> bytes:
-        """Return a canonical, checksummed, version-3 snapshot."""
+        """Return a canonical, checksummed, version-4 snapshot."""
         payload = bytearray(
             self._SNAPSHOT_HEADER.pack(
                 self._SNAPSHOT_MAGIC,
@@ -412,11 +449,15 @@ class MazeChaseEnv:
                 _GHOST_RULES[self._ghost_rule],
                 self._player_period,
                 int(self._ghost_elroy),
+                self._input_delay_ticks,
+                int(self._sticky_direction),
+                self._sticky_mask,
             )
         )
         payload.extend(self._pellets)
         for ghost in self._ghosts:
             payload.extend(self._SNAPSHOT_GHOST.pack(*ghost))
+        payload.extend(bytes(self._delay_queue))
         payload.extend(sha256(payload).digest())
         return bytes(payload)
 
@@ -441,7 +482,7 @@ class MazeChaseEnv:
             tuple[
                 bytes, int, int, int, int, int, int, int,
                 int, int, int, int, int, int, int, int, int, int,
-                int, int, int, int, int,
+                int, int, int, int, int, int, int, int,
             ],
             self._SNAPSHOT_HEADER.unpack_from(payload),
         )
@@ -468,6 +509,9 @@ class MazeChaseEnv:
             ghost_rule_code,
             player_period,
             ghost_elroy,
+            input_delay_ticks,
+            sticky_direction,
+            sticky_mask,
         ) = header
         if magic != self._SNAPSHOT_MAGIC:
             raise ValueError("snapshot magic mismatch")
@@ -489,6 +533,7 @@ class MazeChaseEnv:
             self._SNAPSHOT_HEADER.size
             + self._SNAPSHOT_PELLET_BYTES
             + ghost_count * self._SNAPSHOT_GHOST.size
+            + input_delay_ticks
         )
         if len(payload) != expected:
             raise ValueError("snapshot length mismatch")
@@ -512,6 +557,14 @@ class MazeChaseEnv:
             raise ValueError("snapshot elroy flag must be 0 or 1")
         if bool(ghost_elroy) != self._ghost_elroy:
             raise ValueError("snapshot elroy flag mismatch")
+        if input_delay_ticks != self._input_delay_ticks:
+            raise ValueError("snapshot input delay mismatch")
+        if sticky_direction not in (0, 1):
+            raise ValueError("snapshot sticky flag must be 0 or 1")
+        if bool(sticky_direction) != self._sticky_direction:
+            raise ValueError("snapshot sticky flag mismatch")
+        if sticky_mask & ~self._SUPPORTED_KEY_MASK:
+            raise ValueError("snapshot sticky mask has unsupported key bits")
 
         maze = _carve_maze_with_loops(episode_seed, self.GRID_SIZE, extra_loops)
         if (player_x, player_y) not in maze:
@@ -547,6 +600,14 @@ class MazeChaseEnv:
                 raise ValueError("snapshot contains an off-corridor ghost")
             ghosts.append((x, y))
 
+        delay_queue: list[int] = []
+        for _ in range(input_delay_ticks):
+            mask = payload[offset]
+            offset += 1
+            if mask & ~self._SUPPORTED_KEY_MASK:
+                raise ValueError("snapshot delay queue has unsupported key bits")
+            delay_queue.append(mask)
+
         # Assign only after every byte has been validated, keeping failed restores atomic.
         self._episode_seed = episode_seed
         self._maze = maze
@@ -559,6 +620,8 @@ class MazeChaseEnv:
         self._player_dx = player_dx
         self._player_dy = player_dy
         self._previous_key_mask = previous_key_mask
+        self._sticky_mask = sticky_mask
+        self._delay_queue = delay_queue
         self._cleared = cleared
         self._pellets_eaten = pellets_eaten
         self._times_caught = times_caught

@@ -182,12 +182,16 @@ PLAN.md §20 defines the ladder; the work items in this repo are:
    `environments/maze_chase.py` (loop-carved seeded mazes, pellet clearing
    with a terminated win condition, BFS ghosts;
    [runs/2026-08-17-maze-chase-world.md](runs/2026-08-17-maze-chase-world.md)).
-   Remaining variant axes: sticky/delayed input (ghost AI rules are done:
-   `direct`/`ambush`/`shy`/`mixed` under snapshot version 2;
-   [runs/2026-08-17-maze-chase-ghost-rules.md](runs/2026-08-17-maze-chase-ghost-rules.md);
-   speed curves are done: `player_period` input-sampling gating and the
-   `ghost_elroy` endgame speed-up under snapshot version 3;
-   [runs/2026-08-17-maze-chase-speed-curves.md](runs/2026-08-17-maze-chase-speed-curves.md)). The scripted pellet teacher and matrix inclusion
+   All registered variant axes are now implemented: ghost AI rules
+   (`direct`/`ambush`/`shy`/`mixed`, snapshot version 2;
+   [runs/2026-08-17-maze-chase-ghost-rules.md](runs/2026-08-17-maze-chase-ghost-rules.md)),
+   speed curves (`player_period` input-sampling gating and the
+   `ghost_elroy` endgame speed-up, snapshot version 3;
+   [runs/2026-08-17-maze-chase-speed-curves.md](runs/2026-08-17-maze-chase-speed-curves.md)),
+   and sticky/delayed input (`input_delay_ticks` FIFO plus the
+   `sticky_direction` latch, snapshot version 4;
+   [runs/2026-08-17-maze-chase-sticky-delayed-input.md](runs/2026-08-17-maze-chase-sticky-delayed-input.md)).
+   Visuals and control mappings remain shared ladder surfaces. The scripted pellet teacher and matrix inclusion
    are done: `diagnostic.scripted_pellet_teacher.v1` and
    `world.maze_chase.v1` joined the cross-world matrix (now 6 worlds × 4
    policies), where the teacher's -6,274 canonical row shows reflexive

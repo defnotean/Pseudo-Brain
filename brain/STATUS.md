@@ -160,6 +160,12 @@ input sampling to every Nth tick, and `ghost_elroy` speeds the ghosts up by
 one tick once half the pellets are eaten, under snapshot version 3
 (28 tests; play-safe gate green). Record:
 [docs/runs/2026-08-17-maze-chase-speed-curves.md](./docs/runs/2026-08-17-maze-chase-speed-curves.md).
+The sticky/delayed-input axis completes the registered variant set:
+`input_delay_ticks` runs controls through a fixed FIFO and
+`sticky_direction` latches the last pressed direction until replaced, with
+the effective mask reported as `applied_control`, under snapshot version 4
+(33 tests; play-safe gate green). Record:
+[docs/runs/2026-08-17-maze-chase-sticky-delayed-input.md](./docs/runs/2026-08-17-maze-chase-sticky-delayed-input.md).
 
 Local play-safe verification after the live v2 registration: every isolated
 test module passed (299 tests, one expected POSIX skip in the trusted-final
