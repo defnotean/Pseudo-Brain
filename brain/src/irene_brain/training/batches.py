@@ -10,10 +10,13 @@ from typing import Iterator
 
 from ..data import (
     DatasetSplit,
+    MazeChaseDatasetConfig,
+    MazeChaseSequenceDataset,
     MovingShapesDatasetConfig,
     MovingShapesSequence,
     MovingShapesSequenceDataset,
 )
+from ..environments.maze_chase import _GHOST_RULES, MazeChaseEnv
 from ..types import GenericControl
 from .config import DatasetConfig
 
@@ -194,6 +197,222 @@ class MovingShapesBatchSource:
             emitted += 1
 
 
+@dataclass(frozen=True, slots=True)
+class MazeChaseBatchConfig:
+    """Split counts and maze_chase world knobs for :class:`MazeChaseBatchSource`.
+
+    Kept separate from the pinned ``DatasetConfig`` (whose ``kind`` only
+    supports moving_shapes) so registered moving_shapes configuration hashes
+    are untouched.
+    """
+
+    train_sequences: int
+    validation_sequences: int
+    test_sequences: int
+    sequence_length: int
+    burn_in_steps: int
+    seed_offset: int = 0
+    ghost_count: int = 3
+    ghost_period: int = 2
+    player_period: int = 1
+    extra_loops: int = 16
+    ghost_rule: str = "direct"
+    ghost_elroy: bool = False
+    input_delay_ticks: int = 0
+    sticky_direction: bool = False
+    tick_period_ns: int = MazeChaseEnv.DEFAULT_TICK_PERIOD_NS
+    discount: float = 0.99
+
+    def __post_init__(self) -> None:
+        for value, name in (
+            (self.train_sequences, "maze_chase.train_sequences"),
+            (self.validation_sequences, "maze_chase.validation_sequences"),
+            (self.test_sequences, "maze_chase.test_sequences"),
+        ):
+            if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+                raise ValueError(f"{name} must be a positive integer")
+        for value, name, low, high in (
+            (self.sequence_length, "maze_chase.sequence_length", 2, 2**32 - 1),
+            (self.burn_in_steps, "maze_chase.burn_in_steps", 0, 2**32 - 1),
+            (self.seed_offset, "maze_chase.seed_offset", 0, (1 << 62) - 1),
+            (self.ghost_count, "maze_chase.ghost_count", 1, 8),
+            (
+                self.ghost_period,
+                "maze_chase.ghost_period",
+                1,
+                MazeChaseEnv.MAX_GHOST_PERIOD,
+            ),
+            (
+                self.player_period,
+                "maze_chase.player_period",
+                1,
+                MazeChaseEnv.MAX_PLAYER_PERIOD,
+            ),
+            (
+                self.extra_loops,
+                "maze_chase.extra_loops",
+                0,
+                MazeChaseEnv.MAX_EXTRA_LOOPS,
+            ),
+            (
+                self.input_delay_ticks,
+                "maze_chase.input_delay_ticks",
+                0,
+                MazeChaseEnv.MAX_INPUT_DELAY,
+            ),
+            (self.tick_period_ns, "maze_chase.tick_period_ns", 1, 2**64 - 1),
+        ):
+            if isinstance(value, bool) or not isinstance(value, int):
+                raise ValueError(f"{name} must be an integer")
+            if value < low or value > high:
+                raise ValueError(f"{name} must be in [{low}, {high}]")
+        if self.burn_in_steps >= self.sequence_length:
+            raise ValueError(
+                "maze_chase.burn_in_steps must be smaller than sequence_length"
+            )
+        if not isinstance(self.ghost_rule, str) or self.ghost_rule not in _GHOST_RULES:
+            raise ValueError(f"maze_chase.ghost_rule must be one of {sorted(_GHOST_RULES)}")
+        if not isinstance(self.ghost_elroy, bool):
+            raise ValueError("maze_chase.ghost_elroy must be a boolean")
+        if not isinstance(self.sticky_direction, bool):
+            raise ValueError("maze_chase.sticky_direction must be a boolean")
+        if isinstance(self.discount, bool) or not isinstance(
+            self.discount, (int, float)
+        ):
+            raise ValueError("maze_chase.discount must be a number")
+        if not 0.0 <= float(self.discount) <= 1.0:
+            raise ValueError("maze_chase.discount must be in [0, 1]")
+        if self.seed_offset + max(
+            self.train_sequences,
+            self.validation_sequences,
+            self.test_sequences,
+        ) > (1 << 62):
+            raise ValueError("maze_chase sequence range exceeds its split namespace")
+
+
+class MazeChaseBatchSource:
+    """Lazy split-namespaced maze_chase trajectories with deterministic epochs.
+
+    Batches require equal-length sequences (:class:`TrajectoryBatch` fails
+    closed otherwise). A maze_chase episode cannot terminate before every
+    pellet is eaten — at least one tick per pellet — so sequences whose
+    length stays below the maze's pellet count always truncate at the
+    boundary and batch cleanly; the canonical slot clears in roughly 150–250
+    ticks, well above the registered 128-tick training length.
+    """
+
+    def __init__(self, config: MazeChaseBatchConfig) -> None:
+        if not isinstance(config, MazeChaseBatchConfig):
+            raise ValueError("config must be a MazeChaseBatchConfig")
+        self.config = config
+        counts = {
+            DatasetSplit.TRAIN: config.train_sequences,
+            DatasetSplit.VALIDATION: config.validation_sequences,
+            DatasetSplit.TEST: config.test_sequences,
+        }
+        self._datasets = {
+            split: MazeChaseSequenceDataset(
+                MazeChaseDatasetConfig(
+                    split=split,
+                    sequence_count=count,
+                    sequence_length=config.sequence_length,
+                    seed_offset=config.seed_offset,
+                    ghost_count=config.ghost_count,
+                    ghost_period=config.ghost_period,
+                    player_period=config.player_period,
+                    extra_loops=config.extra_loops,
+                    ghost_rule=config.ghost_rule,
+                    ghost_elroy=config.ghost_elroy,
+                    input_delay_ticks=config.input_delay_ticks,
+                    sticky_direction=config.sticky_direction,
+                    tick_period_ns=config.tick_period_ns,
+                    discount=config.discount,
+                )
+            )
+            for split, count in counts.items()
+        }
+        manifest = {
+            "schema_version": 1,
+            "batch_source": "maze_chase_split_namespaces",
+            "control_layout": CONTROL_LAYOUT_ID,
+            "input_boundary": "ModelObservation-v1",
+            "burn_in_steps": config.burn_in_steps,
+            "splits": {
+                split.value: dataset.manifest_sha256
+                for split, dataset in sorted(
+                    self._datasets.items(), key=lambda item: item[0].value
+                )
+            },
+        }
+        encoded = json.dumps(
+            manifest,
+            allow_nan=False,
+            ensure_ascii=True,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("ascii")
+        self._manifest_sha256 = sha256(b"IRTRAINBATCH\x01" + encoded).hexdigest()
+
+    @property
+    def manifest_sha256(self) -> str:
+        return self._manifest_sha256
+
+    @staticmethod
+    def _split(value: str) -> DatasetSplit:
+        try:
+            return DatasetSplit(value)
+        except (TypeError, ValueError) as error:
+            raise ValueError("split must be train, validation, or test") from error
+
+    def batches_per_epoch(self, *, split: str, batch_size: int) -> int:
+        if type(batch_size) is not int or batch_size < 1:
+            raise ValueError("batch_size must be a positive integer")
+        dataset = self._datasets[self._split(split)]
+        return ceil(len(dataset) / batch_size)
+
+    def iter_batches(
+        self,
+        *,
+        split: str,
+        epoch: int,
+        start_batch: int,
+        batch_size: int,
+        max_batches: int | None = None,
+    ) -> Iterator[TrajectoryBatch]:
+        partition = self._split(split)
+        if type(epoch) is not int or epoch < 0:
+            raise ValueError("epoch must be a nonnegative integer")
+        if type(start_batch) is not int or start_batch < 0:
+            raise ValueError("start_batch must be a nonnegative integer")
+        if type(batch_size) is not int or batch_size < 1:
+            raise ValueError("batch_size must be a positive integer")
+        if max_batches is not None and (
+            type(max_batches) is not int or max_batches < 1
+        ):
+            raise ValueError("max_batches must be a positive integer or None")
+
+        dataset = self._datasets[partition]
+        total_batches = self.batches_per_epoch(split=split, batch_size=batch_size)
+        if start_batch > total_batches:
+            raise ValueError("start_batch exceeds the number of batches")
+        indices = dataset.epoch_indices(
+            epoch=epoch,
+            shuffle=partition is DatasetSplit.TRAIN,
+        )
+        emitted = 0
+        for batch_index in range(start_batch, total_batches):
+            if max_batches is not None and emitted >= max_batches:
+                break
+            start = batch_index * batch_size
+            selected = indices[start : start + batch_size]
+            yield TrajectoryBatch(
+                split=partition.value,
+                burn_in_steps=self.config.burn_in_steps,
+                sequences=tuple(dataset[index] for index in selected),
+            )
+            emitted += 1
+
+
 __all__ = [
     "BUTTON_TARGET_INDICES",
     "CONTINUOUS_TARGET_INDICES",
@@ -204,6 +423,8 @@ __all__ = [
     "KEYBOARD_SLICE",
     "MOUSE_AXIS_SLICE",
     "MOUSE_BUTTON_SLICE",
+    "MazeChaseBatchConfig",
+    "MazeChaseBatchSource",
     "MovingShapesBatchSource",
     "SCROLL_INDEX",
     "TrajectoryBatch",

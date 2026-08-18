@@ -284,7 +284,11 @@ Near-term slices, each independently committable and test-covered:
    closes the loop to training: lazy, mechanics-matched demonstrations from
    the frontier planner through the same sequence interface the trainer
    already consumes
-   ([runs/2026-08-17-maze-chase-planner-dataset.md](runs/2026-08-17-maze-chase-planner-dataset.md)).
+   ([runs/2026-08-17-maze-chase-planner-dataset.md](runs/2026-08-17-maze-chase-planner-dataset.md)),
+   and `MazeChaseBatchSource` (`training/batches.py`) feeds those
+   demonstrations through the generic trainer protocol — verified end to
+   end by a bounded CPU optimizer step on planner-labeled batches
+   ([runs/2026-08-17-maze-chase-training-batches.md](runs/2026-08-17-maze-chase-training-batches.md)).
 10. **Arcade-scale training and the Phase 4 gate.**
 
 ## 7. Resources and constraints

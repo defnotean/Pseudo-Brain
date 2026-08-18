@@ -194,6 +194,13 @@ through the same sequence interface the trainer already consumes — the
 distillation path from scripted frontier to trained model is now in-repo
 (11 tests; play-safe gate green, 490 tests). Record:
 [docs/runs/2026-08-17-maze-chase-planner-dataset.md](./docs/runs/2026-08-17-maze-chase-planner-dataset.md).
+`MazeChaseBatchSource` (`src/irene_brain/training/batches.py`) now feeds
+those demonstrations through the generic trainer protocol, and a bounded
+CPU smoke proves one real optimizer step on planner-labeled maze_chase
+batches (finite loss, parameters updated) — a future DGX distillation run
+is a configuration exercise, not new machinery (7 tests; play-safe gate
+green, 497 tests). Record:
+[docs/runs/2026-08-17-maze-chase-training-batches.md](./docs/runs/2026-08-17-maze-chase-training-batches.md).
 The matched baseline suite gains the PLAN §28 item-12 control:
 `irene.thought_field.independent_ensemble.v1` — four untied members of
 eight slots each at width 352 (29,459,914 trainable, 0.72% under the
