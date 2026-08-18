@@ -29,7 +29,7 @@ from __future__ import annotations
 
 from typing import Sequence
 
-from ..environments.junction import _DIRECTIONS, _bfs_distances
+from ..environments.junction import JunctionEnv, _DIRECTIONS, _bfs_distances
 from ..environments.keys_doors import KeysDoorsEnv
 from ..environments.maze_chase import MazeChaseEnv
 from ..environments.moving_shapes import (
@@ -844,6 +844,246 @@ class ScriptedKeysDoorsSolver:
         return GenericControl(keys_down=(_KEY_FOR_DELTA[delta],))
 
 
+def _parse_junction_frame(
+    frame: RgbFrame, *, caller: str
+) -> tuple[
+    set[tuple[int, int]],
+    tuple[int, int],
+    tuple[int, int] | None,
+    set[tuple[int, int]],
+    bool,
+]:
+    """Parse the canonical junction grid frame into visible cell sets.
+
+    Returns ``(walkable, player, target, chasers, saw_walls)``. Every color
+    read here is part of the public render contract — ``WALL_RGB`` /
+    ``PLAYER_RGB`` / ``TARGET_RGB`` and the visible chaser red — so a
+    pixel-only policy sees exactly what a model would see and never touches
+    simulator state. ``saw_walls`` lets the caller distinguish the maze
+    worlds from the open-field worlds, whose palettes overlap otherwise.
+    """
+
+    grid = JunctionEnv.GRID_SIZE
+    if frame.width != grid or frame.height != grid:
+        raise ValueError(f"{caller} requires the canonical grid frame")
+    # The chaser red is a visible pixel color; it is read from the frame,
+    # never from simulator state.
+    chaser_color = JunctionEnv._CHASER_COLOR
+    pixels = frame.pixels
+    player: tuple[int, int] | None = None
+    target: tuple[int, int] | None = None
+    walkable: set[tuple[int, int]] = set()
+    chasers: set[tuple[int, int]] = set()
+    saw_walls = False
+    for y in range(grid):
+        for x in range(grid):
+            offset = (y * grid + x) * 3
+            color = (pixels[offset], pixels[offset + 1], pixels[offset + 2])
+            if color == JunctionEnv.WALL_RGB:
+                saw_walls = True
+                continue
+            cell = (x, y)
+            walkable.add(cell)
+            if color in (
+                JunctionEnv.PLAYER_RGB,
+                JunctionEnv.PLAYER_CHASER_OVERLAP_RGB,
+            ):
+                player = cell
+            elif color == JunctionEnv.TARGET_RGB:
+                target = cell
+            elif color == chaser_color:
+                chasers.add(cell)
+    if player is None:
+        raise RuntimeError(f"{caller} could not locate the player")
+    return walkable, player, target, chasers, saw_walls
+
+
+class ScriptedJunctionSolver:
+    """Pixel-only chaser-aware solver for the junction world.
+
+    Junction isolates branch-point decisions under pursuit on a perfect
+    maze: the corridor path between any two cells is unique, one chaser
+    walks the exact BFS shortest path to the player every ``chaser_period``
+    ticks, and contact costs a reward plus a hidden-RNG respawn. The solver
+    reads nothing but the canonical observation frame — walls, the player,
+    the yellow target, and the visible chaser-red cells — and simulates the
+    world's published mechanics before committing:
+
+    - It reconstructs the (unique) BFS shortest path to the visible target
+      and simulates walking it one cell per tick while every visible chaser
+      steps downhill on the post-move player field with the same
+      ``_DIRECTIONS`` tie-break and swept-path contact rule the simulator
+      uses. It commits to the path's first step only if the whole walk
+      survives.
+    - If the walk is caught, a one-tick survival fallback picks the move
+      (four directions, then stay) that is not caught and maximizes the
+      post-move BFS distance to the nearest chaser, ties broken by fixed
+      scan order.
+
+    Two structural facts shape the frontier, and the docstring records them
+    so the run record can point here: on a perfect maze a chaser sitting on
+    the unique player→target path stays on it while chasing, so a guarded
+    target cannot be reached without a catch; and because the player moves
+    every tick while the chaser moves every ``chaser_period`` ticks, an
+    unguarded target can usually be outrun to. The solver never walks into a
+    chaser on purpose: when the target is guarded it kites, accepting that
+    a cornered catch costs one reward and re-rolls the geometry through
+    the respawn.
+
+    Honest pixel-vision caveats, matching the maze planner's: the
+    player/chaser overlap pixel briefly hides a chaser standing on the
+    player's own cell, and stacked chasers render as one. Re-planning from
+    fresh pixels every tick bounds the damage; the post-catch respawn cell
+    is sampled from hidden RNG, so the plan past a forced catch is simply
+    re-derived from the next frame. On worlds without the wall + target +
+    chaser pixel combination the solver never activates and holds still,
+    so its matrix rows there are honest zeros.
+    """
+
+    __slots__ = ("_chaser_period", "_activated")
+    identity = "diagnostic.scripted_junction_solver.v1"
+    uses_privileged_state = False
+
+    def __init__(self, *, chaser_period: int = 2) -> None:
+        if isinstance(chaser_period, bool) or not isinstance(chaser_period, int):
+            raise TypeError("chaser_period must be an integer")
+        if chaser_period < 1 or chaser_period > JunctionEnv.MAX_CHASER_PERIOD:
+            raise ValueError(
+                f"chaser_period must be in [1, {JunctionEnv.MAX_CHASER_PERIOD}]"
+            )
+        self._chaser_period = chaser_period
+        self._activated = False
+
+    def reset(self, episode_seed: int) -> None:
+        if isinstance(episode_seed, bool) or not isinstance(episode_seed, int):
+            raise TypeError("episode_seed must be an integer")
+        self._activated = False
+
+    def act(self, observation: Observation) -> GenericControl:
+        walkable, player, target, chasers, saw_walls = _parse_junction_frame(
+            observation.rgb, caller="junction solver"
+        )
+        if target is not None and chasers and saw_walls:
+            # Only the junction world renders walls, a yellow target, and
+            # chaser red together: the open-field worlds have no walls, the
+            # maze_chase world has pellets instead of a target, and
+            # keys_doors has no red.
+            self._activated = True
+        if not self._activated or target is None:
+            return GenericControl()
+
+        frozen_walkable = frozenset(walkable)
+        # frame_id counts completed ticks, so the upcoming decision executes
+        # on simulator tick ``start_tick`` and chasers move on ticks
+        # divisible by the period — the condition the simulator evaluates.
+        start_tick = observation.frame_id
+        chaser_list = sorted(chasers)
+
+        field = _bfs_distances(player, frozen_walkable)
+        if target in field and field[target] > 0:
+            path = _downhill_path(field, player, target)
+            if not self._path_is_caught(
+                player, chaser_list, path, frozen_walkable, start_tick
+            ):
+                delta = (path[0][0] - player[0], path[0][1] - player[1])
+                return GenericControl(keys_down=(_KEY_FOR_DELTA[delta],))
+        return self._survival(player, chaser_list, frozen_walkable, start_tick)
+
+    def _step_sim(
+        self,
+        sim_player: tuple[int, int],
+        sim_chasers: list[tuple[int, int]],
+        mask: int,
+        tick: int,
+        walkable: frozenset[tuple[int, int]],
+    ) -> tuple[tuple[int, int], list[tuple[int, int]], bool]:
+        """Advance one simulated tick; return (player, chasers, caught)."""
+        delta = (
+            int(bool(mask & 8)) - int(bool(mask & 2)),
+            int(bool(mask & 4)) - int(bool(mask & 1)),
+        )
+        candidate = (sim_player[0] + delta[0], sim_player[1] + delta[1])
+        # Walls refuse the whole move; there is no sliding along them.
+        new_player = candidate if candidate in walkable else sim_player
+        chasers_move = tick % self._chaser_period == 0
+        # Every chaser chases the same post-move player cell, so one shared
+        # field serves them all — the same field the simulator computes once
+        # per move tick.
+        field = _bfs_distances(new_player, walkable) if chasers_move else None
+        moved: list[tuple[int, int]] = []
+        caught = False
+        for chaser in sim_chasers:
+            after = (
+                MazeChaseEnv._step_downhill(chaser, field) if chasers_move else chaser
+            )
+            if _paths_collide_at_same_time(sim_player, new_player, chaser, after):
+                caught = True
+            moved.append(after)
+        return new_player, moved, caught
+
+    def _path_is_caught(
+        self,
+        player: tuple[int, int],
+        chasers: list[tuple[int, int]],
+        path: list[tuple[int, int]],
+        walkable: frozenset[tuple[int, int]],
+        start_tick: int,
+    ) -> bool:
+        """Simulate walking ``path`` one cell per tick; True if caught."""
+        sim_player = player
+        sim_chasers = list(chasers)
+        for index, step_cell in enumerate(path):
+            mask = _MASK_FOR_DELTA[
+                (step_cell[0] - sim_player[0], step_cell[1] - sim_player[1])
+            ]
+            sim_player, sim_chasers, caught = self._step_sim(
+                sim_player, sim_chasers, mask, start_tick + index, walkable
+            )
+            if caught:
+                return True
+        return False
+
+    def _survival(
+        self,
+        player: tuple[int, int],
+        chasers: list[tuple[int, int]],
+        walkable: frozenset[tuple[int, int]],
+        start_tick: int,
+    ) -> GenericControl:
+        """One-tick fallback: survive, then maximize distance to the chasers.
+
+        Options scan in the fixed ``_DIRECTIONS`` order with stay last; a
+        strict ``>`` comparison keeps the earliest option on ties, so the
+        fallback is deterministic.
+        """
+        if not chasers:
+            return GenericControl()
+        best_score: int | None = None
+        best_delta: tuple[int, int] = (0, 0)
+        options: list[tuple[int, int]] = list(_DIRECTIONS) + [(0, 0)]
+        for dx, dy in options:
+            mask = _MASK_FOR_DELTA.get((dx, dy), 0)
+            new_player, moved, caught = self._step_sim(
+                player, list(chasers), mask, start_tick, walkable
+            )
+            if caught:
+                continue
+            field = _bfs_distances(new_player, walkable)
+            nearest: int | None = None
+            for chaser in moved:
+                distance = field.get(chaser)
+                # A chaser walled off from the player is infinitely far away.
+                score = distance if distance is not None else 1 << 20
+                nearest = score if nearest is None else min(nearest, score)
+            survivor_score = nearest if nearest is not None else 1 << 20
+            if best_score is None or survivor_score > best_score:
+                best_score = survivor_score
+                best_delta = (dx, dy)
+        if best_delta == (0, 0):
+            return GenericControl()
+        return GenericControl(keys_down=(_KEY_FOR_DELTA[best_delta],))
+
+
 def default_diagnostic_policies() -> tuple[object, ...]:
     """Return the §28 diagnostic policies in canonical suite order."""
 
@@ -898,6 +1138,7 @@ __all__ = [
     "NoOpPolicy",
     "OraclePolicy",
     "RandomMovementPolicy",
+    "ScriptedJunctionSolver",
     "ScriptedKeysDoorsSolver",
     "ScriptedPelletTeacherPolicy",
     "ScriptedTargetChasePolicy",

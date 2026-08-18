@@ -177,6 +177,13 @@ PLAN.md §20 defines the ladder; the work items in this repo are:
    over the three canonical seeds where every reactive policy scores a flat
    zero, and the matrix is now 13 worlds × 6 policies = 78 cells
    ([runs/2026-08-17-keys-doors-solver-policy.md](runs/2026-08-17-keys-doors-solver-policy.md)).
+   The junction scripted frontier is likewise mapped by
+   `diagnostic.scripted_junction_solver.v1`, a pixel-only chaser-aware
+   solver that simulates the exact BFS pursuit before committing to the
+   unique corridor path: it collects 22 targets against 12 forced catches
+   (+10 reward) where the best reactive policy scored -16, and the matrix
+   is now 13 worlds × 7 policies = 91 cells
+   ([runs/2026-08-17-junction-solver-policy.md](runs/2026-08-17-junction-solver-policy.md)).
 2. **External open worlds** (license-cleared): XLand-MiniGrid, Craftax,
    Procgen — adapters behind `environments/protocol.py`, lifetime recording,
    held-out generator families.

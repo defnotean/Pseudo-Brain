@@ -38,6 +38,7 @@ from .closed_loop_play import (
 from .diagnostic_policies import (
     NoOpPolicy,
     RandomMovementPolicy,
+    ScriptedJunctionSolver,
     ScriptedKeysDoorsSolver,
     ScriptedMazeChasePlannerPolicy,
     ScriptedPelletTeacherPolicy,
@@ -166,6 +167,7 @@ def matrix_policies() -> tuple[object, ...]:
         ScriptedPelletTeacherPolicy(),
         ScriptedMazeChasePlannerPolicy(),
         ScriptedKeysDoorsSolver(),
+        ScriptedJunctionSolver(),
     )
 
 

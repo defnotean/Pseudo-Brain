@@ -231,6 +231,18 @@ flat zero. The cross-world matrix is now 13 worlds × 6 policies = 78 cells
 (SHA-256 `4f10467fbecf539…`, all pre-existing cells unchanged; play-safe
 gate green, 506 tests). Record:
 [docs/runs/2026-08-17-keys-doors-solver-policy.md](./docs/runs/2026-08-17-keys-doors-solver-policy.md).
+The junction scripted frontier is now mapped:
+`diagnostic.scripted_junction_solver.v1` — a pixel-only chaser-aware
+solver that simulates the exact BFS pursuit before committing to the
+unique corridor path — collects 22 targets against 12 forced catches (+10
+reward) over the three canonical seeds, where the best prior policy
+(greedy chase) scored -16 with 3 targets and 19 catches. The record also
+pins two structural facts: a guarded target is unreachable on a perfect
+maze, and the solver never takes a deliberate death. The cross-world
+matrix is now 13 worlds × 7 policies = 91 cells (SHA-256
+`311f2ebe84b650ea…`, all pre-existing cells unchanged; play-safe gate
+green, 512 tests). Record:
+[docs/runs/2026-08-17-junction-solver-policy.md](./docs/runs/2026-08-17-junction-solver-policy.md).
 The matched baseline suite gains the PLAN §28 item-12 control:
 `irene.thought_field.independent_ensemble.v1` — four untied members of
 eight slots each at width 352 (29,459,914 trainable, 0.72% under the

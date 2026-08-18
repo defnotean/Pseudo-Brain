@@ -9,6 +9,7 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
+from irene_brain.environments.junction import JunctionEnv
 from irene_brain.environments.keys_doors import KeysDoorsEnv
 from irene_brain.environments.maze_chase import MazeChaseEnv
 from irene_brain.environments.moving_shapes import MovingShapesEnv
@@ -21,6 +22,7 @@ from irene_brain.evaluation.diagnostic_policies import (
     NoOpPolicy,
     OraclePolicy,
     RandomMovementPolicy,
+    ScriptedJunctionSolver,
     ScriptedKeysDoorsSolver,
     ScriptedMazeChasePlannerPolicy,
     ScriptedPelletTeacherPolicy,
@@ -400,6 +402,95 @@ class KeysDoorsSolverTests(unittest.TestCase):
         )
         self.assertEqual(report.targets_collected, 0)
         self.assertEqual(report.movement_mask_histogram, ((0, 60),))
+
+
+class JunctionSolverTests(unittest.TestCase):
+    """The chaser-aware solver maps the scripted junction frontier."""
+
+    def _run(self, policy: object, seed: int, max_ticks: int = 600):
+        return run_policy_closed_loop_episode(
+            policy,
+            seed=seed,
+            config=_config(max_ticks=max_ticks),
+            environment_factory=lambda: JunctionEnv(
+                chaser_count=1, chaser_period=2, max_ticks=max_ticks
+            ),
+        )
+
+    def test_contract_flags_and_constructor_validation(self) -> None:
+        solver = ScriptedJunctionSolver()
+        self.assertEqual(solver.identity, "diagnostic.scripted_junction_solver.v1")
+        self.assertFalse(solver.uses_privileged_state)
+        with self.assertRaises(TypeError):
+            ScriptedJunctionSolver(chaser_period=True)
+        with self.assertRaises(ValueError):
+            ScriptedJunctionSolver(chaser_period=0)
+        with self.assertRaises(ValueError):
+            ScriptedJunctionSolver(chaser_period=65)
+        with self.assertRaises(TypeError):
+            solver.reset(True)  # type: ignore[arg-type]
+
+    def test_requires_the_canonical_grid_frame(self) -> None:
+        from irene_brain.types import Observation, RgbFrame
+
+        solver = ScriptedJunctionSolver()
+        solver.reset(1)
+        wrong_size = Observation(
+            frame_id=0,
+            capture_tick=0,
+            elapsed_ns=0,
+            rgb=RgbFrame(width=8, height=8, pixels=bytes(8 * 8 * 3)),
+            previous_control=GenericControl(),
+            audio_pcm_s16le=None,
+            text_inputs=(),
+        )
+        with self.assertRaises(ValueError):
+            solver.act(wrong_size)
+
+    def test_solver_is_deterministic_per_seed(self) -> None:
+        first = self._run(ScriptedJunctionSolver(), seed=5)
+        second = self._run(ScriptedJunctionSolver(), seed=5)
+        self.assertEqual(first, second)
+
+    def test_solver_outplays_the_greedy_chaser(self) -> None:
+        solved_targets = chased_targets = 0
+        solved_reward = chased_reward = 0.0
+        solved_collisions = chased_collisions = 0
+        for seed in (5, 9):
+            solved = self._run(ScriptedJunctionSolver(), seed)
+            chased = self._run(ScriptedTargetChasePolicy(), seed)
+            solved_targets += solved.targets_collected
+            chased_targets += chased.targets_collected
+            solved_reward += solved.reward_sum
+            chased_reward += chased.reward_sum
+            solved_collisions += solved.collisions
+            chased_collisions += chased.collisions
+        self.assertGreater(solved_targets, chased_targets)
+        self.assertGreater(solved_reward, chased_reward)
+        self.assertLess(solved_collisions, chased_collisions)
+
+    def test_solver_collects_targets_under_pursuit(self) -> None:
+        for seed in (5, 9):
+            report = self._run(ScriptedJunctionSolver(), seed)
+            self.assertGreaterEqual(report.targets_collected, 1)
+            self.assertEqual(report.decisions_rejected, 0)
+
+    def test_solver_holds_still_on_foreign_worlds(self) -> None:
+        for factory in (
+            lambda: MovingShapesEnv(hazard_count=1, max_ticks=60),
+            lambda: KeysDoorsEnv(max_ticks=60),
+            lambda: MazeChaseEnv(
+                ghost_count=3, ghost_period=2, extra_loops=16, max_ticks=60
+            ),
+        ):
+            report = run_policy_closed_loop_episode(
+                ScriptedJunctionSolver(),
+                seed=5,
+                config=_config(max_ticks=60),
+                environment_factory=factory,
+            )
+            self.assertEqual(report.targets_collected, 0)
+            self.assertEqual(report.movement_mask_histogram, ((0, 60),))
 
 
 if __name__ == "__main__":
