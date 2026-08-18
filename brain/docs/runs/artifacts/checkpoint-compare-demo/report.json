@@ -1,0 +1,404 @@
+{
+  "first": "brain\\docs\\runs\\artifacts\\checkpoint-compare-demo\\step4.pt",
+  "first_optimizer_step": 4,
+  "first_sha256": "cf6a940ed3e76dabb9f734ad7501af03cd1ce83dd059b4e7812faf0d8dfb8d81",
+  "metrics": {
+    "action_loss": {
+      "delta": -0.078933,
+      "first": 0.732004,
+      "second": 0.653071
+    },
+    "all_four_movement_exact_match": {
+      "delta": 0.0,
+      "first": 0.0,
+      "second": 0.0
+    },
+    "all_off_movement_exact_match": {
+      "delta": 0.0,
+      "first": 0.0,
+      "second": 0.0
+    },
+    "continuous_action_outside_0_05_count": {
+      "delta": -0.5,
+      "first": 10.5,
+      "second": 10.0
+    },
+    "continuous_action_squared_magnitude": {
+      "delta": 0.060519,
+      "first": 0.424933,
+      "second": 0.485452
+    },
+    "continuous_target_nonzero_count": {
+      "delta": 0.0,
+      "first": 0.0,
+      "second": 0.0
+    },
+    "diversity_loss": {
+      "delta": 0.001347,
+      "first": 0.033923,
+      "second": 0.035269
+    },
+    "exit_0_action_loss": {
+      "delta": -0.105811,
+      "first": 0.758173,
+      "second": 0.652362
+    },
+    "exit_0_button_exact_match": {
+      "delta": 0.0,
+      "first": 0.0,
+      "second": 0.0
+    },
+    "exit_0_movement_exact_match": {
+      "delta": 0.0,
+      "first": 0.0,
+      "second": 0.0
+    },
+    "exit_1_action_loss": {
+      "delta": -0.069036,
+      "first": 0.722563,
+      "second": 0.653527
+    },
+    "exit_1_button_exact_match": {
+      "delta": 0.0,
+      "first": 0.0,
+      "second": 0.0
+    },
+    "exit_1_movement_exact_match": {
+      "delta": 0.0,
+      "first": 0.0,
+      "second": 0.0
+    },
+    "exit_2_action_loss": {
+      "delta": -0.068988,
+      "first": 0.722122,
+      "second": 0.653134
+    },
+    "exit_2_button_exact_match": {
+      "delta": 0.0,
+      "first": 0.0,
+      "second": 0.0
+    },
+    "exit_2_movement_exact_match": {
+      "delta": 0.0,
+      "first": 0.0,
+      "second": 0.0
+    },
+    "exit_3_action_loss": {
+      "delta": -0.071897,
+      "first": 0.725158,
+      "second": 0.653261
+    },
+    "exit_3_button_exact_match": {
+      "delta": 0.0,
+      "first": 0.0,
+      "second": 0.0
+    },
+    "exit_3_movement_exact_match": {
+      "delta": 0.0,
+      "first": 0.0,
+      "second": 0.0
+    },
+    "final_inactive_movement_key_logit_max": {
+      "delta": -0.205371,
+      "first": 0.254817,
+      "second": 0.049446
+    },
+    "final_inactive_movement_key_logit_mean": {
+      "delta": -0.379997,
+      "first": 0.113014,
+      "second": -0.266983
+    },
+    "final_non_movement_key_logit_max": {
+      "delta": -0.282066,
+      "first": 0.447934,
+      "second": 0.165868
+    },
+    "final_positive_key_logit_mean": {
+      "delta": -0.311154,
+      "first": 0.337972,
+      "second": 0.026817
+    },
+    "full_button_exact_match": {
+      "delta": 0.0,
+      "first": 0.0,
+      "second": 0.0
+    },
+    "key_accuracy": {
+      "delta": 0.867188,
+      "first": 0.089844,
+      "second": 0.957031
+    },
+    "mean_applied_expire_probability": {
+      "delta": 0.00231,
+      "first": 0.332635,
+      "second": 0.334944
+    },
+    "movement_a_predicted_positive_rate": {
+      "delta": -1.0,
+      "first": 1.0,
+      "second": 0.0
+    },
+    "movement_a_target_positive_rate": {
+      "delta": 0.0,
+      "first": 0.0,
+      "second": 0.0
+    },
+    "movement_a_true_positive_rate": {
+      "delta": 0.0,
+      "first": 0.0,
+      "second": 0.0
+    },
+    "movement_changed_exact_matches_per_sample": {
+      "delta": 0.0,
+      "first": 0.0,
+      "second": 0.0
+    },
+    "movement_changed_samples_per_sample": {
+      "delta": 0.0,
+      "first": 1.0,
+      "second": 1.0
+    },
+    "movement_d_predicted_positive_rate": {
+      "delta": 0.0,
+      "first": 1.0,
+      "second": 1.0
+    },
+    "movement_d_target_positive_rate": {
+      "delta": 0.0,
+      "first": 0.5,
+      "second": 0.5
+    },
+    "movement_d_true_positive_rate": {
+      "delta": 0.0,
+      "first": 0.5,
+      "second": 0.5
+    },
+    "movement_exact_match": {
+      "delta": 0.0,
+      "first": 0.0,
+      "second": 0.0
+    },
+    "movement_false_positive_count": {
+      "delta": -2.0,
+      "first": 2.5,
+      "second": 0.5
+    },
+    "movement_opposite_conflict_rate": {
+      "delta": -1.0,
+      "first": 1.0,
+      "second": 0.0
+    },
+    "movement_predicted_active_count": {
+      "delta": -2.5,
+      "first": 4.0,
+      "second": 1.5
+    },
+    "movement_query_effective_slot_count": {
+      "delta": -0.019927,
+      "first": 7.632725,
+      "second": 7.612798
+    },
+    "movement_query_slot_entropy": {
+      "delta": -0.000671,
+      "first": 0.988396,
+      "second": 0.987726
+    },
+    "movement_s_predicted_positive_rate": {
+      "delta": -1.0,
+      "first": 1.0,
+      "second": 0.0
+    },
+    "movement_s_target_positive_rate": {
+      "delta": 0.0,
+      "first": 0.0,
+      "second": 0.0
+    },
+    "movement_s_true_positive_rate": {
+      "delta": 0.0,
+      "first": 0.0,
+      "second": 0.0
+    },
+    "movement_target_active_count": {
+      "delta": 0.0,
+      "first": 1.5,
+      "second": 1.5
+    },
+    "movement_w_predicted_positive_rate": {
+      "delta": -0.5,
+      "first": 1.0,
+      "second": 0.5
+    },
+    "movement_w_target_positive_rate": {
+      "delta": 0.0,
+      "first": 1.0,
+      "second": 1.0
+    },
+    "movement_w_true_positive_rate": {
+      "delta": -0.5,
+      "first": 1.0,
+      "second": 0.5
+    },
+    "non_movement_key_false_positive_count": {
+      "delta": -220.5,
+      "first": 230.5,
+      "second": 10.0
+    },
+    "off_support_button_positive_count": {
+      "delta": -255.5,
+      "first": 266.5,
+      "second": 11.0
+    },
+    "off_support_button_target_active_count": {
+      "delta": 0.0,
+      "first": 0.0,
+      "second": 0.0
+    },
+    "positive_key_recall": {
+      "delta": -0.25,
+      "first": 1.0,
+      "second": 0.75
+    },
+    "previous_control_movement_exact_match": {
+      "delta": 0.0,
+      "first": 0.0,
+      "second": 0.0
+    },
+    "thought_duplicate_pair_fraction": {
+      "delta": 0.0,
+      "first": 0.0,
+      "second": 0.0
+    },
+    "thought_full_register_rank_proxy": {
+      "delta": -0.005971,
+      "first": 0.80815,
+      "second": 0.802178
+    },
+    "thought_pairwise_cosine_mean": {
+      "delta": 0.011191,
+      "first": 0.054184,
+      "second": 0.065374
+    },
+    "thought_slot_private_energy": {
+      "delta": -0.009874,
+      "first": 0.828618,
+      "second": 0.818744
+    },
+    "thought_summary_rank_proxy": {
+      "delta": -0.00591,
+      "first": 0.80831,
+      "second": 0.8024
+    },
+    "total_loss": {
+      "delta": -0.081855,
+      "first": 0.794569,
+      "second": 0.712713
+    },
+    "value_loss": {
+      "delta": -0.004516,
+      "first": 0.005285,
+      "second": 0.000769
+    },
+    "world_best_second_error_gap": {
+      "delta": 0.036469,
+      "first": 0.126497,
+      "second": 0.162966
+    },
+    "world_loss": {
+      "delta": -0.025381,
+      "first": 0.603402,
+      "second": 0.578021
+    },
+    "world_loss_h1": {
+      "delta": -0.025381,
+      "first": 0.603402,
+      "second": 0.578021
+    }
+  },
+  "second": "brain\\docs\\runs\\artifacts\\checkpoint-compare-demo\\step8.pt",
+  "second_optimizer_step": 8,
+  "second_sha256": "b0ed5a0df0a787a1cdac58e6b65fd159f65815c748c1443f085d4055943853d5",
+  "tensors_changed": 198,
+  "tensors_total": 223,
+  "top_parameter_changes": [
+    {
+      "delta_l2": 0.002302669920027256,
+      "elements": 64,
+      "identical": false,
+      "max_abs_delta": 0.0003070170059800148,
+      "relative_l2": 16.761885915829495,
+      "tensor": "model.actuator.coordination_norm.bias"
+    },
+    {
+      "delta_l2": 0.0025478333700448275,
+      "elements": 64,
+      "identical": false,
+      "max_abs_delta": 0.0007926414255052805,
+      "relative_l2": 1.1382131599948213,
+      "tensor": "model.actuator.coordination.out_proj.bias"
+    },
+    {
+      "delta_l2": 0.0023427398409694433,
+      "elements": 64,
+      "identical": false,
+      "max_abs_delta": 0.0007109137950465083,
+      "relative_l2": 1.123701911520483,
+      "tensor": "model.actuator.cross_attention.out_proj.bias"
+    },
+    {
+      "delta_l2": 0.003255466464906931,
+      "elements": 64,
+      "identical": false,
+      "max_abs_delta": 0.0009654454188421369,
+      "relative_l2": 1.1092577625537754,
+      "tensor": "model.brain_cell.blocks.1.thought_attention.query_norm.bias"
+    },
+    {
+      "delta_l2": 0.003720767330378294,
+      "elements": 64,
+      "identical": false,
+      "max_abs_delta": 0.001164962537586689,
+      "relative_l2": 1.0993757307888046,
+      "tensor": "model.actuator.query_norm.bias"
+    },
+    {
+      "delta_l2": 0.004619885701686144,
+      "elements": 192,
+      "identical": false,
+      "max_abs_delta": 0.0010989462025463581,
+      "relative_l2": 1.0575189673787189,
+      "tensor": "model.brain_cell.blocks.1.thought_attention.attention.in_proj_bias"
+    },
+    {
+      "delta_l2": 0.003170301904901862,
+      "elements": 64,
+      "identical": false,
+      "max_abs_delta": 0.0010126144625246525,
+      "relative_l2": 1.044408726262605,
+      "tensor": "model.seed_attention.attention_norm.bias"
+    },
+    {
+      "delta_l2": 0.0019260625122115016,
+      "elements": 16,
+      "identical": false,
+      "max_abs_delta": 0.0009413966909050941,
+      "relative_l2": 1.0360319093300667,
+      "tensor": "model.pixel_encoder.stem.1.bias"
+    },
+    {
+      "delta_l2": 0.0034456488210707903,
+      "elements": 64,
+      "identical": false,
+      "max_abs_delta": 0.001165645313449204,
+      "relative_l2": 1.014898533843478,
+      "tensor": "model.seed_attention.output_norm.bias"
+    },
+    {
+      "delta_l2": 0.003061658935621381,
+      "elements": 64,
+      "identical": false,
+      "max_abs_delta": 0.0009913683170452714,
+      "relative_l2": 1.0035463701304317,
+      "tensor": "model.seed_attention.attention.out_proj.bias"
+    }
+  ]
+}

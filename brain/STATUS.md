@@ -346,6 +346,18 @@ The open question is now "how much scale precedes any transfer," and the
 battery is one command that any future checkpoint can be dropped into
 (play-safe gate unaffected, script-only). Record:
 [docs/runs/2026-08-18-transfer-gap-smoke.md](./docs/runs/2026-08-18-transfer-gap-smoke.md).
+Checkpoint comparison tooling landed:
+`evaluation/checkpoint_compare.py` (analysis-only primitives — restricted
+loading, run-identity guard, per-tensor relative-L2 difference table,
+shared-batch metric deltas; `load_checkpoint` remains the only resume
+path) and `scripts/compare_checkpoints.py` (CLI with a `--cpu` override
+for analyzing CUDA-configured checkpoints locally). Verified end to end
+on two real smoke checkpoints (198/223 tensors changed, actuator
+coordination norms move fastest). A debugging note is pinned: dgx-smoke's
+schema-1 cosine schedule decays LR to exactly 0.0 at
+`max_optimizer_steps`, so hand-driven steps past the configured horizon
+apply nothing (3 tests; play-safe gate green, 551 tests). Record:
+[docs/runs/2026-08-18-checkpoint-comparison-tool.md](./docs/runs/2026-08-18-checkpoint-comparison-tool.md).
 The matched baseline suite gains the PLAN §28 item-12 control:
 `irene.thought_field.independent_ensemble.v1` — four untied members of
 eight slots each at width 352 (29,459,914 trainable, 0.72% under the
