@@ -357,45 +357,16 @@ class ThoughtFieldObjective(nn.Module):
                 )
             action_loss = torch.stack(exit_losses).mean()
             value_loss = F.mse_loss(output.value.float(), value_target)
-            for horizon_index, horizon in enumerate(horizon_offsets):
-                if horizon == 1:
-                    horizon_pixels = next_pixels
-                else:
-                    target_index = time_index + horizon - 1
-                    if target_index >= batch.sequence_length:
-                        continue
-                    horizon_pixels = _rgb_tensor(
-                        tuple(
-                            sequence.transitions[target_index]
-                            .next_observation_target.rgb
-                            for sequence in batch.sequences
-                        ),
-                        device=device,
-                        resolution=getattr(self.model, "input_resolution", None),
-                    )
-                with torch.no_grad():
-                    sensor_target = self.model.pixel_encoder(horizon_pixels).mean(
-                        dim=1
-                    )
-                horizon_error = (
-                    output.world.future_embedding.float()
-                    - sensor_target.float().unsqueeze(1)
-                ).square().mean(dim=-1)
-                if horizon == 1:
-                    # Diagnostics below keep the short-horizon error surface.
-                    prediction_error = horizon_error
-                # Any thoughtlet may own this prediction — or, on the fixed
-                # horizon control, any thoughtlet inside the statically
-                # assigned group. A hard minimum avoids forcing all slots
-                # toward the same target vector.
-                if slot_groups is None:
-                    horizon_loss = horizon_error.min(dim=1).values.mean()
-                else:
-                    horizon_loss = (
-                        horizon_error[:, list(slot_groups[horizon_index])]
-                        .min(dim=1)
-                        .values.mean()
-                    )
+            horizon_losses, prediction_error = self._world_horizon_losses(
+                output=output,
+                batch=batch,
+                time_index=time_index,
+                next_pixels=next_pixels,
+                horizon_offsets=horizon_offsets,
+                slot_groups=slot_groups,
+                device=device,
+            )
+            for horizon, horizon_loss in horizon_losses.items():
                 if horizon in world_sums:
                     world_sums[horizon] = world_sums[horizon] + horizon_loss
                     world_counts[horizon] += 1
@@ -551,6 +522,66 @@ class ThoughtFieldObjective(nn.Module):
             },
             samples=metric_samples,
         )
+
+    def _world_horizon_losses(
+        self,
+        *,
+        output: object,
+        batch: TrajectoryBatch,
+        time_index: int,
+        next_pixels: Tensor,
+        horizon_offsets: tuple[int, ...],
+        slot_groups: tuple[tuple[int, ...], ...] | None,
+        device: torch.device,
+    ) -> tuple[dict[int, Tensor], Tensor]:
+        """Per-horizon world losses for one optimized step, plus the h1 error.
+
+        Any thoughtlet may own each horizon's prediction — or, on the fixed
+        horizon control, any thoughtlet inside the statically assigned
+        group. A hard minimum avoids forcing all slots toward the same
+        target vector. Subclasses with their own preregistered recipe
+        family (the B2 world-model actor) override exactly this surface.
+        """
+
+        losses: dict[int, Tensor] = {}
+        prediction_error: Tensor | None = None
+        for horizon_index, horizon in enumerate(horizon_offsets):
+            if horizon == 1:
+                horizon_pixels = next_pixels
+            else:
+                target_index = time_index + horizon - 1
+                if target_index >= batch.sequence_length:
+                    continue
+                horizon_pixels = _rgb_tensor(
+                    tuple(
+                        sequence.transitions[target_index]
+                        .next_observation_target.rgb
+                        for sequence in batch.sequences
+                    ),
+                    device=device,
+                    resolution=getattr(self.model, "input_resolution", None),
+                )
+            with torch.no_grad():
+                sensor_target = self.model.pixel_encoder(horizon_pixels).mean(dim=1)
+            horizon_error = (
+                output.world.future_embedding.float()
+                - sensor_target.float().unsqueeze(1)
+            ).square().mean(dim=-1)
+            if horizon == 1:
+                # Diagnostics keep the short-horizon error surface.
+                prediction_error = horizon_error
+            if slot_groups is None:
+                horizon_loss = horizon_error.min(dim=1).values.mean()
+            else:
+                horizon_loss = (
+                    horizon_error[:, list(slot_groups[horizon_index])]
+                    .min(dim=1)
+                    .values.mean()
+                )
+            losses[horizon] = horizon_loss
+        if prediction_error is None:
+            raise RuntimeError("the window must always support the h1 world loss")
+        return losses, prediction_error
 
 
 def _positive_weight(value: object, name: str) -> float:

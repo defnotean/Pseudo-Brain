@@ -292,8 +292,8 @@ Near-term slices, each independently committable and test-covered:
    ([runs/2026-08-17-baseline-suite-persistence-and-density-ablations.md](runs/2026-08-17-baseline-suite-persistence-and-density-ablations.md),
    [runs/2026-08-17-matched-ensemble-baseline.md](runs/2026-08-17-matched-ensemble-baseline.md),
    [runs/2026-08-17-recurrent-transformer-baseline.md](runs/2026-08-17-recurrent-transformer-baseline.md)).
-   Still missing from §28: recurrent world-model actor (B2, own recipe
-   family) and task specialist (B3, blocked on ladder dataset generation).
+   Still missing from §28: task specialist (B3, blocked on ladder dataset
+   generation).
    The owner gave an explicit go for B1–B3 on 2026-08-18
    ([runs/2026-08-17-remaining-baseline-controls-preregistration.md](runs/2026-08-17-remaining-baseline-controls-preregistration.md)),
    and **B1 is now implemented**: the shared objective gained the
@@ -304,7 +304,18 @@ Near-term slices, each independently committable and test-covered:
    manifest (digest `8d93eeca…`) at exactly the reference parameter count
    with slots statically partitioned across horizons and persistence
    removed
-   ([runs/2026-08-18-multi-horizon-world-loss.md](runs/2026-08-18-multi-horizon-world-loss.md)). The §28 diagnostic
+   ([runs/2026-08-18-multi-horizon-world-loss.md](runs/2026-08-18-multi-horizon-world-loss.md)).
+   **B2 is now implemented** as its own recipe family:
+   `irene.world_model_actor.gru_latent.v1` pairs the parameter-matched
+   monolithic GRU trunk with a learned latent transition model (235,800
+   added parameters, 29,879,700 total, +0.69% inside the 1% band) trained
+   by `LatentRolloutObjective` — teacher-forced latent rollouts decoded to
+   future sensor encodings through the refactored overridable horizon-loss
+   surface, with train.py resolving the model's fail-closed
+   `training_objective_class_path` hook. The family is pinned by its own
+   manifest (`configs/world-model-actor-manifest.json`, digest `c207401f…`),
+   not the slot-suite manifest
+   ([runs/2026-08-18-world-model-actor.md](runs/2026-08-18-world-model-actor.md)). The §28 diagnostic
    policies (no-op, random, scripted chaser, privileged oracle) are
    implemented for the closed-loop evaluator in
    `evaluation/diagnostic_policies.py`

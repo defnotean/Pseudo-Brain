@@ -1,6 +1,6 @@
 # Implementation status
 
-Updated: 2026-08-17
+Updated: 2026-08-18
 
 ## Current campaign: RCQ-v2
 
@@ -304,10 +304,9 @@ variants — plus the control variant
 partitioned 11/11/10 across horizons, each group trained only on its own
 offset, persistence removed exactly like reset_slots, at precisely the
 reference parameter count (29,674,318 trainable) inside the regenerated
-architecture manifest (digest `8d93eeca…`). B2 (recurrent world-model
-actor) and B3 (task specialist) remain: B2 needs its own recipe family,
-B3 stays blocked on ladder dataset generation (4 new baseline tests;
-play-safe gate green, 547 tests). Record:
+architecture manifest (digest `8d93eeca…`). B2 has since landed (below);
+B3 (task specialist) stays blocked on ladder dataset generation (4 new
+baseline tests; play-safe gate green, 547 tests). Record:
 [docs/runs/2026-08-18-multi-horizon-world-loss.md](./docs/runs/2026-08-18-multi-horizon-world-loss.md).
 Thought-collapse instrumentation now answers the review's "does collapse
 actually happen at K=32?" question with per-step evidence: the shared
@@ -358,6 +357,29 @@ schema-1 cosine schedule decays LR to exactly 0.0 at
 `max_optimizer_steps`, so hand-driven steps past the configured horizon
 apply nothing (3 tests; play-safe gate green, 551 tests). Record:
 [docs/runs/2026-08-18-checkpoint-comparison-tool.md](./docs/runs/2026-08-18-checkpoint-comparison-tool.md).
+**B2 is implemented**: the recurrent world-model actor control
+`irene.world_model_actor.gru_latent.v1` pairs the parameter-matched
+monolithic GRU trunk with a learned latent transition model — action
+embedder (307→64), residual transition (460→192→396), bottleneck decoder
+(396→64→396) — adding exactly 235,800 trainable parameters for 29,879,700
+total, +0.69% over the reference and inside the preregistered 1% band by
+exact allocated-parameter enumeration. Its defining rollout world loss
+cannot be expressed by the shared slot-suite objective, so the variant
+has its own recipe family: the per-step horizon world-loss computation
+was refactored into an overridable method (behavior-preserving), and
+`LatentRolloutObjective` (`training/world_model_objective.py`) rolls the
+GRU latent k times through the transition model on recorded action
+targets and decodes to the frozen sensor encoding of the frame k steps
+ahead, per horizon {1, 2, 4}; every other objective term and diagnostic
+is inherited unchanged. `train.py` resolves the model's fail-closed
+`training_objective_class_path` hook; the recipe is
+`configs/training/baseline-stagea-world-model-actor.toml`; and the family
+is pinned by its own manifest (`configs/world-model-actor-manifest.json`,
+digest `c207401f…`) with a fail-closed 1%-band gate, not the slot-suite
+manifest (regenerated for the refactor, digest `eda3cf38…`). B3 (task
+specialist) remains blocked on ladder dataset generation (7 new tests;
+play-safe gate green, 558 tests). Record:
+[docs/runs/2026-08-18-world-model-actor.md](./docs/runs/2026-08-18-world-model-actor.md).
 The matched baseline suite gains the PLAN §28 item-12 control:
 `irene.thought_field.independent_ensemble.v1` — four untied members of
 eight slots each at width 352 (29,459,914 trainable, 0.72% under the

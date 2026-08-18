@@ -21,6 +21,7 @@ from ..model.baselines import (
 )
 from ..model.spec import ThoughtFieldConfig
 from ..model.torch_model import IreneBrainModel
+from ..model.world_model_actor import LatentWorldModelActor
 from .config import TrainingConfig
 
 
@@ -220,6 +221,21 @@ def build_thesis_parameter_matched_monolithic_model(
     return _identity_pixel_grid(model)
 
 
+def build_thesis_world_model_actor_model(
+    config: TrainingConfig,
+) -> LatentWorldModelActor:
+    _require_config(config)
+    model = LatentWorldModelActor(
+        _monolithic_config(
+            width=PARAMETER_MATCHED_MONOLITH_WIDTH,
+            attention_heads=PARAMETER_MATCHED_MONOLITH_HEADS,
+        ),
+        input_resolution=(64, 64),
+        plan_steps=3,
+    )
+    return _identity_pixel_grid(model)
+
+
 def build_thesis_matched_ensemble_model(
     config: TrainingConfig,
 ) -> MatchedEnsembleBaseline:
@@ -265,4 +281,5 @@ __all__ = [
     "build_thesis_recurrent_transformer_model",
     "build_thesis_reset_slots_model",
     "build_thesis_serial_depth_model",
+    "build_thesis_world_model_actor_model",
 ]

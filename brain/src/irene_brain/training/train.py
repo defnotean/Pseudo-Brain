@@ -160,7 +160,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     if config.precision.device == "cuda":
         torch.cuda.manual_seed_all(config.run.seed)
     model = _model_factory(config.run.model_factory)(config)
-    objective = ThoughtFieldObjective(
+    # Variants in their own preregistered recipe family (the B2 world-model
+    # actor) declare a fail-closed objective hook on the model; every other
+    # variant keeps the shared slot-suite objective.
+    objective_class_path = getattr(model, "training_objective_class_path", None)
+    if objective_class_path is None:
+        objective_class = ThoughtFieldObjective
+    else:
+        if not isinstance(objective_class_path, str):
+            raise TypeError("training_objective_class_path must be a string")
+        objective_class = _model_factory(objective_class_path)
+    objective = objective_class(
         model,
         action_loss_kind=config.objective.action_loss_kind,
         button_support_control_indices=(
