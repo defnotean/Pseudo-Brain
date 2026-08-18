@@ -184,6 +184,15 @@ PLAN.md §20 defines the ladder; the work items in this repo are:
    (+10 reward) where the best reactive policy scored -16, and the matrix
    is now 13 worlds × 7 policies = 91 cells
    ([runs/2026-08-17-junction-solver-policy.md](runs/2026-08-17-junction-solver-policy.md)).
+   The occlusion scripted frontier completes the ladder's skill mapping:
+   `diagnostic.scripted_occlusion_memory.v1`, a pixel-only episodic-memory
+   policy, derives target memory (static until collected) and exact hazard
+   trajectory hypotheses (velocity beliefs pruned by contradiction) from
+   pixels across time: it collects 125 targets with zero collisions where
+   the reactive frontier is one lucky target — a 125× quantification of
+   what persistent state is worth on this world — and the matrix is now
+   13 worlds × 8 policies = 104 cells
+   ([runs/2026-08-17-occlusion-memory-policy.md](runs/2026-08-17-occlusion-memory-policy.md)).
 2. **External open worlds** (license-cleared): XLand-MiniGrid, Craftax,
    Procgen — adapters behind `environments/protocol.py`, lifetime recording,
    held-out generator families.

@@ -13,6 +13,7 @@ from irene_brain.environments.junction import JunctionEnv
 from irene_brain.environments.keys_doors import KeysDoorsEnv
 from irene_brain.environments.maze_chase import MazeChaseEnv
 from irene_brain.environments.moving_shapes import MovingShapesEnv
+from irene_brain.environments.occlusion import OcclusionEnv
 from irene_brain.evaluation.closed_loop_play import (
     ClosedLoopPlayConfig,
     control_audit_stats,
@@ -25,6 +26,7 @@ from irene_brain.evaluation.diagnostic_policies import (
     ScriptedJunctionSolver,
     ScriptedKeysDoorsSolver,
     ScriptedMazeChasePlannerPolicy,
+    ScriptedOcclusionMemoryPolicy,
     ScriptedPelletTeacherPolicy,
     ScriptedTargetChasePolicy,
     default_diagnostic_policies,
@@ -485,6 +487,82 @@ class JunctionSolverTests(unittest.TestCase):
         ):
             report = run_policy_closed_loop_episode(
                 ScriptedJunctionSolver(),
+                seed=5,
+                config=_config(max_ticks=60),
+                environment_factory=factory,
+            )
+            self.assertEqual(report.targets_collected, 0)
+            self.assertEqual(report.movement_mask_histogram, ((0, 60),))
+
+
+class OcclusionMemoryPolicyTests(unittest.TestCase):
+    """The episodic-memory policy maps the scripted occlusion frontier."""
+
+    def _run(self, policy: object, seed: int, max_ticks: int = 600):
+        return run_policy_closed_loop_episode(
+            policy,
+            seed=seed,
+            config=_config(max_ticks=max_ticks),
+            environment_factory=lambda: OcclusionEnv(
+                hazard_count=3, view_radius=4, max_ticks=max_ticks
+            ),
+        )
+
+    def test_contract_flags_and_reset_validation(self) -> None:
+        policy = ScriptedOcclusionMemoryPolicy()
+        self.assertEqual(policy.identity, "diagnostic.scripted_occlusion_memory.v1")
+        self.assertFalse(policy.uses_privileged_state)
+        with self.assertRaises(TypeError):
+            policy.reset(True)  # type: ignore[arg-type]
+
+    def test_requires_the_canonical_grid_frame(self) -> None:
+        from irene_brain.types import Observation, RgbFrame
+
+        policy = ScriptedOcclusionMemoryPolicy()
+        policy.reset(1)
+        wrong_size = Observation(
+            frame_id=0,
+            capture_tick=0,
+            elapsed_ns=0,
+            rgb=RgbFrame(width=8, height=8, pixels=bytes(8 * 8 * 3)),
+            previous_control=GenericControl(),
+            audio_pcm_s16le=None,
+            text_inputs=(),
+        )
+        with self.assertRaises(ValueError):
+            policy.act(wrong_size)
+
+    def test_policy_is_deterministic_per_seed(self) -> None:
+        first = self._run(ScriptedOcclusionMemoryPolicy(), seed=5)
+        second = self._run(ScriptedOcclusionMemoryPolicy(), seed=5)
+        self.assertEqual(first, second)
+
+    def test_memory_collects_under_fog_without_collisions(self) -> None:
+        for seed in (5, 9):
+            report = self._run(ScriptedOcclusionMemoryPolicy(), seed)
+            self.assertGreaterEqual(report.targets_collected, 10)
+            self.assertEqual(report.collisions, 0)
+            self.assertEqual(report.decisions_rejected, 0)
+
+    def test_memory_outplays_the_reactive_chaser(self) -> None:
+        memory_targets = chase_targets = 0
+        for seed in (5, 9):
+            memory = self._run(ScriptedOcclusionMemoryPolicy(), seed)
+            chased = self._run(ScriptedTargetChasePolicy(), seed)
+            memory_targets += memory.targets_collected
+            chase_targets += chased.targets_collected
+        self.assertGreater(memory_targets, chase_targets)
+
+    def test_policy_holds_still_on_foreign_worlds(self) -> None:
+        for factory in (
+            lambda: MovingShapesEnv(hazard_count=1, max_ticks=60),
+            lambda: JunctionEnv(chaser_count=1, chaser_period=2, max_ticks=60),
+            lambda: MazeChaseEnv(
+                ghost_count=3, ghost_period=2, extra_loops=16, max_ticks=60
+            ),
+        ):
+            report = run_policy_closed_loop_episode(
+                ScriptedOcclusionMemoryPolicy(),
                 seed=5,
                 config=_config(max_ticks=60),
                 environment_factory=factory,

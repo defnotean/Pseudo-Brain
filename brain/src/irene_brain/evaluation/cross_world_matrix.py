@@ -41,6 +41,7 @@ from .diagnostic_policies import (
     ScriptedJunctionSolver,
     ScriptedKeysDoorsSolver,
     ScriptedMazeChasePlannerPolicy,
+    ScriptedOcclusionMemoryPolicy,
     ScriptedPelletTeacherPolicy,
     ScriptedTargetChasePolicy,
 )
@@ -168,6 +169,7 @@ def matrix_policies() -> tuple[object, ...]:
         ScriptedMazeChasePlannerPolicy(),
         ScriptedKeysDoorsSolver(),
         ScriptedJunctionSolver(),
+        ScriptedOcclusionMemoryPolicy(),
     )
 
 

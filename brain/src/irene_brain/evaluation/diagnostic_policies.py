@@ -37,6 +37,7 @@ from ..environments.moving_shapes import (
     _SplitMix64,
     _paths_collide_at_same_time,
 )
+from ..environments.occlusion import OcclusionEnv
 from ..types import GenericControl, Observation, RgbFrame
 from .closed_loop_play import (
     ClosedLoopPlayConfig,
@@ -1084,6 +1085,251 @@ class ScriptedJunctionSolver:
         return GenericControl(keys_down=(_KEY_FOR_DELTA[best_delta],))
 
 
+def _bounce1d(start: int, velocity: int, steps: int) -> int:
+    """Project one axis of a diagonally bouncing hazard after ``steps`` moves.
+
+    Each axis is an independent reflection on ``[0, GRID_SIZE - 1]`` with
+    period ``2 * (GRID_SIZE - 1)``, matching the boundary-flip rule the
+    moving-shapes family applies per step.
+    """
+
+    period = 2 * (OcclusionEnv.GRID_SIZE - 1)
+    raw = (start + velocity * steps) % period
+    return raw if raw < OcclusionEnv.GRID_SIZE else period - raw
+
+
+def _parse_occlusion_frame(
+    frame: RgbFrame, *, caller: str
+) -> tuple[
+    tuple[int, int],
+    bool,
+    tuple[int, int] | None,
+    set[tuple[int, int]],
+    set[tuple[int, int]],
+    bool,
+]:
+    """Parse the canonical occlusion grid frame into visible cell sets.
+
+    Returns ``(player, player_overlap, target, hazards, visible, saw_fog)``.
+    Every color read here is part of the public render contract —
+    ``FOG_RGB`` / ``PLAYER_RGB`` / ``TARGET_RGB`` / the overlap white and
+    the visible hazard red — so a pixel-only policy sees exactly what a
+    model would see and never touches simulator state. ``visible`` is the
+    set of non-fog cells; ``saw_fog`` distinguishes this world from the
+    rest of the ladder, whose palettes overlap otherwise.
+    """
+
+    grid = OcclusionEnv.GRID_SIZE
+    if frame.width != grid or frame.height != grid:
+        raise ValueError(f"{caller} requires the canonical grid frame")
+    # The hazard red is a visible pixel color; it is read from the frame,
+    # never from simulator state.
+    hazard_color = OcclusionEnv._HAZARD_COLOR
+    pixels = frame.pixels
+    player: tuple[int, int] | None = None
+    player_overlap = False
+    target: tuple[int, int] | None = None
+    hazards: set[tuple[int, int]] = set()
+    visible: set[tuple[int, int]] = set()
+    saw_fog = False
+    for y in range(grid):
+        for x in range(grid):
+            offset = (y * grid + x) * 3
+            color = (pixels[offset], pixels[offset + 1], pixels[offset + 2])
+            if color == OcclusionEnv.FOG_RGB:
+                saw_fog = True
+                continue
+            cell = (x, y)
+            visible.add(cell)
+            if color == OcclusionEnv.PLAYER_RGB:
+                player = cell
+            elif color == OcclusionEnv.PLAYER_HAZARD_OVERLAP_RGB:
+                player = cell
+                player_overlap = True
+            elif color == OcclusionEnv.TARGET_RGB:
+                target = cell
+            elif color == hazard_color:
+                hazards.add(cell)
+    if player is None:
+        raise RuntimeError(f"{caller} could not locate the player")
+    return player, player_overlap, target, hazards, visible, saw_fog
+
+
+# A hazard hypothesis: anchored position/velocity at ``anchor_tick``,
+# projected deterministically with the world's bounce rule. (x, y, vx, vy,
+# anchor_tick).
+_HazardHypothesis = tuple[int, int, int, int, int]
+
+# Sweep waypoints whose Chebyshev-radius-4 windows tile the 16x16 grid, in
+# deterministic cycle order. Landing exactly on each waypoint observes its
+# whole quadrant, so the cycle guarantees a static target is seen within
+# one full lap.
+_SWEEP_WAYPOINTS = ((3, 3), (11, 3), (11, 11), (3, 11))
+
+
+class ScriptedOcclusionMemoryPolicy:
+    """Pixel-only episodic-memory policy for the occlusion world.
+
+    The occlusion world renders only the Chebyshev-radius-4 neighborhood of
+    the player; everything else is fog. Two published mechanics make memory
+    exactly derivable from pixels across time, which is the skill the world
+    isolates:
+
+    - **The target is static until collected**, and only the player can
+      collect it. So a remembered target position is valid until the player
+      walks onto it — the policy keeps one cell of target memory and never
+      re-searches for a target it has already seen.
+    - **Hazards move deterministically** (unit diagonal, boundary bounce).
+      A hazard seen once seeds four velocity hypotheses anchored at the
+      sighting; a hypothesis whose projected cell is visible but shows no
+      hazard is contradicted and dropped. The true hypothesis is confirmed
+      on every window pass and survives indefinitely, so the policy
+      reconstructs exact hazard trajectories from pixels alone and avoids
+      even hazards currently inside the fog. The union of surviving
+      hypotheses is the avoidance set — conservative by construction, since
+      the true hazard is always one of them.
+
+    When no target is remembered, the policy sweeps the four quadrant
+    waypoints whose view windows tile the grid, guaranteeing acquisition
+    within one lap. Move selection is a one-tick exact simulation over the
+    nine king moves (diagonals allowed, boundary clamp included): safe
+    moves first, then smallest Chebyshev distance to the goal, with a
+    Manhattan secondary so wide Chebyshev plateaus still converge on the
+    goal instead of sliding sideways, and fixed scan order last; if every
+    move crosses a hypothesis, the least colliding move is taken.
+
+    Honest caveats: hypotheses are seeded per unexplained red pixel, so
+    identity confusion at hazard crossings is resolved only by later
+    contradiction (the avoidance set over-covers until then), the
+    hypothesis list is capped at 128 with the oldest dropped (never hit in
+    canonical play; documented decay), and the player/hazard overlap pixel
+    briefly hides a hazard on the player's own cell. On worlds without fog
+    pixels the policy never activates and holds still, so its matrix rows
+    there are honest zeros.
+    """
+
+    __slots__ = ("_activated", "_target_memory", "_hypotheses", "_waypoint_index")
+    identity = "diagnostic.scripted_occlusion_memory.v1"
+    uses_privileged_state = False
+    _HYPOTHESIS_CAP = 128
+
+    def reset(self, episode_seed: int) -> None:
+        if isinstance(episode_seed, bool) or not isinstance(episode_seed, int):
+            raise TypeError("episode_seed must be an integer")
+        self._activated = False
+        self._target_memory: tuple[int, int] | None = None
+        self._hypotheses: list[_HazardHypothesis] = []
+        self._waypoint_index = 0
+
+    def act(self, observation: Observation) -> GenericControl:
+        player, overlap, target, hazards, visible, saw_fog = (
+            _parse_occlusion_frame(observation.rgb, caller="occlusion memory")
+        )
+        if saw_fog:
+            # Only the occlusion world fogs its frame.
+            self._activated = True
+        if not self._activated:
+            return GenericControl()
+        tick = observation.frame_id
+
+        # Target memory: collection happens exactly when the player reaches
+        # the remembered cell; a visible target pixel always refreshes it.
+        if self._target_memory is not None and player == self._target_memory:
+            self._target_memory = None
+        if target is not None:
+            self._target_memory = target
+
+        self._update_hypotheses(tick, player, overlap, hazards, visible)
+
+        goal = self._target_memory
+        if goal is None:
+            goal = _SWEEP_WAYPOINTS[self._waypoint_index]
+            if player == goal:
+                self._waypoint_index = (self._waypoint_index + 1) % len(
+                    _SWEEP_WAYPOINTS
+                )
+                goal = _SWEEP_WAYPOINTS[self._waypoint_index]
+
+        return self._choose_move(tick, player, goal)
+
+    @staticmethod
+    def _project(hypothesis: _HazardHypothesis, tick: int) -> tuple[int, int]:
+        x, y, vx, vy, anchor = hypothesis
+        steps = tick - anchor
+        return (_bounce1d(x, vx, steps), _bounce1d(y, vy, steps))
+
+    def _update_hypotheses(
+        self,
+        tick: int,
+        player: tuple[int, int],
+        overlap: bool,
+        hazards: set[tuple[int, int]],
+        visible: set[tuple[int, int]],
+    ) -> None:
+        """Confirm, contradict, and re-seed hazard hypotheses from pixels."""
+        kept: list[_HazardHypothesis] = []
+        explained: set[tuple[int, int]] = set()
+        for hypothesis in self._hypotheses:
+            cell = self._project(hypothesis, tick)
+            if cell in visible:
+                present = cell in hazards or (
+                    cell == player and overlap
+                )
+                if not present:
+                    # The projected cell is visible and empty: contradicted.
+                    continue
+                explained.add(cell)
+            kept.append(hypothesis)
+        for cell in sorted(hazards):
+            if cell not in explained:
+                for vx in (-1, 1):
+                    for vy in (-1, 1):
+                        kept.append((cell[0], cell[1], vx, vy, tick))
+        if len(kept) > self._HYPOTHESIS_CAP:
+            kept = kept[-self._HYPOTHESIS_CAP :]
+        self._hypotheses = kept
+
+    def _choose_move(
+        self, tick: int, player: tuple[int, int], goal: tuple[int, int]
+    ) -> GenericControl:
+        """One-tick exact simulation over the nine king moves."""
+        grid = OcclusionEnv.GRID_SIZE
+        projected = [
+            (self._project(h, tick), self._project(h, tick + 1))
+            for h in self._hypotheses
+        ]
+        best_key: tuple[int, int, int, int, int] | None = None
+        best_keys: tuple[int, ...] = ()
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1):
+                candidate = (
+                    min(grid - 1, max(0, player[0] + dx)),
+                    min(grid - 1, max(0, player[1] + dy)),
+                )
+                collisions = sum(
+                    1
+                    for before, after in projected
+                    if _paths_collide_at_same_time(player, candidate, before, after)
+                )
+                chebyshev = max(
+                    abs(candidate[0] - goal[0]), abs(candidate[1] - goal[1])
+                )
+                # Chebyshev plateaus are wide under king moves, so a
+                # Manhattan secondary keeps plateau ties converging on the
+                # goal instead of sliding sideways along the front.
+                manhattan = abs(candidate[0] - goal[0]) + abs(candidate[1] - goal[1])
+                key = (collisions, chebyshev, manhattan, dy, dx)
+                if best_key is None or key < best_key:
+                    best_key = key
+                    keys = []
+                    if dy != 0:
+                        keys.append(_KEY_FOR_DELTA[(0, dy)])
+                    if dx != 0:
+                        keys.append(_KEY_FOR_DELTA[(dx, 0)])
+                    best_keys = tuple(keys)
+        return GenericControl(keys_down=best_keys)
+
+
 def default_diagnostic_policies() -> tuple[object, ...]:
     """Return the §28 diagnostic policies in canonical suite order."""
 
@@ -1140,6 +1386,8 @@ __all__ = [
     "RandomMovementPolicy",
     "ScriptedJunctionSolver",
     "ScriptedKeysDoorsSolver",
+    "ScriptedMazeChasePlannerPolicy",
+    "ScriptedOcclusionMemoryPolicy",
     "ScriptedPelletTeacherPolicy",
     "ScriptedTargetChasePolicy",
     "default_diagnostic_policies",
