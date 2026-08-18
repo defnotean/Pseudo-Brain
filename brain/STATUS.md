@@ -146,11 +146,17 @@ perfect maze proved unplayable under pursuit: a chasing ghost in a tree is a
 hard wall). Record:
 [docs/runs/2026-08-17-maze-chase-world.md](./docs/runs/2026-08-17-maze-chase-world.md).
 A pixel-only scripted pellet teacher (`diagnostic.scripted_pellet_teacher.v1`)
-and `world.maze_chase.v1` joined the cross-world diagnostic matrix, now
-covering 6 worlds × 4 policies; the teacher's canonical maze_chase row
-(-6,274 reward: 376 pellets eaten, 665 catches) shows reflexive greed losing
-badly and marks evasion planning as the model's required skill. The
-maze_chase ghost-AI-rules variant axis is now implemented: `ghost_rule`
+and `world.maze_chase.v1` joined the cross-world diagnostic matrix; the
+teacher's canonical maze_chase row
+(-6,274 reward: 366 pellets eaten, 665 catches) shows reflexive greed losing
+badly and marks evasion planning as the model's required skill. A pixel-only
+lookahead planner (`diagnostic.scripted_maze_chase_planner.v1`) now maps the
+scripted frontier: simulating the published ghost mechanics over candidate
+pellet paths, it clears all three canonical mazes (+426 reward, 3 catches,
+3/3 clears), and the matrix is now 6 worlds × 5 policies (SHA-256
+`53949071414fd54a…`). Record:
+[docs/runs/2026-08-17-maze-chase-planner-policy.md](./docs/runs/2026-08-17-maze-chase-planner-policy.md).
+The maze_chase ghost-AI-rules variant axis is now implemented: `ghost_rule`
 selects direct chase, four-cell ambush off the player's control-intent
 facing, shy far-chase/near-retreat, or a cyclical mix, under snapshot
 version 2 (25 tests; play-safe gate green). Record:

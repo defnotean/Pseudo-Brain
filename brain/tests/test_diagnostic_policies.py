@@ -9,6 +9,7 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
+from irene_brain.environments.maze_chase import MazeChaseEnv
 from irene_brain.environments.moving_shapes import MovingShapesEnv
 from irene_brain.evaluation.closed_loop_play import (
     ClosedLoopPlayConfig,
@@ -19,6 +20,8 @@ from irene_brain.evaluation.diagnostic_policies import (
     NoOpPolicy,
     OraclePolicy,
     RandomMovementPolicy,
+    ScriptedMazeChasePlannerPolicy,
+    ScriptedPelletTeacherPolicy,
     ScriptedTargetChasePolicy,
     default_diagnostic_policies,
     evaluate_diagnostic_policy_suite,
@@ -203,6 +206,77 @@ class DiagnosticSuiteTests(unittest.TestCase):
             evaluate_diagnostic_policy_suite(
                 default_diagnostic_policies(), config=object()  # type: ignore[arg-type]
             )
+
+
+class MazeChasePlannerTests(unittest.TestCase):
+    """The lookahead planner maps the scripted maze_chase frontier."""
+
+    def _run(self, policy: object, seed: int, max_ticks: int = 240):
+        return run_policy_closed_loop_episode(
+            policy,
+            seed=seed,
+            config=_config(max_ticks=max_ticks),
+            environment_factory=lambda: MazeChaseEnv(
+                ghost_count=3,
+                ghost_period=2,
+                extra_loops=16,
+                max_ticks=max_ticks,
+            ),
+        )
+
+    def test_contract_flags_and_constructor_validation(self) -> None:
+        planner = ScriptedMazeChasePlannerPolicy()
+        self.assertEqual(planner.identity, "diagnostic.scripted_maze_chase_planner.v1")
+        self.assertFalse(planner.uses_privileged_state)
+        with self.assertRaises(TypeError):
+            ScriptedMazeChasePlannerPolicy(ghost_period=True)
+        with self.assertRaises(TypeError):
+            ScriptedMazeChasePlannerPolicy(candidate_pellets=2.5)  # type: ignore[arg-type]
+        with self.assertRaises(ValueError):
+            ScriptedMazeChasePlannerPolicy(ghost_period=0)
+        with self.assertRaises(ValueError):
+            ScriptedMazeChasePlannerPolicy(candidate_pellets=33)
+        with self.assertRaises(ValueError):
+            ScriptedMazeChasePlannerPolicy(horizon=257)
+        with self.assertRaises(TypeError):
+            planner.reset(True)  # type: ignore[arg-type]
+
+    def test_requires_the_canonical_grid_frame(self) -> None:
+        from irene_brain.types import Observation, RgbFrame
+
+        planner = ScriptedMazeChasePlannerPolicy()
+        planner.reset(1)
+        wrong_size = Observation(
+            frame_id=0,
+            capture_tick=0,
+            elapsed_ns=0,
+            rgb=RgbFrame(width=8, height=8, pixels=bytes(8 * 8 * 3)),
+            previous_control=GenericControl(),
+            audio_pcm_s16le=None,
+            text_inputs=(),
+        )
+        with self.assertRaises(ValueError):
+            planner.act(wrong_size)
+
+    def test_planner_is_deterministic_per_seed(self) -> None:
+        first = self._run(ScriptedMazeChasePlannerPolicy(), seed=5)
+        second = self._run(ScriptedMazeChasePlannerPolicy(), seed=5)
+        self.assertEqual(first, second)
+
+    def test_planner_outplays_the_greedy_teacher(self) -> None:
+        planner_reward = 0.0
+        teacher_reward = 0.0
+        planner_collisions = 0
+        teacher_collisions = 0
+        for seed in (5, 9):
+            planned = self._run(ScriptedMazeChasePlannerPolicy(), seed)
+            taught = self._run(ScriptedPelletTeacherPolicy(), seed)
+            planner_reward += planned.reward_sum
+            teacher_reward += taught.reward_sum
+            planner_collisions += planned.collisions
+            teacher_collisions += taught.collisions
+        self.assertGreater(planner_reward, teacher_reward)
+        self.assertLess(planner_collisions, teacher_collisions)
 
 
 if __name__ == "__main__":

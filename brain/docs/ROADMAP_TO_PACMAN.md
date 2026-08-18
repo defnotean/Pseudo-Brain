@@ -193,9 +193,14 @@ PLAN.md §20 defines the ladder; the work items in this repo are:
    [runs/2026-08-17-maze-chase-sticky-delayed-input.md](runs/2026-08-17-maze-chase-sticky-delayed-input.md)).
    Visuals and control mappings remain shared ladder surfaces. The scripted pellet teacher and matrix inclusion
    are done: `diagnostic.scripted_pellet_teacher.v1` and
-   `world.maze_chase.v1` joined the cross-world matrix (now 6 worlds × 4
-   policies), where the teacher's -6,274 canonical row shows reflexive
-   greed losing badly to ghost pressure.
+   `world.maze_chase.v1` joined the cross-world matrix, where the teacher's
+   -6,274 canonical row shows reflexive greed losing badly to ghost
+   pressure. The scripted frontier is now mapped by
+   `diagnostic.scripted_maze_chase_planner.v1`, a pixel-only lookahead
+   planner that simulates the published ghost mechanics before committing to
+   a pellet path: it clears all three canonical mazes (+426 reward, 3
+   catches, 3/3 clears), and the matrix is now 6 worlds × 5 policies
+   ([runs/2026-08-17-maze-chase-planner-policy.md](runs/2026-08-17-maze-chase-planner-policy.md)).
 4. **The arcade proof gate** (PLAN.md §31 Phase 4): kernel p99 ≤ 8 ms,
    end-to-end p99 ≤ 16.67 ms at frame skip 1, ≥10% score over the matched
    real-time recurrent/world-model baseline across ≥100 seeds, positive

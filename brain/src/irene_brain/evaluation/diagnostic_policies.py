@@ -29,14 +29,14 @@ from __future__ import annotations
 
 from typing import Sequence
 
-from ..environments.junction import _bfs_distances
+from ..environments.junction import _DIRECTIONS, _bfs_distances
 from ..environments.maze_chase import MazeChaseEnv
 from ..environments.moving_shapes import (
     MovingShapesEnv,
     _SplitMix64,
     _paths_collide_at_same_time,
 )
-from ..types import GenericControl, Observation
+from ..types import GenericControl, Observation, RgbFrame
 from .closed_loop_play import (
     ClosedLoopPlayConfig,
     ClosedLoopPlayReport,
@@ -243,6 +243,55 @@ class OraclePolicy:
         return GenericControl(keys_down=tuple(keys))
 
 
+def _parse_maze_chase_frame(
+    frame: RgbFrame, *, caller: str
+) -> tuple[
+    set[tuple[int, int]],
+    set[tuple[int, int]],
+    tuple[int, int],
+    set[tuple[int, int]],
+]:
+    """Parse the canonical maze_chase grid frame into visible cell sets.
+
+    Returns ``(walkable, pellets, player, ghosts)``. Every color read here is
+    part of the public render contract — ``WALL_RGB`` / ``PELLET_RGB`` /
+    ``PLAYER_RGB`` and the visible ghost red — so a pixel-only policy sees
+    exactly what a model would see and never touches simulator state.
+    """
+
+    grid = MazeChaseEnv.GRID_SIZE
+    if frame.width != grid or frame.height != grid:
+        raise ValueError(f"{caller} requires the canonical grid frame")
+    # The ghost red is a visible pixel color; it is read from the frame,
+    # never from simulator state.
+    ghost_color = MazeChaseEnv._GHOST_COLOR
+    pixels = frame.pixels
+    player: tuple[int, int] | None = None
+    walkable: set[tuple[int, int]] = set()
+    pellets: set[tuple[int, int]] = set()
+    ghosts: set[tuple[int, int]] = set()
+    for y in range(grid):
+        for x in range(grid):
+            offset = (y * grid + x) * 3
+            color = (pixels[offset], pixels[offset + 1], pixels[offset + 2])
+            if color == MazeChaseEnv.WALL_RGB:
+                continue
+            cell = (x, y)
+            walkable.add(cell)
+            if color == MazeChaseEnv.PELLET_RGB:
+                pellets.add(cell)
+            elif color in (
+                MazeChaseEnv.PLAYER_RGB,
+                MazeChaseEnv.PLAYER_GHOST_OVERLAP_RGB,
+            ):
+                player = cell
+            elif color == ghost_color:
+                ghosts.add(cell)
+    if player is None:
+        raise RuntimeError(f"{caller} could not locate the player")
+    return walkable, pellets, player, ghosts
+
+
 class ScriptedPelletTeacherPolicy:
     """Pixel-only greedy pellet teacher for the maze_chase world.
 
@@ -264,37 +313,9 @@ class ScriptedPelletTeacherPolicy:
             raise TypeError("episode_seed must be an integer")
 
     def act(self, observation: Observation) -> GenericControl:
-        frame = observation.rgb
-        grid = MazeChaseEnv.GRID_SIZE
-        if frame.width != grid or frame.height != grid:
-            raise ValueError("pellet teacher requires the canonical grid frame")
-        # The ghost red is a visible pixel color; the teacher reads it from
-        # the frame, never from simulator state.
-        ghost_color = MazeChaseEnv._GHOST_COLOR
-        pixels = frame.pixels
-        player: tuple[int, int] | None = None
-        walkable: set[tuple[int, int]] = set()
-        pellets: set[tuple[int, int]] = set()
-        ghosts: set[tuple[int, int]] = set()
-        for y in range(grid):
-            for x in range(grid):
-                offset = (y * grid + x) * 3
-                color = (pixels[offset], pixels[offset + 1], pixels[offset + 2])
-                if color == MazeChaseEnv.WALL_RGB:
-                    continue
-                cell = (x, y)
-                walkable.add(cell)
-                if color == MazeChaseEnv.PELLET_RGB:
-                    pellets.add(cell)
-                elif color in (
-                    MazeChaseEnv.PLAYER_RGB,
-                    MazeChaseEnv.PLAYER_GHOST_OVERLAP_RGB,
-                ):
-                    player = cell
-                elif color == ghost_color:
-                    ghosts.add(cell)
-        if player is None:
-            raise RuntimeError("pellet teacher could not locate the player")
+        walkable, pellets, player, ghosts = _parse_maze_chase_frame(
+            observation.rgb, caller="pellet teacher"
+        )
         if not pellets:
             return GenericControl()
 
@@ -343,6 +364,205 @@ class ScriptedPelletTeacherPolicy:
         if fallback is not None:
             return GenericControl(keys_down=(fallback,))
         return GenericControl()
+
+
+class ScriptedMazeChasePlannerPolicy:
+    """Pixel-only lookahead planner for the canonical maze_chase world.
+
+    Where the pellet teacher is greedy — nearest pellet, one step of ghost
+    avoidance — the planner simulates the world's published mechanics several
+    ticks ahead: ghosts step one cell toward the player along the exact BFS
+    shortest path every ``ghost_period`` ticks, and contact is checked with
+    the same swept-path rule the simulator uses. It reconstructs the shortest
+    path to each of the ``candidate_pellets`` nearest visible pellets,
+    simulates walking each path end to end (capped at ``horizon`` ticks), and
+    commits to the first path it can walk without being caught. If no pellet
+    path is safe it falls back to the one-tick move that survives and
+    maximizes the post-move distance to the nearest ghost.
+
+    The planner reads nothing but the canonical observation frame: walls,
+    pellets, the player, and the visible ghost cells all come from pixels,
+    never from simulator state. Two honest pixel-vision caveats: the
+    player/ghost overlap pixel briefly hides a ghost standing on the player's
+    own cell, and two ghosts stacked on one cell render as one. Because the
+    planner re-plans from fresh pixels every tick, a hidden ghost re-enters
+    the plan as soon as it separates.
+
+    The simulation assumes the canonical matrix slot's published mechanics
+    (direct pursuit, one shared player-anchored ghost field, fixed period).
+    On other ghost rules or speed curves the lookahead degrades to an
+    optimistic direct-pursuit guess; the planner never reads which rule the
+    simulator is actually running.
+    """
+
+    __slots__ = ("_ghost_period", "_candidate_pellets", "_horizon")
+    identity = "diagnostic.scripted_maze_chase_planner.v1"
+    uses_privileged_state = False
+
+    def __init__(
+        self,
+        *,
+        ghost_period: int = 2,
+        candidate_pellets: int = 6,
+        horizon: int = 24,
+    ) -> None:
+        for value, name, low, high in (
+            (ghost_period, "ghost_period", 1, 64),
+            (candidate_pellets, "candidate_pellets", 1, 32),
+            (horizon, "horizon", 1, 256),
+        ):
+            if isinstance(value, bool) or not isinstance(value, int):
+                raise TypeError(f"{name} must be an integer")
+            if value < low or value > high:
+                raise ValueError(f"{name} must be in [{low}, {high}]")
+        self._ghost_period = ghost_period
+        self._candidate_pellets = candidate_pellets
+        self._horizon = horizon
+
+    def reset(self, episode_seed: int) -> None:
+        if isinstance(episode_seed, bool) or not isinstance(episode_seed, int):
+            raise TypeError("episode_seed must be an integer")
+
+    def act(self, observation: Observation) -> GenericControl:
+        walkable, pellets, player, ghosts = _parse_maze_chase_frame(
+            observation.rgb, caller="maze chase planner"
+        )
+        if not pellets:
+            return GenericControl()
+        frozen_walkable = frozenset(walkable)
+        # frame_id counts completed ticks, so the upcoming decision executes
+        # on simulator tick ``start_tick`` and ghosts move on ticks divisible
+        # by the period — the same condition the simulator evaluates.
+        start_tick = observation.frame_id
+        from_player = _bfs_distances(player, frozen_walkable)
+
+        ranked = sorted(
+            (from_player[cell], cell[1], cell[0])
+            for cell in pellets
+            if cell in from_player and from_player[cell] > 0
+        )[: self._candidate_pellets]
+        for distance, goal_y, goal_x in ranked:
+            if distance > self._horizon:
+                continue
+            path = _downhill_path(from_player, player, (goal_x, goal_y))
+            if not self._path_is_caught(
+                player, ghosts, path, frozen_walkable, start_tick
+            ):
+                delta = (path[0][0] - player[0], path[0][1] - player[1])
+                return GenericControl(keys_down=(_KEY_FOR_DELTA[delta],))
+        return self._survival_move(player, ghosts, frozen_walkable, start_tick)
+
+    def _path_is_caught(
+        self,
+        player: tuple[int, int],
+        ghosts: set[tuple[int, int]],
+        path: list[tuple[int, int]],
+        walkable: frozenset[tuple[int, int]],
+        start_tick: int,
+    ) -> bool:
+        """Simulate walking ``path``; return True if the player is caught."""
+        sim_player = player
+        sim_ghosts = sorted(ghosts)
+        for index, step_cell in enumerate(path):
+            ghosts_move = (start_tick + index) % self._ghost_period == 0
+            # Every direct-pursuit ghost chases the same post-move player
+            # cell, so one shared field serves them all — the same field the
+            # simulator computes once per move tick.
+            field = (
+                _bfs_distances(step_cell, walkable) if ghosts_move else None
+            )
+            moved: list[tuple[int, int]] = []
+            for ghost in sim_ghosts:
+                after = (
+                    MazeChaseEnv._step_downhill(ghost, field)
+                    if ghosts_move
+                    else ghost
+                )
+                if _paths_collide_at_same_time(sim_player, step_cell, ghost, after):
+                    return True
+                moved.append(after)
+            sim_player = step_cell
+            sim_ghosts = moved
+        return False
+
+    def _survival_move(
+        self,
+        player: tuple[int, int],
+        ghosts: set[tuple[int, int]],
+        walkable: frozenset[tuple[int, int]],
+        start_tick: int,
+    ) -> GenericControl:
+        """One-tick fallback: survive, then maximize distance to the ghosts.
+
+        Options scan in the fixed ``_DIRECTIONS`` order with stay last; a
+        strict ``>`` comparison keeps the earliest option on ties, so the
+        fallback is deterministic. A wall-refused press leaves the player in
+        place, exactly like the simulator.
+        """
+        ghosts_move = start_tick % self._ghost_period == 0
+        ordered_ghosts = sorted(ghosts)
+        best_score: int | None = None
+        best_key: int | None = None
+        options: list[tuple[tuple[int, int], int | None]] = [
+            (delta, _KEY_FOR_DELTA[delta]) for delta in _DIRECTIONS
+        ]
+        options.append(((0, 0), None))
+        for (dx, dy), key in options:
+            candidate = (player[0] + dx, player[1] + dy)
+            new_player = candidate if candidate in walkable else player
+            field = _bfs_distances(new_player, walkable)
+            caught = False
+            nearest: int | None = None
+            for ghost in ordered_ghosts:
+                after = (
+                    MazeChaseEnv._step_downhill(ghost, field)
+                    if ghosts_move
+                    else ghost
+                )
+                if _paths_collide_at_same_time(player, new_player, ghost, after):
+                    caught = True
+                    break
+                distance = field.get(after)
+                # A ghost walled off from the player is infinitely far away.
+                score = distance if distance is not None else 1 << 20
+                nearest = score if nearest is None else min(nearest, score)
+            if caught:
+                continue
+            survivor_score = nearest if nearest is not None else 1 << 20
+            if best_score is None or survivor_score > best_score:
+                best_score = survivor_score
+                best_key = key
+        if best_key is None:
+            return GenericControl()
+        return GenericControl(keys_down=(best_key,))
+
+
+def _downhill_path(
+    field: dict[tuple[int, int], int],
+    player: tuple[int, int],
+    goal: tuple[int, int],
+) -> list[tuple[int, int]]:
+    """Reconstruct the shortest player-to-goal path from a player-anchored BFS.
+
+    Walks downhill from the goal in the fixed ``_DIRECTIONS`` order — the
+    same tie-break the simulator's own ghost stepping uses — then reverses,
+    so the result lists the cells the player would enter, in order.
+    """
+
+    path: list[tuple[int, int]] = []
+    cell = goal
+    while cell != player:
+        path.append(cell)
+        here = field[cell]
+        for dx, dy in _DIRECTIONS:
+            neighbor = (cell[0] + dx, cell[1] + dy)
+            if field.get(neighbor) == here - 1:
+                cell = neighbor
+                break
+        else:  # pragma: no cover - BFS fields always admit a downhill step
+            raise RuntimeError("maze chase planner lost the downhill path")
+    path.reverse()
+    return path
 
 
 def default_diagnostic_policies() -> tuple[object, ...]:
