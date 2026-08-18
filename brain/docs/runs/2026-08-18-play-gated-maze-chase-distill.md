@@ -11,7 +11,8 @@ failed idle no-op**. Value-only exclusive CE **completed / failed idle
 no-op**. Do not scale exclusive-CE, action-only, value-only, tiled-windows,
 accumulation-30, or the 90-seq multi-episode recipe, and do not retune
 hold×0.1. Next GPU probe is the same turn-weighted recipe at 128 steps:
-`dgx-play-maze-chase-distill-turn-weighted-128-v1`. Exclusive-argmax
+`dgx-play-maze-chase-distill-turn-weighted-128-v1`, now live on release
+`r20260818t202732z-ab1001f8af37`. Exclusive-argmax
 play-decode stays failed sticky S. Window-32 and episode-windows stay
 falsified idle no-op. RCQ-v2 seed 1702 stays terminal. No v3
 registration. No sealed TEST.
@@ -1107,8 +1108,8 @@ generic train at an RCQ config.
 ## Spark sequence (128-step turn-weighted exclusive-CE probe)
 
 1. `Invoke-DgxPreflight.ps1`
-2. `Sync-DgxBrainRelease.ps1` (new release after the 128-step config)
-3. `Invoke-DgxBrainSmoke.ps1` on `dgx-smoke.toml`
+2. `Sync-DgxBrainRelease.ps1` (release `r20260818t202732z-ab1001f8af37`)
+3. `Invoke-DgxBrainSmoke.ps1` on `dgx-smoke.toml` (receipt written)
 4. `Start-DgxBrainTraining.ps1` with
    `dgx-play-maze-chase-distill-turn-weighted-128.toml`, run id
    `dgx-play-maze-chase-distill-turn-weighted-128-v1`, Tmux with

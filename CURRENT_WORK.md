@@ -28,7 +28,8 @@ CE failed sticky S or idle. Tiled 1:1 windows failed sticky A. Full-episode
 tiled update failed sticky D. Multi-episode tiled tiles failed mixed
 W/A/D at 17 pellets / val match 0.083 = teacher A. Do not scale 90-seq
 or retune hold×0.1. Next GPU is the same turn-weighted recipe at 128
-steps (`dgx-play-maze-chase-distill-turn-weighted-128-v1`). Spark CPU
+steps (`dgx-play-maze-chase-distill-turn-weighted-128-v1`), now live on
+Spark release `r20260818t202732z-ab1001f8af37`. Spark CPU
 farm added a turn-hold audit (261/720 change ticks, 82/90 windows have a
 change) and a multi-episode thoughtlet dump (open-loop A×31+D×1). Record:
 [brain/docs/runs/2026-08-18-play-gated-maze-chase-distill.md](brain/docs/runs/2026-08-18-play-gated-maze-chase-distill.md).

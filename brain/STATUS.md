@@ -15,7 +15,8 @@ Status: **play-gated maze-chase distill v1** is the live campaign
 `play_moved` is false (reward below the −161 no-op floor). Val
 exclusive-argmax match **0.25** (chance; teacher mix still W/A/S/D
 0.250/0.083/0.250/0.417, not copy-majority). Next GPU is the same recipe
-at 128 steps (`dgx-play-maze-chase-distill-turn-weighted-128-v1`). Do not
+at 128 steps (`dgx-play-maze-chase-distill-turn-weighted-128-v1`), now
+running on release `r20260818t202732z-ab1001f8af37`. Do not
 retune hold×0.1. Play moved on the 32-step probe v2 and held on the
 128-step probe at reward_sum **-150**, collisions **16**
 (sticky D, ~10 implied pellets). Window-32 and episode-windows **failed**
