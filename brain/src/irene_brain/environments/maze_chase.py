@@ -1,8 +1,9 @@
 """maze_chase: the original Pac-Man-like environment (Phase 4 target).
 
 An original, rights-clean chase-and-clear world: a perfect maze full of
-pellets, one player, and deterministic ghosts that follow exact BFS shortest
-paths. Eat every pellet to clear the maze (``cleared``, terminated); ghost
+pellets, one player, and deterministic ghosts that follow configurable
+pursuit rules (direct chase, four-cell ambush, shy retreat, or a cyclical
+mix). Eat every pellet to clear the maze (``cleared``, terminated); ghost
 contact costs a life penalty and respawns the player (``caught``). No Namco
 code, assets, names, or layouts — the maze is carved from the episode seed
 by the same generator as the junction and keys/doors worlds, and every
@@ -31,6 +32,14 @@ _UINT64_MASK = (1 << 64) - 1
 _PELLET_REWARD = 1.0
 _CAUGHT_PENALTY = -10.0
 _CLEARED_BONUS = 10.0
+
+# Ghost pursuit rules. "direct" chases the player's cell; "ambush" targets
+# four cells ahead of the player's last movement; "shy" chases while far and
+# retreats while close; "mixed" assigns direct/ambush/shy cyclically by
+# ghost index.
+_GHOST_RULES = {"direct": 0, "ambush": 1, "shy": 2, "mixed": 3}
+_AMBUSH_LEAD = 4
+_SHY_DISTANCE = 8
 
 
 def _carve_maze_with_loops(
@@ -69,16 +78,20 @@ class MazeChaseEnv:
     Every corridor cell except the player spawn holds a pellet. The blue
     player moves one cell per call (walls refuse movement), eats pellets for
     +1 each, and clears the maze — ``cleared`` plus a terminated outcome —
-    when the last pellet is eaten. Red ghosts each move one cell along the
-    exact BFS shortest path to the player every ``ghost_period`` ticks;
-    contact under the shared swept-path same-time test emits ``caught``,
-    costs 10 reward, and respawns the player at the spawn cell (or a sampled
-    empty cell if a ghost occupies it). Simulator labels are returned only
-    in :class:`StepOutcome`, never in :class:`Observation`.
+    when the last pellet is eaten. Red ghosts each move one cell every
+    ``ghost_period`` ticks under the configured ``ghost_rule``: ``direct``
+    follows the exact BFS shortest path to the player, ``ambush`` targets
+    the corridor cell four steps ahead of the player's last pressed
+    direction, ``shy`` chases while far and retreats while close, and
+    ``mixed`` assigns the three cyclically by ghost index. Contact under the
+    shared swept-path same-time test emits ``caught``, costs 10 reward, and
+    respawns the player at the spawn cell (or a sampled empty cell if a
+    ghost occupies it). Simulator labels are returned only in
+    :class:`StepOutcome`, never in :class:`Observation`.
     """
 
     GRID_SIZE = 16
-    SNAPSHOT_VERSION = 1
+    SNAPSHOT_VERSION = 2
     DEFAULT_TICK_PERIOD_NS = 16_666_667
     MAX_GHOST_PERIOD = 64
     MAX_EXTRA_LOOPS = 64
@@ -92,7 +105,7 @@ class MazeChaseEnv:
     PLAYER_GHOST_OVERLAP_RGB = (255, 255, 255)
 
     _SNAPSHOT_MAGIC = b"IBMC"
-    _SNAPSHOT_HEADER = Struct("<4sHHIQQQQBBBBIIBBB")
+    _SNAPSHOT_HEADER = Struct("<4sHHIQQQQBBBBIIBBBbbB")
     _SNAPSHOT_GHOST = Struct("<BB")
     _SNAPSHOT_PELLET_BYTES = (GRID_SIZE * GRID_SIZE) // 8
     _SNAPSHOT_DIGEST_BYTES = 32
@@ -119,6 +132,7 @@ class MazeChaseEnv:
         ghost_count: int = 3,
         ghost_period: int = 2,
         extra_loops: int = 16,
+        ghost_rule: str = "direct",
         tick_period_ns: int = DEFAULT_TICK_PERIOD_NS,
         max_ticks: int = 10_000,
     ) -> None:
@@ -138,6 +152,8 @@ class MazeChaseEnv:
             raise ValueError(
                 f"extra_loops must be in [0, {self.MAX_EXTRA_LOOPS}]"
             )
+        if not isinstance(ghost_rule, str) or ghost_rule not in _GHOST_RULES:
+            raise ValueError(f"ghost_rule must be one of {sorted(_GHOST_RULES)}")
         if isinstance(tick_period_ns, bool) or not isinstance(tick_period_ns, int):
             raise TypeError("tick_period_ns must be an integer")
         if tick_period_ns <= 0 or tick_period_ns > _UINT64_MASK:
@@ -150,6 +166,7 @@ class MazeChaseEnv:
         self._ghost_count = ghost_count
         self._ghost_period = ghost_period
         self._extra_loops = extra_loops
+        self._ghost_rule = ghost_rule
         self._tick_period_ns = tick_period_ns
         self._max_ticks = max_ticks
         self._episode_seed = 0
@@ -160,6 +177,8 @@ class MazeChaseEnv:
         self._tick = 0
         self._player_x = 1
         self._player_y = 1
+        self._player_dx = 0
+        self._player_dy = -1
         self._previous_key_mask = 0
         self._pellets_eaten = 0
         self._times_caught = 0
@@ -210,6 +229,8 @@ class MazeChaseEnv:
         self._tick = 0
         self._player_x = 1
         self._player_y = 1
+        self._player_dx = 0
+        self._player_dy = -1
         self._previous_key_mask = 0
         self._pellets_eaten = 0
         self._times_caught = 0
@@ -273,6 +294,11 @@ class MazeChaseEnv:
         )
         if candidate in self._maze:
             self._player_x, self._player_y = candidate
+        # Facing tracks control intent, not achieved motion: a wall-refused
+        # press still turns the player, matching how the ambush rule reads
+        # the player's last input rather than simulator state.
+        if horizontal or vertical:
+            self._player_dx, self._player_dy = horizontal, vertical
         new_player = (self._player_x, self._player_y)
 
         events: list[str] = []
@@ -285,20 +311,22 @@ class MazeChaseEnv:
 
         ghost_paths: list[tuple[tuple[int, int], tuple[int, int]]] = []
         ghosts_move = self._tick % self._ghost_period == 0
-        if ghosts_move:
-            distances = _bfs_distances(new_player, self._maze)
+        player_field = _bfs_distances(new_player, self._maze) if ghosts_move else {}
         moved_ghosts: list[tuple[int, int]] = []
-        for ghost in self._ghosts:
+        for index, ghost in enumerate(self._ghosts):
             before = ghost
             after = ghost
             if ghosts_move:
-                here = distances.get(before)
-                if here is not None and here > 0:
-                    for dx, dy in _DIRECTIONS:
-                        neighbor = (ghost[0] + dx, ghost[1] + dy)
-                        if distances.get(neighbor) == here - 1:
-                            after = neighbor
-                            break
+                rule = self._rule_for_ghost(index)
+                if rule == "shy":
+                    after = self._shy_step(before, player_field)
+                else:
+                    if rule == "ambush":
+                        target = self._ambush_target(new_player)
+                        field = _bfs_distances(target, self._maze)
+                    else:
+                        field = player_field
+                    after = self._step_downhill(before, field)
             ghost_paths.append((before, after))
             moved_ghosts.append(after)
         self._ghosts = moved_ghosts
@@ -337,7 +365,7 @@ class MazeChaseEnv:
         )
 
     def snapshot(self) -> bytes:
-        """Return a canonical, checksummed, version-1 snapshot."""
+        """Return a canonical, checksummed, version-2 snapshot."""
         payload = bytearray(
             self._SNAPSHOT_HEADER.pack(
                 self._SNAPSHOT_MAGIC,
@@ -357,6 +385,9 @@ class MazeChaseEnv:
                 self._ghost_count,
                 self._ghost_period,
                 self._extra_loops,
+                self._player_dx,
+                self._player_dy,
+                _GHOST_RULES[self._ghost_rule],
             )
         )
         payload.extend(self._pellets)
@@ -386,6 +417,7 @@ class MazeChaseEnv:
             tuple[
                 bytes, int, int, int, int, int, int, int,
                 int, int, int, int, int, int, int, int, int, int,
+                int, int, int,
             ],
             self._SNAPSHOT_HEADER.unpack_from(payload),
         )
@@ -407,6 +439,9 @@ class MazeChaseEnv:
             ghost_count,
             ghost_period,
             extra_loops,
+            player_dx,
+            player_dy,
+            ghost_rule_code,
         ) = header
         if magic != self._SNAPSHOT_MAGIC:
             raise ValueError("snapshot magic mismatch")
@@ -437,6 +472,14 @@ class MazeChaseEnv:
             raise ValueError("snapshot contains unsupported key bits")
         if cleared not in (0, 1):
             raise ValueError("snapshot cleared flag must be 0 or 1")
+        if player_dx not in (-1, 0, 1) or player_dy not in (-1, 0, 1):
+            raise ValueError("snapshot facing components must be in {-1, 0, 1}")
+        if player_dx == 0 and player_dy == 0:
+            raise ValueError("snapshot facing must be a nonzero direction")
+        if ghost_rule_code not in _GHOST_RULES.values():
+            raise ValueError("snapshot ghost rule is unknown")
+        if ghost_rule_code != _GHOST_RULES[self._ghost_rule]:
+            raise ValueError("snapshot ghost rule mismatch")
 
         maze = _carve_maze_with_loops(episode_seed, self.GRID_SIZE, extra_loops)
         if (player_x, player_y) not in maze:
@@ -481,6 +524,8 @@ class MazeChaseEnv:
         self._tick = tick
         self._player_x = player_x
         self._player_y = player_y
+        self._player_dx = player_dx
+        self._player_dy = player_dy
         self._previous_key_mask = previous_key_mask
         self._cleared = cleared
         self._pellets_eaten = pellets_eaten
@@ -500,6 +545,66 @@ class MazeChaseEnv:
         if not candidates:
             raise RuntimeError("no empty corridor cell remains")
         return candidates[self._rng.randbelow(len(candidates))]
+
+    def _rule_for_ghost(self, index: int) -> str:
+        """Resolve the pursuit rule for one ghost under the configured rule."""
+        if self._ghost_rule == "mixed":
+            return ("direct", "ambush", "shy")[index % 3]
+        return self._ghost_rule
+
+    def _ambush_target(self, player: tuple[int, int]) -> tuple[int, int]:
+        """Return the corridor cell four steps ahead of the player's facing.
+
+        The raw lead cell is clamped to the grid; if it lands inside a wall
+        the nearest corridor cell by Manhattan distance is used instead, with
+        row-major scan order breaking ties deterministically.
+        """
+        raw = (
+            min(self.GRID_SIZE - 1, max(0, player[0] + _AMBUSH_LEAD * self._player_dx)),
+            min(self.GRID_SIZE - 1, max(0, player[1] + _AMBUSH_LEAD * self._player_dy)),
+        )
+        if raw in self._maze:
+            return raw
+        best = player
+        best_distance: int | None = None
+        for y in range(self.GRID_SIZE):
+            for x in range(self.GRID_SIZE):
+                if (x, y) not in self._maze:
+                    continue
+                distance = abs(x - raw[0]) + abs(y - raw[1])
+                if best_distance is None or distance < best_distance:
+                    best = (x, y)
+                    best_distance = distance
+        return best
+
+    def _shy_step(
+        self, ghost: tuple[int, int], player_field: dict[tuple[int, int], int]
+    ) -> tuple[int, int]:
+        """Chase while farther than ``_SHY_DISTANCE``; otherwise retreat uphill."""
+        here = player_field.get(ghost)
+        if here is None:
+            return ghost
+        if here > _SHY_DISTANCE:
+            return self._step_downhill(ghost, player_field)
+        for dx, dy in _DIRECTIONS:
+            neighbor = (ghost[0] + dx, ghost[1] + dy)
+            if player_field.get(neighbor) == here + 1:
+                return neighbor
+        return ghost
+
+    @staticmethod
+    def _step_downhill(
+        cell: tuple[int, int], distances: dict[tuple[int, int], int]
+    ) -> tuple[int, int]:
+        """Move one cell along the exact BFS shortest path toward the field origin."""
+        here = distances.get(cell)
+        if here is None or here == 0:
+            return cell
+        for dx, dy in _DIRECTIONS:
+            neighbor = (cell[0] + dx, cell[1] + dy)
+            if distances.get(neighbor) == here - 1:
+                return neighbor
+        return cell
 
     def _render(self) -> RgbFrame:
         pixels = bytearray(self.GRID_SIZE * self.GRID_SIZE * 3)

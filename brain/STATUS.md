@@ -149,7 +149,12 @@ A pixel-only scripted pellet teacher (`diagnostic.scripted_pellet_teacher.v1`)
 and `world.maze_chase.v1` joined the cross-world diagnostic matrix, now
 covering 6 worlds × 4 policies; the teacher's canonical maze_chase row
 (-6,274 reward: 376 pellets eaten, 665 catches) shows reflexive greed losing
-badly and marks evasion planning as the model's required skill.
+badly and marks evasion planning as the model's required skill. The
+maze_chase ghost-AI-rules variant axis is now implemented: `ghost_rule`
+selects direct chase, four-cell ambush off the player's control-intent
+facing, shy far-chase/near-retreat, or a cyclical mix, under snapshot
+version 2 (25 tests; play-safe gate green). Record:
+[docs/runs/2026-08-17-maze-chase-ghost-rules.md](./docs/runs/2026-08-17-maze-chase-ghost-rules.md).
 
 Local play-safe verification after the live v2 registration: every isolated
 test module passed (299 tests, one expected POSIX skip in the trusted-final

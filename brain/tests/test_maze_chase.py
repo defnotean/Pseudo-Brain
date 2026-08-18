@@ -208,6 +208,87 @@ class MazeChaseEnvironmentTests(unittest.TestCase):
         env.step(GenericControl(keys_down=(int(blocked),)))
         self.assertEqual((env._player_x, env._player_y), before)
 
+    def test_shy_ghost_never_catches_a_stationary_player(self) -> None:
+        for seed in (7, 5, 9, 13, 42):
+            env = MazeChaseEnv(
+                ghost_count=1, ghost_period=1, ghost_rule="shy", max_ticks=400
+            )
+            env.reset(seed)
+            for _ in range(300):
+                outcome = env.step(GenericControl())
+                self.assertNotIn("caught", outcome.events)
+
+    def test_ambush_diverges_from_direct(self) -> None:
+        ambush = MazeChaseEnv(
+            ghost_count=1, ghost_period=1, ghost_rule="ambush", max_ticks=400
+        )
+        direct = MazeChaseEnv(
+            ghost_count=1, ghost_period=1, ghost_rule="direct", max_ticks=400
+        )
+        ambush.reset(7)
+        direct.reset(7)
+        keys = (int(HidKey.W), int(HidKey.D), int(HidKey.S), int(HidKey.A))
+        for step in range(120):
+            control = GenericControl(keys_down=(keys[step % 4],))
+            ambush.step(control)
+            direct.step(control)
+        self.assertNotEqual(ambush.state_hash(), direct.state_hash())
+
+    def test_mixed_diverges_from_direct(self) -> None:
+        mixed = MazeChaseEnv(
+            ghost_count=2, ghost_period=1, ghost_rule="mixed", max_ticks=400
+        )
+        direct = MazeChaseEnv(
+            ghost_count=2, ghost_period=1, ghost_rule="direct", max_ticks=400
+        )
+        mixed.reset(7)
+        direct.reset(7)
+        keys = (int(HidKey.W), int(HidKey.D), int(HidKey.S), int(HidKey.A))
+        for step in range(120):
+            control = GenericControl(keys_down=(keys[step % 4],))
+            mixed.step(control)
+            direct.step(control)
+        self.assertNotEqual(mixed.state_hash(), direct.state_hash())
+
+    def test_facing_tracks_control_intent_through_wall_refusals(self) -> None:
+        env = MazeChaseEnv()
+        env.reset(5)
+        blocked = None
+        for key, delta in (
+            (HidKey.W, (0, -1)),
+            (HidKey.A, (-1, 0)),
+            (HidKey.S, (0, 1)),
+            (HidKey.D, (1, 0)),
+        ):
+            if (env._player_x + delta[0], env._player_y + delta[1]) not in env._maze:
+                blocked = (key, delta)
+                break
+        self.assertIsNotNone(blocked)
+        key, delta = blocked
+        before = (env._player_x, env._player_y)
+        env.step(GenericControl(keys_down=(int(key),)))
+        self.assertEqual((env._player_x, env._player_y), before)
+        self.assertEqual((env._player_dx, env._player_dy), delta)
+
+    def test_facing_and_rule_survive_a_snapshot_roundtrip(self) -> None:
+        env = MazeChaseEnv(ghost_rule="mixed")
+        env.reset(9)
+        env.step(GenericControl(keys_down=(int(HidKey.D),)))
+        restored = MazeChaseEnv(ghost_rule="mixed")
+        restored.restore(env.snapshot())
+        self.assertEqual(
+            (restored._player_dx, restored._player_dy),
+            (env._player_dx, env._player_dy),
+        )
+        self.assertEqual(restored.state_hash(), env.state_hash())
+
+    def test_restore_rejects_a_ghost_rule_mismatch(self) -> None:
+        source = MazeChaseEnv(ghost_rule="direct")
+        source.reset(5)
+        snapshot = source.snapshot()
+        with self.assertRaises(ValueError):
+            MazeChaseEnv(ghost_rule="shy").restore(snapshot)
+
     def test_one_thousand_step_replay_is_exact(self) -> None:
         source = MazeChaseEnv(max_ticks=2_000)
         initial = source.reset(83)
@@ -233,7 +314,7 @@ class MazeChaseEnvironmentTests(unittest.TestCase):
         )
         self.assertEqual(
             replay.state_hash(),
-            "192d76ca03a90e3b53624673afad6de01707b968ee436e9a39a50bbb8dfc0c67",
+            "d08096a33df8f12fe15df5248c2c6964d0911c3af9ab99b914c503b1b4c090f5",
         )
 
     def test_snapshot_restore_is_atomic_on_corruption(self) -> None:
@@ -312,6 +393,10 @@ class MazeChaseEnvironmentTests(unittest.TestCase):
             MazeChaseEnv(max_ticks=0)
         with self.assertRaises(ValueError):
             MazeChaseEnv(tick_period_ns=0)
+        with self.assertRaises(ValueError):
+            MazeChaseEnv(ghost_rule="random")
+        with self.assertRaises(ValueError):
+            MazeChaseEnv(ghost_rule=3)  # type: ignore[arg-type]
         env = MazeChaseEnv()
         with self.assertRaises(TypeError):
             env.reset(True)  # type: ignore[arg-type]

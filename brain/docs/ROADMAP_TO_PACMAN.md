@@ -182,8 +182,9 @@ PLAN.md §20 defines the ladder; the work items in this repo are:
    `environments/maze_chase.py` (loop-carved seeded mazes, pellet clearing
    with a terminated win condition, BFS ghosts;
    [runs/2026-08-17-maze-chase-world.md](runs/2026-08-17-maze-chase-world.md)).
-   Remaining variant axes: ghost AI rules beyond direct BFS, speed curves,
-   sticky/delayed input. The scripted pellet teacher and matrix inclusion
+   Remaining variant axes: speed curves, sticky/delayed input (ghost AI
+   rules are done: `direct`/`ambush`/`shy`/`mixed` under snapshot version 2;
+   [runs/2026-08-17-maze-chase-ghost-rules.md](runs/2026-08-17-maze-chase-ghost-rules.md)). The scripted pellet teacher and matrix inclusion
    are done: `diagnostic.scripted_pellet_teacher.v1` and
    `world.maze_chase.v1` joined the cross-world matrix (now 6 worlds × 4
    policies), where the teacher's -6,274 canonical row shows reflexive
