@@ -207,6 +207,12 @@ PLAN.md §20 defines the ladder; the work items in this repo are:
    slow-player speed curves, and going negative only under two-tick input
    delay — the actuation-latency signature
    ([runs/2026-08-17-maze-chase-variant-matrix-slots.md](runs/2026-08-17-maze-chase-variant-matrix-slots.md)).
+   The planner then gained actuation-awareness knobs (delay-FIFO tracking of
+   its own presses, player-period gating, elroy period derivation from
+   visible pixels): compensation recovers the delayed-input slot from -147
+   to +386 and nearly halves elroy catches, proving the failure was pure
+   latency mismatch — the quantity a play-capable model must plan against
+   ([runs/2026-08-17-planner-actuation-compensation.md](runs/2026-08-17-planner-actuation-compensation.md)).
 4. **The arcade proof gate** (PLAN.md §31 Phase 4): kernel p99 ≤ 8 ms,
    end-to-end p99 ≤ 16.67 ms at frame skip 1, ≥10% score over the matched
    real-time recurrent/world-model baseline across ≥100 seeds, positive

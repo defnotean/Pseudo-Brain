@@ -179,6 +179,13 @@ slow-player speed curves (+244/+226), and goes negative only under
 two-tick input delay — the actuation-latency signature a deadline-aware
 model must beat. Record:
 [docs/runs/2026-08-17-maze-chase-variant-matrix-slots.md](./docs/runs/2026-08-17-maze-chase-variant-matrix-slots.md).
+The planner then gained actuation-awareness knobs (delay-FIFO tracking of
+its own presses, player-period gating, elroy period derivation from visible
+pixels), byte-identical on the canonical slot (matrix SHA-256 unchanged):
+compensation recovers the delayed-input slot from -147 to +386 and cuts
+elroy catches from 20 to 11, while player-period compensation is pinned as
+outcome-neutral. Record:
+[docs/runs/2026-08-17-planner-actuation-compensation.md](./docs/runs/2026-08-17-planner-actuation-compensation.md).
 The matched baseline suite gains the PLAN §28 item-12 control:
 `irene.thought_field.independent_ensemble.v1` — four untied members of
 eight slots each at width 352 (29,459,914 trainable, 0.72% under the

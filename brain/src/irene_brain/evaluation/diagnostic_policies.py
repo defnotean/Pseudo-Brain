@@ -49,6 +49,8 @@ _KEY_A = 4
 _KEY_S = 22
 _KEY_D = 7
 _KEY_FOR_DELTA = {(0, -1): _KEY_W, (-1, 0): _KEY_A, (0, 1): _KEY_S, (1, 0): _KEY_D}
+# Movement-mask bits, matching _movement_control and MazeChaseEnv._KEY_BITS.
+_MASK_FOR_DELTA = {(0, -1): 1, (-1, 0): 2, (0, 1): 4, (1, 0): 8}
 
 
 def _movement_control(mask: int) -> GenericControl:
@@ -375,7 +377,7 @@ class ScriptedMazeChasePlannerPolicy:
     shortest path every ``ghost_period`` ticks, and contact is checked with
     the same swept-path rule the simulator uses. It reconstructs the shortest
     path to each of the ``candidate_pellets`` nearest visible pellets,
-    simulates walking each path end to end (capped at ``horizon`` ticks), and
+    simulates walking each path end to end (capped at ``horizon`` steps), and
     commits to the first path it can walk without being caught. If no pellet
     path is safe it falls back to the one-tick move that survives and
     maximizes the post-move distance to the nearest ghost.
@@ -388,14 +390,37 @@ class ScriptedMazeChasePlannerPolicy:
     planner re-plans from fresh pixels every tick, a hidden ghost re-enters
     the plan as soon as it separates.
 
-    The simulation assumes the canonical matrix slot's published mechanics
-    (direct pursuit, one shared player-anchored ghost field, fixed period).
-    On other ghost rules or speed curves the lookahead degrades to an
-    optimistic direct-pursuit guess; the planner never reads which rule the
-    simulator is actually running.
+    Actuation awareness is configurable so the same planner can run matched
+    to a variant slot's published mechanics:
+
+    - ``input_delay_ticks`` — the planner tracks its own submitted presses
+      (its own outputs, not simulator state) as a model of the world's delay
+      FIFO, simulates the forced prefix those queued presses determine, and
+      aims each new press at the tick it will actually apply.
+    - ``player_period`` — the simulation gates player movement (and input
+      sampling) to every Nth tick, like the world's speed curve.
+    - ``ghost_elroy`` — the simulation shortens the ghost period by one once
+      the visible pellet count says at least half the pellets are eaten, the
+      same derivation the world uses. Pellets hidden under ghosts make the
+      visible count an undercount, so the simulated speed-up can arrive
+      slightly early — conservative, never optimistic.
+
+    Remaining blind spots, by construction: ghost rules other than direct
+    pursuit are not modeled (ambush/shy/mixed degrade to optimistic
+    direct-pursuit guesses), and when the forced prefix is already fatal the
+    post-catch respawn cell is sampled from hidden RNG, so the fallback plan
+    past that point is approximate.
     """
 
-    __slots__ = ("_ghost_period", "_candidate_pellets", "_horizon")
+    __slots__ = (
+        "_ghost_period",
+        "_candidate_pellets",
+        "_horizon",
+        "_input_delay_ticks",
+        "_player_period",
+        "_ghost_elroy",
+        "_issued",
+    )
     identity = "diagnostic.scripted_maze_chase_planner.v1"
     uses_privileged_state = False
 
@@ -405,40 +430,162 @@ class ScriptedMazeChasePlannerPolicy:
         ghost_period: int = 2,
         candidate_pellets: int = 6,
         horizon: int = 24,
+        input_delay_ticks: int = 0,
+        player_period: int = 1,
+        ghost_elroy: bool = False,
     ) -> None:
         for value, name, low, high in (
             (ghost_period, "ghost_period", 1, 64),
             (candidate_pellets, "candidate_pellets", 1, 32),
             (horizon, "horizon", 1, 256),
+            (input_delay_ticks, "input_delay_ticks", 0, 16),
+            (player_period, "player_period", 1, 64),
         ):
             if isinstance(value, bool) or not isinstance(value, int):
                 raise TypeError(f"{name} must be an integer")
             if value < low or value > high:
                 raise ValueError(f"{name} must be in [{low}, {high}]")
+        if not isinstance(ghost_elroy, bool):
+            raise TypeError("ghost_elroy must be a boolean")
         self._ghost_period = ghost_period
         self._candidate_pellets = candidate_pellets
         self._horizon = horizon
+        self._input_delay_ticks = input_delay_ticks
+        self._player_period = player_period
+        self._ghost_elroy = ghost_elroy
+        self._issued: list[int] = [0] * input_delay_ticks
 
     def reset(self, episode_seed: int) -> None:
         if isinstance(episode_seed, bool) or not isinstance(episode_seed, int):
             raise TypeError("episode_seed must be an integer")
+        # The world starts its delay FIFO as all zeros; mirror that.
+        self._issued = [0] * self._input_delay_ticks
 
     def act(self, observation: Observation) -> GenericControl:
         walkable, pellets, player, ghosts = _parse_maze_chase_frame(
             observation.rgb, caller="maze chase planner"
         )
         if not pellets:
-            return GenericControl()
+            return self._commit(0)
         frozen_walkable = frozenset(walkable)
         # frame_id counts completed ticks, so the upcoming decision executes
         # on simulator tick ``start_tick`` and ghosts move on ticks divisible
         # by the period — the same condition the simulator evaluates.
         start_tick = observation.frame_id
-        from_player = _bfs_distances(player, frozen_walkable)
 
+        # Forced prefix: the next ``input_delay_ticks`` applied masks are
+        # already sitting in the world's FIFO — they are this policy's own
+        # earlier presses, so the policy knows them exactly. Simulate those
+        # ticks first; the press chosen now applies at ``plan_tick``.
+        sim_pellets = set(pellets)
+        prefix_player = player
+        prefix_ghosts = sorted(ghosts)
+        prefix_caught = False
+        for offset, queued_mask in enumerate(self._issued):
+            prefix_player, prefix_ghosts, caught = self._step_sim(
+                prefix_player,
+                prefix_ghosts,
+                sim_pellets,
+                queued_mask,
+                start_tick + offset,
+                frozen_walkable,
+            )
+            prefix_caught = prefix_caught or caught
+        plan_tick = start_tick + len(self._issued)
+
+        mask = 0
+        if not prefix_caught:
+            mask = self._plan_from(
+                prefix_player,
+                prefix_ghosts,
+                sim_pellets,
+                frozen_walkable,
+                plan_tick,
+            )
+        if mask == 0 and not prefix_caught:
+            mask = self._survival_mask(
+                prefix_player,
+                prefix_ghosts,
+                sim_pellets,
+                frozen_walkable,
+                plan_tick,
+            )
+        return self._commit(mask)
+
+    def _commit(self, mask: int) -> GenericControl:
+        """Record the submitted mask in the FIFO model and build the control."""
+        if self._input_delay_ticks:
+            self._issued = self._issued[1:] + [mask]
+        if mask == 0:
+            return GenericControl()
+        keys = []
+        for delta, bit in _MASK_FOR_DELTA.items():
+            if mask & bit:
+                keys.append(_KEY_FOR_DELTA[delta])
+        return GenericControl(keys_down=tuple(keys))
+
+    def _effective_period(self, visible_pellets: int, walkable_cells: int) -> int:
+        """Ghost period under the elroy curve, derived from visible pixels.
+
+        The world speeds ghosts up once ``pellets_remaining * 2 <= cells - 1``;
+        both quantities are visible (pellet pixels, walkable cells), and pellet
+        pixels hidden under ghosts only make the simulated speed-up early —
+        conservative, never optimistic.
+        """
+        if self._ghost_elroy and visible_pellets * 2 <= walkable_cells - 1:
+            return max(1, self._ghost_period - 1)
+        return self._ghost_period
+
+    def _step_sim(
+        self,
+        sim_player: tuple[int, int],
+        sim_ghosts: list[tuple[int, int]],
+        sim_pellets: set[tuple[int, int]],
+        mask: int,
+        tick: int,
+        walkable: frozenset[tuple[int, int]],
+    ) -> tuple[tuple[int, int], list[tuple[int, int]], bool]:
+        """Advance one simulated tick; return (player, ghosts, caught)."""
+        new_player = sim_player
+        if tick % self._player_period == 0:
+            delta = (
+                int(bool(mask & 8)) - int(bool(mask & 2)),
+                int(bool(mask & 4)) - int(bool(mask & 1)),
+            )
+            candidate = (sim_player[0] + delta[0], sim_player[1] + delta[1])
+            if candidate in walkable:
+                new_player = candidate
+        sim_pellets.discard(new_player)
+        period = self._effective_period(len(sim_pellets), len(walkable))
+        ghosts_move = tick % period == 0
+        # Every direct-pursuit ghost chases the same post-move player
+        # cell, so one shared field serves them all — the same field the
+        # simulator computes once per move tick.
+        field = _bfs_distances(new_player, walkable) if ghosts_move else None
+        moved: list[tuple[int, int]] = []
+        caught = False
+        for ghost in sim_ghosts:
+            after = (
+                MazeChaseEnv._step_downhill(ghost, field) if ghosts_move else ghost
+            )
+            if _paths_collide_at_same_time(sim_player, new_player, ghost, after):
+                caught = True
+            moved.append(after)
+        return new_player, moved, caught
+
+    def _plan_from(
+        self,
+        player: tuple[int, int],
+        ghosts: list[tuple[int, int]],
+        sim_pellets: set[tuple[int, int]],
+        walkable: frozenset[tuple[int, int]],
+        plan_tick: int,
+    ) -> int:
+        """Find a safe pellet path from ``plan_tick``; return its first mask."""
+        from_player = _bfs_distances(player, walkable)
         ranked = sorted(
             (from_player[cell], cell[1], cell[0])
-            for cell in pellets
+            for cell in sim_pellets
             if cell in from_player and from_player[cell] > 0
         )[: self._candidate_pellets]
         for distance, goal_y, goal_x in ranked:
@@ -446,95 +593,96 @@ class ScriptedMazeChasePlannerPolicy:
                 continue
             path = _downhill_path(from_player, player, (goal_x, goal_y))
             if not self._path_is_caught(
-                player, ghosts, path, frozen_walkable, start_tick
+                player, ghosts, set(sim_pellets), path, walkable, plan_tick
             ):
                 delta = (path[0][0] - player[0], path[0][1] - player[1])
-                return GenericControl(keys_down=(_KEY_FOR_DELTA[delta],))
-        return self._survival_move(player, ghosts, frozen_walkable, start_tick)
+                return _MASK_FOR_DELTA[delta]
+        return 0
 
     def _path_is_caught(
         self,
         player: tuple[int, int],
-        ghosts: set[tuple[int, int]],
+        ghosts: list[tuple[int, int]],
+        sim_pellets: set[tuple[int, int]],
         path: list[tuple[int, int]],
         walkable: frozenset[tuple[int, int]],
         start_tick: int,
     ) -> bool:
-        """Simulate walking ``path``; return True if the player is caught."""
+        """Simulate walking ``path``; return True if the player is caught.
+
+        The player takes one path step per move tick (ticks divisible by
+        ``player_period``) and holds still otherwise; presses landing on
+        non-move ticks are discarded by the world, exactly as simulated.
+        """
         sim_player = player
-        sim_ghosts = sorted(ghosts)
-        for index, step_cell in enumerate(path):
-            ghosts_move = (start_tick + index) % self._ghost_period == 0
-            # Every direct-pursuit ghost chases the same post-move player
-            # cell, so one shared field serves them all — the same field the
-            # simulator computes once per move tick.
-            field = (
-                _bfs_distances(step_cell, walkable) if ghosts_move else None
+        sim_ghosts = list(ghosts)
+        step_index = 0
+        tick = start_tick
+        while step_index < len(path):
+            mask = 0
+            if tick % self._player_period == 0:
+                step_cell = path[step_index]
+                mask = _MASK_FOR_DELTA[
+                    (step_cell[0] - sim_player[0], step_cell[1] - sim_player[1])
+                ]
+                step_index += 1
+            sim_player, sim_ghosts, caught = self._step_sim(
+                sim_player, sim_ghosts, sim_pellets, mask, tick, walkable
             )
-            moved: list[tuple[int, int]] = []
-            for ghost in sim_ghosts:
-                after = (
-                    MazeChaseEnv._step_downhill(ghost, field)
-                    if ghosts_move
-                    else ghost
-                )
-                if _paths_collide_at_same_time(sim_player, step_cell, ghost, after):
-                    return True
-                moved.append(after)
-            sim_player = step_cell
-            sim_ghosts = moved
+            if caught:
+                return True
+            tick += 1
         return False
 
-    def _survival_move(
+    def _survival_mask(
         self,
         player: tuple[int, int],
-        ghosts: set[tuple[int, int]],
+        ghosts: list[tuple[int, int]],
+        sim_pellets: set[tuple[int, int]],
         walkable: frozenset[tuple[int, int]],
-        start_tick: int,
-    ) -> GenericControl:
+        plan_tick: int,
+    ) -> int:
         """One-tick fallback: survive, then maximize distance to the ghosts.
 
         Options scan in the fixed ``_DIRECTIONS`` order with stay last; a
         strict ``>`` comparison keeps the earliest option on ties, so the
-        fallback is deterministic. A wall-refused press leaves the player in
-        place, exactly like the simulator.
+        fallback is deterministic. A press landing on a non-move tick is
+        discarded by the world, so the fallback then holds still.
         """
-        ghosts_move = start_tick % self._ghost_period == 0
-        ordered_ghosts = sorted(ghosts)
+        if plan_tick % self._player_period != 0:
+            return 0
         best_score: int | None = None
-        best_key: int | None = None
-        options: list[tuple[tuple[int, int], int | None]] = [
-            (delta, _KEY_FOR_DELTA[delta]) for delta in _DIRECTIONS
+        best_mask = 0
+        options: list[tuple[tuple[int, int], int]] = [
+            (delta, _MASK_FOR_DELTA[delta]) for delta in _DIRECTIONS
         ]
-        options.append(((0, 0), None))
-        for (dx, dy), key in options:
+        options.append(((0, 0), 0))
+        for (dx, dy), mask in options:
             candidate = (player[0] + dx, player[1] + dy)
             new_player = candidate if candidate in walkable else player
+            option_pellets = set(sim_pellets)
+            new_player, moved, caught = self._step_sim(
+                player,
+                list(ghosts),
+                option_pellets,
+                mask,
+                plan_tick,
+                walkable,
+            )
+            if caught:
+                continue
             field = _bfs_distances(new_player, walkable)
-            caught = False
             nearest: int | None = None
-            for ghost in ordered_ghosts:
-                after = (
-                    MazeChaseEnv._step_downhill(ghost, field)
-                    if ghosts_move
-                    else ghost
-                )
-                if _paths_collide_at_same_time(player, new_player, ghost, after):
-                    caught = True
-                    break
-                distance = field.get(after)
+            for ghost in moved:
+                distance = field.get(ghost)
                 # A ghost walled off from the player is infinitely far away.
                 score = distance if distance is not None else 1 << 20
                 nearest = score if nearest is None else min(nearest, score)
-            if caught:
-                continue
             survivor_score = nearest if nearest is not None else 1 << 20
             if best_score is None or survivor_score > best_score:
                 best_score = survivor_score
-                best_key = key
-        if best_key is None:
-            return GenericControl()
-        return GenericControl(keys_down=(best_key,))
+                best_mask = mask
+        return best_mask
 
 
 def _downhill_path(

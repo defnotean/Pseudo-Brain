@@ -211,17 +211,19 @@ class DiagnosticSuiteTests(unittest.TestCase):
 class MazeChasePlannerTests(unittest.TestCase):
     """The lookahead planner maps the scripted maze_chase frontier."""
 
-    def _run(self, policy: object, seed: int, max_ticks: int = 240):
+    def _run(self, policy: object, seed: int, max_ticks: int = 240, **env_overrides: object):
+        knobs: dict[str, object] = {
+            "ghost_count": 3,
+            "ghost_period": 2,
+            "extra_loops": 16,
+            "max_ticks": max_ticks,
+        }
+        knobs.update(env_overrides)
         return run_policy_closed_loop_episode(
             policy,
             seed=seed,
             config=_config(max_ticks=max_ticks),
-            environment_factory=lambda: MazeChaseEnv(
-                ghost_count=3,
-                ghost_period=2,
-                extra_loops=16,
-                max_ticks=max_ticks,
-            ),
+            environment_factory=lambda: MazeChaseEnv(**knobs),  # type: ignore[arg-type]
         )
 
     def test_contract_flags_and_constructor_validation(self) -> None:
@@ -238,6 +240,16 @@ class MazeChasePlannerTests(unittest.TestCase):
             ScriptedMazeChasePlannerPolicy(candidate_pellets=33)
         with self.assertRaises(ValueError):
             ScriptedMazeChasePlannerPolicy(horizon=257)
+        with self.assertRaises(TypeError):
+            ScriptedMazeChasePlannerPolicy(input_delay_ticks=True)
+        with self.assertRaises(ValueError):
+            ScriptedMazeChasePlannerPolicy(input_delay_ticks=17)
+        with self.assertRaises(TypeError):
+            ScriptedMazeChasePlannerPolicy(player_period=1.5)  # type: ignore[arg-type]
+        with self.assertRaises(ValueError):
+            ScriptedMazeChasePlannerPolicy(player_period=0)
+        with self.assertRaises(TypeError):
+            ScriptedMazeChasePlannerPolicy(ghost_elroy=1)  # type: ignore[arg-type]
         with self.assertRaises(TypeError):
             planner.reset(True)  # type: ignore[arg-type]
 
@@ -277,6 +289,57 @@ class MazeChasePlannerTests(unittest.TestCase):
             teacher_collisions += taught.collisions
         self.assertGreater(planner_reward, teacher_reward)
         self.assertLess(planner_collisions, teacher_collisions)
+
+    def test_explicit_canonical_knobs_match_the_defaults(self) -> None:
+        plain = self._run(ScriptedMazeChasePlannerPolicy(), seed=5)
+        explicit = self._run(
+            ScriptedMazeChasePlannerPolicy(
+                input_delay_ticks=0, player_period=1, ghost_elroy=False
+            ),
+            seed=5,
+        )
+        self.assertEqual(plain, explicit)
+
+    def test_delay_compensation_recovers_the_delayed_slot(self) -> None:
+        for seed in (5, 9):
+            plain = self._run(
+                ScriptedMazeChasePlannerPolicy(), seed, input_delay_ticks=2
+            )
+            compensated = self._run(
+                ScriptedMazeChasePlannerPolicy(input_delay_ticks=2),
+                seed,
+                input_delay_ticks=2,
+            )
+            self.assertGreater(compensated.reward_sum, plain.reward_sum)
+            self.assertLess(compensated.collisions, plain.collisions)
+
+    def test_elroy_compensation_recovers_the_speed_curve(self) -> None:
+        for seed in (5, 9):
+            plain = self._run(
+                ScriptedMazeChasePlannerPolicy(), seed, ghost_elroy=True
+            )
+            compensated = self._run(
+                ScriptedMazeChasePlannerPolicy(ghost_elroy=True),
+                seed,
+                ghost_elroy=True,
+            )
+            self.assertLess(compensated.collisions, plain.collisions)
+
+    def test_player_period_compensation_is_outcome_neutral(self) -> None:
+        # Presses submitted on non-move ticks are discarded by the world, so
+        # the plain planner's every-tick player model costs nothing on this
+        # slot: compensation changes the plan, not the outcome.
+        for seed in (5, 9):
+            plain = self._run(
+                ScriptedMazeChasePlannerPolicy(), seed, player_period=2
+            )
+            compensated = self._run(
+                ScriptedMazeChasePlannerPolicy(player_period=2),
+                seed,
+                player_period=2,
+            )
+            self.assertEqual(compensated.reward_sum, plain.reward_sum)
+            self.assertEqual(compensated.collisions, plain.collisions)
 
 
 if __name__ == "__main__":
