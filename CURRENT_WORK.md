@@ -13,24 +13,22 @@ keep a persistent internal state, talk sparsely, and can emit an action after
 any internal cycle. The long-term aim is human-speed closed-loop play. That is
 **not** what the current experiment is measuring.
 
-The last qualification attempt was **Reference Candidate Qualification v2
-(RCQ-v2)**. It asked whether this already-built model could learn a
-state-conditioned W/A/S/D policy, plus a useful value estimate, on synthetic
-moving-shapes, under a frozen recipe, for one seed. Seed `1702` is
-**terminally failed** at optimizer step 1,536. Do not resume, retune, or
-open TEST on v2.
+The current experiment is **Play-gated maze-chase distill v1**
+(`play_gated_maze_chase_distill_v1`). It asks whether the existing thesis
+thought-field can learn to play maze-chase closed-loop after planner
+distillation, measured by play (reward / collisions / pellets), not by
+action loss. First probe: 32 Spark optimizer steps, run id
+`dgx-play-maze-chase-distill-probe-v1`. Play has moved only when closed-loop
+reward on seeds 5/9, 240 ticks exceeds the frozen no-op floor of **-161**.
+Record:
+[brain/docs/runs/2026-08-18-play-gated-maze-chase-distill.md](brain/docs/runs/2026-08-18-play-gated-maze-chase-distill.md).
 
-RCQ-v3 machinery is complete and the D1–D5 decisions are frozen, but the
-create-once registration file does not exist and **must not be created
-yet**. The 2026-08-18 smoke-probe schedule erratum re-ran the matched
-baseline suite under real constant-LR updates; the reference still does not
-lead, so the review's proceed-criterion (reference leading on ≥3/10 metrics
-at smoke scale) remains unmet. Another RCQ round is not justified. The
-highest-value **local** work after the 2026-08-18 erratum was B3 (task
-specialist versus generalist) on the existing lazy ladder datasets; that
-slice is now in-repo. The highest-value **DGX** item is a
-qualified matched-baseline comparison; the historical first-matched
-campaign stays blocked until a reference actually qualifies.
+All training, probes, and play evals run on the Spark. This workstation is
+orchestration only (git, docs, DGX wrappers, SSH, hashes).
+
+RCQ-v2 seed `1702` is **terminally failed**. Do not resume, retune, or open
+TEST on v2. Do not create `registrations/rcq-v3-reference-v1.json` for this
+campaign.
 
 ## Where we are
 
@@ -46,9 +44,9 @@ campaign stays blocked until a reference actually qualifies.
 | 7 | Pinned 2,048-update reference train on seed 1702 | Failed. Official `rcq_v2_development_v1` at step 1,536 is `passed:false` (9 opposite conflicts, 875 continuous outsides). Terminal for this candidate. Do not resume. |
 | 8 | Newly named qualification after the invariance capture fix | Done. Live file `registrations/rcq-v2-reference-v2.json`. Do not edit v1. |
 | 9 | Preclaim, independent review, final authorization, one-shot TEST | Blocked. This qualification failed the entry gate. Do not preclaim or open TEST. |
-| — | RCQ-v3 registration ceremony | **Deferred.** Machinery ready; registration file absent on purpose. Smoke proceed-criterion unmet after the 2026-08-18 constant-LR erratum. Do not run `New-RcqV3Registration.ps1`. |
-| — | Next local work | **B3 done 2026-08-18.** Mixed-world generalist source plus per-world fine-tune on the existing lazy moving_shapes and maze_chase datasets. Campaign-scale materialization stays DGX. |
-| — | Highest-value DGX item | Qualified matched-baseline comparison. Historical first-matched 8×3 campaign remains blocked on its old pin. Do not start a detached Spark train. |
+| — | RCQ-v3 registration ceremony | **Deferred.** Do not run `New-RcqV3Registration.ps1`. |
+| — | Current campaign | Play-gated maze-chase distill v1. Probe config `dgx-play-maze-chase-distill-probe.toml`, run `dgx-play-maze-chase-distill-probe-v1`, 32 steps. Scale only if play beats reward -161. |
+| — | Compute | Spark only. One bounded job at a time. Generic wrappers, never RCQ-v2 start/resume. |
 
 Do not skip ahead. Do not open sealed TEST ranges to "check" labels. Do not
 resume a failed frozen gate as if it had passed. Stage A historical DGX runs

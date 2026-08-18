@@ -2,9 +2,17 @@
 
 Updated: 2026-08-18
 
-## Current campaign: post-RCQ-v2 (v3 deferred)
+## Current campaign: play-gated maze-chase distill v1
 
-Status: live qualification `rcq_v2_reference_v2` is **terminally failed**. The
+Status: **play-gated maze-chase distill v1** is the live campaign
+(`play_gated_maze_chase_distill_v1`). First Spark probe is 32 thesis-model
+optimizer steps on planner-teacher maze_chase, then closed-loop play on
+seeds 5/9, 240 ticks. Play moved only if reward_sum exceeds the frozen
+no-op floor **-161**. Action-loss-only drops are a fail. Workstation is
+orchestration; all compute is Spark. Record:
+[docs/runs/2026-08-18-play-gated-maze-chase-distill.md](./docs/runs/2026-08-18-play-gated-maze-chase-distill.md).
+
+Historical: live qualification `rcq_v2_reference_v2` is **terminally failed**. The
 2,048-update reference stopped at optimizer step 1,536 when the frozen
 `rcq_v2_development_v1` entry gate failed on the open development slice: nine
 opposite-direction conflicts (limit seven) and 875 continuous outputs outside
@@ -377,7 +385,7 @@ is inherited unchanged. `train.py` resolves the model's fail-closed
 `training_objective_class_path` hook; the recipe is
 `configs/training/baseline-stagea-world-model-actor.toml`; and the family
 is pinned by its own manifest (`configs/world-model-actor-manifest.json`,
-digest `c207401f…`) with a fail-closed 1%-band gate, not the slot-suite
+digest `3d2e3cc0…`, previous `c207401f…`) with a fail-closed 1%-band gate, not the slot-suite
 manifest (regenerated for the refactor, digest `eda3cf38…`). B3 (task
 specialist) remains blocked on ladder dataset generation (7 new tests;
 play-safe gate green, 558 tests). Record:

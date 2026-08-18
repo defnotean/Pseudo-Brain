@@ -491,9 +491,13 @@ def _run_episode_core(
         episode_seed=seed,
         ticks_advanced=driver.step_count,
         reward_sum=environment.reward_sum,
-        targets_collected=environment.events.count("target_collected"),
+        targets_collected=(
+            environment.events.count("target_collected")
+            + environment.events.count("pellet_eaten")
+        ),
         # Moving shapes reports "collision"; pursuit reports "caught". Both
         # are the same column: the player made contact with a threat.
+        # maze_chase reports pellets as pellet_eaten, not target_collected.
         collisions=(
             environment.events.count("collision")
             + environment.events.count("caught")

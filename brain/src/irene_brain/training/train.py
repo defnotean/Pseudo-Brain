@@ -12,7 +12,7 @@ import random
 from typing import Callable, Sequence
 
 from ..project_paths import resolve_workspace_path
-from .batches import MovingShapesBatchSource
+from .batches import dataset_batch_source
 from .checkpoint import source_tree_sha256
 from .config import TrainingConfig, load_training_config
 
@@ -192,7 +192,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         opposite_pair_weight=config.objective.opposite_key_pair_weight,
     )
     system = TorchTrainingSystem(objective, config)
-    source = MovingShapesBatchSource(config.dataset)
+    source = dataset_batch_source(config.dataset)
     package_root = Path(__file__).resolve().parents[1]
     trainer = Trainer(
         config,
@@ -227,6 +227,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             ),
             flush=True,
         )
+        if config.dataset.kind == "maze_chase":
+            from .play_gate import write_maze_chase_play_gate
+
+            write_maze_chase_play_gate(system.objective.model, run_dir)
         return 0
 
     summary = trainer.run(
@@ -264,6 +268,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         ),
         flush=True,
     )
+    if config.dataset.kind == "maze_chase":
+        from .play_gate import write_maze_chase_play_gate
+
+        write_maze_chase_play_gate(system.objective.model, run_dir)
     return 0 if summary.completed or summary.stop_reason == "operational_stop" else 1
 
 

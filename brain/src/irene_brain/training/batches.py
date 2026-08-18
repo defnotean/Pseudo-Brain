@@ -38,6 +38,34 @@ CONTINUOUS_TARGET_INDICES = (264, 265, 266, *range(299, 307))
 CONTROL_LAYOUT_ID = "generic-hid-307-v1"
 
 
+def dataset_batch_source(config: DatasetConfig):
+    """Resolve the deterministic batch source for a pinned dataset kind.
+
+    ``maze_chase`` reuses the shared split-count fields and the canonical
+    maze slot knobs. ``hazard_count`` stays on the schema for moving_shapes
+    compatibility and is ignored for maze_chase.
+    """
+
+    if not isinstance(config, DatasetConfig):
+        raise ValueError("config must be a DatasetConfig")
+    if config.kind == "moving_shapes":
+        return MovingShapesBatchSource(config)
+    if config.kind == "maze_chase":
+        return MazeChaseBatchSource(
+            MazeChaseBatchConfig(
+                train_sequences=config.train_sequences,
+                validation_sequences=config.validation_sequences,
+                test_sequences=config.test_sequences,
+                sequence_length=config.sequence_length,
+                burn_in_steps=config.burn_in_steps,
+                seed_offset=config.seed_offset,
+                tick_period_ns=config.tick_period_ns,
+                discount=config.discount,
+            )
+        )
+    raise ValueError(f"unsupported dataset.kind: {config.kind}")
+
+
 def control_to_vector(control: GenericControl) -> tuple[float, ...]:
     """Encode only physical actuator state, excluding sequencing metadata."""
 
@@ -842,4 +870,5 @@ __all__ = [
     "SolverBatchSource",
     "TrajectoryBatch",
     "control_to_vector",
+    "dataset_batch_source",
 ]

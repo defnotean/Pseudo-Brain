@@ -14,6 +14,7 @@ from .batches import (
     SolverBatchSource,
     TrajectoryBatch,
     control_to_vector,
+    dataset_batch_source,
 )
 from .checkpoint import (
     LoadedCheckpoint,
@@ -77,6 +78,7 @@ __all__ = [
     "TrainingSystem",
     "TrajectoryBatch",
     "control_to_vector",
+    "dataset_batch_source",
     "file_sha256",
     "load_checkpoint",
     "load_training_config",

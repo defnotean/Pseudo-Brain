@@ -6,9 +6,55 @@ value identities, and legal stopping rules are in
 [DGX_SPARK_TRAINING.md](DGX_SPARK_TRAINING.md). The campaign checklist is
 [CURRENT_WORK.md](../../CURRENT_WORK.md).
 
+The live campaign is **play-gated maze-chase distill v1**, not RCQ.
+Spark-only compute. First probe:
+
+```powershell
+& .\brain\scripts\dgx\Invoke-DgxPreflight.ps1 `
+  -SshTarget defnotean `
+  -RemoteWorkDir '~/projects/pseudo-brain' `
+  -ContainerImage 'vllm/vllm-openai:nightly-aarch64' `
+  -MinFreeDiskGiB 20 `
+  -MinAvailableMemoryGiB 16
+
+& .\brain\scripts\dgx\Sync-DgxBrainRelease.ps1 `
+  -SshTarget defnotean `
+  -RemoteWorkDir '~/projects/pseudo-brain' `
+  -MinFreeDiskGiB 20
+
+& .\brain\scripts\dgx\Invoke-DgxBrainSmoke.ps1 `
+  -SshTarget defnotean `
+  -RemoteWorkDir '~/projects/pseudo-brain' `
+  -ReleaseId '<release-id>' `
+  -ContainerImage 'vllm/vllm-openai:nightly-aarch64' `
+  -ConfigRelativePath 'brain/configs/training/dgx-smoke.toml' `
+  -MinFreeDiskGiB 20 `
+  -MinAvailableMemoryGiB 16 `
+  -ContainerCpuCount 2 `
+  -ContainerMemoryGiB 8
+
+& .\brain\scripts\dgx\Start-DgxBrainTraining.ps1 `
+  -SshTarget defnotean `
+  -RemoteWorkDir '~/projects/pseudo-brain' `
+  -ReleaseId '<release-id>' `
+  -ContainerImage 'vllm/vllm-openai:nightly-aarch64' `
+  -ConfigRelativePath 'brain/configs/training/dgx-play-maze-chase-distill-probe.toml' `
+  -RunId 'dgx-play-maze-chase-distill-probe-v1' `
+  -LaunchMode Tmux `
+  -AcknowledgeDetached `
+  -MinFreeDiskGiB 20 `
+  -MinAvailableMemoryGiB 48 `
+  -ContainerCpuCount 8 `
+  -ContainerMemoryGiB 48
+```
+
+Scale only if `play-gate.json` reports `play_moved: true` (reward > -161).
+Record:
+[runs/2026-08-18-play-gated-maze-chase-distill.md](runs/2026-08-18-play-gated-maze-chase-distill.md).
+
 The live `rcq_v2_reference_v2` reference on seed 1702 already failed the
 step-1,536 development entry gate. Do not start or resume that run. A later
-attempt needs a newly named qualification. Record:
+RCQ attempt needs a newly named qualification. Record:
 [runs/2026-08-16-rcq-v2-reference-v2-smoke-canary-train.md](runs/2026-08-16-rcq-v2-reference-v2-smoke-canary-train.md).
 
 RCQ-v3 machinery exists, but **do not run** `New-RcqV3Registration.ps1`

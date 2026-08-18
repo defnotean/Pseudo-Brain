@@ -131,8 +131,12 @@ class DatasetConfig:
     discount: float
 
     def __post_init__(self) -> None:
-        if _string(self.kind, name="dataset.kind") != "moving_shapes":
-            raise ValueError("dataset.kind currently supports only moving_shapes")
+        kind = _string(self.kind, name="dataset.kind")
+        if kind not in {"moving_shapes", "maze_chase"}:
+            raise ValueError(
+                "dataset.kind currently supports only moving_shapes or maze_chase"
+            )
+        object.__setattr__(self, "kind", kind)
         _integer(self.train_sequences, name="dataset.train_sequences", minimum=1)
         _integer(
             self.validation_sequences,
