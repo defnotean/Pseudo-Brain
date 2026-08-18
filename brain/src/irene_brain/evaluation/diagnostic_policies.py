@@ -30,6 +30,7 @@ from __future__ import annotations
 from typing import Sequence
 
 from ..environments.junction import _DIRECTIONS, _bfs_distances
+from ..environments.keys_doors import KeysDoorsEnv
 from ..environments.maze_chase import MazeChaseEnv
 from ..environments.moving_shapes import (
     MovingShapesEnv,
@@ -713,6 +714,136 @@ def _downhill_path(
     return path
 
 
+def _parse_keys_doors_frame(
+    frame: RgbFrame, *, caller: str
+) -> tuple[
+    set[tuple[int, int]],
+    tuple[int, int],
+    tuple[int, int] | None,
+    tuple[int, int] | None,
+    tuple[int, int] | None,
+]:
+    """Parse the canonical keys_doors grid frame into visible cell sets.
+
+    Returns ``(walkable, player, key, door, target)``; the key, door, and
+    target cells are ``None`` when not rendered. Every color read here is
+    part of the public render contract — ``WALL_RGB`` / ``PLAYER_RGB`` /
+    ``KEY_RGB`` / ``DOOR_RGB`` / ``TARGET_RGB`` — so a pixel-only policy sees
+    exactly what a model would see and never touches simulator state. The
+    world renders the key only while uncollected and the door only while
+    closed, so their disappearance across frames is the episodic-memory
+    signal, exactly as designed.
+    """
+
+    grid = KeysDoorsEnv.GRID_SIZE
+    if frame.width != grid or frame.height != grid:
+        raise ValueError(f"{caller} requires the canonical grid frame")
+    pixels = frame.pixels
+    player: tuple[int, int] | None = None
+    key: tuple[int, int] | None = None
+    door: tuple[int, int] | None = None
+    target: tuple[int, int] | None = None
+    walkable: set[tuple[int, int]] = set()
+    for y in range(grid):
+        for x in range(grid):
+            offset = (y * grid + x) * 3
+            color = (pixels[offset], pixels[offset + 1], pixels[offset + 2])
+            if color == KeysDoorsEnv.WALL_RGB:
+                continue
+            cell = (x, y)
+            walkable.add(cell)
+            if color == KeysDoorsEnv.PLAYER_RGB:
+                player = cell
+            elif color == KeysDoorsEnv.KEY_RGB:
+                key = cell
+            elif color == KeysDoorsEnv.DOOR_RGB:
+                door = cell
+            elif color == KeysDoorsEnv.TARGET_RGB:
+                target = cell
+    if player is None:
+        raise RuntimeError(f"{caller} could not locate the player")
+    return walkable, player, key, door, target
+
+
+class ScriptedKeysDoorsSolver:
+    """Pixel-only key→door→target solver for the keys_doors world.
+
+    The world isolates ordered planning plus one piece of unrendered
+    episodic memory: whether the player holds the key is never painted. The
+    solver derives that memory the only honest way a model could — the key
+    pixel is visible while uncollected and disappears exactly on collection,
+    and the door pixel is visible while closed and disappears exactly when
+    opened. Once both have been seen, their absence in later frames *is* the
+    remembered state; no simulator state is ever read.
+
+    The plan re-derives from fresh pixels every tick:
+
+    1. Key not yet collected (seen before, still visible) → walk the BFS
+       shortest path to the key, treating the closed door cell as blocked
+       (the world places the key on the player side by construction).
+    2. Key collected (seen before, now absent) and door still closed → walk
+       to the door cell; stepping into it while holding the key opens it.
+    3. Door open (seen before, now absent) → walk the BFS shortest path to
+       the target; the open door cell renders as an ordinary corridor.
+
+    There are no movers in this world, so no lookahead is needed; the only
+    stochasticity is the target relocation, which is visible in the very
+    next frame and absorbed by re-planning. On worlds without key or door
+    pixels the solver never activates and holds still, so its matrix rows
+    there are honest zeros — the same contract the pellet teacher keeps.
+    """
+
+    __slots__ = ("_activated", "_key_seen", "_door_seen")
+    identity = "diagnostic.scripted_keys_doors_solver.v1"
+    uses_privileged_state = False
+
+    def reset(self, episode_seed: int) -> None:
+        if isinstance(episode_seed, bool) or not isinstance(episode_seed, int):
+            raise TypeError("episode_seed must be an integer")
+        self._activated = False
+        self._key_seen = False
+        self._door_seen = False
+
+    def act(self, observation: Observation) -> GenericControl:
+        walkable, player, key, door, target = _parse_keys_doors_frame(
+            observation.rgb, caller="keys_doors solver"
+        )
+        if key is not None:
+            self._key_seen = True
+        if door is not None:
+            self._door_seen = True
+        self._activated = self._activated or self._key_seen or self._door_seen
+        if not self._activated:
+            return GenericControl()
+
+        key_held = self._key_seen and key is None
+        door_open = self._door_seen and door is None
+        if not key_held:
+            if key is None:  # pragma: no cover - an uncollected key renders
+                return GenericControl()
+            goal = key
+            open_cells = walkable - ({door} if door is not None else set())
+        elif not door_open:
+            if door is None:  # pragma: no cover - a closed door renders
+                return GenericControl()
+            goal = door
+            open_cells = walkable
+        else:
+            if target is None:
+                # The player is standing on the just-collected target cell;
+                # the relocated target is visible again next tick.
+                return GenericControl()
+            goal = target
+            open_cells = walkable
+
+        field = _bfs_distances(player, frozenset(open_cells))
+        if goal not in field:
+            return GenericControl()
+        path = _downhill_path(field, player, goal)
+        delta = (path[0][0] - player[0], path[0][1] - player[1])
+        return GenericControl(keys_down=(_KEY_FOR_DELTA[delta],))
+
+
 def default_diagnostic_policies() -> tuple[object, ...]:
     """Return the §28 diagnostic policies in canonical suite order."""
 
@@ -767,6 +898,7 @@ __all__ = [
     "NoOpPolicy",
     "OraclePolicy",
     "RandomMovementPolicy",
+    "ScriptedKeysDoorsSolver",
     "ScriptedPelletTeacherPolicy",
     "ScriptedTargetChasePolicy",
     "default_diagnostic_policies",

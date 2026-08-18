@@ -222,6 +222,15 @@ planner demonstrations — validation teacher-agreement action loss 1.0156 →
 0.4600 on unseen sequences — with play-level transfer unmoved at this
 scale, pinning both instruments' zero-points for the DGX campaign. Record:
 [docs/runs/2026-08-17-maze-chase-smoke-distillation.md](./docs/runs/2026-08-17-maze-chase-smoke-distillation.md).
+The keys_doors scripted frontier is now mapped:
+`diagnostic.scripted_keys_doors_solver.v1` — a pixel-only key → door →
+target solver that derives the unrendered key-possession state from pixel
+disappearance across frames — collects 36 targets over the three canonical
+seeds (11/12/13 per 600-tick episode) where every prior policy scored a
+flat zero. The cross-world matrix is now 13 worlds × 6 policies = 78 cells
+(SHA-256 `4f10467fbecf539…`, all pre-existing cells unchanged; play-safe
+gate green, 506 tests). Record:
+[docs/runs/2026-08-17-keys-doors-solver-policy.md](./docs/runs/2026-08-17-keys-doors-solver-policy.md).
 The matched baseline suite gains the PLAN §28 item-12 control:
 `irene.thought_field.independent_ensemble.v1` — four untied members of
 eight slots each at width 352 (29,459,914 trainable, 0.72% under the

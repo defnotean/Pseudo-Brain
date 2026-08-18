@@ -170,7 +170,13 @@ PLAN.md §20 defines the ladder; the work items in this repo are:
    (`evaluation/cross_world_matrix.py`;
    [runs/2026-08-17-cross-world-diagnostic-matrix.md](runs/2026-08-17-cross-world-diagnostic-matrix.md))
    that already discriminates pursuit pressure, maze planning, occlusion
-   memory, and key/door sequencing.
+   memory, and key/door sequencing. The keys_doors scripted frontier is now
+   mapped by `diagnostic.scripted_keys_doors_solver.v1`, a pixel-only
+   key → door → target solver that derives the unrendered key-possession
+   state from pixel disappearance across frames: it collects 36 targets
+   over the three canonical seeds where every reactive policy scores a flat
+   zero, and the matrix is now 13 worlds × 6 policies = 78 cells
+   ([runs/2026-08-17-keys-doors-solver-policy.md](runs/2026-08-17-keys-doors-solver-policy.md)).
 2. **External open worlds** (license-cleared): XLand-MiniGrid, Craftax,
    Procgen — adapters behind `environments/protocol.py`, lifetime recording,
    held-out generator families.

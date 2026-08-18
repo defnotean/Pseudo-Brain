@@ -1,11 +1,11 @@
 """Cross-world diagnostic matrix: the same policies on every ladder world.
 
 With the in-repo environment ladder complete (moving shapes, pursuit,
-junction, occlusion, keys/doors), every future model row needs the same
-floor/reference context on every world. This module runs the non-privileged
-PLAN.md §28 diagnostic policies (no-op, random movement, scripted chaser)
-across all five worlds through the closed-loop evaluator and assembles one
-canonical evidence record.
+junction, occlusion, keys/doors, maze_chase), every future model row needs
+the same floor/reference context on every world. This module runs the
+non-privileged PLAN.md §28 diagnostic policies across every registered
+world slot through the closed-loop evaluator and assembles one canonical
+evidence record.
 
 The privileged oracle is deliberately excluded: it binds moving-shapes
 internals only, and privileged rows on the wrong world would be meaningless
@@ -13,7 +13,8 @@ rather than merely unflattering. The scripted chaser reads the shared public
 render contract, so it runs everywhere unmodified — its rows on the maze
 worlds (where walls defeat greedy pursuit of the target pixel) and on the
 occlusion world (where the target is usually invisible) are diagnostic
-signal, not bugs.
+signal, not bugs. The world-specific scripted teachers hold still on
+foreign worlds, so their rows there are honest zeros.
 """
 
 from __future__ import annotations
@@ -37,6 +38,7 @@ from .closed_loop_play import (
 from .diagnostic_policies import (
     NoOpPolicy,
     RandomMovementPolicy,
+    ScriptedKeysDoorsSolver,
     ScriptedMazeChasePlannerPolicy,
     ScriptedPelletTeacherPolicy,
     ScriptedTargetChasePolicy,
@@ -163,6 +165,7 @@ def matrix_policies() -> tuple[object, ...]:
         ScriptedTargetChasePolicy(),
         ScriptedPelletTeacherPolicy(),
         ScriptedMazeChasePlannerPolicy(),
+        ScriptedKeysDoorsSolver(),
     )
 
 

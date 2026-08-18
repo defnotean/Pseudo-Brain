@@ -9,6 +9,7 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
+from irene_brain.environments.keys_doors import KeysDoorsEnv
 from irene_brain.environments.maze_chase import MazeChaseEnv
 from irene_brain.environments.moving_shapes import MovingShapesEnv
 from irene_brain.evaluation.closed_loop_play import (
@@ -20,6 +21,7 @@ from irene_brain.evaluation.diagnostic_policies import (
     NoOpPolicy,
     OraclePolicy,
     RandomMovementPolicy,
+    ScriptedKeysDoorsSolver,
     ScriptedMazeChasePlannerPolicy,
     ScriptedPelletTeacherPolicy,
     ScriptedTargetChasePolicy,
@@ -340,6 +342,64 @@ class MazeChasePlannerTests(unittest.TestCase):
             )
             self.assertEqual(compensated.reward_sum, plain.reward_sum)
             self.assertEqual(compensated.collisions, plain.collisions)
+
+
+class KeysDoorsSolverTests(unittest.TestCase):
+    """The key→door→target solver maps the scripted keys_doors frontier."""
+
+    def _run(self, policy: object, seed: int, max_ticks: int = 240):
+        return run_policy_closed_loop_episode(
+            policy,
+            seed=seed,
+            config=_config(max_ticks=max_ticks),
+            environment_factory=lambda: KeysDoorsEnv(max_ticks=max_ticks),
+        )
+
+    def test_contract_flags_and_reset_validation(self) -> None:
+        solver = ScriptedKeysDoorsSolver()
+        self.assertEqual(solver.identity, "diagnostic.scripted_keys_doors_solver.v1")
+        self.assertFalse(solver.uses_privileged_state)
+        with self.assertRaises(TypeError):
+            solver.reset(True)  # type: ignore[arg-type]
+
+    def test_requires_the_canonical_grid_frame(self) -> None:
+        from irene_brain.types import Observation, RgbFrame
+
+        solver = ScriptedKeysDoorsSolver()
+        solver.reset(1)
+        wrong_size = Observation(
+            frame_id=0,
+            capture_tick=0,
+            elapsed_ns=0,
+            rgb=RgbFrame(width=8, height=8, pixels=bytes(8 * 8 * 3)),
+            previous_control=GenericControl(),
+            audio_pcm_s16le=None,
+            text_inputs=(),
+        )
+        with self.assertRaises(ValueError):
+            solver.act(wrong_size)
+
+    def test_solver_is_deterministic_per_seed(self) -> None:
+        first = self._run(ScriptedKeysDoorsSolver(), seed=5)
+        second = self._run(ScriptedKeysDoorsSolver(), seed=5)
+        self.assertEqual(first, second)
+
+    def test_solver_collects_targets_where_reactive_policies_score_zero(self) -> None:
+        for seed in (5, 9):
+            report = self._run(ScriptedKeysDoorsSolver(), seed)
+            self.assertGreaterEqual(report.targets_collected, 1)
+            self.assertGreaterEqual(report.reward_sum, 1.0)
+            self.assertEqual(report.decisions_rejected, 0)
+
+    def test_solver_holds_still_on_foreign_worlds(self) -> None:
+        report = run_policy_closed_loop_episode(
+            ScriptedKeysDoorsSolver(),
+            seed=5,
+            config=_config(max_ticks=60, hazard_count=1),
+            environment_factory=lambda: MovingShapesEnv(hazard_count=1, max_ticks=60),
+        )
+        self.assertEqual(report.targets_collected, 0)
+        self.assertEqual(report.movement_mask_histogram, ((0, 60),))
 
 
 if __name__ == "__main__":
