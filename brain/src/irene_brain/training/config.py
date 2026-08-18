@@ -37,6 +37,13 @@ OBJECTIVE_OPTIONAL_DEFAULTS: dict[str, object] = {
     "continuous_output_squash": "none",
 }
 
+# Maze-chase episode-window sampling. Omitted from canonical JSON at 0 so
+# every historical moving_shapes and spawn-only maze_chase configuration
+# hash stays byte-identical. A positive value is a new identity.
+DATASET_OPTIONAL_DEFAULTS: dict[str, object] = {
+    "episode_horizon": 0,
+}
+
 
 def _table(value: object, *, name: str) -> Mapping[str, Any]:
     if not isinstance(value, Mapping):
@@ -129,6 +136,7 @@ class DatasetConfig:
     hazard_count: int
     tick_period_ns: int
     discount: float
+    episode_horizon: int = 0
 
     def __post_init__(self) -> None:
         kind = _string(self.kind, name="dataset.kind")
@@ -169,6 +177,16 @@ class DatasetConfig:
             self.test_sequences,
         ) > namespace_size:
             raise ValueError("dataset sequence range exceeds its split namespace")
+        horizon = _integer(self.episode_horizon, name="dataset.episode_horizon")
+        if horizon != 0 and horizon <= self.sequence_length:
+            raise ValueError(
+                "dataset.episode_horizon must be 0 or greater than sequence_length"
+            )
+        if kind == "moving_shapes" and horizon != 0:
+            raise ValueError(
+                "dataset.episode_horizon is only valid for maze_chase"
+            )
+        object.__setattr__(self, "episode_horizon", horizon)
 
 
 @dataclass(frozen=True, slots=True)
@@ -850,6 +868,9 @@ class TrainingConfig:
         for key, default in OBJECTIVE_OPTIONAL_DEFAULTS.items():
             if result["objective"].get(key) == default:
                 del result["objective"][key]
+        for key, default in DATASET_OPTIONAL_DEFAULTS.items():
+            if result["dataset"].get(key) == default:
+                del result["dataset"][key]
         return result
 
     @property
@@ -994,6 +1015,22 @@ class TrainingConfig:
                     **tables[name],
                 }
                 continue
+            if name == "dataset":
+                optional = frozenset(DATASET_OPTIONAL_DEFAULTS)
+                unknown = sorted(set(tables[name]) - set(fields) - set(optional))
+                missing = sorted(set(fields) - set(tables[name]))
+                if unknown or missing:
+                    details: list[str] = []
+                    if missing:
+                        details.append(f"missing fields: {', '.join(missing)}")
+                    if unknown:
+                        details.append(f"unknown fields: {', '.join(unknown)}")
+                    raise ValueError(f"dataset: {'; '.join(details)}")
+                tables[name] = {
+                    **DATASET_OPTIONAL_DEFAULTS,
+                    **tables[name],
+                }
+                continue
             _exact_fields(tables[name], name=name, required=fields)
         stages: tuple[TrainingStageConfig, ...] = ()
         if schema_version == 3:
@@ -1061,5 +1098,7 @@ __all__ = [
     "RunConfig",
     "TrainingConfig",
     "TrainingStageConfig",
+    "DATASET_OPTIONAL_DEFAULTS",
+    "OBJECTIVE_OPTIONAL_DEFAULTS",
     "load_training_config",
 ]

@@ -22,6 +22,7 @@ from irene_brain.training.batches import (
 from irene_brain.training.config import DatasetConfig, load_training_config
 from irene_brain.training.play_gate import (
     CAMPAIGN_ID,
+    CAMPAIGN_PELLET_FLOOR,
     NOOP_COLLISION_FLOOR,
     NOOP_REWARD_FLOOR,
     PLAY_SEEDS,
@@ -136,12 +137,40 @@ class PlayGatedMazeChaseConfigTests(unittest.TestCase):
         source = dataset_batch_source(windowed.dataset)
         self.assertIsInstance(source, MazeChaseBatchSource)
 
+    def test_episode_windows_probe_keeps_eight_tick_windows_and_later_horizon(self) -> None:
+        short = load_training_config(
+            ROOT / "configs" / "training" / "dgx-play-maze-chase-distill-probe.toml"
+        )
+        windows = load_training_config(
+            ROOT
+            / "configs"
+            / "training"
+            / "dgx-play-maze-chase-distill-episode-windows.toml"
+        )
+        self.assertEqual(windows.schema_version, 2)
+        self.assertEqual(windows.dataset.kind, "maze_chase")
+        self.assertEqual(windows.run.max_optimizer_steps, 32)
+        self.assertEqual(windows.dataset.sequence_length, 8)
+        self.assertEqual(windows.dataset.episode_horizon, 240)
+        self.assertEqual(short.dataset.episode_horizon, 0)
+        self.assertEqual(windows.run.seed, short.run.seed)
+        self.assertEqual(windows.run.model_factory, short.run.model_factory)
+        self.assertEqual(
+            windows.optimization.scheduler_kind, short.optimization.scheduler_kind
+        )
+        self.assertNotEqual(short.config_sha256, windows.config_sha256)
+        self.assertNotIn("episode_horizon", short.to_dict()["dataset"])
+        self.assertEqual(windows.to_dict()["dataset"]["episode_horizon"], 240)
+        source = dataset_batch_source(windows.dataset)
+        self.assertIsInstance(source, MazeChaseBatchSource)
+
     def test_play_gate_floor_is_frozen(self) -> None:
         self.assertEqual(CAMPAIGN_ID, "play_gated_maze_chase_distill_v1")
         self.assertEqual(PLAY_SEEDS, (5, 9))
         self.assertEqual(PLAY_TICKS, 240)
         self.assertEqual(NOOP_REWARD_FLOOR, -161.0)
         self.assertEqual(NOOP_COLLISION_FLOOR, 17)
+        self.assertEqual(CAMPAIGN_PELLET_FLOOR, 32)
 
     def test_play_eval_does_not_hardcode_cpu_device(self) -> None:
         import inspect
@@ -161,6 +190,8 @@ class PlayGatedMazeChaseConfigTests(unittest.TestCase):
         self.assertIn('totals["pellets_eaten"]', source)
         self.assertNotIn('totals["targets_collected"]', source)
         self.assertIn("movement_mask_histogram", source)
+        self.assertIn("campaign_success", source)
+        self.assertIn("sticky_or_idle", source)
 
     def test_maze_chase_play_counts_pellets_not_targets(self) -> None:
         class _Cycle:

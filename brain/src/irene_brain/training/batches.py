@@ -61,6 +61,7 @@ def dataset_batch_source(config: DatasetConfig):
                 seed_offset=config.seed_offset,
                 tick_period_ns=config.tick_period_ns,
                 discount=config.discount,
+                episode_horizon=config.episode_horizon,
             )
         )
     raise ValueError(f"unsupported dataset.kind: {config.kind}")
@@ -255,6 +256,7 @@ class MazeChaseBatchConfig:
     sticky_direction: bool = False
     tick_period_ns: int = MazeChaseEnv.DEFAULT_TICK_PERIOD_NS
     discount: float = 0.99
+    episode_horizon: int = 0
 
     def __post_init__(self) -> None:
         for value, name in (
@@ -315,6 +317,16 @@ class MazeChaseBatchConfig:
             raise ValueError("maze_chase.discount must be a number")
         if not 0.0 <= float(self.discount) <= 1.0:
             raise ValueError("maze_chase.discount must be in [0, 1]")
+        if isinstance(self.episode_horizon, bool) or not isinstance(
+            self.episode_horizon, int
+        ):
+            raise ValueError("maze_chase.episode_horizon must be an integer")
+        if self.episode_horizon < 0 or self.episode_horizon > (2**32 - 1):
+            raise ValueError("maze_chase.episode_horizon must be in [0, 2**32 - 1]")
+        if self.episode_horizon != 0 and self.episode_horizon <= self.sequence_length:
+            raise ValueError(
+                "maze_chase.episode_horizon must be 0 or greater than sequence_length"
+            )
         if self.seed_offset + max(
             self.train_sequences,
             self.validation_sequences,
@@ -332,6 +344,11 @@ class MazeChaseBatchSource:
     length stays below the maze's pellet count always truncate at the
     boundary and batch cleanly; the canonical slot clears in roughly 150–250
     ticks, well above the registered 128-tick training length.
+
+    When ``episode_horizon`` is positive this source is named
+    ``maze_chase_episode_windows``: the planner rolls through a full
+    episode and each sequence is a uniform window of ``sequence_length``
+    drawn from that trajectory, not ticks 0–N from spawn.
     """
 
     def __init__(self, config: MazeChaseBatchConfig) -> None:
@@ -360,13 +377,18 @@ class MazeChaseBatchSource:
                     sticky_direction=config.sticky_direction,
                     tick_period_ns=config.tick_period_ns,
                     discount=config.discount,
+                    episode_horizon=config.episode_horizon,
                 )
             )
             for split, count in counts.items()
         }
         manifest = {
             "schema_version": 1,
-            "batch_source": "maze_chase_split_namespaces",
+            "batch_source": (
+                "maze_chase_episode_windows"
+                if config.episode_horizon > 0
+                else "maze_chase_split_namespaces"
+            ),
             "control_layout": CONTROL_LAYOUT_ID,
             "input_boundary": "ModelObservation-v1",
             "burn_in_steps": config.burn_in_steps,
@@ -717,6 +739,7 @@ class MixedWorldBatchSource:
                     sticky_direction=maze.sticky_direction,
                     tick_period_ns=maze.tick_period_ns,
                     discount=maze.discount,
+                    episode_horizon=maze.episode_horizon,
                 )
             )
             for split, count in counts.items()

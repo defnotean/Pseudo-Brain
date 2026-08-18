@@ -8,10 +8,13 @@ value identities, and legal stopping rules are in
 
 The live campaign is **play-gated maze-chase distill v1**, not RCQ.
 Spark-only compute. Window-32 probe **failed** (idle no-op, 9 pellets).
-Do not start an unlabeled long train. Spark is idle. Next distinct
-named idea is not started.
+Do not retry or scale it. Next distinct probe samples 8-tick windows from
+across a 240-tick planner episode
+(`dgx-play-maze-chase-distill-episode-windows-v1`). Campaign success is
+pellets ≥ 32 with a non-idle non-D-only histogram, not merely
+`play_moved: true`.
 
-The window-32 launch (completed; failed):
+The episode-windows launch:
 
 ```powershell
 & .\brain\scripts\dgx\Invoke-DgxPreflight.ps1 `
@@ -42,8 +45,8 @@ The window-32 launch (completed; failed):
   -RemoteWorkDir '~/projects/pseudo-brain' `
   -ReleaseId '<release-id>' `
   -ContainerImage 'vllm/vllm-openai:nightly-aarch64' `
-  -ConfigRelativePath 'brain/configs/training/dgx-play-maze-chase-distill-window32.toml' `
-  -RunId 'dgx-play-maze-chase-distill-window32-v1' `
+  -ConfigRelativePath 'brain/configs/training/dgx-play-maze-chase-distill-episode-windows.toml' `
+  -RunId 'dgx-play-maze-chase-distill-episode-windows-v1' `
   -LaunchMode Tmux `
   -AcknowledgeDetached `
   -MinFreeDiskGiB 20 `
@@ -52,10 +55,9 @@ The window-32 launch (completed; failed):
   -ContainerMemoryGiB 48
 ```
 
-Scale only if `play-gate.json` shows pellets well above the ~10 D-hug
-band (or a non-D movement histogram), not merely `play_moved: true`.
-Window-32 did not: idle no-op, 9 pellets, mask 0. Do not scale.
-Record:
+Scale only if `play-gate.json` shows `campaign_success: true` (pellets ≥ 32
+and a WASD histogram that is not idle / D-only). Sticky D and no-op are
+fail. Record:
 [runs/2026-08-18-play-gated-maze-chase-distill.md](runs/2026-08-18-play-gated-maze-chase-distill.md).
 
 The live `rcq_v2_reference_v2` reference on seed 1702 already failed the

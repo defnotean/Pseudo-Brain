@@ -74,6 +74,10 @@ class MazeChaseBatchConfigTests(unittest.TestCase):
             _batch_config(discount=1.5)
         with self.assertRaises(ValueError):
             _batch_config(seed_offset=(1 << 62) - 1, train_sequences=4)
+        with self.assertRaises(ValueError):
+            _batch_config(episode_horizon=8)
+        with self.assertRaises(ValueError):
+            _batch_config(episode_horizon=-1)
 
     def test_source_rejects_wrong_config_and_split(self) -> None:
         with self.assertRaises(ValueError):
@@ -94,6 +98,7 @@ class MazeChaseBatchSourceTests(unittest.TestCase):
             {"ghost_elroy": True},
             {"input_delay_ticks": 2},
             {"burn_in_steps": 2},
+            {"episode_horizon": 24},
         ):
             self.assertNotEqual(
                 MazeChaseBatchSource(_batch_config(**override)).manifest_sha256,
@@ -118,6 +123,11 @@ class MazeChaseBatchSourceTests(unittest.TestCase):
         )
         maze = MazeChaseBatchSource(_batch_config())
         self.assertNotEqual(moving.manifest_sha256, maze.manifest_sha256)
+
+    def test_episode_windows_are_a_named_batch_source(self) -> None:
+        spawn = MazeChaseBatchSource(_batch_config())
+        windows = MazeChaseBatchSource(_batch_config(episode_horizon=24))
+        self.assertNotEqual(spawn.manifest_sha256, windows.manifest_sha256)
 
     def test_batches_repeat_exactly_and_resume_at_a_batch_boundary(self) -> None:
         source = MazeChaseBatchSource(_batch_config())

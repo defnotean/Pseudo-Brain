@@ -2,9 +2,41 @@
 
 Status: **current campaign**. Window-32 probe **failed**: idle no-op
 (`play_moved: false`, reward **-161**, collisions 17, **9 pellets**,
-histogram mask 0 × 480 ticks). Spark is idle. Do not scale. Do not start
-a 2048-step train. Next distinct idea is not started. RCQ-v2 seed 1702
-stays terminal. No v3 registration. No sealed TEST.
+histogram mask 0 × 480 ticks). Do not retry or scale it. Next distinct
+idea is later-tick / full-episode teacher windows, not a longer
+`sequence_length` on spawn snippets. RCQ-v2 seed 1702 stays terminal. No
+v3 registration. No sealed TEST.
+
+## Episode-window probe (preregistered)
+
+Hypothesis: 8-tick spawn-only snippets never showed pellet-seeking or
+corridor choice (planner clears seed 5 at tick 208). Sampling the same
+8-tick window length from **across a 240-tick planner trajectory**
+exposes later ticks, including pellets and the clear path, without the
+value-scale blow-up that falsified window-32.
+
+Sampling change:
+
+- Spawn-only (`episode_horizon = 0`, default) is unchanged:
+  `irene.maze_chase.planner_teacher.v1`, `max_ticks = sequence_length`.
+  Historical maze_chase dataset hashes stay byte-identical.
+- Positive `episode_horizon` is a named source:
+  `irene.maze_chase.planner_teacher.episode_windows.v1` /
+  batch source `maze_chase_episode_windows`. The planner rolls through
+  the horizon, then a deterministic uniform start picks an 8-tick window.
+  Value targets are recomputed on the sliced window (zero-bootstrap at
+  the window end) so the 8-tick value scale is preserved.
+
+| Field | Value |
+|---|---|
+| Run id | `dgx-play-maze-chase-distill-episode-windows-v1` |
+| Config | `brain/configs/training/dgx-play-maze-chase-distill-episode-windows.toml` |
+| Canonical config SHA-256 | `8738d61a34216dc6749919171ad60eaec64c7e7cf6edc80932cde7a1ff296e7b` |
+| Batch-source SHA-256 | `ad167a9518bbdc948b98e442f24d14fea6c6297a4b1c08f470bd0804ca5a742d` |
+| Budget | 32 optimizer steps, `sequence_length = 8`, `episode_horizon = 240` |
+| Play eval | seeds 5/9 × 240 ticks; honest `pellet_eaten`; WASD histogram |
+| Campaign pass | `pellets_eaten >= 32` and histogram not idle / D-only |
+| Fail | sticky D, idle no-op, or pellets in the 9–10 band |
 
 ## Window-32 probe result (2026-08-18)
 
@@ -110,10 +142,9 @@ same 8-tick openings overfit D and froze val exact-match at 0.458.
 ### Next bounded probe (completed; failed)
 
 Hypothesis: **32-tick teacher windows at the same 32-step budget as v2**
-unstick D. **Falsified.** Play is idle no-op (mask 0 × 480). Next
-distinct idea is not started: do not scale; a later named probe must
-attack sticky D without exploding value loss (for example freeze
-`value_weight` on 8-tick windows, or rare-class / entropy unstick).
+unstick D. **Falsified.** Play is idle no-op (mask 0 × 480). Do not
+retry or scale. The next distinct idea (episode-window sampling of 8-tick
+windows from 240-tick planner rollouts) is preregistered above.
 
 | Field | Value |
 |---|---|
@@ -261,13 +292,15 @@ and not an RCQ qualification.
 | First probe run id | `dgx-play-maze-chase-distill-probe-v1` (trained; play-gate crashed) |
 | Passing 32-step run id | `dgx-play-maze-chase-distill-probe-v2` (`play_moved: true`) |
 | Passing 128-step run id | `dgx-play-maze-chase-distill-probe-128-v1` (`play_moved: true`, same play numbers) |
-| Next probe run id | `dgx-play-maze-chase-distill-window32-v1` (**failed**; idle no-op) |
+| Next probe run id | `dgx-play-maze-chase-distill-episode-windows-v1` |
+| Failed window-32 run id | `dgx-play-maze-chase-distill-window32-v1` (idle no-op; do not retry) |
 | 32-step config | `brain/configs/training/dgx-play-maze-chase-distill-probe.toml` |
 | 128-step config | `brain/configs/training/dgx-play-maze-chase-distill-probe-128.toml` |
 | Window-32 config | `brain/configs/training/dgx-play-maze-chase-distill-window32.toml` |
+| Episode-windows config | `brain/configs/training/dgx-play-maze-chase-distill-episode-windows.toml` |
 | Model factory | `irene_brain.training.factory:build_thesis_model` |
-| Data | lazy `irene.maze_chase.planner_teacher.v1` via `dataset.kind = "maze_chase"` |
-| Probe budget | 32 optimizer steps with `sequence_length = 32`; schema 2, constant after warmup |
+| Data | `irene.maze_chase.planner_teacher.episode_windows.v1` via `dataset.kind = "maze_chase"` and `episode_horizon = 240` |
+| Probe budget | 32 optimizer steps with `sequence_length = 8` windows drawn from 240-tick planner rollouts; schema 2, constant after warmup |
 | Play eval | seeds 5/9, 240 ticks, canonical maze slot (3 ghosts, period 2, 16 extra loops) |
 
 ## Success / fail / stop
@@ -277,12 +310,13 @@ on the same play config: **reward_sum -161, collisions 17**. Implied
 no-op pellets are 9 (reward arithmetic). Historical play-gate JSON
 `pellets_eaten: 0` is the wrong event name, not a world fact.
 
-- **Play moved** (thin probe pass): `reward_sum > -161`.
-- **Window-32 probe** failed as idle no-op. Do not scale. Next distinct
-  named idea (value-weight freeze on 8-tick windows, rare-class /
-  entropy unstick) is not started.
-- **Campaign pass** (later): neural play that eats pellets / clears, not
-  one less collision than no-op.
+- **Play moved** (thin probe instrument): `reward_sum > -161`. Sticky D
+  at **-150** / 16 collisions / ~10 pellets still fails the campaign.
+- **Campaign pass**: `pellets_eaten >= 32` and a movement histogram that
+  is not idle (mask 0) or D-only (mask 8). A planner-like clear is ~142
+  pellets on seed 5.
+- **Window-32 probe** failed as idle no-op. Do not retry or scale it.
+- **Sticky D / no-op is fail**, even if `play_moved` is true.
 
 `train.py` writes `play-gate.json` into the run directory after a
 maze_chase train or evaluate-only pass. The play gate uses reward_sum
@@ -296,6 +330,20 @@ out of `targets_collected` so the cross-world no-op floor stays world-flat.
 - Physical 60 Hz latency
 - Transfer to other ladder worlds (one transfer world waits until play
   has moved and hygiene is tight)
+
+## Spark sequence (episode-windows probe)
+
+1. `Invoke-DgxPreflight.ps1`
+2. `Sync-DgxBrainRelease.ps1` (new release after this source change)
+3. `Invoke-DgxBrainSmoke.ps1` on `dgx-smoke.toml` (receipt written)
+4. `Start-DgxBrainTraining.ps1` with
+   `dgx-play-maze-chase-distill-episode-windows.toml`, run id
+   `dgx-play-maze-chase-distill-episode-windows-v1`, Tmux with
+   `-AcknowledgeDetached`
+5. Watch to `play-gate.json`. Do not scale if sticky D or idle.
+
+Generic wrappers only. Never `Start-DgxRcqV2Reference.ps1`. Never point
+generic train at an RCQ config.
 
 ## Spark sequence (window-32 probe, completed; failed)
 

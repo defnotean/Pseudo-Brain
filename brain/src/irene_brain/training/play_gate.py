@@ -8,6 +8,11 @@ when reward exceeds that floor. Action-loss drops alone are a fail.
 ``pellets_eaten`` counts maze_chase ``pellet_eaten`` events. Historical
 probe JSON files mapped the world-flat ``target_collected`` column and
 always printed 0; reward arithmetic on those runs is the pellet record.
+
+Campaign success is eating pellets well above the no-op / sticky-D band
+(~9–10 pellets) or clearing a maze. ``play_moved`` remains the thin
+reward-floor instrument; sticky D and idle no-op fail the campaign gate
+even when reward_sum is one catch better than no-op.
 """
 
 from __future__ import annotations
@@ -26,6 +31,10 @@ PLAY_SEEDS = (5, 9)
 PLAY_TICKS = 240
 NOOP_REWARD_FLOOR = -161.0
 NOOP_COLLISION_FLOOR = 17
+# No-op eats 9 pellets; sticky D ate ~10. Campaign pass is well above that.
+CAMPAIGN_PELLET_FLOOR = 32
+IDLE_MOVEMENT_MASK = 0
+D_ONLY_MOVEMENT_MASK = 8
 
 
 def maze_chase_play_config() -> ClosedLoopPlayConfig:
@@ -39,6 +48,11 @@ def maze_chase_environment_factory() -> MazeChaseEnv:
         extra_loops=16,
         max_ticks=PLAY_TICKS,
     )
+
+
+def _is_sticky_or_idle(histogram: dict[int, int]) -> bool:
+    active = {mask for mask, count in histogram.items() if count > 0}
+    return not active or active <= {IDLE_MOVEMENT_MASK, D_ONLY_MOVEMENT_MASK}
 
 
 def evaluate_maze_chase_play(model: object) -> dict[str, object]:
@@ -57,22 +71,34 @@ def evaluate_maze_chase_play(model: object) -> dict[str, object]:
         for mask, count in episode.movement_mask_histogram:
             histogram[int(mask)] = histogram.get(int(mask), 0) + int(count)
     play_moved = reward > NOOP_REWARD_FLOOR
+    sticky_or_idle = _is_sticky_or_idle(histogram)
+    # maze_chase only terminates early on a clear. Early ticks without
+    # pellets are a crash/abort, not a win, so clears are reported but
+    # campaign success still requires the pellet floor.
+    mazes_cleared = sum(
+        1 for episode in report.episodes if episode.ticks_advanced < PLAY_TICKS
+    )
+    campaign_success = pellets >= CAMPAIGN_PELLET_FLOOR and not sticky_or_idle
     return {
         "campaign_id": CAMPAIGN_ID,
         "play_seeds": list(PLAY_SEEDS),
         "play_ticks": PLAY_TICKS,
         "noop_reward_floor": NOOP_REWARD_FLOOR,
         "noop_collision_floor": NOOP_COLLISION_FLOOR,
+        "campaign_pellet_floor": CAMPAIGN_PELLET_FLOOR,
         "reward_sum": reward,
         "collisions": collisions,
         "pellets_eaten": pellets,
+        "mazes_cleared": mazes_cleared,
         # W=bit0, A=bit1, S=bit2, D=bit3. Mask 8 is D-only; mask 0 is idle.
         "movement_mask_histogram": [
             [mask, count] for mask, count in sorted(histogram.items())
         ],
         "decisions_rejected": int(totals["decisions_rejected"]),
         "play_moved": play_moved,
-        "gate": "passed" if play_moved else "failed",
+        "sticky_or_idle": sticky_or_idle,
+        "campaign_success": campaign_success,
+        "gate": "passed" if campaign_success else "failed",
         "report_sha256": report.sha256,
     }
 
@@ -90,6 +116,7 @@ def write_maze_chase_play_gate(model: object, run_dir: Path) -> dict[str, object
 
 __all__ = [
     "CAMPAIGN_ID",
+    "CAMPAIGN_PELLET_FLOOR",
     "NOOP_COLLISION_FLOOR",
     "NOOP_REWARD_FLOOR",
     "PLAY_SEEDS",
