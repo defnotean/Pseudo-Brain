@@ -5,11 +5,12 @@ Updated: 2026-08-18
 ## Current campaign: play-gated maze-chase distill v1
 
 Status: **play-gated maze-chase distill v1** is the live campaign
-(`play_gated_maze_chase_distill_v1`). First Spark probe is 32 thesis-model
-optimizer steps on planner-teacher maze_chase, then closed-loop play on
-seeds 5/9, 240 ticks. Play moved only if reward_sum exceeds the frozen
-no-op floor **-161**. Action-loss-only drops are a fail. Workstation is
-orchestration; all compute is Spark. Record:
+(`play_gated_maze_chase_distill_v1`). First Spark probe is **running**:
+release `r20260818t155535z-ac06f47b314b`, run
+`dgx-play-maze-chase-distill-probe-v1`, 32 thesis-model steps, then
+closed-loop play on seeds 5/9, 240 ticks. Play moved only if reward_sum
+exceeds the frozen no-op floor **-161**. Action-loss-only drops are a
+fail. Workstation is orchestration; all compute is Spark. Record:
 [docs/runs/2026-08-18-play-gated-maze-chase-distill.md](./docs/runs/2026-08-18-play-gated-maze-chase-distill.md).
 
 Historical: live qualification `rcq_v2_reference_v2` is **terminally failed**. The

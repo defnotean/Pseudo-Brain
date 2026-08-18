@@ -45,7 +45,7 @@ campaign.
 | 8 | Newly named qualification after the invariance capture fix | Done. Live file `registrations/rcq-v2-reference-v2.json`. Do not edit v1. |
 | 9 | Preclaim, independent review, final authorization, one-shot TEST | Blocked. This qualification failed the entry gate. Do not preclaim or open TEST. |
 | — | RCQ-v3 registration ceremony | **Deferred.** Do not run `New-RcqV3Registration.ps1`. |
-| — | Current campaign | Play-gated maze-chase distill v1. Probe config `dgx-play-maze-chase-distill-probe.toml`, run `dgx-play-maze-chase-distill-probe-v1`, 32 steps. Scale only if play beats reward -161. |
+| — | Current campaign | Play-gated maze-chase distill v1. Probe **running** on Spark: release `r20260818t155535z-ac06f47b314b`, run `dgx-play-maze-chase-distill-probe-v1`, 32 steps. Scale only if play beats reward -161. |
 | — | Compute | Spark only. One bounded job at a time. Generic wrappers, never RCQ-v2 start/resume. |
 
 Do not skip ahead. Do not open sealed TEST ranges to "check" labels. Do not

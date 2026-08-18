@@ -1,8 +1,15 @@
 # Play-gated maze-chase distill campaign v1 (2026-08-18)
 
-Status: **current campaign**. Preregistered before any Spark train.
+Status: **current campaign**. First probe is **running** on Spark.
 RCQ-v2 seed 1702 stays terminal. No v3 registration. No sealed TEST.
 Compute is Spark-only; the workstation is orchestration.
+
+Live probe identities (2026-08-18):
+
+- Release `r20260818t155535z-ac06f47b314b` (archive SHA-256 `ac06f47b314b…`)
+- Smoke receipt on that release (image `sha256:177a406d7cb2…`)
+- Run id `dgx-play-maze-chase-distill-probe-v1`
+- Config SHA-256 `f74732be8b03535a31e0fa4178b183283653c4d0eec4117bb384c8dc2916f124`
 
 ## Question
 
