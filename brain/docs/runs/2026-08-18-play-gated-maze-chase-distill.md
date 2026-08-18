@@ -1,10 +1,41 @@
 # Play-gated maze-chase distill campaign v1 (2026-08-18)
 
-Status: **current campaign**. Probe v1 trained 32 steps then **crashed
-before `play-gate.json`**. `play_moved` is missing. Probe v2 is the next
-bounded Spark job (same 32-step recipe after the CUDA play-eval fix).
-RCQ-v2 seed 1702 stays terminal. No v3 registration. No sealed TEST.
-Compute is Spark-only; the workstation is orchestration.
+Status: **current campaign**. Probe v2 **passed** play: `play_moved: true`,
+reward_sum **-150**, collisions 16, 0 pellets. Probe v1 trained then
+crashed before `play-gate.json`. Next bounded Spark job is 128 steps
+(`dgx-play-maze-chase-distill-probe-128-v1`), still play-gated. RCQ-v2
+seed 1702 stays terminal. No v3 registration. No sealed TEST. Compute is
+Spark-only; the workstation is orchestration.
+
+## Probe v2 result (2026-08-18)
+
+Play moved. Official `play-gate.json`:
+[artifacts/play-gated-maze-chase-distill/probe-v2-play-gate.json](./artifacts/play-gated-maze-chase-distill/probe-v2-play-gate.json).
+
+| Field | Value |
+|---|---|
+| Release | `r20260818t160829z-82aef6dbc370` (archive SHA-256 `82aef6dbc370…`) |
+| Container image | `sha256:177a406d7cb2…` |
+| Run id | `dgx-play-maze-chase-distill-probe-v2` |
+| Canonical config SHA-256 | `f74732be8b03535a31e0fa4178b183283653c4d0eec4117bb384c8dc2916f124` |
+| Checkpoint | `checkpoints/step-00000032.pt` |
+| Checkpoint SHA-256 | `e0515628943633f1078eb89ba39424df0566aa4862743e9367352c823e153fb8` |
+| `latest.json` SHA-256 | `1020dbadd9dea3ac0f662db745863bc10cb3ecd4f5720c97c29c6c4387da7bce` |
+| Metrics SHA-256 | `3608402766c03c601ec8bbea41895d7cfdf0711fc8b3b56e467b98441821d494` (bit-identical to v1 train/val logs) |
+| `play-gate.json` SHA-256 | `df9d88f47181f911ea96ae71424ff841e9e55bd291ab861e3f6615ea9f08e4bb` |
+| Report SHA-256 | `e9f68c644c7b0609cc2622709fd609b63c333815147444d6b8c1deb76c21636c` |
+| `play_moved` | **true** |
+| `gate` | `passed` |
+| reward_sum | **-150** (floor -161) |
+| collisions | **16** (floor 17) |
+| pellets_eaten | **0** |
+| decisions_rejected | 0 |
+
+This is a thin pass: one fewer collision than no-op across 480 ticks, no
+pellets. Logger train/val numbers match v1 (loss 0.402 / 0.726, movement
+exact 0.500 / 0.458) and are still not the gate. Next job asks whether a
+bounded 128-step train keeps play above the floor and whether pellets
+appear. Not a 2048-step scale-up.
 
 ## Probe v1 result (2026-08-18)
 
@@ -53,18 +84,20 @@ device from `next(model.parameters()).device`, the same pattern as the
 RCQ evaluators. Do not resume v1: checkpoint `code_sha256` would
 disagree with the fixed tree. Next job is a newly named 32-step probe.
 
-## Probe v2 (preregistered)
+## 128-step probe (preregistered)
 
-Same question, same play floor, same 32-step recipe. New run id only.
+Same play floor and recipe as v2. Horizon is 128 optimizer steps, not a
+campaign-scale train. Fail if `play_moved` is false or collisions exceed
+17.
 
 | Field | Value |
 |---|---|
-| Run id | `dgx-play-maze-chase-distill-probe-v2` |
-| Config | `brain/configs/training/dgx-play-maze-chase-distill-probe.toml` (unchanged recipe) |
-| Budget | 32 optimizer steps, then seeds 5/9 × 240 ticks |
-| Pass | `play-gate.json` with `play_moved: true` (`reward_sum > -161`) |
+| Run id | `dgx-play-maze-chase-distill-probe-128-v1` |
+| Config | `brain/configs/training/dgx-play-maze-chase-distill-probe-128.toml` |
+| Budget | 128 optimizer steps, then seeds 5/9 × 240 ticks |
+| Pass | `play-gate.json` with `play_moved: true` and collisions ≤ 17 |
 
-Live v1 identities (historical; do not relaunch):
+## Probe v1 identities (historical; do not relaunch)
 
 - Release `r20260818t155535z-ac06f47b314b` (archive SHA-256 `ac06f47b314b…`)
 - Smoke receipt on that release (image `sha256:177a406d7cb2…`)
@@ -86,11 +119,13 @@ and not an RCQ qualification.
 |---|---|
 | Campaign id | `play_gated_maze_chase_distill_v1` |
 | First probe run id | `dgx-play-maze-chase-distill-probe-v1` (trained; play-gate crashed) |
-| Next probe run id | `dgx-play-maze-chase-distill-probe-v2` |
-| Config | `brain/configs/training/dgx-play-maze-chase-distill-probe.toml` |
+| Passing 32-step run id | `dgx-play-maze-chase-distill-probe-v2` (`play_moved: true`) |
+| Next probe run id | `dgx-play-maze-chase-distill-probe-128-v1` |
+| 32-step config | `brain/configs/training/dgx-play-maze-chase-distill-probe.toml` |
+| 128-step config | `brain/configs/training/dgx-play-maze-chase-distill-probe-128.toml` |
 | Model factory | `irene_brain.training.factory:build_thesis_model` |
 | Data | lazy `irene.maze_chase.planner_teacher.v1` via `dataset.kind = "maze_chase"` |
-| Probe budget | 32 optimizer steps, schema 2, constant after warmup |
+| Probe budget | 32-step pass done; next bounded budget 128 steps, schema 2, constant after warmup |
 | Play eval | seeds 5/9, 240 ticks, canonical maze slot (3 ghosts, period 2, 16 extra loops) |
 
 ## Success / fail / stop
@@ -104,9 +139,9 @@ on the same play config: **reward_sum -161, collisions 17, zero pellets**.
 - **Stop**: if the probe fails, do not start a longer Spark train. Diagnose
   (teacher/closed-loop mismatch, action decode, reset, horizon, twitch)
   and run the next **newly named** bounded probe.
-- **Campaign pass** (later, only after play has moved): a preregistered
-  longer run that stays above the floor and does not regress collisions
-  above 17. Not opened by this probe.
+- **Campaign pass** (later): a preregistered longer run that stays above
+  the floor and does not regress collisions above 17. The 128-step probe
+  is the next bounded step, not that campaign pass.
 
 `train.py` writes `play-gate.json` into the run directory after a
 maze_chase train or evaluate-only pass. The play gate uses reward_sum
@@ -121,15 +156,17 @@ against the no-op floor. Maze `pellet_eaten` stays out of
 - Transfer to other ladder worlds (one transfer world waits until play
   has moved and hygiene is tight)
 
-## Spark sequence (this probe)
+## Spark sequence (128-step probe)
 
 1. `Invoke-DgxPreflight.ps1`
 2. `Sync-DgxBrainRelease.ps1` (new immutable release; do not chmod it)
 3. `Invoke-DgxBrainSmoke.ps1` on `dgx-smoke.toml` (required receipt)
-4. `Start-DgxBrainTraining.ps1` with this config, run id
-   `dgx-play-maze-chase-distill-probe-v2` (v1 already ran), Foreground or
-   Tmux with `-AcknowledgeDetached`
-5. Read `play-gate.json`. Scale only if `play_moved` is true.
+4. `Start-DgxBrainTraining.ps1` with
+   `dgx-play-maze-chase-distill-probe-128.toml`, run id
+   `dgx-play-maze-chase-distill-probe-128-v1`, Tmux with
+   `-AcknowledgeDetached`
+5. Read `play-gate.json`. Continue only if `play_moved` stays true and
+   collisions stay ≤ 17.
 
 Generic wrappers only. Never `Start-DgxRcqV2Reference.ps1`. Never point
 generic train at an RCQ config.

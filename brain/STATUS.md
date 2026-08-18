@@ -5,17 +5,17 @@ Updated: 2026-08-18
 ## Current campaign: play-gated maze-chase distill v1
 
 Status: **play-gated maze-chase distill v1** is the live campaign
-(`play_gated_maze_chase_distill_v1`). Probe v1 **trained** 32 thesis-model
-steps on release `r20260818t155535z-ac06f47b314b`, run
-`dgx-play-maze-chase-distill-probe-v1`, then crashed before writing
-`play-gate.json`: closed-loop eval hardcoded CPU while the model stayed on
-CUDA. Official `play_moved` is **missing**. Checkpoint SHA-256
-`b1fec71a6f4e8924…`. Train loss 2.191 → 0.402 and validation movement
-exact 0.458 are **not** the gate. Probe v2 is the same 32-step recipe
-after the eval-device fix (`dgx-play-maze-chase-distill-probe-v2`). Play
-moved only if reward_sum exceeds the frozen no-op floor **-161**.
-Action-loss-only drops are a fail. Workstation is orchestration; all
-compute is Spark. Record:
+(`play_gated_maze_chase_distill_v1`). Probe v2 **passed** the play gate
+on release `r20260818t160829z-82aef6dbc370`, run
+`dgx-play-maze-chase-distill-probe-v2`: `play_moved: true`, reward_sum
+**-150** (floor -161), collisions **16** (floor 17), pellets **0**,
+decisions_rejected 0. Official `play-gate.json` SHA-256 `df9d88f4…`,
+checkpoint SHA-256 `e0515628…`. Probe v1 trained the same 32 steps then
+crashed before the gate (CUDA/CPU eval mismatch); that `play_moved` is
+missing. Logger train loss is not the gate. Next bounded Spark job is
+128 steps (`dgx-play-maze-chase-distill-probe-128-v1`), still play-gated;
+not a 2048-step scale-up. Workstation is orchestration; all compute is
+Spark. Record:
 [docs/runs/2026-08-18-play-gated-maze-chase-distill.md](./docs/runs/2026-08-18-play-gated-maze-chase-distill.md).
 
 Historical: live qualification `rcq_v2_reference_v2` is **terminally failed**. The

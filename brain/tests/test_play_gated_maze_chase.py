@@ -94,6 +94,21 @@ class PlayGatedMazeChaseConfigTests(unittest.TestCase):
         source = dataset_batch_source(config.dataset)
         self.assertIsInstance(source, MazeChaseBatchSource)
 
+    def test_one_twenty_eight_step_probe_keeps_the_same_recipe(self) -> None:
+        short = load_training_config(
+            ROOT / "configs" / "training" / "dgx-play-maze-chase-distill-probe.toml"
+        )
+        longer = load_training_config(
+            ROOT / "configs" / "training" / "dgx-play-maze-chase-distill-probe-128.toml"
+        )
+        self.assertEqual(longer.schema_version, 2)
+        self.assertEqual(longer.dataset.kind, "maze_chase")
+        self.assertEqual(longer.run.max_optimizer_steps, 128)
+        self.assertEqual(longer.run.seed, short.run.seed)
+        self.assertEqual(longer.run.model_factory, short.run.model_factory)
+        self.assertEqual(longer.optimization.scheduler_kind, short.optimization.scheduler_kind)
+        self.assertNotEqual(short.config_sha256, longer.config_sha256)
+
     def test_play_gate_floor_is_frozen(self) -> None:
         self.assertEqual(CAMPAIGN_ID, "play_gated_maze_chase_distill_v1")
         self.assertEqual(PLAY_SEEDS, (5, 9))

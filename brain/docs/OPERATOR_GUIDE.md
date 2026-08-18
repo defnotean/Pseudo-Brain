@@ -7,8 +7,8 @@ value identities, and legal stopping rules are in
 [CURRENT_WORK.md](../../CURRENT_WORK.md).
 
 The live campaign is **play-gated maze-chase distill v1**, not RCQ.
-Spark-only compute. Probe v1 trained then crashed before `play-gate.json`
-(CUDA/CPU mismatch). Next bounded probe v2, same 32-step recipe:
+Spark-only compute. Probe v2 passed play (`reward_sum -150`, `play_moved:
+true`). Next bounded probe is 128 steps, still play-gated:
 
 ```powershell
 & .\brain\scripts\dgx\Invoke-DgxPreflight.ps1 `
@@ -39,8 +39,8 @@ Spark-only compute. Probe v1 trained then crashed before `play-gate.json`
   -RemoteWorkDir '~/projects/pseudo-brain' `
   -ReleaseId '<release-id>' `
   -ContainerImage 'vllm/vllm-openai:nightly-aarch64' `
-  -ConfigRelativePath 'brain/configs/training/dgx-play-maze-chase-distill-probe.toml' `
-  -RunId 'dgx-play-maze-chase-distill-probe-v2' `
+  -ConfigRelativePath 'brain/configs/training/dgx-play-maze-chase-distill-probe-128.toml' `
+  -RunId 'dgx-play-maze-chase-distill-probe-128-v1' `
   -LaunchMode Tmux `
   -AcknowledgeDetached `
   -MinFreeDiskGiB 20 `
@@ -49,7 +49,8 @@ Spark-only compute. Probe v1 trained then crashed before `play-gate.json`
   -ContainerMemoryGiB 48
 ```
 
-Scale only if `play-gate.json` reports `play_moved: true` (reward > -161).
+Scale only if `play-gate.json` reports `play_moved: true` (reward > -161)
+and collisions stay at or below 17. The 32-step pass still has zero pellets.
 Record:
 [runs/2026-08-18-play-gated-maze-chase-distill.md](runs/2026-08-18-play-gated-maze-chase-distill.md).
 

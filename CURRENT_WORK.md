@@ -17,12 +17,11 @@ The current experiment is **Play-gated maze-chase distill v1**
 (`play_gated_maze_chase_distill_v1`). It asks whether the existing thesis
 thought-field can learn to play maze-chase closed-loop after planner
 distillation, measured by play (reward / collisions / pellets), not by
-action loss. Probe v1 trained 32 Spark steps then crashed before
-`play-gate.json` (`play_moved` missing: CUDA/CPU mismatch in closed-loop
-eval). Next bounded probe: run id `dgx-play-maze-chase-distill-probe-v2`,
-same 32-step recipe after the eval-device fix. Play has moved only when
-closed-loop reward on seeds 5/9, 240 ticks exceeds the frozen no-op floor
-of **-161**. Record:
+action loss. Probe v2 **passed** the play gate: `play_moved: true`,
+reward_sum **-150** vs floor **-161**, collisions 16 vs 17, **0 pellets**.
+Next bounded probe: 128 optimizer steps, run id
+`dgx-play-maze-chase-distill-probe-128-v1`. Do not jump to an unlabeled
+long train. Record:
 [brain/docs/runs/2026-08-18-play-gated-maze-chase-distill.md](brain/docs/runs/2026-08-18-play-gated-maze-chase-distill.md).
 
 All training, probes, and play evals run on the Spark. This workstation is
@@ -47,7 +46,7 @@ campaign.
 | 8 | Newly named qualification after the invariance capture fix | Done. Live file `registrations/rcq-v2-reference-v2.json`. Do not edit v1. |
 | 9 | Preclaim, independent review, final authorization, one-shot TEST | Blocked. This qualification failed the entry gate. Do not preclaim or open TEST. |
 | — | RCQ-v3 registration ceremony | **Deferred.** Do not run `New-RcqV3Registration.ps1`. |
-| — | Current campaign | Play-gated maze-chase distill v1. Probe v1 trained 32 steps then crashed before `play-gate.json` (CUDA/CPU eval mismatch). `play_moved` missing. Probe v2 is the same 32-step recipe after the device fix. Scale only if play beats reward -161. |
+| — | Current campaign | Play-gated maze-chase distill v1. Probe v2 **passed** (`play_moved: true`, reward -150, collisions 16, 0 pellets). Next: 128-step play-gated probe `dgx-play-maze-chase-distill-probe-128-v1`. Not a 2048-step scale-up. |
 | — | Compute | Spark only. One bounded job at a time. Generic wrappers, never RCQ-v2 start/resume. |
 
 Do not skip ahead. Do not open sealed TEST ranges to "check" labels. Do not
