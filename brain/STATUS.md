@@ -33,8 +33,9 @@ collision-aware `ghost_hit_penalty_v1` with play-peak, 32 steps, one
 GB10 (`dgx-play-maze-chase-distill-ghost-hit-v1`, canonical config
 SHA-256
 `a1a15e5702b161c3afcd017c4cf9ca40eeb3408addaa5280942410a53c64dbf8`).
-Hold ×0.1 is unchanged. Do not scale. Spark GPU is idle until that
-launch.
+Hold ×0.1 is unchanged. Do not scale. Spark GPU is running
+`dgx-play-maze-chase-distill-ghost-hit-v1` on release
+`r20260818t222809z-78b333c9035e`.
 Play moved on the
 32-step probe v2 and held on the
 128-step probe at reward_sum **-150**, collisions **16**

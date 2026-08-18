@@ -24,10 +24,11 @@ histogram. One GB10 train at a time; named CPU farm jobs run in
 parallel on the host. Play-peak / early-stop
 (`dgx-play-maze-chase-distill-play-peak-v1`) **passed** on the kept
 step-32 peak (38 pellets, A×377 + S×103) and stopped at step 40 (15
-pellets). Spark GPU is idle until the collision-aware ghost-hit probe
-(`dgx-play-maze-chase-distill-ghost-hit-v1`). Exact resume from the
-32-step champion is messy (config identity), so that probe is a new
-32-step run with `ghost_hit_penalty_v1` and play-peak. Do not scale 64
+pellets). Exact resume from the 32-step champion is messy (config
+identity), so the collision-aware probe is a new 32-step run with
+`ghost_hit_penalty_v1` and play-peak. Spark GPU is running
+`dgx-play-maze-chase-distill-ghost-hit-v1` (release
+`r20260818t222809z-78b333c9035e`). Do not scale 64
 or 128, and do not retune hold×0.1.
 A turn-hold audit found 261/720 change ticks (82/90 windows have a
 change).

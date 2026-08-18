@@ -12,9 +12,9 @@ exclusive CE **completed / failed** sticky S (idle×26 + S×454, 20
 pellets, 390 collisions, reward −3880, val match 0.0). Exact resume
 from the 32-step champion is messy (config identity). The licensed next
 GPU job is collision-aware `ghost_hit_penalty_v1` with play-peak, 32
-steps (`dgx-play-maze-chase-distill-ghost-hit-v1`). Spark GPU is idle
-until that launch. RCQ-v2 seed 1702 stays terminal. No v3 registration.
-No sealed TEST.
+steps (`dgx-play-maze-chase-distill-ghost-hit-v1`). Spark GPU is **running**
+that job on release `r20260818t222809z-78b333c9035e`. RCQ-v2 seed 1702
+stays terminal. No v3 registration. No sealed TEST.
 
 ## Collision-aware ghost-hit penalty (preregistered)
 
@@ -33,6 +33,8 @@ collisions below 43 with pellets still ≥ 32. If pellets collapse toward
 
 | Field | Value |
 |---|---|
+| Release | `r20260818t222809z-78b333c9035e` (archive SHA-256 `78b333c9035e…`) |
+| Container image | `sha256:177a406d7cb2…` |
 | Run id | `dgx-play-maze-chase-distill-ghost-hit-v1` |
 | Config | `brain/configs/training/dgx-play-maze-chase-distill-ghost-hit.toml` |
 | Canonical config SHA-256 | `a1a15e5702b161c3afcd017c4cf9ca40eeb3408addaa5280942410a53c64dbf8` |
@@ -1416,18 +1418,16 @@ The matched-baseline architecture manifest is a new comparison identity
 `cc04cb4f…` (previous live `3d7ff5bd…`, then `5e0f2536…`) for the same
 source-file reason.
 
-## Spark sequence (ghost-hit penalty + play-peak, preregistered)
+## Spark sequence (ghost-hit penalty + play-peak, running)
 
 1. `Invoke-DgxPreflight.ps1`
-2. `Sync-DgxBrainRelease.ps1`
-3. `Invoke-DgxBrainSmoke.ps1` on `dgx-smoke.toml`
+2. `Sync-DgxBrainRelease.ps1` (release `r20260818t222809z-78b333c9035e`)
+3. `Invoke-DgxBrainSmoke.ps1` on `dgx-smoke.toml` (receipt written)
 4. `Start-DgxBrainTraining.ps1` with
    `dgx-play-maze-chase-distill-ghost-hit.toml`, run id
    `dgx-play-maze-chase-distill-ghost-hit-v1`, Tmux with
    `-AcknowledgeDetached`
-5. Watch `play-gate.json` vs the 38/43 champion. If collisions drop and
-   pellets stay ≥ 32, that is the new champion. If pellets collapse,
-   Spark idle; do not scale.
+5. Watch `play-gate.json` vs the 38/43 champion. Spark GPU is running.
 
 Generic wrappers only. Never `Start-DgxRcqV2Reference.ps1`. Never point
 generic train at an RCQ config.
