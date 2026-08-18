@@ -36,8 +36,9 @@ idle/W/A/D were S×32. Next GPU probe is multi-episode tiled tiles at
 the same accum 30 (`dgx-play-maze-chase-distill-multi-episode-v1`), now
 live on Spark release `r20260818t192855z-6d85cc69dd69`. Spark CPU farm
 also finished planner seeds 132–147 (5/16 clear), tiled teacher mix,
-three-episode coverage, and an episode-update thoughtlet dump
-(open-loop A; closed-loop sticky D). Record:
+three-episode coverage, an episode-update thoughtlet dump
+(open-loop A; closed-loop sticky D), and a window-majority audit
+(79/90 mixed, mean majority 0.614, keys nearly balanced). Record:
 [brain/docs/runs/2026-08-18-play-gated-maze-chase-distill.md](brain/docs/runs/2026-08-18-play-gated-maze-chase-distill.md).
 
 All training, probes, and play evals run on the Spark. This workstation is

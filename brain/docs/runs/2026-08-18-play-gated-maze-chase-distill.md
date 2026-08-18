@@ -709,6 +709,7 @@ Named CPU jobs. No GB10. Artifacts:
 | Multi-episode coverage | `play-gated-cpu-multi-episode-coverage-v1` | 90 windows cover three episodes 1:1 (seeds 0/1/2, coverage 1.0 each). Teacher `tiled_windows.v1`. Manifest `e3970174…`. |
 | Off-policy teacher | `play-gated-cpu-offpolicy-teacher-v1` | On seeds 5/9, idle/W/A/D 32-tick rollouts label **S×32**. Only sticky S mixes (seed 5 D+S; seed 9 W+S+D). Closed-loop BC at spawn would teach sticky S. |
 | Thoughtlet dump episode-update | `play-gated-cpu-thoughtlets-episode-update-v1` | Episode-update ckpt, 32 ticks seeds 5 and 9 on CPU idle-step. Argmax A×32 / A×31+D×1. Closed-loop play was sticky D; open-loop idle ranks A. |
+| Window majority | `play-gated-cpu-window-majority-v1` | 90 tiled 8-tick windows (three episodes): **79 mixed**, **10 pure one-key**, mean majority fraction **0.614**. Majority-key histogram W×21 / A×23 / S×20 / D×26. Artifact SHA-256 `b3ade679…`. Exclusive-CE collapse is not “windows are one-key corridors.” If the live GPU still copies a majority teacher key, the next idea is a new teaching signal, not more episode coverage. |
 
 ## Action-only exclusive CE result (2026-08-18)
 

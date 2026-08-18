@@ -3,7 +3,7 @@
 set -euo pipefail
 
 workspace="${1:-$HOME/projects/pseudo-brain}"
-release_id="${2:-r20260818t190103z-ddf0904b5d81}"
+release_id="${2:-r20260818t192855z-6d85cc69dd69}"
 image="${3:-177a406d7cb2}"
 release="$workspace/releases/$release_id"
 farm="$workspace/runs/play-gated-cpu-farm-scripts"
@@ -60,6 +60,7 @@ launch_cpu play-gated-cpu-planner-seeds-v3 8 16 planner-seeds '--seeds 132-147'
 launch_cpu play-gated-cpu-tiled-hist-v1 4 8 tiled-hist ''
 launch_cpu play-gated-cpu-multi-episode-coverage-v1 4 12 multi-episode-coverage ''
 launch_cpu play-gated-cpu-offpolicy-teacher-v1 4 8 offpolicy-teacher ''
+launch_cpu play-gated-cpu-window-majority-v1 4 12 window-majority ''
 
 echo '===TMUX==='
 tmux ls

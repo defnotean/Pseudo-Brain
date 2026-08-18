@@ -45,7 +45,8 @@ windows covering three planner episodes at the same accum 30, now running
 as `dgx-play-maze-chase-distill-multi-episode-v1` on release
 `r20260818t192855z-6d85cc69dd69`. Named CPU
 farm jobs finished planner seeds 132–147, tiled teacher mix, multi-episode
-coverage, off-policy teacher labels, and an episode-update thoughtlet dump.
+coverage, off-policy teacher labels, an episode-update thoughtlet dump,
+and a 90-window majority audit (79 mixed / 10 pure, mean majority 0.614).
 Campaign success is **pellets ≥ 32**
 with a non-idle non-D-only histogram. Official 32-step `play-gate.json`
 SHA-256

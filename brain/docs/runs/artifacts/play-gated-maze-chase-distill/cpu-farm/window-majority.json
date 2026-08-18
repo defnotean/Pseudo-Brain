@@ -1,0 +1,1491 @@
+{
+  "campaign_id": "play_gated_maze_chase_distill_v1",
+  "generator_id": "irene.maze_chase.planner_teacher.tiled_windows.v1",
+  "hypothesis": "most 8-tick tiled windows are one-key corridors, so exclusive CE can copy a window majority even when the episode is mixed",
+  "job": "window-majority",
+  "majority_key_histogram": {
+    "a": 23,
+    "d": 26,
+    "s": 20,
+    "w": 21
+  },
+  "mean_majority_fraction": 0.6138888888888889,
+  "mixed_wasd_windows": 79,
+  "pure_one_key_windows": 10,
+  "rows": [
+    {
+      "episode_seed": 0,
+      "labels": {
+        "d": 8
+      },
+      "majority_fraction": 1.0,
+      "majority_label": "d",
+      "pure_one_key": true,
+      "sequence_index": 0,
+      "unique_wasd": [
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 0,
+      "labels": {
+        "d": 6,
+        "s": 2
+      },
+      "majority_fraction": 0.75,
+      "majority_label": "d",
+      "pure_one_key": false,
+      "sequence_index": 1,
+      "unique_wasd": [
+        "s",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 0,
+      "labels": {
+        "a": 4,
+        "s": 2,
+        "w": 2
+      },
+      "majority_fraction": 0.5,
+      "majority_label": "a",
+      "pure_one_key": false,
+      "sequence_index": 2,
+      "unique_wasd": [
+        "w",
+        "a",
+        "s"
+      ]
+    },
+    {
+      "episode_seed": 0,
+      "labels": {
+        "a": 3,
+        "idle": 1,
+        "s": 2,
+        "w": 2
+      },
+      "majority_fraction": 0.375,
+      "majority_label": "a",
+      "pure_one_key": false,
+      "sequence_index": 3,
+      "unique_wasd": [
+        "w",
+        "a",
+        "s"
+      ]
+    },
+    {
+      "episode_seed": 0,
+      "labels": {
+        "d": 2,
+        "s": 4,
+        "w": 2
+      },
+      "majority_fraction": 0.5,
+      "majority_label": "s",
+      "pure_one_key": false,
+      "sequence_index": 4,
+      "unique_wasd": [
+        "w",
+        "s",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 0,
+      "labels": {
+        "d": 5,
+        "s": 2,
+        "w": 1
+      },
+      "majority_fraction": 0.625,
+      "majority_label": "d",
+      "pure_one_key": false,
+      "sequence_index": 5,
+      "unique_wasd": [
+        "w",
+        "s",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 0,
+      "labels": {
+        "a": 3,
+        "d": 1,
+        "s": 3,
+        "w": 1
+      },
+      "majority_fraction": 0.375,
+      "majority_label": "s",
+      "pure_one_key": false,
+      "sequence_index": 6,
+      "unique_wasd": [
+        "w",
+        "a",
+        "s",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 0,
+      "labels": {
+        "a": 3,
+        "s": 1,
+        "w": 4
+      },
+      "majority_fraction": 0.5,
+      "majority_label": "w",
+      "pure_one_key": false,
+      "sequence_index": 7,
+      "unique_wasd": [
+        "w",
+        "a",
+        "s"
+      ]
+    },
+    {
+      "episode_seed": 0,
+      "labels": {
+        "a": 2,
+        "d": 1,
+        "s": 5
+      },
+      "majority_fraction": 0.625,
+      "majority_label": "s",
+      "pure_one_key": false,
+      "sequence_index": 8,
+      "unique_wasd": [
+        "a",
+        "s",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 0,
+      "labels": {
+        "a": 1,
+        "d": 3,
+        "s": 4
+      },
+      "majority_fraction": 0.5,
+      "majority_label": "s",
+      "pure_one_key": false,
+      "sequence_index": 9,
+      "unique_wasd": [
+        "a",
+        "s",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 0,
+      "labels": {
+        "a": 3,
+        "d": 1,
+        "s": 1,
+        "w": 3
+      },
+      "majority_fraction": 0.375,
+      "majority_label": "a",
+      "pure_one_key": false,
+      "sequence_index": 10,
+      "unique_wasd": [
+        "w",
+        "a",
+        "s",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 0,
+      "labels": {
+        "a": 2,
+        "d": 1,
+        "s": 4,
+        "w": 1
+      },
+      "majority_fraction": 0.5,
+      "majority_label": "s",
+      "pure_one_key": false,
+      "sequence_index": 11,
+      "unique_wasd": [
+        "w",
+        "a",
+        "s",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 0,
+      "labels": {
+        "d": 5,
+        "s": 2,
+        "w": 1
+      },
+      "majority_fraction": 0.625,
+      "majority_label": "d",
+      "pure_one_key": false,
+      "sequence_index": 12,
+      "unique_wasd": [
+        "w",
+        "s",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 0,
+      "labels": {
+        "d": 3,
+        "w": 5
+      },
+      "majority_fraction": 0.625,
+      "majority_label": "w",
+      "pure_one_key": false,
+      "sequence_index": 13,
+      "unique_wasd": [
+        "w",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 0,
+      "labels": {
+        "a": 2,
+        "s": 3,
+        "w": 3
+      },
+      "majority_fraction": 0.375,
+      "majority_label": "w",
+      "pure_one_key": false,
+      "sequence_index": 14,
+      "unique_wasd": [
+        "w",
+        "a",
+        "s"
+      ]
+    },
+    {
+      "episode_seed": 0,
+      "labels": {
+        "d": 5,
+        "s": 1,
+        "w": 2
+      },
+      "majority_fraction": 0.625,
+      "majority_label": "d",
+      "pure_one_key": false,
+      "sequence_index": 15,
+      "unique_wasd": [
+        "w",
+        "s",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 0,
+      "labels": {
+        "d": 3,
+        "s": 3,
+        "w": 2
+      },
+      "majority_fraction": 0.375,
+      "majority_label": "d",
+      "pure_one_key": false,
+      "sequence_index": 16,
+      "unique_wasd": [
+        "w",
+        "s",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 0,
+      "labels": {
+        "a": 4,
+        "s": 3,
+        "w": 1
+      },
+      "majority_fraction": 0.5,
+      "majority_label": "a",
+      "pure_one_key": false,
+      "sequence_index": 17,
+      "unique_wasd": [
+        "w",
+        "a",
+        "s"
+      ]
+    },
+    {
+      "episode_seed": 0,
+      "labels": {
+        "a": 2,
+        "d": 3,
+        "s": 3
+      },
+      "majority_fraction": 0.375,
+      "majority_label": "s",
+      "pure_one_key": false,
+      "sequence_index": 18,
+      "unique_wasd": [
+        "a",
+        "s",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 0,
+      "labels": {
+        "d": 3,
+        "s": 2,
+        "w": 3
+      },
+      "majority_fraction": 0.375,
+      "majority_label": "d",
+      "pure_one_key": false,
+      "sequence_index": 19,
+      "unique_wasd": [
+        "w",
+        "s",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 0,
+      "labels": {
+        "a": 7,
+        "s": 1
+      },
+      "majority_fraction": 0.875,
+      "majority_label": "a",
+      "pure_one_key": false,
+      "sequence_index": 20,
+      "unique_wasd": [
+        "a",
+        "s"
+      ]
+    },
+    {
+      "episode_seed": 0,
+      "labels": {
+        "d": 6,
+        "idle": 1,
+        "s": 1
+      },
+      "majority_fraction": 0.75,
+      "majority_label": "d",
+      "pure_one_key": false,
+      "sequence_index": 21,
+      "unique_wasd": [
+        "s",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 0,
+      "labels": {
+        "d": 4,
+        "s": 4
+      },
+      "majority_fraction": 0.5,
+      "majority_label": "s",
+      "pure_one_key": false,
+      "sequence_index": 22,
+      "unique_wasd": [
+        "s",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 0,
+      "labels": {
+        "d": 1,
+        "s": 1,
+        "w": 6
+      },
+      "majority_fraction": 0.75,
+      "majority_label": "w",
+      "pure_one_key": false,
+      "sequence_index": 23,
+      "unique_wasd": [
+        "w",
+        "s",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 0,
+      "labels": {
+        "a": 5,
+        "d": 1,
+        "s": 2
+      },
+      "majority_fraction": 0.625,
+      "majority_label": "a",
+      "pure_one_key": false,
+      "sequence_index": 24,
+      "unique_wasd": [
+        "a",
+        "s",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 0,
+      "labels": {
+        "a": 8
+      },
+      "majority_fraction": 1.0,
+      "majority_label": "a",
+      "pure_one_key": true,
+      "sequence_index": 25,
+      "unique_wasd": [
+        "a"
+      ]
+    },
+    {
+      "episode_seed": 0,
+      "labels": {
+        "a": 8
+      },
+      "majority_fraction": 1.0,
+      "majority_label": "a",
+      "pure_one_key": true,
+      "sequence_index": 26,
+      "unique_wasd": [
+        "a"
+      ]
+    },
+    {
+      "episode_seed": 0,
+      "labels": {
+        "a": 4,
+        "d": 3,
+        "idle": 1
+      },
+      "majority_fraction": 0.5,
+      "majority_label": "a",
+      "pure_one_key": false,
+      "sequence_index": 27,
+      "unique_wasd": [
+        "a",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 0,
+      "labels": {
+        "d": 5,
+        "s": 3
+      },
+      "majority_fraction": 0.625,
+      "majority_label": "d",
+      "pure_one_key": false,
+      "sequence_index": 28,
+      "unique_wasd": [
+        "s",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 0,
+      "labels": {
+        "d": 1,
+        "s": 7
+      },
+      "majority_fraction": 0.875,
+      "majority_label": "s",
+      "pure_one_key": false,
+      "sequence_index": 29,
+      "unique_wasd": [
+        "s",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 1,
+      "labels": {
+        "a": 2,
+        "d": 2,
+        "s": 4
+      },
+      "majority_fraction": 0.5,
+      "majority_label": "s",
+      "pure_one_key": false,
+      "sequence_index": 30,
+      "unique_wasd": [
+        "a",
+        "s",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 1,
+      "labels": {
+        "d": 4,
+        "w": 4
+      },
+      "majority_fraction": 0.5,
+      "majority_label": "w",
+      "pure_one_key": false,
+      "sequence_index": 31,
+      "unique_wasd": [
+        "w",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 1,
+      "labels": {
+        "a": 3,
+        "d": 4,
+        "s": 1
+      },
+      "majority_fraction": 0.5,
+      "majority_label": "d",
+      "pure_one_key": false,
+      "sequence_index": 32,
+      "unique_wasd": [
+        "a",
+        "s",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 1,
+      "labels": {
+        "d": 3,
+        "s": 3,
+        "w": 2
+      },
+      "majority_fraction": 0.375,
+      "majority_label": "d",
+      "pure_one_key": false,
+      "sequence_index": 33,
+      "unique_wasd": [
+        "w",
+        "s",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 1,
+      "labels": {
+        "d": 6,
+        "w": 2
+      },
+      "majority_fraction": 0.75,
+      "majority_label": "d",
+      "pure_one_key": false,
+      "sequence_index": 34,
+      "unique_wasd": [
+        "w",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 1,
+      "labels": {
+        "a": 2,
+        "d": 1,
+        "s": 5
+      },
+      "majority_fraction": 0.625,
+      "majority_label": "s",
+      "pure_one_key": false,
+      "sequence_index": 35,
+      "unique_wasd": [
+        "a",
+        "s",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 1,
+      "labels": {
+        "a": 4,
+        "d": 1,
+        "s": 2,
+        "w": 1
+      },
+      "majority_fraction": 0.5,
+      "majority_label": "a",
+      "pure_one_key": false,
+      "sequence_index": 36,
+      "unique_wasd": [
+        "w",
+        "a",
+        "s",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 1,
+      "labels": {
+        "d": 2,
+        "s": 5,
+        "w": 1
+      },
+      "majority_fraction": 0.625,
+      "majority_label": "s",
+      "pure_one_key": false,
+      "sequence_index": 37,
+      "unique_wasd": [
+        "w",
+        "s",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 1,
+      "labels": {
+        "a": 4,
+        "d": 2,
+        "s": 2
+      },
+      "majority_fraction": 0.5,
+      "majority_label": "a",
+      "pure_one_key": false,
+      "sequence_index": 38,
+      "unique_wasd": [
+        "a",
+        "s",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 1,
+      "labels": {
+        "a": 4,
+        "s": 2,
+        "w": 2
+      },
+      "majority_fraction": 0.5,
+      "majority_label": "a",
+      "pure_one_key": false,
+      "sequence_index": 39,
+      "unique_wasd": [
+        "w",
+        "a",
+        "s"
+      ]
+    },
+    {
+      "episode_seed": 1,
+      "labels": {
+        "a": 1,
+        "d": 2,
+        "w": 5
+      },
+      "majority_fraction": 0.625,
+      "majority_label": "w",
+      "pure_one_key": false,
+      "sequence_index": 40,
+      "unique_wasd": [
+        "w",
+        "a",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 1,
+      "labels": {
+        "a": 3,
+        "s": 1,
+        "w": 4
+      },
+      "majority_fraction": 0.5,
+      "majority_label": "w",
+      "pure_one_key": false,
+      "sequence_index": 41,
+      "unique_wasd": [
+        "w",
+        "a",
+        "s"
+      ]
+    },
+    {
+      "episode_seed": 1,
+      "labels": {
+        "a": 4,
+        "s": 3,
+        "w": 1
+      },
+      "majority_fraction": 0.5,
+      "majority_label": "a",
+      "pure_one_key": false,
+      "sequence_index": 42,
+      "unique_wasd": [
+        "w",
+        "a",
+        "s"
+      ]
+    },
+    {
+      "episode_seed": 1,
+      "labels": {
+        "a": 1,
+        "d": 5,
+        "s": 2
+      },
+      "majority_fraction": 0.625,
+      "majority_label": "d",
+      "pure_one_key": false,
+      "sequence_index": 43,
+      "unique_wasd": [
+        "a",
+        "s",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 1,
+      "labels": {
+        "s": 6,
+        "w": 2
+      },
+      "majority_fraction": 0.75,
+      "majority_label": "s",
+      "pure_one_key": false,
+      "sequence_index": 44,
+      "unique_wasd": [
+        "w",
+        "s"
+      ]
+    },
+    {
+      "episode_seed": 1,
+      "labels": {
+        "a": 2,
+        "d": 3,
+        "idle": 1,
+        "s": 1,
+        "w": 1
+      },
+      "majority_fraction": 0.375,
+      "majority_label": "d",
+      "pure_one_key": false,
+      "sequence_index": 45,
+      "unique_wasd": [
+        "w",
+        "a",
+        "s",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 1,
+      "labels": {
+        "d": 6,
+        "s": 1,
+        "w": 1
+      },
+      "majority_fraction": 0.75,
+      "majority_label": "d",
+      "pure_one_key": false,
+      "sequence_index": 46,
+      "unique_wasd": [
+        "w",
+        "s",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 1,
+      "labels": {
+        "a": 2,
+        "d": 2,
+        "s": 4
+      },
+      "majority_fraction": 0.5,
+      "majority_label": "s",
+      "pure_one_key": false,
+      "sequence_index": 47,
+      "unique_wasd": [
+        "a",
+        "s",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 1,
+      "labels": {
+        "d": 3,
+        "w": 5
+      },
+      "majority_fraction": 0.625,
+      "majority_label": "w",
+      "pure_one_key": false,
+      "sequence_index": 48,
+      "unique_wasd": [
+        "w",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 1,
+      "labels": {
+        "d": 3,
+        "s": 3,
+        "w": 2
+      },
+      "majority_fraction": 0.375,
+      "majority_label": "d",
+      "pure_one_key": false,
+      "sequence_index": 49,
+      "unique_wasd": [
+        "w",
+        "s",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 1,
+      "labels": {
+        "s": 8
+      },
+      "majority_fraction": 1.0,
+      "majority_label": "s",
+      "pure_one_key": true,
+      "sequence_index": 50,
+      "unique_wasd": [
+        "s"
+      ]
+    },
+    {
+      "episode_seed": 1,
+      "labels": {
+        "a": 2,
+        "d": 1,
+        "s": 5
+      },
+      "majority_fraction": 0.625,
+      "majority_label": "s",
+      "pure_one_key": false,
+      "sequence_index": 51,
+      "unique_wasd": [
+        "a",
+        "s",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 1,
+      "labels": {
+        "a": 2,
+        "d": 1,
+        "w": 5
+      },
+      "majority_fraction": 0.625,
+      "majority_label": "w",
+      "pure_one_key": false,
+      "sequence_index": 52,
+      "unique_wasd": [
+        "w",
+        "a",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 1,
+      "labels": {
+        "a": 7,
+        "s": 1
+      },
+      "majority_fraction": 0.875,
+      "majority_label": "a",
+      "pure_one_key": false,
+      "sequence_index": 53,
+      "unique_wasd": [
+        "a",
+        "s"
+      ]
+    },
+    {
+      "episode_seed": 1,
+      "labels": {
+        "a": 3,
+        "d": 2,
+        "idle": 1,
+        "s": 2
+      },
+      "majority_fraction": 0.375,
+      "majority_label": "a",
+      "pure_one_key": false,
+      "sequence_index": 54,
+      "unique_wasd": [
+        "a",
+        "s",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 1,
+      "labels": {
+        "a": 1,
+        "d": 1,
+        "s": 6
+      },
+      "majority_fraction": 0.75,
+      "majority_label": "s",
+      "pure_one_key": false,
+      "sequence_index": 55,
+      "unique_wasd": [
+        "a",
+        "s",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 1,
+      "labels": {
+        "a": 1,
+        "d": 2,
+        "s": 4,
+        "w": 1
+      },
+      "majority_fraction": 0.5,
+      "majority_label": "s",
+      "pure_one_key": false,
+      "sequence_index": 56,
+      "unique_wasd": [
+        "w",
+        "a",
+        "s",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 1,
+      "labels": {
+        "a": 2,
+        "d": 1,
+        "s": 4,
+        "w": 1
+      },
+      "majority_fraction": 0.5,
+      "majority_label": "s",
+      "pure_one_key": false,
+      "sequence_index": 57,
+      "unique_wasd": [
+        "w",
+        "a",
+        "s",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 1,
+      "labels": {
+        "d": 5,
+        "w": 3
+      },
+      "majority_fraction": 0.625,
+      "majority_label": "d",
+      "pure_one_key": false,
+      "sequence_index": 58,
+      "unique_wasd": [
+        "w",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 1,
+      "labels": {
+        "a": 2,
+        "d": 2,
+        "w": 4
+      },
+      "majority_fraction": 0.5,
+      "majority_label": "w",
+      "pure_one_key": false,
+      "sequence_index": 59,
+      "unique_wasd": [
+        "w",
+        "a",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 2,
+      "labels": {
+        "d": 8
+      },
+      "majority_fraction": 1.0,
+      "majority_label": "d",
+      "pure_one_key": true,
+      "sequence_index": 60,
+      "unique_wasd": [
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 2,
+      "labels": {
+        "d": 6,
+        "s": 2
+      },
+      "majority_fraction": 0.75,
+      "majority_label": "d",
+      "pure_one_key": false,
+      "sequence_index": 61,
+      "unique_wasd": [
+        "s",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 2,
+      "labels": {
+        "a": 4,
+        "s": 2,
+        "w": 2
+      },
+      "majority_fraction": 0.5,
+      "majority_label": "a",
+      "pure_one_key": false,
+      "sequence_index": 62,
+      "unique_wasd": [
+        "w",
+        "a",
+        "s"
+      ]
+    },
+    {
+      "episode_seed": 2,
+      "labels": {
+        "a": 2,
+        "d": 3,
+        "s": 2,
+        "w": 1
+      },
+      "majority_fraction": 0.375,
+      "majority_label": "d",
+      "pure_one_key": false,
+      "sequence_index": 63,
+      "unique_wasd": [
+        "w",
+        "a",
+        "s",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 2,
+      "labels": {
+        "a": 1,
+        "d": 2,
+        "s": 3,
+        "w": 2
+      },
+      "majority_fraction": 0.375,
+      "majority_label": "s",
+      "pure_one_key": false,
+      "sequence_index": 64,
+      "unique_wasd": [
+        "w",
+        "a",
+        "s",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 2,
+      "labels": {
+        "a": 2,
+        "d": 4,
+        "s": 2
+      },
+      "majority_fraction": 0.5,
+      "majority_label": "d",
+      "pure_one_key": false,
+      "sequence_index": 65,
+      "unique_wasd": [
+        "a",
+        "s",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 2,
+      "labels": {
+        "a": 6,
+        "s": 2
+      },
+      "majority_fraction": 0.75,
+      "majority_label": "a",
+      "pure_one_key": false,
+      "sequence_index": 66,
+      "unique_wasd": [
+        "a",
+        "s"
+      ]
+    },
+    {
+      "episode_seed": 2,
+      "labels": {
+        "a": 2,
+        "w": 6
+      },
+      "majority_fraction": 0.75,
+      "majority_label": "w",
+      "pure_one_key": false,
+      "sequence_index": 67,
+      "unique_wasd": [
+        "w",
+        "a"
+      ]
+    },
+    {
+      "episode_seed": 2,
+      "labels": {
+        "a": 4,
+        "s": 1,
+        "w": 3
+      },
+      "majority_fraction": 0.5,
+      "majority_label": "a",
+      "pure_one_key": false,
+      "sequence_index": 68,
+      "unique_wasd": [
+        "w",
+        "a",
+        "s"
+      ]
+    },
+    {
+      "episode_seed": 2,
+      "labels": {
+        "a": 2,
+        "w": 6
+      },
+      "majority_fraction": 0.75,
+      "majority_label": "w",
+      "pure_one_key": false,
+      "sequence_index": 69,
+      "unique_wasd": [
+        "w",
+        "a"
+      ]
+    },
+    {
+      "episode_seed": 2,
+      "labels": {
+        "w": 8
+      },
+      "majority_fraction": 1.0,
+      "majority_label": "w",
+      "pure_one_key": true,
+      "sequence_index": 70,
+      "unique_wasd": [
+        "w"
+      ]
+    },
+    {
+      "episode_seed": 2,
+      "labels": {
+        "a": 1,
+        "idle": 1,
+        "w": 6
+      },
+      "majority_fraction": 0.75,
+      "majority_label": "w",
+      "pure_one_key": false,
+      "sequence_index": 71,
+      "unique_wasd": [
+        "w",
+        "a"
+      ]
+    },
+    {
+      "episode_seed": 2,
+      "labels": {
+        "a": 1,
+        "d": 1,
+        "s": 4,
+        "w": 2
+      },
+      "majority_fraction": 0.5,
+      "majority_label": "s",
+      "pure_one_key": false,
+      "sequence_index": 72,
+      "unique_wasd": [
+        "w",
+        "a",
+        "s",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 2,
+      "labels": {
+        "a": 2,
+        "d": 3,
+        "s": 1,
+        "w": 2
+      },
+      "majority_fraction": 0.375,
+      "majority_label": "d",
+      "pure_one_key": false,
+      "sequence_index": 73,
+      "unique_wasd": [
+        "w",
+        "a",
+        "s",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 2,
+      "labels": {
+        "d": 5,
+        "s": 3
+      },
+      "majority_fraction": 0.625,
+      "majority_label": "d",
+      "pure_one_key": false,
+      "sequence_index": 74,
+      "unique_wasd": [
+        "s",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 2,
+      "labels": {
+        "a": 6,
+        "s": 2
+      },
+      "majority_fraction": 0.75,
+      "majority_label": "a",
+      "pure_one_key": false,
+      "sequence_index": 75,
+      "unique_wasd": [
+        "a",
+        "s"
+      ]
+    },
+    {
+      "episode_seed": 2,
+      "labels": {
+        "idle": 1,
+        "w": 7
+      },
+      "majority_fraction": 0.875,
+      "majority_label": "w",
+      "pure_one_key": false,
+      "sequence_index": 76,
+      "unique_wasd": [
+        "w"
+      ]
+    },
+    {
+      "episode_seed": 2,
+      "labels": {
+        "w": 8
+      },
+      "majority_fraction": 1.0,
+      "majority_label": "w",
+      "pure_one_key": true,
+      "sequence_index": 77,
+      "unique_wasd": [
+        "w"
+      ]
+    },
+    {
+      "episode_seed": 2,
+      "labels": {
+        "w": 8
+      },
+      "majority_fraction": 1.0,
+      "majority_label": "w",
+      "pure_one_key": true,
+      "sequence_index": 78,
+      "unique_wasd": [
+        "w"
+      ]
+    },
+    {
+      "episode_seed": 2,
+      "labels": {
+        "w": 8
+      },
+      "majority_fraction": 1.0,
+      "majority_label": "w",
+      "pure_one_key": true,
+      "sequence_index": 79,
+      "unique_wasd": [
+        "w"
+      ]
+    },
+    {
+      "episode_seed": 2,
+      "labels": {
+        "a": 3,
+        "idle": 1,
+        "w": 4
+      },
+      "majority_fraction": 0.5,
+      "majority_label": "w",
+      "pure_one_key": false,
+      "sequence_index": 80,
+      "unique_wasd": [
+        "w",
+        "a"
+      ]
+    },
+    {
+      "episode_seed": 2,
+      "labels": {
+        "a": 1,
+        "d": 3,
+        "w": 4
+      },
+      "majority_fraction": 0.5,
+      "majority_label": "w",
+      "pure_one_key": false,
+      "sequence_index": 81,
+      "unique_wasd": [
+        "w",
+        "a",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 2,
+      "labels": {
+        "a": 4,
+        "d": 1,
+        "s": 2,
+        "w": 1
+      },
+      "majority_fraction": 0.5,
+      "majority_label": "a",
+      "pure_one_key": false,
+      "sequence_index": 82,
+      "unique_wasd": [
+        "w",
+        "a",
+        "s",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 2,
+      "labels": {
+        "d": 5,
+        "s": 3
+      },
+      "majority_fraction": 0.625,
+      "majority_label": "d",
+      "pure_one_key": false,
+      "sequence_index": 83,
+      "unique_wasd": [
+        "s",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 2,
+      "labels": {
+        "a": 4,
+        "d": 3,
+        "w": 1
+      },
+      "majority_fraction": 0.5,
+      "majority_label": "a",
+      "pure_one_key": false,
+      "sequence_index": 84,
+      "unique_wasd": [
+        "w",
+        "a",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 2,
+      "labels": {
+        "a": 4,
+        "s": 3,
+        "w": 1
+      },
+      "majority_fraction": 0.5,
+      "majority_label": "a",
+      "pure_one_key": false,
+      "sequence_index": 85,
+      "unique_wasd": [
+        "w",
+        "a",
+        "s"
+      ]
+    },
+    {
+      "episode_seed": 2,
+      "labels": {
+        "a": 1,
+        "d": 6,
+        "s": 1
+      },
+      "majority_fraction": 0.75,
+      "majority_label": "d",
+      "pure_one_key": false,
+      "sequence_index": 86,
+      "unique_wasd": [
+        "a",
+        "s",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 2,
+      "labels": {
+        "d": 8
+      },
+      "majority_fraction": 1.0,
+      "majority_label": "d",
+      "pure_one_key": true,
+      "sequence_index": 87,
+      "unique_wasd": [
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 2,
+      "labels": {
+        "a": 3,
+        "d": 1,
+        "w": 4
+      },
+      "majority_fraction": 0.5,
+      "majority_label": "w",
+      "pure_one_key": false,
+      "sequence_index": 88,
+      "unique_wasd": [
+        "w",
+        "a",
+        "d"
+      ]
+    },
+    {
+      "episode_seed": 2,
+      "labels": {
+        "a": 3,
+        "s": 3,
+        "w": 2
+      },
+      "majority_fraction": 0.375,
+      "majority_label": "a",
+      "pure_one_key": false,
+      "sequence_index": 89,
+      "unique_wasd": [
+        "w",
+        "a",
+        "s"
+      ]
+    }
+  ],
+  "source_manifest_sha256": "3fde33e9a8d867e8060b94f699a39ea5c14a4d9b609b37abf0cc603529fcde2f",
+  "windows": 90
+}

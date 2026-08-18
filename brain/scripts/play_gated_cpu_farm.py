@@ -25,6 +25,7 @@ JOBS = (
     "tiled-hist",
     "multi-episode-coverage",
     "offpolicy-teacher",
+    "window-majority",
     "play-gate",
     "thoughtlets",
 )
@@ -384,6 +385,81 @@ def job_multi_episode_coverage(out_dir: Path) -> None:
     )
 
 
+def job_window_majority(out_dir: Path) -> None:
+    from irene_brain.data.maze_chase_dataset import (
+        DatasetSplit,
+        MazeChaseDatasetConfig,
+        MazeChaseSequenceDataset,
+    )
+
+    tiled = MazeChaseSequenceDataset(
+        MazeChaseDatasetConfig(
+            split=DatasetSplit.TRAIN,
+            sequence_count=90,
+            sequence_length=8,
+            episode_horizon=240,
+            window_sampling="tiled",
+        )
+    )
+    windows = []
+    pure_one_key = 0
+    mixed = 0
+    majority_keys: Counter[str] = Counter()
+    majority_fractions: list[float] = []
+    for index, sequence in enumerate(tiled):
+        counts: Counter[str] = Counter()
+        for transition in sequence.transitions:
+            label, n_active = _wasd_counts(transition.action_target)
+            if n_active > 1:
+                raise RuntimeError("planner issued a multi-key teacher label")
+            counts[label] += 1
+        ticks = sum(counts.values())
+        unique_wasd = [name for name, _hid in WASD if counts.get(name, 0)]
+        majority_label, majority_count = counts.most_common(1)[0]
+        fraction = majority_count / ticks if ticks else 0.0
+        is_pure = len(unique_wasd) <= 1 and counts.get("idle", 0) == 0
+        if is_pure:
+            pure_one_key += 1
+        if len(unique_wasd) >= 2:
+            mixed += 1
+        majority_keys[majority_label] += 1
+        majority_fractions.append(fraction)
+        windows.append(
+            {
+                "sequence_index": index,
+                "episode_seed": sequence.episode_seed,
+                "labels": dict(sorted(counts.items())),
+                "unique_wasd": unique_wasd,
+                "majority_label": majority_label,
+                "majority_fraction": fraction,
+                "pure_one_key": is_pure,
+            }
+        )
+    _write(
+        out_dir / "window-majority.json",
+        {
+            "job": "window-majority",
+            "campaign_id": "play_gated_maze_chase_distill_v1",
+            "hypothesis": (
+                "most 8-tick tiled windows are one-key corridors, so exclusive "
+                "CE can copy a window majority even when the episode is mixed"
+            ),
+            "generator_id": tiled.config.generator_id,
+            "source_manifest_sha256": tiled.manifest_sha256,
+            "windows": len(windows),
+            "pure_one_key_windows": pure_one_key,
+            "mixed_wasd_windows": mixed,
+            "mean_majority_fraction": (
+                sum(majority_fractions) / len(majority_fractions)
+                if majority_fractions
+                else 0.0
+            ),
+            "majority_key_histogram": dict(sorted(majority_keys.items())),
+            "rows": windows,
+        },
+    )
+
+
 def job_offpolicy_teacher(out_dir: Path) -> None:
     from irene_brain.evaluation.diagnostic_policies import (
         ScriptedMazeChasePlannerPolicy,
@@ -700,6 +776,8 @@ def main() -> int:
         job_multi_episode_coverage(out_dir)
     elif arguments.job == "offpolicy-teacher":
         job_offpolicy_teacher(out_dir)
+    elif arguments.job == "window-majority":
+        job_window_majority(out_dir)
     elif arguments.job == "play-gate":
         if not arguments.config or not arguments.checkpoint:
             raise SystemExit("play-gate requires --config and --checkpoint")

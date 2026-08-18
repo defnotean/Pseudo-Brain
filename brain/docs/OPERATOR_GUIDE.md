@@ -23,7 +23,9 @@ The next named GPU probe is 90 tiled windows covering three planner
 episodes at the same accum 30, live on release
 `r20260818t192855z-6d85cc69dd69`. Campaign success is
 pellets ≥ 32 with a non-idle non-D-only histogram. One GB10 train at a
-time; named CPU farm jobs run in parallel on the host.
+time; named CPU farm jobs run in parallel on the host. A 90-window
+majority audit found 79 mixed tiles (mean majority 0.614), so a sticky
+play-gate here would not license another coverage tweak.
 
 The multi-episode tiled launch (preregistered; 32 steps; one GB10):
 
