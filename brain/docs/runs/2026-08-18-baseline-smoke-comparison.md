@@ -65,6 +65,39 @@ anything by itself — the probe is explicitly unqualified — but the
 qualified matched-baseline comparison is now the highest-value DGX item,
 ahead of any further RCQ qualification rounds.
 
+## Addendum: the B2 world-model actor joins the probe (2026-08-18)
+
+After B2 landed
+([2026-08-18-world-model-actor.md](2026-08-18-world-model-actor.md)), the
+probe gained hook-based objective resolution — a variant declaring
+`training_objective_class_path` trains through its own declared
+objective, the same importlib discipline as train.py — and a twelfth
+builder at the parameter-matched GRU's smoke width (18). Row pinned at
+`docs/runs/artifacts/baseline-smoke-compare/irene.world_model_actor.gru_latent.v1.json`.
+
+| variant | params | train loss first→last | val action loss | val movement exact | val world loss |
+| --- | --- | --- | --- | --- | --- |
+| world_model_actor (B2) | 95,417 | 1.0013 → 0.9612 | 1.1124 → **0.7026** | 0.000 → 0.083 | 1.0853 |
+
+Reading:
+
+- **The actor learns the action task at exactly its trunk's rate** —
+  0.7026 versus the parameter-matched GRU's 0.7029, with double the
+  movement exactness (0.083 versus 0.042). The transition-model machinery
+  does not tax action learning at this scale.
+- **Its world loss (1.0853) is the highest in the suite, as designed.**
+  The rollout objective must predict sensor encodings through a
+  transition model that has seen 64 steps — a strictly harder task than
+  the direct future-embedding head every other variant trains. Whether
+  the premium closes with training is a campaign question, not a smoke
+  question.
+- **The headline is unchanged:** serial_depth still leads on action loss
+  and movement exactness, and the review's RCQ-v3 smoke proceed-criterion
+  remains unmet.
+- Parameter counts are not matched at smoke scale (the action embedder's
+  fixed 307→64 width adds ~41.5k over the width-18 trunk); parameter
+  parity is a thesis-scale manifest property, verified there at +0.69%.
+
 ## Verification
 
 Per-variant JSON rows are written incrementally and reruns are

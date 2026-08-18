@@ -9,9 +9,13 @@ The campaign window shape (sequence_length 8, burn-in 2) is used so the
 B1 multi-horizon world loss is exercised by every variant.
 
 Per-variant JSON rows are written incrementally, so a partial run can be
-resumed by re-invoking with the remaining variant ids. This probe exists
-to give the matched-baseline decision an early, cheap signal — the
-qualified comparison remains the DGX campaign.
+resumed by re-invoking with the remaining variant ids. Variants in their
+own recipe family (the B2 world-model actor) are trained through the
+objective their model declares on its fail-closed
+``training_objective_class_path`` hook — the same resolution discipline
+as train.py — so the probe never silently swaps objectives. This probe
+exists to give the matched-baseline decision an early, cheap signal —
+the qualified comparison remains the DGX campaign.
 
 Usage (from the repository root, play-safe Python):
 
@@ -85,6 +89,7 @@ def _build_variant(variant_id: str):
         SerialDepthSlotBaseline,
     )
     from irene_brain.model.torch_model import IreneBrainModel
+    from irene_brain.model.world_model_actor import LatentWorldModelActor
 
     slot = _slot_config()
     builders = {
@@ -122,6 +127,9 @@ def _build_variant(variant_id: str):
         ),
         "irene.recurrent_transformer.carry_token.v1": lambda: RecurrentTransformerBaseline(
             _monolithic_config(), input_resolution=(8, 8), plan_steps=2
+        ),
+        "irene.world_model_actor.gru_latent.v1": lambda: LatentWorldModelActor(
+            _monolithic_config(width=18), input_resolution=(8, 8), plan_steps=2
         ),
     }
     if variant_id not in builders:
@@ -192,6 +200,8 @@ def _training_config():
 
 
 def run_variant(variant_id: str, *, steps: int) -> dict[str, object]:
+    import importlib
+
     import torch
 
     torch.set_num_threads(1)
@@ -204,7 +214,17 @@ def run_variant(variant_id: str, *, steps: int) -> dict[str, object]:
 
     model = _build_variant(variant_id)
     trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    system = TorchTrainingSystem(ThoughtFieldObjective(model), _training_config())
+    # Own-recipe-family variants declare their objective fail-closed on the
+    # model; resolve it with the same importlib discipline as train.py.
+    objective_class_path = getattr(model, "training_objective_class_path", None)
+    if objective_class_path is None:
+        objective_class = ThoughtFieldObjective
+        objective_name = "irene_brain.training.objective:ThoughtFieldObjective"
+    else:
+        module_name, attribute = objective_class_path.split(":", 1)
+        objective_class = getattr(importlib.import_module(module_name), attribute)
+        objective_name = objective_class_path
+    system = TorchTrainingSystem(objective_class(model), _training_config())
     source = MovingShapesBatchSource(
         DatasetConfig(
             kind="moving_shapes",
@@ -256,6 +276,7 @@ def run_variant(variant_id: str, *, steps: int) -> dict[str, object]:
         "seed": SEED,
         "optimizer_steps": steps,
         "trainable_parameters": trainable,
+        "training_objective": objective_name,
         "sequence_length": SEQUENCE_LENGTH,
         "burn_in_steps": BURN_IN_STEPS,
         "train_loss_first": sum(losses[:window]) / window,
@@ -296,6 +317,7 @@ def main() -> int:
         RESET_STATE_IDENTITY,
         SERIAL_DEPTH_IDENTITY,
     )
+    from irene_brain.model.world_model_actor import WORLD_MODEL_ACTOR_IDENTITY
 
     all_variants = [
         REFERENCE_IDENTITY.variant_id,
@@ -309,6 +331,7 @@ def main() -> int:
         MONOLITHIC_IDENTITY.variant_id,
         PARAMETER_MATCHED_MONOLITHIC_IDENTITY.variant_id,
         RECURRENT_TRANSFORMER_IDENTITY.variant_id,
+        WORLD_MODEL_ACTOR_IDENTITY.variant_id,
     ]
     selected = (
         all_variants

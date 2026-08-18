@@ -380,6 +380,16 @@ manifest (regenerated for the refactor, digest `eda3cf38…`). B3 (task
 specialist) remains blocked on ladder dataset generation (7 new tests;
 play-safe gate green, 558 tests). Record:
 [docs/runs/2026-08-18-world-model-actor.md](./docs/runs/2026-08-18-world-model-actor.md).
+The smoke comparison probe now covers the B2 actor as its twelfth
+variant: `scripts/compare_baselines_smoke.py` resolves each variant's
+declared `training_objective_class_path` hook (the same discipline as
+train.py) instead of hardwiring the shared objective. At 64 steps the
+actor learns the action task at exactly its trunk's rate (0.7026 vs the
+parameter-matched GRU's 0.7029, movement exact 0.083 vs 0.042) and pays
+the expected world-loss premium for rollout prediction (1.0853, highest
+in the suite); serial_depth still leads and the RCQ-v3 smoke
+proceed-criterion remains unmet. Record:
+[docs/runs/2026-08-18-baseline-smoke-comparison.md](./docs/runs/2026-08-18-baseline-smoke-comparison.md).
 The matched baseline suite gains the PLAN §28 item-12 control:
 `irene.thought_field.independent_ensemble.v1` — four untied members of
 eight slots each at width 352 (29,459,914 trainable, 0.72% under the
