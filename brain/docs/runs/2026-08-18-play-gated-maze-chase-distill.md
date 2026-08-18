@@ -1,22 +1,26 @@
 # Play-gated maze-chase distill campaign v1 (2026-08-18)
 
-Status: **current campaign**. 128-step turn-weighted exclusive CE
-**completed / failed** sticky S (idle×26 + S×454, 20 pellets, 390
-collisions, reward −3880, val match 0.0). Do not scale 128; one-key
-sticky returned. The 32-step turn-weighted exclusive CE **completed /
-passed** the campaign gate (A×377 + S×103, 38 pellets, 43 collisions,
-reward −392, val match 0.25) and remains the campaign-pass checkpoint.
-Multi-episode tiled tiles **completed / failed** mixed W/A/D.
-Full-episode tiled update **completed / failed** sticky D. Tiled 1:1
-planner windows **completed / failed** sticky A. Exclusive-direction
-softmax probe **completed / failed** sticky S. Action-only exclusive CE
-**completed / failed idle no-op**. Value-only exclusive CE **completed
-/ failed idle no-op**. Do not scale exclusive-CE, action-only,
-value-only, tiled-windows, accumulation-30, 90-seq, or 128-step
-turn-weighted, and do not retune hold×0.1. Exclusive-argmax
-play-decode stays failed sticky S. Window-32 and episode-windows stay
-falsified idle no-op. RCQ-v2 seed 1702 stays terminal. No v3
-registration. No sealed TEST.
+Status: **current campaign**. Play-peak / early-stop is the next GPU
+job (`dgx-play-maze-chase-distill-play-peak-v1`): same 32-step-winning
+turn-weighted recipe, max 64, closed-loop play every 8 steps, keep the
+best-pellet checkpoint, stop when play drops from that peak. 128-step
+turn-weighted exclusive CE **completed / failed** sticky S (idle×26 +
+S×454, 20 pellets, 390 collisions, reward −3880, val match 0.0). Do
+not scale 128; one-key sticky returned. The 32-step turn-weighted
+exclusive CE **completed / passed** the campaign gate (A×377 + S×103,
+38 pellets, 43 collisions, reward −392, val match 0.25) and remains
+the campaign-pass checkpoint until play-peak reports a better kept
+checkpoint. Multi-episode tiled tiles **completed / failed** mixed
+W/A/D. Full-episode tiled update **completed / failed** sticky D.
+Tiled 1:1 planner windows **completed / failed** sticky A.
+Exclusive-direction softmax probe **completed / failed** sticky S.
+Action-only exclusive CE **completed / failed idle no-op**. Value-only
+exclusive CE **completed / failed idle no-op**. Do not scale
+exclusive-CE, action-only, value-only, tiled-windows, accumulation-30,
+90-seq, or 128-step turn-weighted, and do not retune hold×0.1.
+Exclusive-argmax play-decode stays failed sticky S. Window-32 and
+episode-windows stay falsified idle no-op. RCQ-v2 seed 1702 stays
+terminal. No v3 registration. No sealed TEST.
 
 ## 128-step turn-weighted exclusive CE result (2026-08-18)
 
@@ -83,6 +87,32 @@ exclusive-argmax match **0.0**, value loss 1.02. Val teacher mix W/A/S/D
 ≈ 0.250 / 0.083 / 0.250 / 0.417. Every val WASD predicted-positive
 **0.0**; teacher movement logit gap **−0.115**; inactive movement logit
 max **−5.94**. Spark GPU is idle. Do not scale.
+
+## Play-peak / early-stop (preregistered)
+
+Hypothesis: more optimizer steps of the passing 32-step turn-weighted
+recipe **hurt**. Ranking collapsed train steps 40→48 (exclusive-argmax
+match 0.211→0.033) and the 128-step endpoint was sticky S. Keep the
+same teacher, loss (hold ×0.1), decode, aux mix, 90 tiled windows, and
+accum 30. Score closed-loop play every 8 steps on seeds 5/9, keep the
+checkpoint with most pellets then fewest collisions, and stop when
+play drops from that peak (`play_peak_v1`: pellet drop of 8, drop into
+the 20-pellet sticky band, or one-key WASD). Bound 64, not 128 or 256.
+Do not retune hold×0.1.
+
+| Field | Value |
+|---|---|
+| Run id | `dgx-play-maze-chase-distill-play-peak-v1` |
+| Config | `brain/configs/training/dgx-play-maze-chase-distill-play-peak.toml` |
+| Canonical config SHA-256 | `1d5e29963993766cd945ab344b29d149f47a873057923385251b7af6d6163059` |
+| Play decode | `exclusive_argmax_wasd_v1` (idle margin −4.0; kept) |
+| Action loss | `exclusive_wasd_softmax_turn_weighted_v1` (hold ×0.1; unchanged) |
+| Teacher | `irene.maze_chase.planner_teacher.tiled_windows.v1` (same 90-window manifest) |
+| Batch-source | `maze_chase_tiled_windows` |
+| Weights | exclusive-CE aux mix (value/world/diversity/continuous restored) |
+| Budget | max 64 optimizer steps, play eval every 8, `play_peak_v1` early-stop |
+| Play eval | seeds 5/9 × 240 ticks during training; official gate on the kept peak |
+| Campaign pass | `pellets_eaten >= 32` and histogram not idle / D-only / one-key sticky |
 
 ## Turn-weighted exclusive CE result (2026-08-18)
 
@@ -779,6 +809,7 @@ and not an RCQ qualification.
 | Passing 128-step run id | `dgx-play-maze-chase-distill-probe-128-v1` (`play_moved: true`, same play numbers) |
 | Passing turn-weighted run id | `dgx-play-maze-chase-distill-turn-weighted-v1` (`campaign_success: true`, 38 pellets) |
 | Failed 128-step turn-weighted run id | `dgx-play-maze-chase-distill-turn-weighted-128-v1` (sticky S, 20 pellets; do not scale) |
+| Play-peak / early-stop run id | `dgx-play-maze-chase-distill-play-peak-v1` (preregistered; max 64, play eval every 8) |
 | Failed multi-episode tiled run id | `dgx-play-maze-chase-distill-multi-episode-v1` |
 | Failed full-episode tiled-update run id | `dgx-play-maze-chase-distill-episode-update-v1` |
 | Failed tiled-window exclusive-CE run id | `dgx-play-maze-chase-distill-tiled-windows-v1` |
@@ -801,8 +832,9 @@ and not an RCQ qualification.
 | Multi-episode tiled config | `brain/configs/training/dgx-play-maze-chase-distill-multi-episode.toml` |
 | Turn-weighted exclusive-CE config | `brain/configs/training/dgx-play-maze-chase-distill-turn-weighted.toml` |
 | 128-step turn-weighted exclusive-CE config | `brain/configs/training/dgx-play-maze-chase-distill-turn-weighted-128.toml` |
+| Play-peak / early-stop config | `brain/configs/training/dgx-play-maze-chase-distill-play-peak.toml` |
 | Model factory | `irene_brain.training.factory:build_thesis_model` |
-| Data | Next probe: same `irene.maze_chase.planner_teacher.tiled_windows.v1` 90-window teacher and `exclusive_wasd_softmax_turn_weighted_v1` (hold ×0.1), 128 steps. Passed 32-step turn-weighted used that loss. Failed multi-episode used unweighted exclusive CE on that teacher. Failed episode-update used 30 sequences / accum 30 on one episode. Failed tiled-windows used batch 1 / accum 1. Failed exclusive-CE family used `irene.maze_chase.planner_teacher.episode_windows.v1`. |
+| Data | Next probe: same `irene.maze_chase.planner_teacher.tiled_windows.v1` 90-window teacher and `exclusive_wasd_softmax_turn_weighted_v1` (hold ×0.1), play-peak early-stop, max 64. Passed 32-step turn-weighted used that loss. Failed 128-step turn-weighted of that loss. Failed multi-episode used unweighted exclusive CE on that teacher. Failed episode-update used 30 sequences / accum 30 on one episode. Failed tiled-windows used batch 1 / accum 1. Failed exclusive-CE family used `irene.maze_chase.planner_teacher.episode_windows.v1`. |
 | Probe budget | 32 optimizer steps with `sequence_length = 8` windows drawn from 240-tick planner rollouts; schema 2, constant after warmup |
 | Play eval | seeds 5/9, 240 ticks, canonical maze slot (3 ghosts, period 2, 16 extra loops) |
 
@@ -1203,7 +1235,22 @@ generic train at an RCQ config.
    `-AcknowledgeDetached`
 5. `play-gate.json` failed sticky S: reward −3880 / collisions 390 /
    20 pellets / histogram [[0, 26], [4, 454]] (idle×26 + S×454). Val
-   match 0.0. Do not scale 128. Spark GPU is idle.
+   match 0.0. Do not scale 128.
+
+Generic wrappers only. Never `Start-DgxRcqV2Reference.ps1`. Never point
+generic train at an RCQ config.
+
+## Spark sequence (play-peak / early-stop, launching)
+
+1. `Invoke-DgxPreflight.ps1`
+2. `Sync-DgxBrainRelease.ps1`
+3. `Invoke-DgxBrainSmoke.ps1` on `dgx-smoke.toml`
+4. `Start-DgxBrainTraining.ps1` with
+   `dgx-play-maze-chase-distill-play-peak.toml`, run id
+   `dgx-play-maze-chase-distill-play-peak-v1`, Tmux with
+   `-AcknowledgeDetached`
+5. Watch `play-trace.jsonl` / `play-best.json` / `play-gate.json`. Official
+   gate is the kept peak checkpoint, not the last optimizer step.
 
 Generic wrappers only. Never `Start-DgxRcqV2Reference.ps1`. Never point
 generic train at an RCQ config.
@@ -1270,9 +1317,9 @@ generic train at an RCQ config.
 Generic wrappers only. Never `Start-DgxRcqV2Reference.ps1`. Never point
 generic train at an RCQ config.
 
-The B2 world-model-actor manifest was regenerated because `objective.py` is in
-that family's source set (new digest `4e603895…`; previous `be571ba4…`,
-`885aff85…`, `3d2e3cc0…`, then `c207401f…`).
+The B2 world-model-actor manifest was regenerated because `train.py` is in
+that family's source set (new digest `898e8a0e…`; previous `4e603895…`,
+`be571ba4…`, `885aff85…`, `3d2e3cc0…`, then `c207401f…`).
 No actor parameter or recipe identity changed.
 The matched-baseline architecture manifest is a new comparison identity
 `3d7ff5bd…` (previous live `5e0f2536…`, then `eda3cf38…`) for the same

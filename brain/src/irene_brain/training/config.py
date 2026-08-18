@@ -49,6 +49,14 @@ DATASET_OPTIONAL_DEFAULTS: dict[str, object] = {
     "window_sampling": "uniform",
 }
 
+# Play scoring during training. Omitted from canonical JSON at these defaults
+# so every historical configuration hash stays byte-identical. A positive
+# play_eval_every_steps is a new identity and maze_chase-only.
+LOGGING_OPTIONAL_DEFAULTS: dict[str, object] = {
+    "play_eval_every_steps": 0,
+    "play_early_stop_kind": "none",
+}
+
 
 def _table(value: object, *, name: str) -> Mapping[str, Any]:
     if not isinstance(value, Mapping):
@@ -475,6 +483,8 @@ class LoggingConfig:
     validation_batches: int
     checkpoint_every_steps: int
     keep_last_checkpoints: int
+    play_eval_every_steps: int = 0
+    play_early_stop_kind: str = "none"
 
     def __post_init__(self) -> None:
         for name in (
@@ -485,6 +495,26 @@ class LoggingConfig:
             "keep_last_checkpoints",
         ):
             _integer(getattr(self, name), name=f"logging.{name}", minimum=1)
+        play_every = _integer(
+            self.play_eval_every_steps,
+            name="logging.play_eval_every_steps",
+            minimum=0,
+        )
+        object.__setattr__(self, "play_eval_every_steps", play_every)
+        kind = _string(
+            self.play_early_stop_kind,
+            name="logging.play_early_stop_kind",
+        )
+        if kind not in {"none", "play_peak_v1"}:
+            raise ValueError(
+                "logging.play_early_stop_kind must be none or play_peak_v1"
+            )
+        object.__setattr__(self, "play_early_stop_kind", kind)
+        if kind == "play_peak_v1" and play_every < 1:
+            raise ValueError(
+                "logging.play_early_stop_kind play_peak_v1 requires "
+                "logging.play_eval_every_steps >= 1"
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -715,6 +745,19 @@ class TrainingConfig:
                 "objective.play_decode_kind other than independent_logit_gt_zero_v1 "
                 "is only valid for maze_chase"
             )
+        if self.logging.play_eval_every_steps > 0:
+            if self.dataset.kind != "maze_chase":
+                raise ValueError(
+                    "logging.play_eval_every_steps is only valid for maze_chase"
+                )
+            if self.schema_version == 3:
+                raise ValueError(
+                    "schema-3 configs cannot declare play evaluation during training"
+                )
+        if self.logging.play_early_stop_kind != "none" and self.schema_version == 3:
+            raise ValueError(
+                "schema-3 configs cannot declare play-peak early-stop"
+            )
         if self.objective.action_loss_kind in {
             "exclusive_wasd_softmax_v1",
             "exclusive_wasd_softmax_turn_weighted_v1",
@@ -934,6 +977,9 @@ class TrainingConfig:
         for key, default in DATASET_OPTIONAL_DEFAULTS.items():
             if result["dataset"].get(key) == default:
                 del result["dataset"][key]
+        for key, default in LOGGING_OPTIONAL_DEFAULTS.items():
+            if result["logging"].get(key) == default:
+                del result["logging"][key]
         return result
 
     @property
@@ -1094,6 +1140,22 @@ class TrainingConfig:
                     **tables[name],
                 }
                 continue
+            if name == "logging":
+                optional = frozenset(LOGGING_OPTIONAL_DEFAULTS)
+                unknown = sorted(set(tables[name]) - set(fields) - set(optional))
+                missing = sorted(set(fields) - set(tables[name]))
+                if unknown or missing:
+                    details: list[str] = []
+                    if missing:
+                        details.append(f"missing fields: {', '.join(missing)}")
+                    if unknown:
+                        details.append(f"unknown fields: {', '.join(unknown)}")
+                    raise ValueError(f"logging: {'; '.join(details)}")
+                tables[name] = {
+                    **LOGGING_OPTIONAL_DEFAULTS,
+                    **tables[name],
+                }
+                continue
             _exact_fields(tables[name], name=name, required=fields)
         stages: tuple[TrainingStageConfig, ...] = ()
         if schema_version == 3:
@@ -1162,6 +1224,7 @@ __all__ = [
     "TrainingConfig",
     "TrainingStageConfig",
     "DATASET_OPTIONAL_DEFAULTS",
+    "LOGGING_OPTIONAL_DEFAULTS",
     "OBJECTIVE_OPTIONAL_DEFAULTS",
     "load_training_config",
 ]

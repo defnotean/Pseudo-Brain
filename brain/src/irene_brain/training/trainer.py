@@ -39,6 +39,8 @@ class TrainingSummary:
     development_gate_path: Path | None = None
     invariance_report_path: Path | None = None
     final_development_path: Path | None = None
+    play_best_checkpoint: Path | None = None
+    play_best_sha256: str | None = None
 
 
 class Trainer:
@@ -84,6 +86,10 @@ class Trainer:
         self._final_development_path: Path | None = None
         self._resume_metric_tail: list[bytes] = []
         self._recorded_metric_keys: set[tuple[str, int]] = set()
+        self._play_peak_payload: dict[str, object] | None = None
+        self._play_best_path: Path | None = None
+        self._play_best_sha256: str | None = None
+        self._play_best_step: int | None = None
 
     def run(
         self,
@@ -149,9 +155,23 @@ class Trainer:
                 last_checkpoint, last_digest = self._checkpoint(prune=not resuming)
                 stop_reason = boundary_stop
                 break
-            if step % self.config.logging.checkpoint_every_steps == 0:
-                self._validate_invariance_if_active()
-                last_checkpoint, last_digest = self._checkpoint(prune=not resuming)
+            if step % self.config.logging.checkpoint_every_steps == 0 or self._play_eval_due(
+                step
+            ):
+                if (
+                    last_checkpoint is None
+                    or int(last_checkpoint.stem.split("-")[-1]) != step
+                ):
+                    self._validate_invariance_if_active()
+                    last_checkpoint, last_digest = self._checkpoint(prune=not resuming)
+            if self._play_eval_due(step):
+                assert last_checkpoint is not None and last_digest is not None
+                payload = self._score_play()
+                previous_peak = self._play_peak_payload
+                self._maybe_keep_play_best(last_checkpoint, last_digest, payload)
+                if self._should_stop_play_peak(payload, previous_peak):
+                    stop_reason = "play_peak_drop"
+                    break
             if stop_after_step is not None and step == stop_after_step:
                 if (
                     last_checkpoint is None
@@ -172,6 +192,8 @@ class Trainer:
             self._validate_invariance_if_active()
             last_checkpoint, last_digest = self._checkpoint(prune=not resuming)
         assert last_checkpoint is not None and last_digest is not None
+        self._restore_play_best()
+        self._write_play_peak_summary(stop_reason)
         return TrainingSummary(
             cursor=self.cursor,
             last_checkpoint=last_checkpoint,
@@ -185,6 +207,8 @@ class Trainer:
             development_gate_path=self._development_gate_path,
             invariance_report_path=self._invariance_report_path,
             final_development_path=self._final_development_path,
+            play_best_checkpoint=self._play_best_path,
+            play_best_sha256=self._play_best_sha256,
         )
 
     def evaluate(self, *, split: str, max_batches: int | None = None) -> TrainingStepResult:
@@ -352,6 +376,144 @@ class Trainer:
             raise ValueError("metric split/step is already durably recorded")
         self._metrics.append(record)
         self._recorded_metric_keys.add(key)
+
+    def _play_eval_due(self, step: int) -> bool:
+        interval = self.config.logging.play_eval_every_steps
+        return interval > 0 and step % interval == 0
+
+    def _score_play(self) -> dict[str, object]:
+        from .play_gate import evaluate_maze_chase_play
+
+        model = getattr(getattr(self.system, "objective", None), "model", None)
+        if model is None:
+            raise ValueError("play evaluation requires a system with an objective.model")
+        rng_state = self.system.capture_rng_state()
+        try:
+            payload = evaluate_maze_chase_play(
+                model,
+                decode_kind=self.config.objective.play_decode_kind,
+            )
+        finally:
+            self.system.restore_rng_state(rng_state)
+        self._append_play_trace(payload)
+        print(
+            json.dumps(
+                {
+                    "play_eval": {
+                        "step": self.cursor.optimizer_step,
+                        "pellets_eaten": payload["pellets_eaten"],
+                        "collisions": payload["collisions"],
+                        "reward_sum": payload["reward_sum"],
+                        "movement_mask_histogram": payload["movement_mask_histogram"],
+                        "sticky_or_idle": payload["sticky_or_idle"],
+                        "campaign_success": payload["campaign_success"],
+                    }
+                },
+                allow_nan=False,
+                sort_keys=True,
+            ),
+            flush=True,
+        )
+        return payload
+
+    def _append_play_trace(self, payload: dict[str, object]) -> None:
+        record = {
+            "step": self.cursor.optimizer_step,
+            "pellets_eaten": payload["pellets_eaten"],
+            "collisions": payload["collisions"],
+            "reward_sum": payload["reward_sum"],
+            "movement_mask_histogram": payload["movement_mask_histogram"],
+            "sticky_or_idle": payload["sticky_or_idle"],
+            "campaign_success": payload["campaign_success"],
+            "gate": payload["gate"],
+        }
+        encoded = (json.dumps(record, allow_nan=False, sort_keys=True) + "\n").encode(
+            "utf-8"
+        )
+        path = self.run_dir / "play-trace.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("ab") as stream:
+            stream.write(encoded)
+            stream.flush()
+            os.fsync(stream.fileno())
+
+    def _maybe_keep_play_best(
+        self,
+        checkpoint: Path,
+        digest: str,
+        payload: dict[str, object],
+    ) -> None:
+        from .play_gate import play_score
+
+        if self._play_peak_payload is not None and play_score(payload) <= play_score(
+            self._play_peak_payload
+        ):
+            return
+        dest = self.checkpoint_dir / "play-best.pt"
+        _write_atomic(dest, checkpoint.read_bytes())
+        self._play_peak_payload = dict(payload)
+        self._play_best_path = dest
+        self._play_best_sha256 = digest
+        self._play_best_step = self.cursor.optimizer_step
+        meta = {
+            "kind": "play_peak_v1",
+            "step": self.cursor.optimizer_step,
+            "checkpoint": dest.name,
+            "source_checkpoint": checkpoint.name,
+            "checkpoint_sha256": digest,
+            "pellets_eaten": payload["pellets_eaten"],
+            "collisions": payload["collisions"],
+            "reward_sum": payload["reward_sum"],
+            "movement_mask_histogram": payload["movement_mask_histogram"],
+            "sticky_or_idle": payload["sticky_or_idle"],
+            "campaign_success": payload["campaign_success"],
+        }
+        encoded = (json.dumps(meta, indent=2, sort_keys=True) + "\n").encode("utf-8")
+        _write_atomic(self.run_dir / "play-best.json", encoded)
+
+    def _should_stop_play_peak(
+        self,
+        payload: dict[str, object],
+        previous_peak: dict[str, object] | None,
+    ) -> bool:
+        from .play_gate import play_peak_should_stop
+
+        if self.config.logging.play_early_stop_kind != "play_peak_v1":
+            return False
+        return play_peak_should_stop(payload, previous_peak)
+
+    def _restore_play_best(self) -> None:
+        if self._play_best_path is None or self._play_best_sha256 is None:
+            return
+        loaded = load_checkpoint(
+            self._play_best_path,
+            expected_config_sha256=self.config.config_sha256,
+            expected_data_sha256=self.batch_source.manifest_sha256,
+            expected_code_sha256=self.code_sha256,
+            expected_runtime_fingerprint=self.system.runtime_fingerprint,
+            expected_checkpoint_sha256=self._play_best_sha256,
+        )
+        self.system.restore_checkpoint_state(loaded.system_state)
+
+    def _write_play_peak_summary(self, stop_reason: str | None) -> None:
+        if self.config.logging.play_eval_every_steps < 1:
+            return
+        peak = self._play_peak_payload or {}
+        summary = {
+            "kind": "play_peak_v1",
+            "stop_reason": stop_reason,
+            "final_step": self.cursor.optimizer_step,
+            "max_optimizer_steps": self.config.run.max_optimizer_steps,
+            "play_eval_every_steps": self.config.logging.play_eval_every_steps,
+            "selected_step": self._play_best_step,
+            "selected_pellets": peak.get("pellets_eaten"),
+            "selected_collisions": peak.get("collisions"),
+            "selected_reward_sum": peak.get("reward_sum"),
+            "selected_histogram": peak.get("movement_mask_histogram"),
+            "play_best_sha256": self._play_best_sha256,
+        }
+        encoded = (json.dumps(summary, indent=2, sort_keys=True) + "\n").encode("utf-8")
+        _write_atomic(self.run_dir / "play-peak.json", encoded)
 
     def _checkpoint(self, *, prune: bool = True) -> tuple[Path, str]:
         self._assert_staged_cursor()

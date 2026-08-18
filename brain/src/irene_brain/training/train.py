@@ -267,6 +267,12 @@ def main(argv: Sequence[str] | None = None) -> int:
                     if summary.final_development_path is None
                     else str(summary.final_development_path)
                 ),
+                "play_best_checkpoint": (
+                    None
+                    if summary.play_best_checkpoint is None
+                    else str(summary.play_best_checkpoint)
+                ),
+                "play_best_sha256": summary.play_best_sha256,
             },
             sort_keys=True,
         ),
@@ -280,7 +286,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             run_dir,
             decode_kind=config.objective.play_decode_kind,
         )
-    return 0 if summary.completed or summary.stop_reason == "operational_stop" else 1
+    return 0 if summary.completed or summary.stop_reason in {
+        "operational_stop",
+        "play_peak_drop",
+    } else 1
 
 
 if __name__ == "__main__":

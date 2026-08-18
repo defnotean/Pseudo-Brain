@@ -38,6 +38,12 @@ NOOP_COLLISION_FLOOR = 17
 CAMPAIGN_PELLET_FLOOR = 32
 IDLE_MOVEMENT_MASK = 0
 D_ONLY_MOVEMENT_MASK = 8
+PLAY_PEAK_V1 = "play_peak_v1"
+# Exclusive-CE / 128-step turn-weighted sticky-S band. A drop into this
+# band after a better peak is an early-stop, not a 128-scale.
+STICKY_PELLET_BAND = 20
+# Stop when pellets fall this many below the kept peak.
+PLAY_PEAK_DROP_PELLETS = 8
 
 
 def maze_chase_play_config(
@@ -62,6 +68,60 @@ def maze_chase_environment_factory() -> MazeChaseEnv:
 def _is_sticky_or_idle(histogram: dict[int, int]) -> bool:
     active = {mask for mask, count in histogram.items() if count > 0}
     return not active or active <= {IDLE_MOVEMENT_MASK, D_ONLY_MOVEMENT_MASK}
+
+
+def movement_histogram_from_payload(payload: dict[str, object]) -> dict[int, int]:
+    raw = payload.get("movement_mask_histogram", [])
+    if not isinstance(raw, list):
+        raise ValueError("movement_mask_histogram must be a list of [mask, count] pairs")
+    histogram: dict[int, int] = {}
+    for item in raw:
+        if not isinstance(item, (list, tuple)) or len(item) != 2:
+            raise ValueError("movement_mask_histogram entries must be [mask, count]")
+        mask, count = item
+        histogram[int(mask)] = int(count)
+    return histogram
+
+
+def is_one_key_wasd(histogram: dict[int, int]) -> bool:
+    """True when at most one non-idle WASD mask has any ticks."""
+
+    active = {mask for mask, count in histogram.items() if mask != 0 and count > 0}
+    return len(active) <= 1
+
+
+def play_score(payload: dict[str, object]) -> tuple[int, int]:
+    """Best play is more pellets, then fewer collisions."""
+
+    return (int(payload["pellets_eaten"]), -int(payload["collisions"]))
+
+
+def play_peak_should_stop(
+    current: dict[str, object],
+    peak: dict[str, object] | None,
+) -> bool:
+    """Stop when closed-loop play drops from the kept peak.
+
+    Frozen ``play_peak_v1``: pellets fall by ``PLAY_PEAK_DROP_PELLETS`` or
+    into the sticky-S band, the histogram collapses to one WASD key, or
+    play becomes sticky/idle after a mixed peak. No peak yet means continue.
+    """
+
+    if peak is None:
+        return False
+    current_pellets = int(current["pellets_eaten"])
+    peak_pellets = int(peak["pellets_eaten"])
+    if current_pellets <= peak_pellets - PLAY_PEAK_DROP_PELLETS:
+        return True
+    if current_pellets <= STICKY_PELLET_BAND and peak_pellets > STICKY_PELLET_BAND:
+        return True
+    current_hist = movement_histogram_from_payload(current)
+    peak_hist = movement_histogram_from_payload(peak)
+    if is_one_key_wasd(current_hist) and not is_one_key_wasd(peak_hist):
+        return True
+    if bool(current["sticky_or_idle"]) and not bool(peak["sticky_or_idle"]):
+        return True
+    return False
 
 
 def evaluate_maze_chase_play(
@@ -141,10 +201,17 @@ __all__ = [
     "CAMPAIGN_PELLET_FLOOR",
     "NOOP_COLLISION_FLOOR",
     "NOOP_REWARD_FLOOR",
+    "PLAY_PEAK_DROP_PELLETS",
+    "PLAY_PEAK_V1",
     "PLAY_SEEDS",
     "PLAY_TICKS",
+    "STICKY_PELLET_BAND",
     "evaluate_maze_chase_play",
+    "is_one_key_wasd",
     "maze_chase_environment_factory",
     "maze_chase_play_config",
+    "movement_histogram_from_payload",
+    "play_peak_should_stop",
+    "play_score",
     "write_maze_chase_play_gate",
 ]

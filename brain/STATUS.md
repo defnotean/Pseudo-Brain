@@ -21,7 +21,12 @@ exclusive-argmax match **0.25** (chance; teacher mix still W/A/S/D
 `7ad447d0e09f304751bcf2337419255b2355875c84b00dc1e682cb13c6fd4ad9`)
 **failed** sticky S: idle×26 + S×454, **20 pellets**, 390 collisions,
 reward **−3880**, val match **0.0**. Do not scale 128. Do not
-retune hold×0.1. Play moved on the 32-step probe v2 and held on the
+retune hold×0.1. Next GPU job is play-peak / early-stop
+(`dgx-play-maze-chase-distill-play-peak-v1`, canonical config SHA-256
+`1d5e29963993766cd945ab344b29d149f47a873057923385251b7af6d6163059`):
+same recipe, max 64, play eval every 8, keep best pellets then fewest
+collisions, stop when play drops from that peak. Play moved on the
+32-step probe v2 and held on the
 128-step probe at reward_sum **-150**, collisions **16**
 (sticky D, ~10 implied pellets). Window-32 and episode-windows **failed**
 idle no-op (9 pellets, mask 0 × 480). Named play decode
@@ -432,7 +437,7 @@ is inherited unchanged. `train.py` resolves the model's fail-closed
 `training_objective_class_path` hook; the recipe is
 `configs/training/baseline-stagea-world-model-actor.toml`; and the family
 is pinned by its own manifest (`configs/world-model-actor-manifest.json`,
-digest `4e603895…`, previous `be571ba4…`, `885aff85…`, `3d2e3cc0…`, then `c207401f…`) with a fail-closed 1%-band gate, not the slot-suite
+digest `898e8a0e…`, previous `4e603895…`, `be571ba4…`, `885aff85…`, `3d2e3cc0…`, then `c207401f…`) with a fail-closed 1%-band gate, not the slot-suite
 manifest (regenerated for turn-weighted exclusive WASD softmax, digest `3d7ff5bd…`). B3 (task
 specialist) remains blocked on ladder dataset generation (7 new tests;
 play-safe gate green, 558 tests). Record:

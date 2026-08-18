@@ -26,8 +26,13 @@ from irene_brain.training.play_gate import (
     CAMPAIGN_PELLET_FLOOR,
     NOOP_COLLISION_FLOOR,
     NOOP_REWARD_FLOOR,
+    PLAY_PEAK_DROP_PELLETS,
     PLAY_SEEDS,
     PLAY_TICKS,
+    STICKY_PELLET_BAND,
+    is_one_key_wasd,
+    play_peak_should_stop,
+    play_score,
 )
 from irene_brain.types import GenericControl, HidKey
 
@@ -508,6 +513,39 @@ class PlayGatedMazeChaseConfigTests(unittest.TestCase):
             dataset_batch_source(turn_weighted_128.dataset).manifest_sha256,
             dataset_batch_source(turn_weighted.dataset).manifest_sha256,
         )
+        play_peak = load_training_config(
+            ROOT
+            / "configs"
+            / "training"
+            / "dgx-play-maze-chase-distill-play-peak.toml"
+        )
+        self.assertEqual(play_peak.run.max_optimizer_steps, 64)
+        self.assertEqual(play_peak.logging.play_eval_every_steps, 8)
+        self.assertEqual(play_peak.logging.play_early_stop_kind, "play_peak_v1")
+        self.assertEqual(play_peak.logging.evaluate_every_steps, 32)
+        self.assertEqual(play_peak.logging.checkpoint_every_steps, 8)
+        self.assertEqual(play_peak.dataset.window_sampling, "tiled")
+        self.assertEqual(play_peak.dataset.train_sequences, 90)
+        self.assertEqual(play_peak.optimization.gradient_accumulation_steps, 30)
+        self.assertEqual(
+            play_peak.objective.action_loss_kind,
+            "exclusive_wasd_softmax_turn_weighted_v1",
+        )
+        self.assertEqual(
+            play_peak.objective.play_decode_kind,
+            "exclusive_argmax_wasd_v1",
+        )
+        self.assertEqual(play_peak.run.seed, turn_weighted.run.seed)
+        self.assertNotEqual(play_peak.config_sha256, turn_weighted.config_sha256)
+        self.assertNotEqual(play_peak.config_sha256, turn_weighted_128.config_sha256)
+        self.assertEqual(
+            play_peak.config_sha256,
+            "1d5e29963993766cd945ab344b29d149f47a873057923385251b7af6d6163059",
+        )
+        self.assertEqual(
+            dataset_batch_source(play_peak.dataset).manifest_sha256,
+            dataset_batch_source(turn_weighted.dataset).manifest_sha256,
+        )
 
         smoke = load_training_config(
             ROOT / "configs" / "training" / "dgx-smoke.toml"
@@ -530,6 +568,14 @@ class PlayGatedMazeChaseConfigTests(unittest.TestCase):
                     play_decode_kind="independent_logit_gt_zero_v1",
                 ),
             )
+        with self.assertRaisesRegex(ValueError, "only valid for maze_chase"):
+            replace(
+                smoke,
+                logging=replace(
+                    smoke.logging,
+                    play_eval_every_steps=8,
+                ),
+            )
 
     def test_play_gate_floor_is_frozen(self) -> None:
         self.assertEqual(CAMPAIGN_ID, "play_gated_maze_chase_distill_v1")
@@ -538,6 +584,48 @@ class PlayGatedMazeChaseConfigTests(unittest.TestCase):
         self.assertEqual(NOOP_REWARD_FLOOR, -161.0)
         self.assertEqual(NOOP_COLLISION_FLOOR, 17)
         self.assertEqual(CAMPAIGN_PELLET_FLOOR, 32)
+        self.assertEqual(STICKY_PELLET_BAND, 20)
+        self.assertEqual(PLAY_PEAK_DROP_PELLETS, 8)
+
+    def test_play_peak_v1_stops_on_pellet_drop_and_one_key_s(self) -> None:
+        mixed = {
+            "pellets_eaten": 38,
+            "collisions": 43,
+            "sticky_or_idle": False,
+            "movement_mask_histogram": [[2, 377], [4, 103]],
+        }
+        sticky_s = {
+            "pellets_eaten": 20,
+            "collisions": 390,
+            "sticky_or_idle": False,
+            "movement_mask_histogram": [[0, 26], [4, 454]],
+        }
+        self.assertFalse(play_peak_should_stop(mixed, None))
+        self.assertTrue(play_peak_should_stop(sticky_s, mixed))
+        self.assertFalse(is_one_key_wasd({2: 377, 4: 103}))
+        self.assertTrue(is_one_key_wasd({0: 26, 4: 454}))
+        self.assertGreater(play_score(mixed), play_score(sticky_s))
+        mild_drop = {
+            "pellets_eaten": 30,
+            "collisions": 50,
+            "sticky_or_idle": False,
+            "movement_mask_histogram": [[2, 300], [4, 180]],
+        }
+        self.assertTrue(play_peak_should_stop(mild_drop, mixed))
+        tiny_drop = {
+            "pellets_eaten": 36,
+            "collisions": 40,
+            "sticky_or_idle": False,
+            "movement_mask_histogram": [[2, 360], [4, 120]],
+        }
+        self.assertFalse(play_peak_should_stop(tiny_drop, mixed))
+        one_key_a = {
+            "pellets_eaten": 36,
+            "collisions": 40,
+            "sticky_or_idle": False,
+            "movement_mask_histogram": [[2, 480]],
+        }
+        self.assertTrue(play_peak_should_stop(one_key_a, mixed))
 
     def test_play_eval_does_not_hardcode_cpu_device(self) -> None:
         import inspect
