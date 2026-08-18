@@ -309,6 +309,17 @@ actor) and B3 (task specialist) remain: B2 needs its own recipe family,
 B3 stays blocked on ladder dataset generation (4 new baseline tests;
 play-safe gate green, 547 tests). Record:
 [docs/runs/2026-08-18-multi-horizon-world-loss.md](./docs/runs/2026-08-18-multi-horizon-world-loss.md).
+Thought-collapse instrumentation now answers the review's "does collapse
+actually happen at K=32?" question with per-step evidence: the shared
+objective reports `thought_pairwise_cosine_mean` (alert threshold 0.7),
+`thought_duplicate_pair_fraction` (near-identical register pairs), and
+`movement_query_slot_entropy` (readout utilization) alongside the
+existing rank/private-energy/effective-slot diagnostics, on every logged
+step in training and evaluation, with exact additive identities for
+single-latent controls. Manifest regenerated (digest `1d73c7ef…`) for the
+objective source change (2 new tests; play-safe gate green, 548 tests).
+Record:
+[docs/runs/2026-08-18-thought-collapse-diagnostics.md](./docs/runs/2026-08-18-thought-collapse-diagnostics.md).
 The matched baseline suite gains the PLAN §28 item-12 control:
 `irene.thought_field.independent_ensemble.v1` — four untied members of
 eight slots each at width 352 (29,459,914 trainable, 0.72% under the

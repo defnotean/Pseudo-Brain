@@ -379,7 +379,10 @@ class MultiThoughtCoreTests(unittest.TestCase):
             "thought_summary_rank_proxy",
             "thought_full_register_rank_proxy",
             "thought_slot_private_energy",
+            "thought_pairwise_cosine_mean",
+            "thought_duplicate_pair_fraction",
             "movement_query_effective_slot_count",
+            "movement_query_slot_entropy",
             "mean_applied_expire_probability",
             "world_best_second_error_gap",
         }
@@ -389,13 +392,48 @@ class MultiThoughtCoreTests(unittest.TestCase):
             "movement_query_effective_slot_count",
             "world_best_second_error_gap",
         }
-        for name in expected - unbounded_nonnegative:
+        for name in expected - unbounded_nonnegative - {"thought_pairwise_cosine_mean"}:
             self.assertGreaterEqual(float(metrics[name]), 0.0)
             self.assertLessEqual(float(metrics[name]), 1.0)
+        self.assertGreaterEqual(float(metrics["thought_pairwise_cosine_mean"]), -1.0)
+        self.assertLessEqual(float(metrics["thought_pairwise_cosine_mean"]), 1.0)
         effective_slots = float(metrics["movement_query_effective_slot_count"])
         self.assertGreaterEqual(effective_slots, 1.0)
         self.assertLessEqual(effective_slots, float(self.config.thoughtlets))
         self.assertAlmostEqual(float(metrics["world_best_second_error_gap"]), 0.1)
+
+    def test_duplicate_pair_fraction_detects_collapsed_registers(self) -> None:
+        assert torch is not None
+        from dataclasses import replace as replace_dataclass
+
+        self.model.eval()
+        with torch.no_grad():
+            output = self.model(
+                self.pixels,
+                self.previous_control,
+                self.elapsed,
+            )
+            collapsed = output.next_state.thoughts.clone()
+            collapsed[:, 1] = collapsed[:, 0]
+            output = replace_dataclass(
+                output,
+                next_state=replace_dataclass(
+                    output.next_state, thoughts=collapsed
+                ),
+            )
+            prediction_error = torch.tensor([[0.1, 0.2, 0.4, 0.8]])
+            movement_indices = torch.tensor([26, 4, 22, 7], dtype=torch.long)
+            metrics = _thought_diagnostic_metric_counts(
+                output,
+                prediction_error,
+                movement_indices,
+            )
+        # Slots 0 and 1 now form an identical pair in both directions: at
+        # least 2 of the 4*3 ordered off-diagonal pairs are duplicates.
+        self.assertGreaterEqual(
+            float(metrics["thought_duplicate_pair_fraction"]),
+            2.0 / 12.0 - 1e-6,
+        )
 
 
 if __name__ == "__main__":

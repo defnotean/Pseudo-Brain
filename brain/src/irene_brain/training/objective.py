@@ -7,6 +7,7 @@ Phase-0 tooling does not import PyTorch merely by discovering the package.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import math
 from typing import Mapping
 
 import torch
@@ -682,8 +683,37 @@ def _thought_diagnostic_metric_counts(
         ).values
         raw_gap = (best_two[:, 1] - best_two[:, 0]).clamp_min(0.0)
         world_gap = raw_gap
+        # Collapse diagnostics: mean off-diagonal summary cosine (the
+        # thesis-scale alert watches for sustained values above 0.7) and
+        # the fraction of full-register slot pairs that are near-duplicates.
+        off_diagonal = ~torch.eye(
+            thoughtlets,
+            dtype=torch.bool,
+            device=summary_gram.device,
+        )
+        pairwise_cosine_mean = summary_gram[..., off_diagonal].mean(dim=-1)
+        duplicate_pair_fraction = (
+            (full_gram[..., off_diagonal] > 0.98).float().mean(dim=-1)
+        )
+        # Movement-readout slot utilization: per-query attention entropy
+        # normalized to [0, 1]; a collapsed readout concentrates on one slot.
+        query_entropy = -(
+            normalized_attention * normalized_attention.clamp_min(1e-12).log()
+        ).sum(dim=-1) / math.log(thoughtlets)
+        slot_utilization_entropy = torch.where(
+            attention_mass.squeeze(-1) > 1e-12,
+            query_entropy,
+            torch.zeros_like(query_entropy),
+        ).clamp(0.0, 1.0).mean(dim=1)
     else:
         world_gap = prediction_error.new_zeros((batch,), dtype=torch.float32)
+        pairwise_cosine_mean = prediction_error.new_zeros((batch,), dtype=torch.float32)
+        duplicate_pair_fraction = prediction_error.new_zeros(
+            (batch,), dtype=torch.float32
+        )
+        slot_utilization_entropy = prediction_error.new_zeros(
+            (batch,), dtype=torch.float32
+        )
 
     # These are diagnostics only. In particular, the best/second gap is not
     # added to the loss, so future-prediction divergence is never rewarded.
@@ -691,7 +721,10 @@ def _thought_diagnostic_metric_counts(
         "thought_summary_rank_proxy": summary_rank.sum(),
         "thought_full_register_rank_proxy": full_register_rank.sum(),
         "thought_slot_private_energy": slot_private_energy.sum(),
+        "thought_pairwise_cosine_mean": pairwise_cosine_mean.sum(),
+        "thought_duplicate_pair_fraction": duplicate_pair_fraction.sum(),
         "movement_query_effective_slot_count": movement_effective_slots.sum(),
+        "movement_query_slot_entropy": slot_utilization_entropy.sum(),
         "mean_applied_expire_probability": applied_expire.mean(dim=1).sum(),
         "world_best_second_error_gap": world_gap.sum(),
     }
