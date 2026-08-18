@@ -104,6 +104,47 @@ else
   echo "started $thoughtlets_name cpus=4 mem=12g job=thoughtlets"
 fi
 
+# Open-loop thoughtlets for the 32-step turn-weighted exclusive-CE checkpoint
+# (A×377 + S×103, 38 pellets). Same 32-step release and weights.
+tw_name='play-gated-cpu-thoughtlets-turn-weighted-v1'
+tw_run="$workspace/runs/$tw_name"
+tw_log="$workspace/logs/${tw_name}.log"
+tw_ckpt="$workspace/runs/dgx-play-maze-chase-distill-turn-weighted-v1"
+if tmux has-session -t "$tw_name" 2>/dev/null; then
+  echo "tmux $tw_name already running"
+elif docker inspect "$tw_name" >/dev/null 2>&1; then
+  echo "container $tw_name already running"
+elif [[ ! -f "$tw_ckpt/checkpoints/step-00000032.pt" ]]; then
+  echo "missing turn-weighted checkpoint; skip $tw_name" >&2
+else
+  mkdir -p "$tw_run"
+  tmux new-session -d -s "$tw_name" -- bash -lc "
+    set -o pipefail
+    docker run --rm --pull never \
+      --name '$tw_name' \
+      --network none \
+      --cpus 4 \
+      --memory 12g \
+      --pids-limit 256 \
+      --user '$uidgid' \
+      -e HOME=/workspace/run \
+      -e PATH=/usr/sbin:/usr/bin \
+      -e CUDA_VISIBLE_DEVICES=-1 \
+      -e OMP_NUM_THREADS=4 \
+      -e IRENE_BRAIN_SRC=/workspace/repo/brain/src \
+      -v '$release:/workspace/repo:ro' \
+      -v '$farm:/workspace/farm:ro' \
+      -v '$tw_run:/workspace/run' \
+      -v '$tw_ckpt:/workspace/ckpt:ro' \
+      --entrypoint /bin/bash \
+      '$image' --noprofile --norc -c \
+      'python3 -I /workspace/farm/play_gated_cpu_farm.py --job thoughtlets --out-dir /workspace/run --config /workspace/repo/brain/configs/training/dgx-play-maze-chase-distill-turn-weighted.toml --checkpoint /workspace/ckpt/checkpoints/step-00000032.pt --ticks 32 --seeds 5,9' \
+      2>&1 | tee '$tw_log'
+    echo EXIT:\${PIPESTATUS[0]} | tee -a '$tw_log'
+  "
+  echo "started $tw_name cpus=4 mem=12g job=thoughtlets"
+fi
+
 echo '===TMUX==='
 tmux ls
 echo '===DOCKER==='

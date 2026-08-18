@@ -33,8 +33,9 @@ value-only exclusive CE **failed idle no-op**. Tiled 1:1 planner windows
 Multi-episode tiled tiles **failed mixed W/A/D** (W×48 + A×200 + D×232,
 17 pellets, 17 collisions, −153; val match 0.083 = teacher A). Do not
 scale 90-seq. CPU farm added a turn-hold audit (261/720 change ticks,
-82/90 windows have a change) and a multi-episode thoughtlet dump
-(open-loop A×31+D×1). Campaign success is **pellets ≥ 32**
+82/90 windows have a change), a multi-episode thoughtlet dump
+(open-loop A×31+D×1), and a turn-weighted thoughtlet dump
+(open-loop A×32 on seeds 5/9). Campaign success is **pellets ≥ 32**
 with a non-idle non-D-only histogram. Official 32-step `play-gate.json`
 SHA-256
 `df9d88f4…`; 128-step `6401a922…`; window-32 `2cdedaf9…`; episode-windows

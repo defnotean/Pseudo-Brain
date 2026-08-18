@@ -819,6 +819,7 @@ Named CPU jobs. No GB10. Artifacts:
 | Window majority | `play-gated-cpu-window-majority-v1` | 90 tiled 8-tick windows (three episodes): **79 mixed**, **10 pure one-key**, mean majority fraction **0.614**. Majority-key histogram W×21 / A×23 / S×20 / D×26. Artifact SHA-256 `b3ade679…`. Exclusive-CE collapse is not “windows are one-key corridors.” |
 | Turn/hold audit | `play-gated-cpu-turn-hold-v1` | Same 90 tiled windows: **261/720 change ticks** (36.3%), **459 holds**, 8 idle, **82/90 windows have a change**. Artifact SHA-256 `84099816…`. Turn-weighted CE had signal; the 32-step pass used it. |
 | Thoughtlet dump multi-episode | `play-gated-cpu-thoughtlets-multi-episode-v1` | Multi-episode ckpt, 32 ticks seeds 5 and 9 on CPU idle-step. Argmax **A×31 + D×1** both seeds. Closed-loop play was mixed W/A/D; open-loop idle ranks A. Artifact SHA-256 `cc104343…`. |
+| Thoughtlet dump turn-weighted | `play-gated-cpu-thoughtlets-turn-weighted-v1` | 32-step turn-weighted ckpt, 32 ticks seeds 5 and 9 on CPU idle-step. Argmax **A×32** both seeds. Closed-loop play mixed A×377 + S×103; open-loop idle ranks A. Artifact SHA-256 `deaa5526…`. |
 
 ## Action-only exclusive CE result (2026-08-18)
 
