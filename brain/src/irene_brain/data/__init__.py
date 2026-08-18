@@ -20,6 +20,14 @@ from .moving_shapes_dataset import (
 )
 from .records import BranchRecord, LifetimeRecord, SensorStorageLocator, StepRecord
 from .replay import ReplayMismatch, ReplayStep, ReplayTrace, record_trace, verify_trace
+from .solver_dataset import (
+    SOLVER_WORLD_NAMES,
+    SolverDatasetConfig,
+    SolverSequence,
+    SolverSequenceDataset,
+    SolverTransition,
+    solver_dataset_manifest_sha256,
+)
 from .splits import (
     SplitIntegrityError,
     SplitLeakage,
@@ -42,7 +50,12 @@ __all__ = [
     "ReplayMismatch",
     "ReplayStep",
     "ReplayTrace",
+    "SOLVER_WORLD_NAMES",
     "SensorStorageLocator",
+    "SolverDatasetConfig",
+    "SolverSequence",
+    "SolverSequenceDataset",
+    "SolverTransition",
     "SplitIntegrityError",
     "SplitLeakage",
     "StepRecord",
@@ -52,6 +65,7 @@ __all__ = [
     "maze_chase_dataset_manifest_sha256",
     "record_trace",
     "require_split_integrity",
+    "solver_dataset_manifest_sha256",
     "split_episode_seed",
     "split_for_episode_seed",
     "verify_trace",

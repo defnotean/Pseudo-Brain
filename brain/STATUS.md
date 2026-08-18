@@ -267,6 +267,17 @@ The cross-world matrix is now 13 worlds × 9 policies = 117 cells (SHA-256
 `e76c4dd3f16673cd…`, all pre-existing cells unchanged; play-safe gate
 green, 524 tests). Record:
 [docs/runs/2026-08-17-open-field-collector-policy.md](./docs/runs/2026-08-17-open-field-collector-policy.md).
+The distillation loop is now wired for all four solver worlds:
+`SolverSequenceDataset` (`data/solver_dataset.py`, generator identities
+`irene.{world}.solver_teacher.v1`) serves lazy mechanics-matched solver
+demonstrations for keys_doors, junction, occlusion, and pursuit, and
+`SolverBatchSource` (`training/batches.py`) feeds them through the generic
+trainer protocol — verified end to end by a bounded CPU optimizer step on
+solver-labeled batches. `moving_shapes` is deliberately excluded (sealed
+RCQ family) and `maze_chase` keeps its own planner-teacher dataset; no
+registered configuration hash changes (19 tests; play-safe gate green,
+543 tests). Record:
+[docs/runs/2026-08-17-solver-demonstration-datasets.md](./docs/runs/2026-08-17-solver-demonstration-datasets.md).
 The matched baseline suite gains the PLAN §28 item-12 control:
 `irene.thought_field.independent_ensemble.v1` — four untied members of
 eight slots each at width 352 (29,459,914 trainable, 0.72% under the

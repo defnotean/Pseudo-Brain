@@ -8,6 +8,8 @@ from .batches import (
     MazeChaseBatchConfig,
     MazeChaseBatchSource,
     MovingShapesBatchSource,
+    SolverBatchConfig,
+    SolverBatchSource,
     TrajectoryBatch,
     control_to_vector,
 )
@@ -59,6 +61,8 @@ __all__ = [
     "PrecisionConfig",
     "ResourceConfig",
     "RunConfig",
+    "SolverBatchConfig",
+    "SolverBatchSource",
     "StagedTrainingSystem",
     "Trainer",
     "TrainerCursor",

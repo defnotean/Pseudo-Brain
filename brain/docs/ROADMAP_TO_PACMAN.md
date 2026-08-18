@@ -202,6 +202,15 @@ PLAN.md §20 defines the ladder; the work items in this repo are:
    moving_shapes, +214 vs +134 on pursuit), and the matrix is now
    13 worlds × 9 policies = 117 cells
    ([runs/2026-08-17-open-field-collector-policy.md](runs/2026-08-17-open-field-collector-policy.md)).
+   The distillation loop is now wired for all four solver worlds:
+   `SolverSequenceDataset` (`data/solver_dataset.py`,
+   `irene.{world}.solver_teacher.v1`) serves lazy mechanics-matched solver
+   demonstrations, and `SolverBatchSource` (`training/batches.py`) feeds
+   them through the generic trainer protocol — verified end to end by a
+   bounded CPU optimizer step on solver-labeled batches. `moving_shapes`
+   is deliberately excluded (sealed RCQ family) and `maze_chase` keeps its
+   own planner-teacher dataset
+   ([runs/2026-08-17-solver-demonstration-datasets.md](runs/2026-08-17-solver-demonstration-datasets.md)).
 2. **External open worlds** (license-cleared): XLand-MiniGrid, Craftax,
    Procgen — adapters behind `environments/protocol.py`, lifetime recording,
    held-out generator families.

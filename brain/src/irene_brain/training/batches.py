@@ -15,7 +15,11 @@ from ..data import (
     MovingShapesDatasetConfig,
     MovingShapesSequence,
     MovingShapesSequenceDataset,
+    SOLVER_WORLD_NAMES,
+    SolverDatasetConfig,
+    SolverSequenceDataset,
 )
+from ..environments.keys_doors import KeysDoorsEnv
 from ..environments.maze_chase import _GHOST_RULES, MazeChaseEnv
 from ..types import GenericControl
 from .config import DatasetConfig
@@ -413,6 +417,181 @@ class MazeChaseBatchSource:
             emitted += 1
 
 
+@dataclass(frozen=True, slots=True)
+class SolverBatchConfig:
+    """Split counts and world knob for :class:`SolverBatchSource`.
+
+    Kept separate from the pinned ``DatasetConfig`` (whose ``kind`` only
+    supports moving_shapes) so registered moving_shapes configuration hashes
+    are untouched. The four solver worlds (keys_doors, junction, occlusion,
+    pursuit) expose no additional generation knobs beyond the shared
+    sequence/split/timing fields.
+    """
+
+    train_sequences: int
+    validation_sequences: int
+    test_sequences: int
+    sequence_length: int
+    burn_in_steps: int
+    world: str = "keys_doors"
+    seed_offset: int = 0
+    tick_period_ns: int = KeysDoorsEnv.DEFAULT_TICK_PERIOD_NS
+    discount: float = 0.99
+
+    def __post_init__(self) -> None:
+        for value, name in (
+            (self.train_sequences, "solver.train_sequences"),
+            (self.validation_sequences, "solver.validation_sequences"),
+            (self.test_sequences, "solver.test_sequences"),
+        ):
+            if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+                raise ValueError(f"{name} must be a positive integer")
+        for value, name, low, high in (
+            (self.sequence_length, "solver.sequence_length", 2, 2**32 - 1),
+            (self.burn_in_steps, "solver.burn_in_steps", 0, 2**32 - 1),
+            (self.seed_offset, "solver.seed_offset", 0, (1 << 62) - 1),
+            (self.tick_period_ns, "solver.tick_period_ns", 1, 2**64 - 1),
+        ):
+            if isinstance(value, bool) or not isinstance(value, int):
+                raise ValueError(f"{name} must be an integer")
+            if value < low or value > high:
+                raise ValueError(f"{name} must be in [{low}, {high}]")
+        if self.burn_in_steps >= self.sequence_length:
+            raise ValueError(
+                "solver.burn_in_steps must be smaller than sequence_length"
+            )
+        if not isinstance(self.world, str) or self.world not in SOLVER_WORLD_NAMES:
+            raise ValueError(f"solver.world must be one of {sorted(SOLVER_WORLD_NAMES)}")
+        if isinstance(self.discount, bool) or not isinstance(
+            self.discount, (int, float)
+        ):
+            raise ValueError("solver.discount must be a number")
+        if not 0.0 <= float(self.discount) <= 1.0:
+            raise ValueError("solver.discount must be in [0, 1]")
+        if self.seed_offset + max(
+            self.train_sequences,
+            self.validation_sequences,
+            self.test_sequences,
+        ) > (1 << 62):
+            raise ValueError("solver sequence range exceeds its split namespace")
+
+
+class SolverBatchSource:
+    """Lazy split-namespaced solver trajectories with deterministic epochs.
+
+    Batches require equal-length sequences (:class:`TrajectoryBatch` fails
+    closed otherwise). All four solver worlds never terminate an episode
+    (``terminated`` is always ``False``), so every sequence truncates at the
+    length boundary and batches cleanly — even simpler than maze_chase, whose
+    episodes end once every pellet is eaten.
+    """
+
+    def __init__(self, config: SolverBatchConfig) -> None:
+        if not isinstance(config, SolverBatchConfig):
+            raise ValueError("config must be a SolverBatchConfig")
+        self.config = config
+        counts = {
+            DatasetSplit.TRAIN: config.train_sequences,
+            DatasetSplit.VALIDATION: config.validation_sequences,
+            DatasetSplit.TEST: config.test_sequences,
+        }
+        self._datasets = {
+            split: SolverSequenceDataset(
+                SolverDatasetConfig(
+                    world=config.world,
+                    split=split,
+                    sequence_count=count,
+                    sequence_length=config.sequence_length,
+                    seed_offset=config.seed_offset,
+                    tick_period_ns=config.tick_period_ns,
+                    discount=config.discount,
+                )
+            )
+            for split, count in counts.items()
+        }
+        manifest = {
+            "schema_version": 1,
+            "batch_source": "solver_split_namespaces",
+            "world": config.world,
+            "control_layout": CONTROL_LAYOUT_ID,
+            "input_boundary": "ModelObservation-v1",
+            "burn_in_steps": config.burn_in_steps,
+            "splits": {
+                split.value: dataset.manifest_sha256
+                for split, dataset in sorted(
+                    self._datasets.items(), key=lambda item: item[0].value
+                )
+            },
+        }
+        encoded = json.dumps(
+            manifest,
+            allow_nan=False,
+            ensure_ascii=True,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("ascii")
+        self._manifest_sha256 = sha256(b"IRTRAINBATCH\x01" + encoded).hexdigest()
+
+    @property
+    def manifest_sha256(self) -> str:
+        return self._manifest_sha256
+
+    @staticmethod
+    def _split(value: str) -> DatasetSplit:
+        try:
+            return DatasetSplit(value)
+        except (TypeError, ValueError) as error:
+            raise ValueError("split must be train, validation, or test") from error
+
+    def batches_per_epoch(self, *, split: str, batch_size: int) -> int:
+        if type(batch_size) is not int or batch_size < 1:
+            raise ValueError("batch_size must be a positive integer")
+        dataset = self._datasets[self._split(split)]
+        return ceil(len(dataset) / batch_size)
+
+    def iter_batches(
+        self,
+        *,
+        split: str,
+        epoch: int,
+        start_batch: int,
+        batch_size: int,
+        max_batches: int | None = None,
+    ) -> Iterator[TrajectoryBatch]:
+        partition = self._split(split)
+        if type(epoch) is not int or epoch < 0:
+            raise ValueError("epoch must be a nonnegative integer")
+        if type(start_batch) is not int or start_batch < 0:
+            raise ValueError("start_batch must be a nonnegative integer")
+        if type(batch_size) is not int or batch_size < 1:
+            raise ValueError("batch_size must be a positive integer")
+        if max_batches is not None and (
+            type(max_batches) is not int or max_batches < 1
+        ):
+            raise ValueError("max_batches must be a positive integer or None")
+
+        dataset = self._datasets[partition]
+        total_batches = self.batches_per_epoch(split=split, batch_size=batch_size)
+        if start_batch > total_batches:
+            raise ValueError("start_batch exceeds the number of batches")
+        indices = dataset.epoch_indices(
+            epoch=epoch,
+            shuffle=partition is DatasetSplit.TRAIN,
+        )
+        emitted = 0
+        for batch_index in range(start_batch, total_batches):
+            if max_batches is not None and emitted >= max_batches:
+                break
+            start = batch_index * batch_size
+            selected = indices[start : start + batch_size]
+            yield TrajectoryBatch(
+                split=partition.value,
+                burn_in_steps=self.config.burn_in_steps,
+                sequences=tuple(dataset[index] for index in selected),
+            )
+            emitted += 1
+
+
 __all__ = [
     "BUTTON_TARGET_INDICES",
     "CONTINUOUS_TARGET_INDICES",
@@ -427,6 +606,8 @@ __all__ = [
     "MazeChaseBatchSource",
     "MovingShapesBatchSource",
     "SCROLL_INDEX",
+    "SolverBatchConfig",
+    "SolverBatchSource",
     "TrajectoryBatch",
     "control_to_vector",
 ]
