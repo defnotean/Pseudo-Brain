@@ -215,6 +215,13 @@ untrained smoke model plays the canonical maze_chase slot through
 `evaluate_closed_loop_play` with every decision accepted, retiring the
 Phase 4 integration risk before a trained checkpoint exists. Record:
 [docs/runs/2026-08-17-model-maze-chase-integration-pin.md](./docs/runs/2026-08-17-model-maze-chase-integration-pin.md).
+A bounded CPU distillation probe
+(`brain/scripts/distill_maze_chase_smoke.py`, 256 optimizer steps, fully
+deterministic) shows the smoke-scale thought field genuinely learning from
+planner demonstrations — validation teacher-agreement action loss 1.0156 →
+0.4600 on unseen sequences — with play-level transfer unmoved at this
+scale, pinning both instruments' zero-points for the DGX campaign. Record:
+[docs/runs/2026-08-17-maze-chase-smoke-distillation.md](./docs/runs/2026-08-17-maze-chase-smoke-distillation.md).
 The matched baseline suite gains the PLAN §28 item-12 control:
 `irene.thought_field.independent_ensemble.v1` — four untied members of
 eight slots each at width 352 (29,459,914 trainable, 0.72% under the

@@ -289,6 +289,13 @@ Near-term slices, each independently committable and test-covered:
    demonstrations through the generic trainer protocol — verified end to
    end by a bounded CPU optimizer step on planner-labeled batches
    ([runs/2026-08-17-maze-chase-training-batches.md](runs/2026-08-17-maze-chase-training-batches.md)).
+   A bounded CPU distillation probe
+   (`scripts/distill_maze_chase_smoke.py`, 256 steps) confirms the smoke
+   model genuinely fits the planner's policy (validation action loss
+   1.0156 → 0.4600 on unseen sequences) while play-level transfer stays at
+   the smoke-scale floor — pinning the instruments and zero-points for the
+   DGX distillation campaign
+   ([runs/2026-08-17-maze-chase-smoke-distillation.md](runs/2026-08-17-maze-chase-smoke-distillation.md)).
 10. **Arcade-scale training and the Phase 4 gate.**
 
 ## 7. Resources and constraints
