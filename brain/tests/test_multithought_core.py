@@ -71,6 +71,7 @@ class ObjectiveConfigurationTests(unittest.TestCase):
                 "dgx-play-maze-chase-distill-exclusive-ce-value-only",
                 "dgx-play-maze-chase-distill-tiled-windows",
                 "dgx-play-maze-chase-distill-episode-update",
+                "dgx-play-maze-chase-distill-multi-episode",
             }:
                 continue
             self.assertEqual(
