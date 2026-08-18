@@ -27,6 +27,7 @@ from .solver_dataset import (
     SolverSequenceDataset,
     SolverTransition,
     solver_dataset_manifest_sha256,
+    solver_environment_factory,
 )
 from .splits import (
     SplitIntegrityError,
@@ -66,6 +67,7 @@ __all__ = [
     "record_trace",
     "require_split_integrity",
     "solver_dataset_manifest_sha256",
+    "solver_environment_factory",
     "split_episode_seed",
     "split_for_episode_seed",
     "verify_trace",

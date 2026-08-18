@@ -19,6 +19,7 @@ from irene_brain.data.solver_dataset import (
     SolverDatasetConfig,
     SolverSequenceDataset,
     solver_dataset_manifest_sha256,
+    solver_environment_factory,
 )
 
 
@@ -41,6 +42,17 @@ class SolverDatasetConfigTests(unittest.TestCase):
             sorted(SOLVER_WORLD_NAMES),
             ["junction", "keys_doors", "occlusion", "pursuit"],
         )
+
+    def test_environment_factory_accessor_matches_dataset_generation(self) -> None:
+        for world in SOLVER_WORLD_NAMES:
+            factory = solver_environment_factory(world)
+            environment = factory(8, 16_666_667)
+            self.assertTrue(callable(factory))
+            self.assertEqual(environment.tick_period_ns, 16_666_667)
+        with self.assertRaises(ValueError):
+            solver_environment_factory("moving_shapes")
+        with self.assertRaises(ValueError):
+            solver_environment_factory(3)  # type: ignore[arg-type]
 
     def test_invalid_configuration_fails_closed(self) -> None:
         with self.assertRaises(ValueError):

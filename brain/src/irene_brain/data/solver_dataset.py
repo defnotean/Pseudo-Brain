@@ -130,6 +130,18 @@ _SOLVER_WORLDS = {
 SOLVER_WORLD_NAMES = tuple(_SOLVER_WORLDS)
 
 
+def solver_environment_factory(world: str) -> Callable[[int, int], object]:
+    """Return the canonical ``(max_ticks, tick_period_ns)`` env factory.
+
+    Play and evaluation harnesses use this so they cannot drift from the
+    canonical world configurations the solver dataset teaches on.
+    """
+
+    if not isinstance(world, str) or world not in _SOLVER_WORLDS:
+        raise ValueError(f"world must be one of {sorted(_SOLVER_WORLDS)}")
+    return _SOLVER_WORLDS[world].environment_factory
+
+
 @dataclass(frozen=True, slots=True)
 class SolverDatasetConfig:
     """Identity and generation bounds for a lazy solver dataset.
@@ -384,4 +396,5 @@ __all__ = [
     "SolverSequenceDataset",
     "SolverTransition",
     "solver_dataset_manifest_sha256",
+    "solver_environment_factory",
 ]

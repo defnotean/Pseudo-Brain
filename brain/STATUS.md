@@ -278,6 +278,20 @@ RCQ family) and `maze_chase` keeps its own planner-teacher dataset; no
 registered configuration hash changes (19 tests; play-safe gate green,
 543 tests). Record:
 [docs/runs/2026-08-17-solver-demonstration-datasets.md](./docs/runs/2026-08-17-solver-demonstration-datasets.md).
+A bounded CPU distillation probe (`scripts/distill_solver_smoke.py`, 256
+steps, any solver world) pins the occlusion reference outcome,
+bit-identical across two runs: train loss 0.7623 → 0.4306, validation
+action loss 1.0133 → 0.4316, movement exact-match 0.0000 → 0.3065 (38×
+the maze probe's 0.0081 — the memory teacher's directed travel is far
+more imitable than the planner's knife-edge lookahead), but closed-loop
+play goes 0 reward/0 collisions → −17/17: half-learned movement walks
+into hazards the smoke model cannot yet remember. Hazard avoidance — the
+persistent-belief half of the teacher's skill — is what DGX scale must
+close. Play evaluation uses the new public
+`solver_environment_factory(world)` accessor so harnesses cannot drift
+from the canonical teaching configurations (12 dataset tests; play-safe
+gate green, 544 tests). Record:
+[docs/runs/2026-08-18-solver-smoke-distillation.md](./docs/runs/2026-08-18-solver-smoke-distillation.md).
 The matched baseline suite gains the PLAN §28 item-12 control:
 `irene.thought_field.independent_ensemble.v1` — four untied members of
 eight slots each at width 352 (29,459,914 trainable, 0.72% under the

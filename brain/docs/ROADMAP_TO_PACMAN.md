@@ -211,6 +211,13 @@ PLAN.md §20 defines the ladder; the work items in this repo are:
    is deliberately excluded (sealed RCQ family) and `maze_chase` keeps its
    own planner-teacher dataset
    ([runs/2026-08-17-solver-demonstration-datasets.md](runs/2026-08-17-solver-demonstration-datasets.md)).
+   A bounded CPU distillation probe (`scripts/distill_solver_smoke.py`,
+   256 steps, any solver world) pins the occlusion reference: the memory
+   teacher is 38× more imitable at smoke scale than the maze planner
+   (movement exact-match 0.3065 vs 0.0081), but half-learned movement
+   plays worse than stillness (0/0 → −17 reward/17 collisions) — hazard
+   avoidance, the memory-dependent half, is what DGX scale must close
+   ([runs/2026-08-18-solver-smoke-distillation.md](runs/2026-08-18-solver-smoke-distillation.md)).
 2. **External open worlds** (license-cleared): XLand-MiniGrid, Craftax,
    Procgen — adapters behind `environments/protocol.py`, lifetime recording,
    held-out generator families.
