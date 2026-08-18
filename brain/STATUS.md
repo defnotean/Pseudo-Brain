@@ -2,7 +2,7 @@
 
 Updated: 2026-08-18
 
-## Current campaign: RCQ-v2
+## Current campaign: post-RCQ-v2 (v3 deferred)
 
 Status: live qualification `rcq_v2_reference_v2` is **terminally failed**. The
 2,048-update reference stopped at optimizer step 1,536 when the frozen
@@ -31,7 +31,9 @@ penalty 0.25, deadzone-tanh squash, seed 1702, 2,048 updates), fresh sealed
 TEST family `[4194304, 4195840)`, unchanged gates and thresholds. The v3
 evaluator lineage, trusted-dispatcher `rcq_v3_*` action family, and all ten
 operator wrappers exist and are locally verified; the registration file
-itself is deliberately not yet created. Record:
+itself is deliberately not yet created. The 2026-08-18 constant-LR smoke
+erratum left the proceed-criterion unmet, so the create-once ceremony stays
+deferred — do not run `New-RcqV3Registration.ps1`. Record:
 [docs/runs/2026-08-17-rcq-v3-reference-v1-preregistration.md](./docs/runs/2026-08-17-rcq-v3-reference-v1-preregistration.md).
 Roadmap and pending owner decisions:
 [docs/ROADMAP_TO_PACMAN.md](./docs/ROADMAP_TO_PACMAN.md).
@@ -400,6 +402,29 @@ markedly less catastrophic than the reference's (−1358 vs −3890, 138 vs
 391 collisions), a one-seed-pair hint that is now a falsifiable DGX-scale
 question with both zero-points pinned. Record:
 [docs/runs/2026-08-18-transfer-gap-smoke.md](./docs/runs/2026-08-18-transfer-gap-smoke.md).
+**Erratum — the smoke probes never trained past step 2.** Both
+`compare_baselines_smoke.py` and `transfer_gap_smoke.py` built schema-1
+configs with `max_optimizer_steps=2`; schema 1 forces the legacy cosine
+schedule, whose multiplier is exactly 0.0 from step 2 — so all published
+smoke-comparison and transfer-battery rows above (including the B2
+addenda) measured two effective optimizer updates plus frozen evaluation.
+The distill probes and all campaign recipes are unaffected (they set the
+horizon to their real step counts); inter-variant comparisons within each
+frozen table stay internally fair; all frozen-regime artifacts are
+preserved untouched. Both probes are fixed to schema-2
+constant-LR (the campaign baseline regime) and re-run with pinned rows
+under `constant-lr/` artifact directories. Corrected headline findings:
+the B2 world-model actor **leads the twelve-variant suite** on 64-step
+validation action loss (0.5341) and its rollout world loss reverses from
+worst-frozen to best-by-4× (0.0325 vs the pack's 0.125–0.24);
+serial_depth's earlier "lead" was an initialization artifact; the
+reference still does not lead (ties dense_routing at 0.5375) and the
+RCQ-v3 smoke proceed-criterion remains unmet; at 128 real steps the
+actor's maze_chase transfer sits **exactly at the no-op floor** (−161/17
+collisions) while the reference stays catastrophic (−2198/221); and the
+first above-floor in-distribution play appears at 512 steps (reference,
+non-monotonic) and 1024 steps (actor, never below floor). Record:
+[docs/runs/2026-08-18-smoke-probe-schedule-erratum.md](./docs/runs/2026-08-18-smoke-probe-schedule-erratum.md).
 The matched baseline suite gains the PLAN §28 item-12 control:
 `irene.thought_field.independent_ensemble.v1` — four untied members of
 eight slots each at width 352 (29,459,914 trainable, 0.72% under the

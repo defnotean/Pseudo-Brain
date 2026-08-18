@@ -11,6 +11,15 @@ step-1,536 development entry gate. Do not start or resume that run. A later
 attempt needs a newly named qualification. Record:
 [runs/2026-08-16-rcq-v2-reference-v2-smoke-canary-train.md](runs/2026-08-16-rcq-v2-reference-v2-smoke-canary-train.md).
 
+RCQ-v3 machinery exists, but **do not run** `New-RcqV3Registration.ps1`
+yet. The 2026-08-18 smoke-probe schedule erratum found the probes had
+trained for two effective updates; the corrected constant-LR table still
+does not put the reference ahead on ≥3/10 metrics, so the review's
+proceed-criterion for another RCQ round is unmet. Record:
+[runs/2026-08-18-smoke-probe-schedule-erratum.md](runs/2026-08-18-smoke-probe-schedule-erratum.md).
+Do not start a generic or pinned Spark train from this guide until that
+criterion is met or the owner explicitly overrides it.
+
 Run every command from the Git top-level of this repository unless a snippet
 says otherwise.
 

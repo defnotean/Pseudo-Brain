@@ -1,0 +1,48 @@
+{
+  "optimizer_steps": 128,
+  "play_config": {
+    "episode_seeds": [
+      5,
+      9
+    ],
+    "hazard_count": 3,
+    "max_ticks": 240
+  },
+  "rows": [
+    {
+      "agent": "trained_smoke_model",
+      "collisions": 0,
+      "decisions_rejected": 0,
+      "reward_sum": 0.0,
+      "targets_collected": 0,
+      "world": "world.moving_shapes.v1"
+    },
+    {
+      "agent": "diagnostic.noop.v1",
+      "collisions": 0,
+      "decisions_rejected": 0,
+      "reward_sum": 0.0,
+      "targets_collected": 0,
+      "world": "world.moving_shapes.v1"
+    },
+    {
+      "agent": "diagnostic.random_movement.v1",
+      "collisions": 12,
+      "decisions_rejected": 0,
+      "reward_sum": -11.0,
+      "targets_collected": 1,
+      "world": "world.moving_shapes.v1"
+    },
+    {
+      "agent": "diagnostic.scripted_chase.v1",
+      "collisions": 8,
+      "decisions_rejected": 0,
+      "reward_sum": 57.0,
+      "targets_collected": 65,
+      "world": "world.moving_shapes.v1"
+    }
+  ],
+  "seed": 20260818,
+  "train_loss_last16": 0.57542909309268,
+  "variant": "world_model_actor"
+}

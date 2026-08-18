@@ -51,7 +51,7 @@ The failed run is the most informative artifact in the project so far:
    occasionally presses W and S together — exactly the behaviors that would
    be unacceptable in a live Pac-Man loop.
 
-## 2. RCQ-v3: the redesigned qualification (next scientific step)
+## 2. RCQ-v3: the redesigned qualification (ceremony deferred)
 
 A new, separately named qualification. The v2 registration, ranges, and
 candidate are dead and stay dead. All choices below are **preregistration-time
@@ -82,7 +82,11 @@ machinery (evaluator lineage, dispatcher `rcq_v3_*` family, operator
 wrappers) is implemented and locally verified. Record:
 [runs/2026-08-17-rcq-v3-reference-v1-preregistration.md](runs/2026-08-17-rcq-v3-reference-v1-preregistration.md).
 Still pending before any v3 training: the owner-run registration ceremony and
-DGX sequence below.
+DGX sequence below. **Do not start that ceremony yet.** The 2026-08-18
+constant-LR smoke erratum left the proceed-criterion (reference leading on
+≥3/10 metrics at smoke scale) unmet, so another RCQ round is not the next
+scientific step. Record:
+[runs/2026-08-18-smoke-probe-schedule-erratum.md](runs/2026-08-18-smoke-probe-schedule-erratum.md).
 
 ### 2.2 RCQ-v3 execution checklist (mirrors the proven v2 sequence)
 
@@ -277,7 +281,8 @@ Near-term slices, each independently committable and test-covered:
 2. ~~**D1/D2 implementation + tests** in model/training code (§2.2 item 1).~~
    Done.
 3. **v3 registration ceremony and DGX sequence** (§2.2 items 3–5). Machinery
-   ready; the ceremony itself is owner-run from a console-attached terminal.
+   ready; **deferred** while the smoke proceed-criterion is unmet. Do not
+   run `New-RcqV3Registration.ps1` — that wrapper is create-once.
 4. **Remaining matched baselines + the multi-seed comparison harness**
    (`evaluation/multiseed_comparison.py` exists; extend to the full baseline
    suite of PLAN.md §28). In progress: the statistical harness is complete and
@@ -292,8 +297,10 @@ Near-term slices, each independently committable and test-covered:
    ([runs/2026-08-17-baseline-suite-persistence-and-density-ablations.md](runs/2026-08-17-baseline-suite-persistence-and-density-ablations.md),
    [runs/2026-08-17-matched-ensemble-baseline.md](runs/2026-08-17-matched-ensemble-baseline.md),
    [runs/2026-08-17-recurrent-transformer-baseline.md](runs/2026-08-17-recurrent-transformer-baseline.md)).
-   Still missing from §28: task specialist (B3, blocked on ladder dataset
-   generation).
+   Still missing from §28: task specialist (B3). Campaign-scale ladder
+   materialization remains DGX-window work, but the lazy moving_shapes and
+   maze_chase datasets already exist, so smoke-scale B3 machinery is the
+   next local slice.
    The owner gave an explicit go for B1–B3 on 2026-08-18
    ([runs/2026-08-17-remaining-baseline-controls-preregistration.md](runs/2026-08-17-remaining-baseline-controls-preregistration.md)),
    and **B1 is now implemented**: the shared objective gained the

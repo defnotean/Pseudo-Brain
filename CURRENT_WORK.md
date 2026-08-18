@@ -13,15 +13,23 @@ keep a persistent internal state, talk sparsely, and can emit an action after
 any internal cycle. The long-term aim is human-speed closed-loop play. That is
 **not** what the current experiment is measuring.
 
-The current experiment is **Reference Candidate Qualification v2 (RCQ-v2)**.
-It asks a smaller question: can this already-built model learn a genuinely
-state-conditioned W/A/S/D policy, plus a useful value estimate, on the
-synthetic moving-shapes task, under a frozen recipe, for one seed.
+The last qualification attempt was **Reference Candidate Qualification v2
+(RCQ-v2)**. It asked whether this already-built model could learn a
+state-conditioned W/A/S/D policy, plus a useful value estimate, on synthetic
+moving-shapes, under a frozen recipe, for one seed. Seed `1702` is
+**terminally failed** at optimizer step 1,536. Do not resume, retune, or
+open TEST on v2.
 
-A pass means only that seed `1702` qualified as a one-seed, open-loop,
-teacher-forced reference policy. It is not closed-loop gameplay, not
-Minecraft or Pac-Man competence, not proof that distinct thoughts caused the
-action, and not an architecture-superiority claim.
+RCQ-v3 machinery is complete and the D1–D5 decisions are frozen, but the
+create-once registration file does not exist and **must not be created
+yet**. The 2026-08-18 smoke-probe schedule erratum re-ran the matched
+baseline suite under real constant-LR updates; the reference still does not
+lead, so the review's proceed-criterion (reference leading on ≥3/10 metrics
+at smoke scale) remains unmet. Another RCQ round is not justified. The
+highest-value **local** work is B3 (task specialist versus generalist) on
+the existing lazy ladder datasets. The highest-value **DGX** item is a
+qualified matched-baseline comparison; the historical first-matched
+campaign stays blocked until a reference actually qualifies.
 
 ## Where we are
 
@@ -37,10 +45,14 @@ action, and not an architecture-superiority claim.
 | 7 | Pinned 2,048-update reference train on seed 1702 | Failed. Official `rcq_v2_development_v1` at step 1,536 is `passed:false` (9 opposite conflicts, 875 continuous outsides). Terminal for this candidate. Do not resume. |
 | 8 | Newly named qualification after the invariance capture fix | Done. Live file `registrations/rcq-v2-reference-v2.json`. Do not edit v1. |
 | 9 | Preclaim, independent review, final authorization, one-shot TEST | Blocked. This qualification failed the entry gate. Do not preclaim or open TEST. |
+| — | RCQ-v3 registration ceremony | **Deferred.** Machinery ready; registration file absent on purpose. Smoke proceed-criterion unmet after the 2026-08-18 constant-LR erratum. Do not run `New-RcqV3Registration.ps1`. |
+| — | Next local work | B3 task-specialist machinery on the existing lazy moving_shapes and maze_chase datasets (owner go 2026-08-18). Campaign-scale materialization stays DGX. |
+| — | Highest-value DGX item | Qualified matched-baseline comparison. Historical first-matched 8×3 campaign remains blocked on its old pin. Do not start a detached Spark train. |
 
 Do not skip ahead. Do not open sealed TEST ranges to "check" labels. Do not
 resume a failed frozen gate as if it had passed. Stage A historical DGX runs
 are recorded failures; they are not a starting checkpoint for RCQ-v2.
+Do not start another RCQ round while the smoke proceed-criterion is unmet.
 
 ## Local rules that always apply
 
@@ -87,9 +99,15 @@ DGX release. Historical `registrations/rcq-v2-reference-v1.json` stays in git
 and is not part of the live sync allowlist.
 
 The RCQ-v3 qualification (`rcq_v3_reference_v1`) is fully preregistered in
-code and config but its registration file does not exist yet. When you are
-ready to start the v3 campaign, the ceremony sequence (console-attached
-terminal, in order) is:
+code and config but its registration file does not exist yet. **Do not
+create it while the smoke proceed-criterion is unmet.** The 2026-08-18
+constant-LR erratum confirmed the reference does not lead the twelve-variant
+suite; jumping to another RCQ round would freeze a campaign the cheap
+signal does not support. Record:
+[brain/docs/runs/2026-08-18-smoke-probe-schedule-erratum.md](brain/docs/runs/2026-08-18-smoke-probe-schedule-erratum.md).
+
+If that criterion is later met, or the owner explicitly overrides it, the
+ceremony sequence (console-attached terminal, in order) is:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\brain\scripts\dgx\New-RcqV3Registration.ps1
@@ -100,6 +118,8 @@ release, pin, smoke, canary, and start the reference with the
 `Invoke-DgxRcqV3*` / `Start-DgxRcqV3Reference.ps1` wrappers. The exact
 sequence and the frozen D1–D5 decisions are in
 [brain/docs/runs/2026-08-17-rcq-v3-reference-v1-preregistration.md](brain/docs/runs/2026-08-17-rcq-v3-reference-v1-preregistration.md).
+That wrapper is create-once: running it now would freeze a registration
+this campaign is not ready to spend.
 
 ## What "target-blind" means
 
@@ -136,7 +156,8 @@ Read in this order unless you already know the file you need:
 8. [brain/PLAN.md](brain/PLAN.md) — long-term architecture blueprint.
 9. [brain/docs/ROADMAP_TO_PACMAN.md](brain/docs/ROADMAP_TO_PACMAN.md) — the path
    from the failed RCQ-v2 to a 60 Hz Pac-Man-like arcade proof, including the
-   now-frozen RCQ-v3 redesign decisions and the remaining owner-run ceremony.
+   now-frozen RCQ-v3 redesign decisions. The owner-run v3 ceremony is
+   deferred until the smoke proceed-criterion is met.
 
 Historical Stage A DGX records are under `brain/docs/runs/`. They document
 valid failures. Do not treat them as a green light to scale.

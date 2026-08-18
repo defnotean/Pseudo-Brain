@@ -1,0 +1,18 @@
+{
+  "burn_in_steps": 2,
+  "optimizer_steps": 64,
+  "seed": 20260818,
+  "sequence_length": 8,
+  "train_loss_first": 0.812139242887497,
+  "train_loss_last": 0.6174942292273045,
+  "trainable_parameters": 47258,
+  "training_objective": "irene_brain.training.objective:ThoughtFieldObjective",
+  "val_action_loss_after": 0.5374875366687775,
+  "val_action_loss_before": 1.1178185641765594,
+  "val_movement_exact_match_after": 0.0,
+  "val_movement_exact_match_before": 0.0,
+  "val_thought_duplicate_pair_fraction_after": 0.0,
+  "val_thought_pairwise_cosine_mean_after": 0.1742761954665184,
+  "val_world_loss_after": 0.1251605786383152,
+  "variant_id": "irene.thought_field.dense_routing.v1"
+}

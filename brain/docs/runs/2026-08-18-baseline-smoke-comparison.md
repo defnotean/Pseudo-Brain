@@ -1,5 +1,14 @@
 # Matched-baseline smoke comparison probe (2026-08-18)
 
+> **ERRATUM (2026-08-18):** the probe's schema-1 config forced the legacy
+> cosine schedule with `max_optimizer_steps=2`, so every numbered step
+> past step 1 applied a learning rate of exactly 0.0 — the table below
+> measured **two effective optimizer updates**, not 64. Inter-variant
+> comparisons within the table remain internally fair, but all
+> learning-dynamics conclusions are void and the artifact rows are
+> preserved frozen-regime only. Corrected constant-LR re-runs and revised
+> readings: [2026-08-18-smoke-probe-schedule-erratum.md](2026-08-18-smoke-probe-schedule-erratum.md).
+
 Status: exploratory verification probe. Local CPU-only, single-threaded;
 not a training run and not a qualified result. Implements the strategic
 review's highest-leverage cheap item: an early matched-baseline signal

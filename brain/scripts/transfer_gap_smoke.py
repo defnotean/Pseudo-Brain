@@ -59,8 +59,13 @@ def _training_config():
         TrainingConfig,
     )
 
+    # 2026-08-18 erratum fix: schema_version 1 forces the legacy cosine
+    # schedule, which decays the LR multiplier to exactly 0.0 at
+    # max_optimizer_steps (2) — every numbered step past step 1 applied no
+    # update. Schema 2 with constant_after_warmup (the campaign baseline
+    # regime) makes every numbered step a real optimizer update.
     return TrainingConfig(
-        schema_version=1,
+        schema_version=2,
         run=RunConfig(
             name="transfer-gap-smoke",
             seed=SEED,
@@ -86,6 +91,7 @@ def _training_config():
             weight_decay=0.0,
             max_gradient_norm=1.0,
             warmup_steps=0,
+            scheduler_kind="constant_after_warmup",
         ),
         precision=PrecisionConfig(device="cpu", mode="float32", allow_tf32=False),
         determinism=DeterminismConfig(enabled=True, num_workers=0, compile_model=False),

@@ -1,5 +1,14 @@
 # Zero-shot transfer battery, smoke scale (2026-08-18)
 
+> **ERRATUM (2026-08-18):** the battery's schema-1 config forced the
+> legacy cosine schedule with `max_optimizer_steps=2`, so every numbered
+> step past step 1 applied a learning rate of exactly 0.0 — the tables
+> below (reference and the B2 addendum) measured **two effective
+> optimizer updates**, not 128. The zero-points are preserved
+> frozen-regime only. Corrected constant-LR re-runs — including the
+> liftoff sweep the frozen regime made invisible — and revised readings:
+> [2026-08-18-smoke-probe-schedule-erratum.md](2026-08-18-smoke-probe-schedule-erratum.md).
+
 Status: exploratory verification probe. Local CPU-only, single-threaded;
 not a training run and not a qualified result. Quantifies the transfer
 gap named in the 2026-08-18 strategic review (§3.3.2) with pinned
