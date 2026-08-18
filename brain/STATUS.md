@@ -23,9 +23,11 @@ exclusive-argmax match **0.25** (chance; teacher mix still W/A/S/D
 reward **−3880**, val match **0.0**. Do not scale 128. Do not
 retune hold×0.1. Next GPU job is play-peak / early-stop
 (`dgx-play-maze-chase-distill-play-peak-v1`, canonical config SHA-256
-`1d5e29963993766cd945ab344b29d149f47a873057923385251b7af6d6163059`):
+`1d5e29963993766cd945ab344b29d149f47a873057923385251b7af6d6163059`,
+release `r20260818t215024z-ad7ce0bfdd99`):
 same recipe, max 64, play eval every 8, keep best pellets then fewest
-collisions, stop when play drops from that peak. Play moved on the
+collisions, stop when play drops from that peak. Spark GPU is running.
+Play moved on the
 32-step probe v2 and held on the
 128-step probe at reward_sum **-150**, collisions **16**
 (sticky D, ~10 implied pellets). Window-32 and episode-windows **failed**

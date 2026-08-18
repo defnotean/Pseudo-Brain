@@ -33,7 +33,8 @@ idle×26 + S×454, **20 pellets**, 390 collisions, reward **−3880**, val
 match **0.0**. Do not scale 128. Next GPU job is play-peak / early-stop
 (`dgx-play-maze-chase-distill-play-peak-v1`): same 32-step-winning recipe,
 bounded 64 steps, closed-loop play every 8 steps on seeds 5/9, keep the
-best-pellet checkpoint, stop when play drops from that peak. Spark CPU
+best-pellet checkpoint, stop when play drops from that peak. Spark GPU
+is running on release `r20260818t215024z-ad7ce0bfdd99`. Spark CPU
 farm added a turn-hold audit (261/720 change ticks, 82/90 windows have a
 change), a multi-episode thoughtlet dump (open-loop A×31+D×1), a
 turn-weighted thoughtlet dump (open-loop A×32 on seeds 5/9), and a

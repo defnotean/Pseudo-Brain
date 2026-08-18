@@ -24,7 +24,8 @@ histogram. One GB10 train at a time; named CPU farm jobs run in
 parallel on the host. Next GPU job is play-peak / early-stop
 (`dgx-play-maze-chase-distill-play-peak-v1`): same 32-step-winning
 recipe, max 64, play eval every 8 on seeds 5/9, keep best pellets
-then fewest collisions, stop when play drops from that peak. A
+then fewest collisions, stop when play drops from that peak. Spark
+GPU is running (release `r20260818t215024z-ad7ce0bfdd99`). A
 turn-hold audit found 261/720 change ticks (82/90 windows have a
 change).
 

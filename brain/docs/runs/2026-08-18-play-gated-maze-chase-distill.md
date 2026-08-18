@@ -102,6 +102,8 @@ Do not retune hold×0.1.
 
 | Field | Value |
 |---|---|
+| Release | `r20260818t215024z-ad7ce0bfdd99` (archive SHA-256 `ad7ce0bfdd99…`) |
+| Container image | `sha256:177a406d7cb2…` |
 | Run id | `dgx-play-maze-chase-distill-play-peak-v1` |
 | Config | `brain/configs/training/dgx-play-maze-chase-distill-play-peak.toml` |
 | Canonical config SHA-256 | `1d5e29963993766cd945ab344b29d149f47a873057923385251b7af6d6163059` |
@@ -1243,14 +1245,15 @@ generic train at an RCQ config.
 ## Spark sequence (play-peak / early-stop, launching)
 
 1. `Invoke-DgxPreflight.ps1`
-2. `Sync-DgxBrainRelease.ps1`
-3. `Invoke-DgxBrainSmoke.ps1` on `dgx-smoke.toml`
+2. `Sync-DgxBrainRelease.ps1` (release `r20260818t215024z-ad7ce0bfdd99`)
+3. `Invoke-DgxBrainSmoke.ps1` on `dgx-smoke.toml` (receipt written)
 4. `Start-DgxBrainTraining.ps1` with
    `dgx-play-maze-chase-distill-play-peak.toml`, run id
    `dgx-play-maze-chase-distill-play-peak-v1`, Tmux with
    `-AcknowledgeDetached`
 5. Watch `play-trace.jsonl` / `play-best.json` / `play-gate.json`. Official
-   gate is the kept peak checkpoint, not the last optimizer step.
+   gate is the kept peak checkpoint, not the last optimizer step. Spark GPU
+   is running.
 
 Generic wrappers only. Never `Start-DgxRcqV2Reference.ps1`. Never point
 generic train at an RCQ config.
