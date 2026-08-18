@@ -5,8 +5,19 @@ Updated: 2026-08-18
 ## Current campaign: play-gated maze-chase distill v1
 
 Status: **play-gated maze-chase distill v1** is the live campaign
-(`play_gated_maze_chase_distill_v1`). Play moved on the 32-step probe v2
-and held on the 128-step probe at reward_sum **-150**, collisions **16**
+(`play_gated_maze_chase_distill_v1`). Turn-weighted exclusive CE
+(`dgx-play-maze-chase-distill-turn-weighted-v1`,
+`play-gate.json` SHA-256 `34af40b0…`, release
+`r20260818t195814z-872818a4fa68`, canonical config SHA-256
+`3af3cd9974020d3b72f202552605fc6b1910a52f3937f06dc69b66286d759f7b`)
+**passed** the campaign gate: histogram **A×377 + S×103**, **38 pellets**,
+43 collisions, reward **−392**, `campaign_success: true`.
+`play_moved` is false (reward below the −161 no-op floor). Val
+exclusive-argmax match **0.25** (chance; teacher mix still W/A/S/D
+0.250/0.083/0.250/0.417, not copy-majority). Next GPU is the same recipe
+at 128 steps (`dgx-play-maze-chase-distill-turn-weighted-128-v1`). Do not
+retune hold×0.1. Play moved on the 32-step probe v2 and held on the
+128-step probe at reward_sum **-150**, collisions **16**
 (sticky D, ~10 implied pellets). Window-32 and episode-windows **failed**
 idle no-op (9 pellets, mask 0 × 480). Named play decode
 `exclusive_argmax_wasd_v1` **unstuck idle** on the same episode-windows
@@ -14,51 +25,21 @@ teacher and 32-step budget (`dgx-play-maze-chase-distill-exclusive-argmax-v1`,
 `play-gate.json` SHA-256 `865927de…`, release `r20260818t172702z-e492020c6fca`):
 histogram **S×478 + A×2**, **20 pellets**, 391 collisions, reward **−3890**,
 `sticky_or_idle: false`. Val WASD predicted-positive stayed **0.0**
-(metrics SHA identical to episode-windows). Campaign still failed (pellets
-< 32). Exclusive-direction softmax `exclusive_wasd_softmax_v1` on the same
-teacher and decode (`dgx-play-maze-chase-distill-exclusive-ce-v1`,
-`play-gate.json` SHA-256 `17388344…`, release `r20260818t175216z-c804bcd101c1`)
-**failed sticky S**: histogram **S×480**, 20 pellets, 391 collisions,
-reward −3890. Val exclusive-argmax match **0.167** (= teacher S); teacher
-logit gap **−0.445**. Action-only exclusive CE
-(`dgx-play-maze-chase-distill-exclusive-ce-action-only-v1`) **failed idle
-no-op**: mask 0 × 480, 9 pellets, 17 collisions, reward −161; val exclusive-argmax
-match **0.0**; inactive logit max ≈ −4.81. Value-only exclusive CE
-(`dgx-play-maze-chase-distill-exclusive-ce-value-only-v1`,
-`play-gate.json` SHA-256 `7dc8959c…`, release `r20260818t181900z-85606667a9fa`)
-**failed idle no-op**: mask 0 × 480, 9 pellets, 17 collisions, reward −161;
-val exclusive-argmax match **0.0**; inactive logit max ≈ −4.82. Tiled 1:1
-planner windows (`dgx-play-maze-chase-distill-tiled-windows-v1`,
-`play-gate.json` SHA-256 `9fac7fd9…`, release `r20260818t184756z-49bac601d0ca`,
-canonical config SHA-256 `2c126296c820830d037c0fc14053f1cbdbd05ec40d218ea2e84975cb02002b83`)
-**failed sticky A**: histogram **A×476 + D×4**, 15 pellets, 18 collisions,
-reward **−165**, `sticky_or_idle: false`. Val exclusive-argmax match **0.083**
-(down from exclusive-CE 0.167). Full-episode tiled update
-(`dgx-play-maze-chase-distill-episode-update-v1`,
-`play-gate.json` SHA-256 `ba622c99…`, release
-`r20260818t190103z-ddf0904b5d81`, canonical config SHA-256
-`b9b7888c194f72d91b6464b6e3e99dc2e52103db35c9a4d441ca69b60ee80c40`)
-**failed sticky D**: histogram **D×431 + A×49**, 10 pellets, 16 collisions,
-reward **−150**. Val exclusive-argmax match **0.417** equals teacher D, not a
-ranking gain. Do not scale accumulation-30. Multi-episode tiled tiles
-(`dgx-play-maze-chase-distill-multi-episode-v1`,
-`play-gate.json` SHA-256 `c6367334…`, release
-`r20260818t192855z-6d85cc69dd69`, canonical config SHA-256
-`4231288135f8465008a106f1133a8f1a9321f7ee0a8cf7aa76494a0788c72c54`)
-**failed mixed W/A/D**: histogram **W×48 + A×200 + D×232**, 17 pellets,
-17 collisions, reward **−153**. Val exclusive-argmax match **0.083**
-equals teacher A. Do not scale 90-seq. Next GPU probe is turn-weighted
-exclusive CE (`dgx-play-maze-chase-distill-turn-weighted-v1`), now running
-on release `r20260818t195814z-872818a4fa68`. Named CPU
-farm jobs finished planner seeds 132–147, tiled teacher mix, multi-episode
-coverage, off-policy teacher labels, an episode-update thoughtlet dump,
-and a 90-window majority audit (79 mixed / 10 pure, mean majority 0.614).
-Campaign success is **pellets ≥ 32**
+(metrics SHA identical to episode-windows). Exclusive-direction softmax
+`exclusive_wasd_softmax_v1` **failed sticky S**. Action-only and
+value-only exclusive CE **failed idle no-op**. Tiled 1:1 planner windows
+**failed sticky A**. Full-episode tiled update **failed sticky D**.
+Multi-episode tiled tiles **failed mixed W/A/D** (W×48 + A×200 + D×232,
+17 pellets, 17 collisions, −153; val match 0.083 = teacher A). Do not
+scale 90-seq. CPU farm added a turn-hold audit (261/720 change ticks,
+82/90 windows have a change) and a multi-episode thoughtlet dump
+(open-loop A×31+D×1). Campaign success is **pellets ≥ 32**
 with a non-idle non-D-only histogram. Official 32-step `play-gate.json`
 SHA-256
 `df9d88f4…`; 128-step `6401a922…`; window-32 `2cdedaf9…`; episode-windows
-`84331559…`; exclusive-argmax `865927de…`. Logger train loss is not the
-gate. Workstation is orchestration; all compute is Spark. Record:
+`84331559…`; exclusive-argmax `865927de…`; turn-weighted `34af40b0…`.
+Logger train loss is not the gate. Workstation is orchestration; all
+compute is Spark. Record:
 [docs/runs/2026-08-18-play-gated-maze-chase-distill.md](./docs/runs/2026-08-18-play-gated-maze-chase-distill.md).
 
 Historical: live qualification `rcq_v2_reference_v2` is **terminally failed**. The

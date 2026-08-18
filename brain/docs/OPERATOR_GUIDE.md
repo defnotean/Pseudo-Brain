@@ -7,28 +7,23 @@ value identities, and legal stopping rules are in
 [CURRENT_WORK.md](../../CURRENT_WORK.md).
 
 The live campaign is **play-gated maze-chase distill v1**, not RCQ.
-Spark-only compute. Window-32 and episode-windows both **failed** idle
-no-op. Exclusive-argmax play decode **unstuck idle** (S×478 + A×2, 20
-pellets, 391 collisions) but campaign still failed and val
-predicted-positive stayed 0.0. Exclusive-direction softmax
-(`exclusive_wasd_softmax_v1`) **failed sticky S** (S×480; val match
-0.167; gap −0.445). Action-only exclusive CE **failed idle no-op**
-(mask 0 × 480). Value-only exclusive CE **failed idle no-op** (mask
-0 × 480; val match 0.0; inactive logit max ≈ −4.82). Tiled 1:1 planner
-windows **failed sticky A** (A×476 + D×4; 15 pellets; 18 collisions;
-reward −165; val match 0.083). Full-episode tiled update **failed
-sticky D** (D×431 + A×49; 10 pellets; 16 collisions; reward −150; val
-match 0.417 = teacher D). Multi-episode tiled tiles **failed mixed
-W/A/D** (W×48 + A×200 + D×232; 17 pellets; 17 collisions; reward −153;
-val match 0.083 = teacher A). Do not retry or scale those recipes.
-The next named GPU probe is turn-weighted exclusive CE on the same 90
-tiled windows / accum 30. Campaign success is
-pellets ≥ 32 with a non-idle non-D-only histogram. One GB10 train at a
-time; named CPU farm jobs run in parallel on the host. A 90-window
-majority audit found 79 mixed tiles (mean majority 0.614), so another
-coverage tweak is not licensed.
+Spark-only compute. Turn-weighted exclusive CE **passed** the campaign
+gate (A×377 + S×103, 38 pellets, 43 collisions, reward −392, val match
+0.25). `play_moved` is false because reward is below the no-op floor.
+Window-32 and episode-windows both **failed** idle no-op.
+Exclusive-argmax play decode **unstuck idle** then sticky S.
+Exclusive-direction softmax **failed sticky S**. Action-only and
+value-only exclusive CE **failed idle no-op**. Tiled 1:1 planner
+windows **failed sticky A**. Full-episode tiled update **failed
+sticky D**. Multi-episode tiled tiles **failed mixed W/A/D** at 17
+pellets. Do not retry or scale those recipes, and do not retune
+hold×0.1. The next named GPU probe is the same turn-weighted recipe at
+128 steps. Campaign success is pellets ≥ 32 with a non-idle non-D-only
+histogram. One GB10 train at a time; named CPU farm jobs run in
+parallel on the host. A turn-hold audit found 261/720 change ticks
+(82/90 windows have a change).
 
-The turn-weighted exclusive-CE launch (preregistered; 32 steps; one GB10):
+The 128-step turn-weighted exclusive-CE launch (preregistered; one GB10):
 
 ```powershell
 & .\brain\scripts\dgx\Invoke-DgxPreflight.ps1 `
@@ -59,8 +54,8 @@ The turn-weighted exclusive-CE launch (preregistered; 32 steps; one GB10):
   -RemoteWorkDir '~/projects/pseudo-brain' `
   -ReleaseId '<release-id>' `
   -ContainerImage 'vllm/vllm-openai:nightly-aarch64' `
-  -ConfigRelativePath 'brain/configs/training/dgx-play-maze-chase-distill-turn-weighted.toml' `
-  -RunId 'dgx-play-maze-chase-distill-turn-weighted-v1' `
+  -ConfigRelativePath 'brain/configs/training/dgx-play-maze-chase-distill-turn-weighted-128.toml' `
+  -RunId 'dgx-play-maze-chase-distill-turn-weighted-128-v1' `
   -LaunchMode Tmux `
   -AcknowledgeDetached `
   -MinFreeDiskGiB 20 `
@@ -70,16 +65,12 @@ The turn-weighted exclusive-CE launch (preregistered; 32 steps; one GB10):
 ```
 
 Scale only if `play-gate.json` shows `campaign_success: true` (pellets ≥ 32
-and a WASD histogram that is not idle / D-only / one-key sticky). Exclusive-argmax did not:
-20 pellets, sticky S, val predicted-positive 0.0. Exclusive-CE failed
-S×480 / val match 0.167. Action-only exclusive CE failed idle no-op.
-Value-only exclusive CE failed idle no-op (val match 0.0). Tiled 1:1
-windows failed sticky A (A×476 + D×4 / 15 pellets / val match 0.083).
-Full-episode tiled update failed sticky D (D×431 + A×49 / 10 pellets /
-val match 0.417 = teacher D). Multi-episode tiled tiles failed mixed
-W/A/D (W×48 + A×200 + D×232 / 17 pellets / val match 0.083 = teacher A).
-Do not scale those recipes. Turn-weighted exclusive CE on the same 90
-tiled windows is the next named GPU probe. Record:
+and a WASD histogram that is not idle / D-only). Turn-weighted exclusive
+CE passed that gate at 32 steps (38 pellets, A×377 + S×103, collisions
+43, val match 0.25). The next named GPU probe is the same recipe at 128
+steps. Do not retune hold×0.1. Failed recipes stay failed: exclusive-argmax
+sticky S, exclusive-CE sticky S, action-only/value-only idle, tiled-windows
+sticky A, episode-update sticky D, multi-episode 17 pellets. Record:
 [runs/2026-08-18-play-gated-maze-chase-distill.md](runs/2026-08-18-play-gated-maze-chase-distill.md).
 
 The live `rcq_v2_reference_v2` reference on seed 1702 already failed the

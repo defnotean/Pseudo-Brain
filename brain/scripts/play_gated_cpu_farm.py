@@ -26,6 +26,7 @@ JOBS = (
     "multi-episode-coverage",
     "offpolicy-teacher",
     "window-majority",
+    "turn-hold",
     "play-gate",
     "thoughtlets",
 )
@@ -460,6 +461,89 @@ def job_window_majority(out_dir: Path) -> None:
     )
 
 
+def job_turn_hold(out_dir: Path) -> None:
+    from irene_brain.data.maze_chase_dataset import (
+        DatasetSplit,
+        MazeChaseDatasetConfig,
+        MazeChaseSequenceDataset,
+    )
+
+    tiled = MazeChaseSequenceDataset(
+        MazeChaseDatasetConfig(
+            split=DatasetSplit.TRAIN,
+            sequence_count=90,
+            sequence_length=8,
+            episode_horizon=240,
+            window_sampling="tiled",
+        )
+    )
+    holds = 0
+    changes = 0
+    idle_ticks = 0
+    windows = []
+    for index, sequence in enumerate(tiled):
+        window_holds = 0
+        window_changes = 0
+        previous_label = None
+        for tick_index, transition in enumerate(sequence.transitions):
+            current_label, n_active = _wasd_counts(transition.action_target)
+            if n_active > 1:
+                raise RuntimeError("planner issued a multi-key teacher label")
+            if n_active == 0:
+                idle_ticks += 1
+            if tick_index == 0:
+                previous_label, _previous_n = _wasd_counts(
+                    transition.observation.previous_control
+                )
+            if current_label == previous_label:
+                holds += 1
+                window_holds += 1
+            else:
+                changes += 1
+                window_changes += 1
+            previous_label = current_label
+        ticks = window_holds + window_changes
+        windows.append(
+            {
+                "sequence_index": index,
+                "episode_seed": sequence.episode_seed,
+                "holds": window_holds,
+                "changes": window_changes,
+                "change_fraction": window_changes / ticks if ticks else 0.0,
+            }
+        )
+    ticks = holds + changes
+    _write(
+        out_dir / "turn-hold.json",
+        {
+            "job": "turn-hold",
+            "campaign_id": "play_gated_maze_chase_distill_v1",
+            "hypothesis": (
+                "8-tick tiled windows are mostly corridor holds, so 32-step "
+                "exclusive CE can copy a constant key even when windows mix"
+            ),
+            "generator_id": tiled.config.generator_id,
+            "source_manifest_sha256": tiled.manifest_sha256,
+            "windows": len(windows),
+            "ticks": ticks,
+            "holds": holds,
+            "changes": changes,
+            "idle_ticks": idle_ticks,
+            "change_fraction": changes / ticks if ticks else 0.0,
+            "hold_fraction": holds / ticks if ticks else 0.0,
+            "mean_window_change_fraction": (
+                sum(row["change_fraction"] for row in windows) / len(windows)
+                if windows
+                else 0.0
+            ),
+            "windows_with_a_change": sum(
+                1 for row in windows if row["changes"] > 0
+            ),
+            "rows": windows,
+        },
+    )
+
+
 def job_offpolicy_teacher(out_dir: Path) -> None:
     from irene_brain.evaluation.diagnostic_policies import (
         ScriptedMazeChasePlannerPolicy,
@@ -778,6 +862,8 @@ def main() -> int:
         job_offpolicy_teacher(out_dir)
     elif arguments.job == "window-majority":
         job_window_majority(out_dir)
+    elif arguments.job == "turn-hold":
+        job_turn_hold(out_dir)
     elif arguments.job == "play-gate":
         if not arguments.config or not arguments.checkpoint:
             raise SystemExit("play-gate requires --config and --checkpoint")

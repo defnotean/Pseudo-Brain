@@ -474,6 +474,40 @@ class PlayGatedMazeChaseConfigTests(unittest.TestCase):
             dataset_batch_source(turn_weighted.dataset).manifest_sha256,
             dataset_batch_source(multi_episode.dataset).manifest_sha256,
         )
+        turn_weighted_128 = load_training_config(
+            ROOT
+            / "configs"
+            / "training"
+            / "dgx-play-maze-chase-distill-turn-weighted-128.toml"
+        )
+        self.assertEqual(turn_weighted_128.run.max_optimizer_steps, 128)
+        self.assertEqual(turn_weighted_128.dataset.window_sampling, "tiled")
+        self.assertEqual(turn_weighted_128.dataset.train_sequences, 90)
+        self.assertEqual(
+            turn_weighted_128.optimization.gradient_accumulation_steps,
+            30,
+        )
+        self.assertEqual(
+            turn_weighted_128.objective.action_loss_kind,
+            "exclusive_wasd_softmax_turn_weighted_v1",
+        )
+        self.assertEqual(
+            turn_weighted_128.objective.play_decode_kind,
+            "exclusive_argmax_wasd_v1",
+        )
+        self.assertEqual(turn_weighted_128.run.seed, turn_weighted.run.seed)
+        self.assertNotEqual(
+            turn_weighted_128.config_sha256,
+            turn_weighted.config_sha256,
+        )
+        self.assertEqual(
+            turn_weighted_128.config_sha256,
+            "7ad447d0e09f304751bcf2337419255b2355875c84b00dc1e682cb13c6fd4ad9",
+        )
+        self.assertEqual(
+            dataset_batch_source(turn_weighted_128.dataset).manifest_sha256,
+            dataset_batch_source(turn_weighted.dataset).manifest_sha256,
+        )
 
         smoke = load_training_config(
             ROOT / "configs" / "training" / "dgx-smoke.toml"
