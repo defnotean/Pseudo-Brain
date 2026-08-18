@@ -262,10 +262,11 @@ class ObjectiveConfig:
         if action_loss_kind not in {
             "sparse_hard_negative_v1",
             "support_aware_calibrated_v1",
+            "exclusive_wasd_softmax_v1",
         }:
             raise ValueError(
-                "objective.action_loss_kind must be sparse_hard_negative_v1 or "
-                "support_aware_calibrated_v1"
+                "objective.action_loss_kind must be sparse_hard_negative_v1, "
+                "support_aware_calibrated_v1, or exclusive_wasd_softmax_v1"
             )
         object.__setattr__(self, "action_loss_kind", action_loss_kind)
 
@@ -692,6 +693,17 @@ class TrainingConfig:
                 "objective.play_decode_kind other than independent_logit_gt_zero_v1 "
                 "is only valid for maze_chase"
             )
+        if self.objective.action_loss_kind == "exclusive_wasd_softmax_v1":
+            if self.dataset.kind != "maze_chase":
+                raise ValueError(
+                    "objective.action_loss_kind exclusive_wasd_softmax_v1 "
+                    "is only valid for maze_chase"
+                )
+            if self.objective.play_decode_kind != "exclusive_argmax_wasd_v1":
+                raise ValueError(
+                    "objective.action_loss_kind exclusive_wasd_softmax_v1 "
+                    "requires exclusive_argmax_wasd_v1 play decode"
+                )
         if (
             self.schema_version == 1
             and self.optimization.scheduler_kind != COSINE_AFTER_WARMUP

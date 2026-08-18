@@ -20,9 +20,9 @@ distillation, measured by play (reward / collisions / pellets), not by
 action loss. Probe v2 / 128-step sat at sticky D (~10 pellets). Window-32
 and episode-windows failed idle no-op (9 pellets, mask 0). Exclusive
 WASD argmax **unstuck idle**: histogram S×478 + A×2, 20 pellets, 391
-collisions, reward −3890. Val predicted-positive stayed 0.0. Spark is
-idle. Do not scale. Next distinct idea is exclusive-direction loss
-matching the argmax decode. Record:
+collisions, reward −3890. Val predicted-positive stayed 0.0. Do not scale
+that recipe. The next named probe is exclusive-direction softmax loss
+(`exclusive_wasd_softmax_v1`) matching the kept argmax decode. Record:
 [brain/docs/runs/2026-08-18-play-gated-maze-chase-distill.md](brain/docs/runs/2026-08-18-play-gated-maze-chase-distill.md).
 
 All training, probes, and play evals run on the Spark. This workstation is
@@ -38,7 +38,7 @@ campaign.
 |---|---|---|
 | 0 | Source lives in this Git repository and on private GitHub | Done. `defnotean/Pseudo-Brain`, branch `defnotean/pseudo-brain` |
 | 1 | Write operator documentation and freeze tooling | Done |
-| 2 | Freeze implementation source and regenerate the matched-baseline architecture manifest | Done. Live digest `78ba9cfc…` (2026-08-17 baseline-suite extension: reset-slot, dense-routing, reactive, and serial-depth ablations). Historical `8a41131e…`, `f4e9b355…`, `eb46988b…`, `5decb402…`, `30d4c119…`, and first-matched pin `52bba6a9…` unchanged. |
+| 2 | Freeze implementation source and regenerate the matched-baseline architecture manifest | Done. Live digest `5e0f2536…` (2026-08-18 exclusive WASD softmax loss on maze-chase). Historical `eda3cf38…`, `78ba9cfc…`, `8a41131e…`, `f4e9b355…`, `eb46988b…`, `5decb402…`, `30d4c119…`, and first-matched pin `52bba6a9…` unchanged. |
 | 3 | Run local CPU-only tests, including the regenerated manifest identity | Done. 299 tests passed, one expected POSIX skip. |
 | 4 | Build the create-once, target-blind RCQ-v2 registration and record its SHA-256 | Live v2 `6cc98739c78499a990a4b3480524c48dd49243c1e3c63094977a9a917df49690`. Historical v1 `33f7900c…` preserved. Copy the live digest off-repo. |
 | 5 | DGX preflight and immutable release sync | Done for live release `r20260817t021531z-7a2967ebec60`. Historical v1 release stays unused for training. |
@@ -47,7 +47,7 @@ campaign.
 | 8 | Newly named qualification after the invariance capture fix | Done. Live file `registrations/rcq-v2-reference-v2.json`. Do not edit v1. |
 | 9 | Preclaim, independent review, final authorization, one-shot TEST | Blocked. This qualification failed the entry gate. Do not preclaim or open TEST. |
 | — | RCQ-v3 registration ceremony | **Deferred.** Do not run `New-RcqV3Registration.ps1`. |
-| — | Current campaign | Play-gated maze-chase distill v1. Sticky D at 32/128 spawn-only. Window-32 and episode-windows failed idle. Exclusive argmax unstuck idle (S×478, 20 pellets, 391 collisions). Val predicted-positive 0.0. Spark idle. Do not scale; next is exclusive-direction loss. |
+| — | Current campaign | Play-gated maze-chase distill v1. Sticky D at 32/128 spawn-only. Window-32 and episode-windows failed idle. Exclusive argmax unstuck idle (S×478, 20 pellets, 391 collisions). Val predicted-positive 0.0. Do not scale that recipe; exclusive-direction softmax (`exclusive_wasd_softmax_v1`) is the next named Spark probe. |
 | — | Compute | Spark only. One bounded job at a time. Generic wrappers, never RCQ-v2 start/resume. |
 
 Do not skip ahead. Do not open sealed TEST ranges to "check" labels. Do not

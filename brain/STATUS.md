@@ -15,9 +15,11 @@ teacher and 32-step budget (`dgx-play-maze-chase-distill-exclusive-argmax-v1`,
 histogram **S×478 + A×2**, **20 pellets**, 391 collisions, reward **−3890**,
 `sticky_or_idle: false`. Val WASD predicted-positive stayed **0.0**
 (metrics SHA identical to episode-windows). Campaign still failed (pellets
-< 32). Do not scale. Next distinct idea is exclusive-direction loss that
-matches argmax decode. Campaign success is **pellets ≥ 32** with a
-non-idle non-D-only histogram. Official 32-step `play-gate.json` SHA-256
+< 32). Do not scale that recipe. Next named probe is exclusive-direction
+softmax loss `exclusive_wasd_softmax_v1` matching the kept argmax decode
+(`dgx-play-maze-chase-distill-exclusive-ce-v1`). Campaign success is
+**pellets ≥ 32** with a non-idle non-D-only histogram. Official 32-step
+`play-gate.json` SHA-256
 `df9d88f4…`; 128-step `6401a922…`; window-32 `2cdedaf9…`; episode-windows
 `84331559…`. Logger train loss is not the gate. Workstation is
 orchestration; all compute is Spark. Record:
@@ -110,8 +112,9 @@ local freeze on 2026-08-16, twice on 2026-08-17 (RCQ-v3 recipe options, then
 v3 smoke-factory squash parity), and again on 2026-08-17 when the baseline
 suite gained the reset-slot, dense-routing, reactive, and serial-depth
 ablations. Live digest
-`78ba9cfc1eb56782609f586ac7f3ef393a7fb6ddd6f017546861c3e92d0bb0e2` (previous
-`8a41131e…`, `f4e9b355…`, `eb46988b…`, `5decb402…`, and `30d4c119…`; all are
+`5e0f2536d0421bb8a2c44b58f835545fdb2e5a5593035a9a9ee6c3a33e86e830` (previous
+`eda3cf38…`, `78ba9cfc…`, `8a41131e…`, `f4e9b355…`, `eb46988b…`, `5decb402…`,
+and `30d4c119…`; all are
 explicit `new_comparison` identities). The
 historical first-matched campaign pin `52bba6a9…` is unchanged and that
 campaign stays blocked. Records:
@@ -396,8 +399,8 @@ is inherited unchanged. `train.py` resolves the model's fail-closed
 `training_objective_class_path` hook; the recipe is
 `configs/training/baseline-stagea-world-model-actor.toml`; and the family
 is pinned by its own manifest (`configs/world-model-actor-manifest.json`,
-digest `885aff85…`, previous `3d2e3cc0…` then `c207401f…`) with a fail-closed 1%-band gate, not the slot-suite
-manifest (regenerated for the refactor, digest `eda3cf38…`). B3 (task
+digest `be571ba4…`, previous `885aff85…`, `3d2e3cc0…`, then `c207401f…`) with a fail-closed 1%-band gate, not the slot-suite
+manifest (regenerated for exclusive WASD softmax, digest `5e0f2536…`). B3 (task
 specialist) remains blocked on ladder dataset generation (7 new tests;
 play-safe gate green, 558 tests). Record:
 [docs/runs/2026-08-18-world-model-actor.md](./docs/runs/2026-08-18-world-model-actor.md).

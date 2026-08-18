@@ -13,6 +13,12 @@ from irene_brain.types import HidKey
 
 BRAIN_ROOT = Path(__file__).resolve().parents[1]
 MOVEMENT_CONTROL_INDICES = (4, 7, 22, 26)
+WASD_CONTROL_INDICES = (
+    int(HidKey.W),
+    int(HidKey.A),
+    int(HidKey.S),
+    int(HidKey.D),
+)
 
 try:
     import torch
@@ -123,19 +129,27 @@ class CalibratedActionLossTests(unittest.TestCase):
         *,
         button_indices: object | None = None,
         loss_kind: str = "support_aware_calibrated_v1",
+        movement_key_indices: object | None = None,
     ) -> object:
         assert torch is not None
         if button_indices is None:
             button_indices = torch.tensor(BUTTON_TARGET_INDICES, dtype=torch.long)
+        kwargs: dict[str, object] = {
+            "loss_kind": loss_kind,
+            "support_control_indices": torch.tensor(
+                MOVEMENT_CONTROL_INDICES,
+                dtype=torch.long,
+            ),
+        }
+        if movement_key_indices is None and loss_kind == "exclusive_wasd_softmax_v1":
+            movement_key_indices = torch.tensor(WASD_CONTROL_INDICES, dtype=torch.long)
+        if movement_key_indices is not None:
+            kwargs["movement_key_indices"] = movement_key_indices
         return _structured_action_loss(
             CalibratedActionLossTests.prediction(button_logits),
             target,
             button_indices,
-            loss_kind=loss_kind,
-            support_control_indices=torch.tensor(
-                MOVEMENT_CONTROL_INDICES,
-                dtype=torch.long,
-            ),
+            **kwargs,
         )
 
     def test_zero_logits_have_calibrated_log_two_button_baseline(self) -> None:
@@ -299,6 +313,77 @@ class CalibratedActionLossTests(unittest.TestCase):
             0.125,
             places=6,
         )
+
+
+@unittest.skipUnless(torch is not None, "PyTorch is not installed in play-safe runtime")
+class ExclusiveWasdSoftmaxLossTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        assert torch is not None
+        torch.set_num_threads(1)
+
+    def test_exclusive_softmax_prefers_the_teacher_direction(self) -> None:
+        assert torch is not None
+        from irene_brain.evaluation.closed_loop_play import (
+            EXCLUSIVE_ARGMAX_WASD_IDLE_MARGIN,
+        )
+        from irene_brain.training.objective import EXCLUSIVE_WASD_SOFTMAX_IDLE_MARGIN
+
+        self.assertEqual(
+            EXCLUSIVE_WASD_SOFTMAX_IDLE_MARGIN,
+            EXCLUSIVE_ARGMAX_WASD_IDLE_MARGIN,
+        )
+        target = torch.zeros(1, CONTROL_VECTOR_SIZE)
+        target[0, int(HidKey.W)] = 1.0
+        teacher_ranked = torch.full((1, len(BUTTON_TARGET_INDICES)), -2.0)
+        teacher_ranked[0, int(HidKey.W)] = -0.5
+        sticky_s = teacher_ranked.clone()
+        sticky_s[0, int(HidKey.W)] = -2.0
+        sticky_s[0, int(HidKey.S)] = -0.5
+        teacher_loss = CalibratedActionLossTests.loss(
+            teacher_ranked,
+            target,
+            loss_kind="exclusive_wasd_softmax_v1",
+        )
+        sticky_loss = CalibratedActionLossTests.loss(
+            sticky_s,
+            target,
+            loss_kind="exclusive_wasd_softmax_v1",
+        )
+        self.assertLess(float(teacher_loss), float(sticky_loss))
+
+        logits = torch.full(
+            (1, len(BUTTON_TARGET_INDICES)),
+            -1.0,
+            requires_grad=True,
+        )
+        CalibratedActionLossTests.loss(
+            logits,
+            target,
+            loss_kind="exclusive_wasd_softmax_v1",
+        ).backward()
+        assert logits.grad is not None
+        self.assertLess(float(logits.grad[0, int(HidKey.W)]), 0.0)
+        for other in (int(HidKey.A), int(HidKey.S), int(HidKey.D)):
+            self.assertGreater(float(logits.grad[0, other]), 0.0)
+
+    def test_exclusive_softmax_idles_below_the_play_decode_margin(self) -> None:
+        assert torch is not None
+        target = torch.zeros(1, CONTROL_VECTOR_SIZE)
+        idle_logits = torch.full((1, len(BUTTON_TARGET_INDICES)), -5.0)
+        moving_logits = idle_logits.clone()
+        moving_logits[0, int(HidKey.S)] = 0.0
+        idle_loss = CalibratedActionLossTests.loss(
+            idle_logits,
+            target,
+            loss_kind="exclusive_wasd_softmax_v1",
+        )
+        moving_loss = CalibratedActionLossTests.loss(
+            moving_logits,
+            target,
+            loss_kind="exclusive_wasd_softmax_v1",
+        )
+        self.assertLess(float(idle_loss), float(moving_loss))
 
 
 if __name__ == "__main__":

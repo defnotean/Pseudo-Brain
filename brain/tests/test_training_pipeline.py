@@ -1125,6 +1125,8 @@ class TorchTrainingAndCheckpointTests(unittest.TestCase):
         self.assertEqual(int(exact["movement_changed_exact_matches_per_sample"]), 1)
         self.assertEqual(int(exact["all_off_movement_exact_match"]), 0)
         self.assertEqual(int(exact["all_four_movement_exact_match"]), 0)
+        self.assertEqual(int(exact["movement_exclusive_argmax_match"]), 1)
+        self.assertEqual(int(all_off["movement_exclusive_argmax_match"]), 0)
 
         first = _movement_metric_counts(
             exact_logits[:1], target[:1], previous[:1], movement
@@ -1246,6 +1248,7 @@ class TorchTrainingAndCheckpointTests(unittest.TestCase):
                 "final_inactive_movement_key_logit_max",
                 "final_inactive_movement_key_logit_mean",
                 "final_non_movement_key_logit_max",
+                "final_teacher_movement_logit_gap",
             },
         )
         self.assertTrue(
@@ -1267,6 +1270,10 @@ class TorchTrainingAndCheckpointTests(unittest.TestCase):
         self.assertAlmostEqual(
             float(combined["final_non_movement_key_logit_max"]),
             -0.25,
+        )
+        self.assertAlmostEqual(
+            float(combined["final_teacher_movement_logit_gap"]),
+            0.0,
         )
 
     def test_per_exit_metrics_aggregate_by_supervised_sample(self) -> None:

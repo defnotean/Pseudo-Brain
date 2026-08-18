@@ -226,6 +226,86 @@ class PlayGatedMazeChaseConfigTests(unittest.TestCase):
                 ),
             )
 
+    def test_exclusive_softmax_probe_keeps_argmax_play_decode(self) -> None:
+        exclusive_decode = load_training_config(
+            ROOT
+            / "configs"
+            / "training"
+            / "dgx-play-maze-chase-distill-exclusive-argmax.toml"
+        )
+        exclusive_ce = load_training_config(
+            ROOT
+            / "configs"
+            / "training"
+            / "dgx-play-maze-chase-distill-exclusive-ce.toml"
+        )
+        self.assertEqual(exclusive_ce.schema_version, 2)
+        self.assertEqual(exclusive_ce.dataset.kind, "maze_chase")
+        self.assertEqual(exclusive_ce.run.max_optimizer_steps, 32)
+        self.assertEqual(exclusive_ce.dataset.sequence_length, 8)
+        self.assertEqual(exclusive_ce.dataset.episode_horizon, 240)
+        self.assertEqual(
+            exclusive_ce.objective.play_decode_kind,
+            "exclusive_argmax_wasd_v1",
+        )
+        self.assertEqual(
+            exclusive_ce.objective.action_loss_kind,
+            "exclusive_wasd_softmax_v1",
+        )
+        self.assertEqual(
+            exclusive_decode.objective.action_loss_kind,
+            "support_aware_calibrated_v1",
+        )
+        self.assertEqual(exclusive_ce.run.seed, exclusive_decode.run.seed)
+        self.assertEqual(
+            exclusive_ce.run.model_factory,
+            exclusive_decode.run.model_factory,
+        )
+        self.assertNotEqual(
+            exclusive_decode.config_sha256,
+            exclusive_ce.config_sha256,
+        )
+        self.assertEqual(
+            exclusive_ce.config_sha256,
+            "6419c66f4fff8c8a6105d198beea33cf7f2131aab51ff4e28693243a7148c5f3",
+        )
+        self.assertEqual(
+            exclusive_ce.to_dict()["objective"]["action_loss_kind"],
+            "exclusive_wasd_softmax_v1",
+        )
+        self.assertEqual(
+            exclusive_ce.to_dict()["objective"]["play_decode_kind"],
+            "exclusive_argmax_wasd_v1",
+        )
+        source = dataset_batch_source(exclusive_ce.dataset)
+        self.assertIsInstance(source, MazeChaseBatchSource)
+        self.assertEqual(
+            source.manifest_sha256,
+            dataset_batch_source(exclusive_decode.dataset).manifest_sha256,
+        )
+
+        smoke = load_training_config(
+            ROOT / "configs" / "training" / "dgx-smoke.toml"
+        )
+        with self.assertRaisesRegex(ValueError, "only valid for maze_chase"):
+            replace(
+                smoke,
+                objective=replace(
+                    smoke.objective,
+                    action_loss_kind="exclusive_wasd_softmax_v1",
+                    play_decode_kind="exclusive_argmax_wasd_v1",
+                ),
+            )
+        with self.assertRaisesRegex(ValueError, "requires exclusive_argmax_wasd_v1"):
+            replace(
+                exclusive_decode,
+                objective=replace(
+                    exclusive_decode.objective,
+                    action_loss_kind="exclusive_wasd_softmax_v1",
+                    play_decode_kind="independent_logit_gt_zero_v1",
+                ),
+            )
+
     def test_play_gate_floor_is_frozen(self) -> None:
         self.assertEqual(CAMPAIGN_ID, "play_gated_maze_chase_distill_v1")
         self.assertEqual(PLAY_SEEDS, (5, 9))

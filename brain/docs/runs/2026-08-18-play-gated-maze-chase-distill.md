@@ -1,11 +1,46 @@
 # Play-gated maze-chase distill campaign v1 (2026-08-18)
 
-Status: **current campaign**. Exclusive-argmax play-decode probe
-**completed**: idle unstuck, campaign still failed (sticky S, 20 pellets,
-391 collisions, reward −3890). Spark is idle. Do not scale. Window-32 and
-episode-windows stay falsified idle no-op. RCQ-v2 seed 1702 stays terminal.
-No v3 registration. No sealed TEST. Next distinct idea: exclusive-direction
-loss matching argmax decode (val predicted-positive stayed 0.0).
+Status: **current campaign**. Exclusive-direction softmax probe is
+**preregistered**. Exclusive-argmax play-decode **completed / failed**: idle
+unstuck, sticky S, 20 pellets, 391 collisions, reward −3890. Spark is idle
+until this probe launches. Do not scale the failed exclusive-argmax recipe.
+Window-32 and episode-windows stay falsified idle no-op. RCQ-v2 seed 1702
+stays terminal. No v3 registration. No sealed TEST.
+
+## Exclusive-direction softmax loss (preregistered)
+
+Hypothesis: independent multi-label BCE trained ranking-free WASD logits, so
+exclusive-argmax play collapsed to a sticky S among negatives (val
+predicted-positive 0.0). Teacher maze-chase movement is one of W/A/S/D, or
+idle. Training with softmax / exclusive CE on the four directions matches
+the kept `exclusive_argmax_wasd_v1` decode.
+
+Named objective `exclusive_wasd_softmax_v1` (maze_chase only; requires
+`exclusive_argmax_wasd_v1` play decode):
+
+- Directed teacher rows: softmax cross-entropy toward the unique WASD key
+  (first-on in W/A/S/D order if several are labeled).
+- Idle teacher rows: hinge the winning logit strictly below **−4.0**, the
+  same margin closed-loop exclusive-argmax uses to stay idle.
+- Non-movement buttons keep the frozen support-aware background tail.
+- Default `support_aware_calibrated_v1` is unchanged. RCQ-v2 / moving-shapes
+  keep that default. Do not retarget `independent_logit_gt_zero_v1` play.
+
+| Field | Value |
+|---|---|
+| Run id | `dgx-play-maze-chase-distill-exclusive-ce-v1` |
+| Config | `brain/configs/training/dgx-play-maze-chase-distill-exclusive-ce.toml` |
+| Canonical config SHA-256 | `6419c66f4fff8c8a6105d198beea33cf7f2131aab51ff4e28693243a7148c5f3` |
+| Play decode | `exclusive_argmax_wasd_v1` (idle margin −4.0; kept) |
+| Action loss | `exclusive_wasd_softmax_v1` |
+| Batch-source | same episode-windows teacher as exclusive-argmax |
+| Budget | 32 optimizer steps, `sequence_length = 8`, `episode_horizon = 240` |
+| Play eval | seeds 5/9 × 240 ticks; honest `pellet_eaten`; WASD histogram |
+| Campaign pass | `pellets_eaten >= 32` and histogram not idle / D-only / one-key sticky |
+| Stop | If the histogram is still ~all one key, inspect val
+  `movement_exclusive_argmax_match` and `final_teacher_movement_logit_gap`.
+  Do not scale unless val actually selects the teacher direction. Predicted-positive
+  may stay 0.0; that is not the exclusive-CE success signal. |
 
 ## Exclusive-argmax play decode result (2026-08-18)
 
@@ -45,8 +80,8 @@ Logged metrics at step 32 match episode-windows: train loss 1.063, action
 loss 0.590, movement exact 0.0, value loss 4.51; validation loss 0.945,
 action loss 0.544, movement exact 0.0, value loss 3.80. Val teacher mix
 W/A/S/D = 0.375 / 0.292 / 0.167 / 0.167. Every WASD predicted-positive
-**0.0**; inactive movement logit max **−0.80**. Do not scale steps. Next
-is exclusive-direction loss that matches this decode.
+**0.0**; inactive movement logit max **−0.80**. Do not scale that recipe.
+The exclusive-direction softmax probe is preregistered above.
 
 ## Exclusive-argmax play decode (preregistered; now completed / failed)
 
@@ -83,7 +118,7 @@ Training loss stayed independent multi-label. Teacher stayed
 | Play eval | seeds 5/9 × 240 ticks; honest `pellet_eaten`; WASD histogram |
 | Campaign pass | `pellets_eaten >= 32` and histogram not idle / D-only |
 | Result | idle unstuck (S×478 + A×2); 20 pellets; 391 collisions; val predicted-positive 0.0 |
-| Stop | Val predicted-positive stayed 0. Do not scale. Next idea is exclusive-direction loss matching argmax decode. |
+| Stop | Val predicted-positive stayed 0. Do not scale. Exclusive-direction softmax is the next named probe. |
 
 ## Episode-window probe result (2026-08-18)
 
@@ -412,7 +447,7 @@ and not an RCQ qualification.
 | First probe run id | `dgx-play-maze-chase-distill-probe-v1` (trained; play-gate crashed) |
 | Passing 32-step run id | `dgx-play-maze-chase-distill-probe-v2` (`play_moved: true`) |
 | Passing 128-step run id | `dgx-play-maze-chase-distill-probe-128-v1` (`play_moved: true`, same play numbers) |
-| Next probe run id | none started; exclusive-argmax **failed** campaign (idle unstuck, sticky S) |
+| Next probe run id | `dgx-play-maze-chase-distill-exclusive-ce-v1` (preregistered; not started) |
 | Failed exclusive-argmax run id | `dgx-play-maze-chase-distill-exclusive-argmax-v1` |
 | Failed episode-windows run id | `dgx-play-maze-chase-distill-episode-windows-v1` |
 | Failed window-32 run id | `dgx-play-maze-chase-distill-window32-v1` (idle no-op; do not retry) |
@@ -421,6 +456,7 @@ and not an RCQ qualification.
 | Window-32 config | `brain/configs/training/dgx-play-maze-chase-distill-window32.toml` |
 | Episode-windows config | `brain/configs/training/dgx-play-maze-chase-distill-episode-windows.toml` |
 | Exclusive-argmax config | `brain/configs/training/dgx-play-maze-chase-distill-exclusive-argmax.toml` |
+| Exclusive-CE config | `brain/configs/training/dgx-play-maze-chase-distill-exclusive-ce.toml` |
 | Model factory | `irene_brain.training.factory:build_thesis_model` |
 | Data | `irene.maze_chase.planner_teacher.episode_windows.v1` via `dataset.kind = "maze_chase"` and `episode_horizon = 240` |
 | Probe budget | 32 optimizer steps with `sequence_length = 8` windows drawn from 240-tick planner rollouts; schema 2, constant after warmup |
@@ -443,8 +479,13 @@ no-op pellets are 9 (reward arithmetic). Historical play-gate JSON
   unstuck from D. Do not scale it.
 - **Exclusive-argmax probe** unstuck idle (S×478 + A×2) but failed
   campaign (20 pellets, 391 collisions). Val predicted-positive stayed
-  0.0. Do not scale. Next is exclusive-direction loss matching this
-  decode. Sticky D / no-op / sticky-S is fail, even if `play_moved` is true.
+  0.0. Do not scale that recipe.
+- **Exclusive-CE probe** keeps that decode and changes only the WASD
+  training loss to `exclusive_wasd_softmax_v1`. Histogram must not be ~all
+  one key. Compare pellets/collisions to no-op (9/17/−161) and sticky S
+  (20/391/−3890). Sticky D / no-op / sticky-S is fail, even if `play_moved`
+  is true. Do not scale unless val exclusive-argmax match shows the model
+  selects the teacher direction.
 
 `train.py` writes `play-gate.json` into the run directory after a
 maze_chase train or evaluate-only pass. The play gate uses reward_sum
@@ -458,6 +499,21 @@ out of `targets_collected` so the cross-world no-op floor stays world-flat.
 - Physical 60 Hz latency
 - Transfer to other ladder worlds (one transfer world waits until play
   has moved and hygiene is tight)
+
+## Spark sequence (exclusive-CE probe, preregistered)
+
+1. `Invoke-DgxPreflight.ps1`
+2. `Sync-DgxBrainRelease.ps1` (new release after this tree is pushed)
+3. `Invoke-DgxBrainSmoke.ps1` on `dgx-smoke.toml` (receipt written)
+4. `Start-DgxBrainTraining.ps1` with
+   `dgx-play-maze-chase-distill-exclusive-ce.toml`, run id
+   `dgx-play-maze-chase-distill-exclusive-ce-v1`, Tmux with
+   `-AcknowledgeDetached`
+5. Watch `play-gate.json`: histogram must not be ~all one key. Success is
+   pellets ≥ 32 or a clear, with a non-sticky histogram.
+
+Generic wrappers only. Never `Start-DgxRcqV2Reference.ps1`. Never point
+generic train at an RCQ config.
 
 ## Spark sequence (exclusive-argmax probe, completed; failed campaign)
 
@@ -521,7 +577,9 @@ generic train at an RCQ config.
 Generic wrappers only. Never `Start-DgxRcqV2Reference.ps1`. Never point
 generic train at an RCQ config.
 
-The B2 world-model-actor manifest was regenerated because `train.py` is in
-that family's source set (new digest `885aff85…`; previous `3d2e3cc0…`,
-then `c207401f…`).
+The B2 world-model-actor manifest was regenerated because `objective.py` is in
+that family's source set (new digest `be571ba4…`; previous `885aff85…`,
+then `3d2e3cc0…`, then `c207401f…`).
 No actor parameter or recipe identity changed.
+The matched-baseline architecture manifest is a new comparison identity
+`5e0f2536…` (previous live `eda3cf38…`) for the same source-file reason.

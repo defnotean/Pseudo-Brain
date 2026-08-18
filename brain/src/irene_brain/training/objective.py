@@ -31,6 +31,20 @@ _MOVEMENT_KEYS = (
     ("d", int(HidKey.D)),
 )
 
+# Maze-chase exclusive-direction action loss. Softmax CE on W/A/S/D matches
+# exclusive_argmax_wasd_v1 play decode (ranking, not independent logit > 0).
+# Idle uses the same margin as closed-loop play: winner strictly below -4.0.
+# Frozen RCQ-v2 / moving-shapes keep support_aware_calibrated_v1.
+EXCLUSIVE_WASD_SOFTMAX_V1 = "exclusive_wasd_softmax_v1"
+EXCLUSIVE_WASD_SOFTMAX_IDLE_MARGIN = -4.0
+_ACTION_LOSS_KINDS = frozenset(
+    {
+        "sparse_hard_negative_v1",
+        "support_aware_calibrated_v1",
+        EXCLUSIVE_WASD_SOFTMAX_V1,
+    }
+)
+
 
 def _multi_horizon_offsets(sequence_length: int, burn_in_steps: int) -> tuple[int, ...]:
     """Powers-of-two prediction offsets the recorded window fully supports.
@@ -99,10 +113,7 @@ class ThoughtFieldObjective(nn.Module):
     ) -> None:
         super().__init__()
         self.model = model
-        if action_loss_kind not in {
-            "sparse_hard_negative_v1",
-            "support_aware_calibrated_v1",
-        }:
+        if action_loss_kind not in _ACTION_LOSS_KINDS:
             raise ValueError("unsupported action_loss_kind")
         self.action_loss_kind = action_loss_kind
         self.button_support_weight = _positive_weight(
@@ -821,6 +832,21 @@ def _structured_action_loss(
             background_tail_mix=background_tail_mix,
             background_tail_temperature=background_tail_temperature,
         )
+    elif loss_kind == EXCLUSIVE_WASD_SOFTMAX_V1:
+        if movement_key_indices is None:
+            raise ValueError(
+                "exclusive_wasd_softmax_v1 requires movement_key_indices in W, A, S, D order"
+            )
+        button_loss = _exclusive_wasd_softmax_button_loss(
+            button_logits,
+            button_target,
+            button_indices,
+            movement_key_indices,
+            support_weight=support_weight,
+            background_weight=background_weight,
+            background_tail_mix=background_tail_mix,
+            background_tail_temperature=background_tail_temperature,
+        )
     else:
         raise ValueError(f"unsupported action loss kind: {loss_kind}")
     mouse_loss = F.mse_loss(prediction.mouse_mean.float(), target[:, 264:266])
@@ -935,6 +961,117 @@ def _support_aware_calibrated_button_loss(
     )
     return (
         support_weight * support_loss + background_weight * background_risk
+    ).mean()
+
+
+def _button_columns_for_controls(
+    button_control_indices: Tensor,
+    control_indices: Tensor,
+) -> Tensor:
+    """Map HID control indices onto emitted button-logit columns."""
+
+    mapping = button_control_indices.unsqueeze(1) == control_indices.unsqueeze(0)
+    if mapping.ndim != 2:
+        raise ValueError("control mapping must be rank-2")
+    if not bool(mapping.any(dim=0).all().item()):
+        raise ValueError(
+            "exclusive WASD softmax requires W, A, S, and D in emitted buttons"
+        )
+    if bool((mapping.sum(dim=0) != 1).any().item()):
+        raise ValueError("each WASD control must map to exactly one emitted button")
+    return mapping.to(dtype=torch.long).argmax(dim=0)
+
+
+def _exclusive_wasd_row_loss(wasd_logits: Tensor, wasd_target: Tensor) -> Tensor:
+    """Per-row exclusive WASD loss matching argmax play decode.
+
+    Teacher maze-chase movement is one of W/A/S/D, or idle. Directed rows
+    use softmax cross-entropy toward the unique teacher key (first-on in
+    W/A/S/D order if several are labeled). Idle rows push the winning
+    logit strictly below ``EXCLUSIVE_WASD_SOFTMAX_IDLE_MARGIN``, the same
+    threshold closed-loop exclusive-argmax uses to stay idle.
+    """
+
+    if wasd_logits.ndim != 2 or tuple(wasd_logits.shape[1:]) != (4,):
+        raise ValueError("WASD logits must have shape [batch, 4]")
+    if tuple(wasd_target.shape) != tuple(wasd_logits.shape):
+        raise ValueError("WASD targets must match WASD logits")
+    positive = wasd_target > 0.5
+    idle = ~positive.any(dim=1)
+    class_ids = positive.to(dtype=torch.long).argmax(dim=1)
+    directed = F.cross_entropy(wasd_logits, class_ids, reduction="none")
+    idle_loss = F.softplus(
+        wasd_logits.amax(dim=1) - EXCLUSIVE_WASD_SOFTMAX_IDLE_MARGIN
+    )
+    return torch.where(idle, idle_loss, directed)
+
+
+def _exclusive_wasd_softmax_button_loss(
+    button_logits: Tensor,
+    button_target: Tensor,
+    button_control_indices: Tensor,
+    movement_key_indices: Tensor,
+    *,
+    support_weight: float,
+    background_weight: float,
+    background_tail_mix: float,
+    background_tail_temperature: float,
+) -> Tensor:
+    """Exclusive WASD softmax plus the frozen non-movement background tail.
+
+    WASD is trained as one mutually exclusive direction, not four
+    independent BCEs. Non-movement buttons keep the support-aware
+    background risk so maze-chase cannot recapture RCQ-v2's calibrated
+    multi-label recipe by renaming it.
+    """
+
+    if button_logits.ndim != 2 or tuple(button_target.shape) != tuple(
+        button_logits.shape
+    ):
+        raise ValueError("button logits and targets must have equal rank-2 shapes")
+    if movement_key_indices.ndim != 1 or tuple(movement_key_indices.shape) != (4,):
+        raise ValueError(
+            "exclusive WASD softmax requires movement_key_indices in W, A, S, D order"
+        )
+    columns = _button_columns_for_controls(
+        button_control_indices, movement_key_indices
+    )
+    exclusive = _exclusive_wasd_row_loss(
+        button_logits.index_select(1, columns),
+        button_target.index_select(1, columns),
+    )
+
+    wasd_emitted = torch.zeros(
+        button_logits.shape[1],
+        dtype=torch.bool,
+        device=button_logits.device,
+    )
+    wasd_emitted[columns] = True
+    background = ~wasd_emitted.unsqueeze(0)
+    positive = button_target > 0.5
+    outside_positive = positive & background
+    support_bce = F.binary_cross_entropy_with_logits(
+        button_logits,
+        button_target,
+        reduction="none",
+    )
+    outside_positive_loss = _masked_row_mean(support_bce, outside_positive)
+
+    negative_loss = F.softplus(button_logits)
+    background_negative = background & ~positive
+    background_mean = _masked_row_mean(negative_loss, background_negative)
+    background_tail = _centered_masked_logmeanexp(
+        negative_loss,
+        background_negative,
+        temperature=background_tail_temperature,
+    )
+    background_risk = (
+        (1.0 - background_tail_mix) * background_mean
+        + background_tail_mix * background_tail
+    )
+    return (
+        support_weight * (exclusive + outside_positive_loss)
+        + background_weight * background_risk
     ).mean()
 
 
@@ -1118,6 +1255,18 @@ def _final_action_logit_metric_counts(
         inactive_max,
     )
 
+    unique_teacher = movement_target.sum(dim=1) == 1
+    teacher_logit = (movement_logits * movement_target.to(dtype=movement_logits.dtype)).sum(
+        dim=1
+    )
+    other_max = movement_logits.masked_fill(movement_target, -torch.inf).amax(dim=1)
+    teacher_gap = teacher_logit - other_max
+    teacher_gap = torch.where(
+        unique_teacher,
+        teacher_gap,
+        torch.zeros_like(teacher_gap),
+    )
+
     outside_movement = torch.ones(256, dtype=torch.bool, device=key_logits.device)
     outside_movement[movement_key_indices] = False
     non_movement_max = key_logits[:, outside_movement].amax(dim=1)
@@ -1126,6 +1275,7 @@ def _final_action_logit_metric_counts(
         "final_inactive_movement_key_logit_max": inactive_max.sum(),
         "final_inactive_movement_key_logit_mean": inactive_mean.sum(),
         "final_non_movement_key_logit_max": non_movement_max.sum(),
+        "final_teacher_movement_logit_gap": teacher_gap.sum(),
     }
 
 
@@ -1175,6 +1325,13 @@ def _movement_metric_counts(
         | (movement_prediction[:, 1] & movement_prediction[:, 3])
     )
 
+    wasd_logits = key_logits.index_select(1, movement_key_indices)
+    winner = wasd_logits.argmax(dim=1)
+    winner_logit = wasd_logits.gather(1, winner.unsqueeze(1)).squeeze(1)
+    idle_pred = winner_logit < EXCLUSIVE_WASD_SOFTMAX_IDLE_MARGIN
+    exclusive_pred = F.one_hot(winner, 4).to(dtype=torch.bool) & ~idle_pred.unsqueeze(1)
+    exclusive_match = (exclusive_pred == movement_target).all(dim=1)
+
     counts: dict[str, Tensor] = {
         "movement_exact_match": exact.sum(),
         "movement_predicted_active_count": movement_prediction.sum(),
@@ -1187,6 +1344,7 @@ def _movement_metric_counts(
         "movement_changed_exact_matches_per_sample": (changed & exact).sum(),
         "all_off_movement_exact_match": (~movement_target).all(dim=1).sum(),
         "all_four_movement_exact_match": movement_target.all(dim=1).sum(),
+        "movement_exclusive_argmax_match": exclusive_match.sum(),
     }
     for column, (name, _key_index) in enumerate(_MOVEMENT_KEYS):
         direction_prediction = movement_prediction[:, column]
@@ -1200,6 +1358,8 @@ def _movement_metric_counts(
 
 
 __all__ = [
+    "EXCLUSIVE_WASD_SOFTMAX_IDLE_MARGIN",
+    "EXCLUSIVE_WASD_SOFTMAX_V1",
     "LossOutput",
     "ThoughtFieldObjective",
     "deterministic_eval_thought_noise",

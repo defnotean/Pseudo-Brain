@@ -10,13 +10,12 @@ The live campaign is **play-gated maze-chase distill v1**, not RCQ.
 Spark-only compute. Window-32 and episode-windows both **failed** idle
 no-op. Exclusive-argmax play decode **unstuck idle** (S×478 + A×2, 20
 pellets, 391 collisions) but campaign still failed and val
-predicted-positive stayed 0.0. Do not retry or scale windows or this
-decode probe. Next distinct idea is exclusive-direction loss matching
-argmax decode. Campaign success is pellets ≥ 32 with a non-idle
-non-D-only histogram.
+predicted-positive stayed 0.0. Do not retry or scale windows or that
+decode-only recipe. The next named probe is exclusive-direction softmax
+loss matching the kept argmax decode. Campaign success is pellets ≥ 32
+with a non-idle non-D-only histogram.
 
-The completed exclusive-argmax launch (failed campaign; idle unstuck;
-do not relaunch):
+The exclusive-CE launch (preregistered; 32 steps; one GB10):
 
 ```powershell
 & .\brain\scripts\dgx\Invoke-DgxPreflight.ps1 `
@@ -47,8 +46,8 @@ do not relaunch):
   -RemoteWorkDir '~/projects/pseudo-brain' `
   -ReleaseId '<release-id>' `
   -ContainerImage 'vllm/vllm-openai:nightly-aarch64' `
-  -ConfigRelativePath 'brain/configs/training/dgx-play-maze-chase-distill-exclusive-argmax.toml' `
-  -RunId 'dgx-play-maze-chase-distill-exclusive-argmax-v1' `
+  -ConfigRelativePath 'brain/configs/training/dgx-play-maze-chase-distill-exclusive-ce.toml' `
+  -RunId 'dgx-play-maze-chase-distill-exclusive-ce-v1' `
   -LaunchMode Tmux `
   -AcknowledgeDetached `
   -MinFreeDiskGiB 20 `
@@ -58,8 +57,9 @@ do not relaunch):
 ```
 
 Scale only if `play-gate.json` shows `campaign_success: true` (pellets ≥ 32
-and a WASD histogram that is not idle / D-only). Exclusive-argmax did not:
-20 pellets, sticky S, val predicted-positive 0.0. Do not scale. Record:
+and a WASD histogram that is not idle / D-only / one-key sticky). Exclusive-argmax did not:
+20 pellets, sticky S, val predicted-positive 0.0. Do not scale that recipe.
+Exclusive-CE is the next named probe. Record:
 [runs/2026-08-18-play-gated-maze-chase-distill.md](runs/2026-08-18-play-gated-maze-chase-distill.md).
 
 The live `rcq_v2_reference_v2` reference on seed 1702 already failed the
