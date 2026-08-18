@@ -46,6 +46,7 @@ OBJECTIVE_OPTIONAL_DEFAULTS: dict[str, object] = {
 # hash stays byte-identical. A positive value is a new identity.
 DATASET_OPTIONAL_DEFAULTS: dict[str, object] = {
     "episode_horizon": 0,
+    "window_sampling": "uniform",
 }
 
 
@@ -141,6 +142,7 @@ class DatasetConfig:
     tick_period_ns: int
     discount: float
     episode_horizon: int = 0
+    window_sampling: str = "uniform"
 
     def __post_init__(self) -> None:
         kind = _string(self.kind, name="dataset.kind")
@@ -190,7 +192,25 @@ class DatasetConfig:
             raise ValueError(
                 "dataset.episode_horizon is only valid for maze_chase"
             )
+        sampling = _string(self.window_sampling, name="dataset.window_sampling")
+        if sampling not in {"uniform", "tiled"}:
+            raise ValueError("dataset.window_sampling must be uniform or tiled")
+        if sampling == "tiled":
+            if kind != "maze_chase":
+                raise ValueError(
+                    "dataset.window_sampling tiled is only valid for maze_chase"
+                )
+            if horizon == 0:
+                raise ValueError(
+                    "dataset.window_sampling tiled requires episode_horizon > 0"
+                )
+            if horizon % self.sequence_length != 0:
+                raise ValueError(
+                    "dataset.window_sampling tiled requires episode_horizon "
+                    "divisible by sequence_length"
+                )
         object.__setattr__(self, "episode_horizon", horizon)
+        object.__setattr__(self, "window_sampling", sampling)
 
 
 @dataclass(frozen=True, slots=True)

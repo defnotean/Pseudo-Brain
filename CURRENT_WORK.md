@@ -23,8 +23,12 @@ WASD argmax **unstuck idle** then stuck on S (S×478 + A×2). Exclusive
 softmax loss matching that decode **failed sticky S**: histogram S×480,
 20 pellets, 391 collisions, reward −3890. Action-only exclusive CE
 **failed idle no-op** (mask 0 × 480, 9 pellets, reward −161; val match
-0.0; logits ≈ −5). Do not scale. Next GPU probe is exclusive CE plus
-value only. Spark CPU farm runs in parallel. Record:
+0.0; logits ≈ −5). Value-only exclusive CE **failed idle no-op** (mask
+0 × 480, 9 pellets, reward −161; val match 0.0; inactive logit max
+≈ −4.82). Value_weight alone is not the idle-margin hack. Do not scale.
+Next GPU probe is tiled 1:1 planner windows with the exclusive-CE aux
+mix that stayed above idle. Spark CPU farm ran extra planner seeds,
+uniform-window coverage, and a longer exclusive-CE routing dump. Record:
 [brain/docs/runs/2026-08-18-play-gated-maze-chase-distill.md](brain/docs/runs/2026-08-18-play-gated-maze-chase-distill.md).
 
 All training, probes, and play evals run on the Spark. This workstation is
@@ -49,7 +53,7 @@ campaign.
 | 8 | Newly named qualification after the invariance capture fix | Done. Live file `registrations/rcq-v2-reference-v2.json`. Do not edit v1. |
 | 9 | Preclaim, independent review, final authorization, one-shot TEST | Blocked. This qualification failed the entry gate. Do not preclaim or open TEST. |
 | — | RCQ-v3 registration ceremony | **Deferred.** Do not run `New-RcqV3Registration.ps1`. |
-| — | Current campaign | Play-gated maze-chase distill v1. Sticky D at 32/128 spawn-only. Window-32 and episode-windows failed idle. Exclusive argmax unstuck idle then sticky S. Exclusive softmax failed S×480. Action-only exclusive CE failed idle no-op. Next GPU: exclusive CE plus value only. Do not scale the failed recipes. |
+| — | Current campaign | Play-gated maze-chase distill v1. Sticky D at 32/128 spawn-only. Window-32 and episode-windows failed idle. Exclusive argmax unstuck idle then sticky S. Exclusive softmax failed S×480. Action-only exclusive CE failed idle no-op. Value-only exclusive CE failed idle no-op. Next GPU: tiled 1:1 planner windows. Do not scale the failed recipes. |
 | — | Compute | Spark only. One scientific GPU train at a time on the GB10; many named CPU jobs in parallel on the ARM host. Generic wrappers, never RCQ-v2 start/resume. |
 
 Do not skip ahead. Do not open sealed TEST ranges to "check" labels. Do not

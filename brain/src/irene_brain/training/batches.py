@@ -62,6 +62,7 @@ def dataset_batch_source(config: DatasetConfig):
                 tick_period_ns=config.tick_period_ns,
                 discount=config.discount,
                 episode_horizon=config.episode_horizon,
+                window_sampling=config.window_sampling,
             )
         )
     raise ValueError(f"unsupported dataset.kind: {config.kind}")
@@ -257,6 +258,7 @@ class MazeChaseBatchConfig:
     tick_period_ns: int = MazeChaseEnv.DEFAULT_TICK_PERIOD_NS
     discount: float = 0.99
     episode_horizon: int = 0
+    window_sampling: str = "uniform"
 
     def __post_init__(self) -> None:
         for value, name in (
@@ -327,6 +329,21 @@ class MazeChaseBatchConfig:
             raise ValueError(
                 "maze_chase.episode_horizon must be 0 or greater than sequence_length"
             )
+        if not isinstance(self.window_sampling, str) or self.window_sampling not in {
+            "uniform",
+            "tiled",
+        }:
+            raise ValueError("maze_chase.window_sampling must be uniform or tiled")
+        if self.window_sampling == "tiled":
+            if self.episode_horizon <= 0:
+                raise ValueError(
+                    "maze_chase.window_sampling tiled requires episode_horizon > 0"
+                )
+            if self.episode_horizon % self.sequence_length != 0:
+                raise ValueError(
+                    "maze_chase.window_sampling tiled requires episode_horizon "
+                    "divisible by sequence_length"
+                )
         if self.seed_offset + max(
             self.train_sequences,
             self.validation_sequences,
@@ -346,9 +363,10 @@ class MazeChaseBatchSource:
     ticks, well above the registered 128-tick training length.
 
     When ``episode_horizon`` is positive this source is named
-    ``maze_chase_episode_windows``: the planner rolls through a full
-    episode and each sequence is a uniform window of ``sequence_length``
-    drawn from that trajectory, not ticks 0–N from spawn.
+    ``maze_chase_episode_windows`` (uniform hashed starts) or
+    ``maze_chase_tiled_windows`` (consecutive non-overlapping windows of
+    one episode): the planner rolls through a full episode and each
+    sequence is a ``sequence_length`` slice, not ticks 0–N from spawn.
     """
 
     def __init__(self, config: MazeChaseBatchConfig) -> None:
@@ -378,6 +396,7 @@ class MazeChaseBatchSource:
                     tick_period_ns=config.tick_period_ns,
                     discount=config.discount,
                     episode_horizon=config.episode_horizon,
+                    window_sampling=config.window_sampling,
                 )
             )
             for split, count in counts.items()
@@ -385,7 +404,9 @@ class MazeChaseBatchSource:
         manifest = {
             "schema_version": 1,
             "batch_source": (
-                "maze_chase_episode_windows"
+                "maze_chase_tiled_windows"
+                if config.window_sampling == "tiled"
+                else "maze_chase_episode_windows"
                 if config.episode_horizon > 0
                 else "maze_chase_split_namespaces"
             ),
@@ -740,6 +761,7 @@ class MixedWorldBatchSource:
                     tick_period_ns=maze.tick_period_ns,
                     discount=maze.discount,
                     episode_horizon=maze.episode_horizon,
+                    window_sampling=maze.window_sampling,
                 )
             )
             for split, count in counts.items()

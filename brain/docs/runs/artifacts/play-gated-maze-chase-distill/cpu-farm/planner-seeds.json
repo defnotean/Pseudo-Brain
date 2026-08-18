@@ -1,0 +1,507 @@
+{
+  "campaign_id": "play_gated_maze_chase_distill_v1",
+  "clears": 4,
+  "episodes": [
+    {
+      "cleared": false,
+      "collisions": 3,
+      "movement_mask_histogram": [
+        [
+          0,
+          3
+        ],
+        [
+          1,
+          87
+        ],
+        [
+          2,
+          58
+        ],
+        [
+          4,
+          47
+        ],
+        [
+          8,
+          45
+        ]
+      ],
+      "pellets_eaten": 126,
+      "reward_sum": 96.0,
+      "seed": 100,
+      "ticks_advanced": 240
+    },
+    {
+      "cleared": false,
+      "collisions": 2,
+      "movement_mask_histogram": [
+        [
+          0,
+          7
+        ],
+        [
+          1,
+          82
+        ],
+        [
+          2,
+          32
+        ],
+        [
+          4,
+          59
+        ],
+        [
+          8,
+          60
+        ]
+      ],
+      "pellets_eaten": 141,
+      "reward_sum": 121.0,
+      "seed": 101,
+      "ticks_advanced": 240
+    },
+    {
+      "cleared": false,
+      "collisions": 3,
+      "movement_mask_histogram": [
+        [
+          0,
+          3
+        ],
+        [
+          1,
+          59
+        ],
+        [
+          2,
+          53
+        ],
+        [
+          4,
+          65
+        ],
+        [
+          8,
+          60
+        ]
+      ],
+      "pellets_eaten": 139,
+      "reward_sum": 109.0,
+      "seed": 102,
+      "ticks_advanced": 240
+    },
+    {
+      "cleared": false,
+      "collisions": 3,
+      "movement_mask_histogram": [
+        [
+          0,
+          3
+        ],
+        [
+          1,
+          63
+        ],
+        [
+          2,
+          38
+        ],
+        [
+          4,
+          62
+        ],
+        [
+          8,
+          74
+        ]
+      ],
+      "pellets_eaten": 132,
+      "reward_sum": 102.0,
+      "seed": 103,
+      "ticks_advanced": 240
+    },
+    {
+      "cleared": false,
+      "collisions": 3,
+      "movement_mask_histogram": [
+        [
+          0,
+          3
+        ],
+        [
+          1,
+          65
+        ],
+        [
+          2,
+          43
+        ],
+        [
+          4,
+          68
+        ],
+        [
+          8,
+          61
+        ]
+      ],
+      "pellets_eaten": 134,
+      "reward_sum": 104.0,
+      "seed": 104,
+      "ticks_advanced": 240
+    },
+    {
+      "cleared": true,
+      "collisions": 1,
+      "movement_mask_histogram": [
+        [
+          0,
+          2
+        ],
+        [
+          1,
+          50
+        ],
+        [
+          2,
+          48
+        ],
+        [
+          4,
+          62
+        ],
+        [
+          8,
+          62
+        ]
+      ],
+      "pellets_eaten": 142,
+      "reward_sum": 142.0,
+      "seed": 105,
+      "ticks_advanced": 223
+    },
+    {
+      "cleared": false,
+      "collisions": 5,
+      "movement_mask_histogram": [
+        [
+          0,
+          5
+        ],
+        [
+          1,
+          53
+        ],
+        [
+          2,
+          54
+        ],
+        [
+          4,
+          61
+        ],
+        [
+          8,
+          67
+        ]
+      ],
+      "pellets_eaten": 133,
+      "reward_sum": 83.0,
+      "seed": 106,
+      "ticks_advanced": 240
+    },
+    {
+      "cleared": true,
+      "collisions": 2,
+      "movement_mask_histogram": [
+        [
+          0,
+          3
+        ],
+        [
+          1,
+          42
+        ],
+        [
+          2,
+          44
+        ],
+        [
+          4,
+          68
+        ],
+        [
+          8,
+          69
+        ]
+      ],
+      "pellets_eaten": 142,
+      "reward_sum": 132.0,
+      "seed": 107,
+      "ticks_advanced": 225
+    },
+    {
+      "cleared": true,
+      "collisions": 2,
+      "movement_mask_histogram": [
+        [
+          0,
+          3
+        ],
+        [
+          1,
+          52
+        ],
+        [
+          2,
+          43
+        ],
+        [
+          4,
+          51
+        ],
+        [
+          8,
+          65
+        ]
+      ],
+      "pellets_eaten": 142,
+      "reward_sum": 132.0,
+      "seed": 108,
+      "ticks_advanced": 213
+    },
+    {
+      "cleared": false,
+      "collisions": 5,
+      "movement_mask_histogram": [
+        [
+          0,
+          5
+        ],
+        [
+          1,
+          103
+        ],
+        [
+          2,
+          37
+        ],
+        [
+          4,
+          41
+        ],
+        [
+          8,
+          54
+        ]
+      ],
+      "pellets_eaten": 114,
+      "reward_sum": 64.0,
+      "seed": 109,
+      "ticks_advanced": 240
+    },
+    {
+      "cleared": false,
+      "collisions": 1,
+      "movement_mask_histogram": [
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          59
+        ],
+        [
+          2,
+          61
+        ],
+        [
+          4,
+          62
+        ],
+        [
+          8,
+          57
+        ]
+      ],
+      "pellets_eaten": 133,
+      "reward_sum": 123.0,
+      "seed": 110,
+      "ticks_advanced": 240
+    },
+    {
+      "cleared": true,
+      "collisions": 2,
+      "movement_mask_histogram": [
+        [
+          0,
+          3
+        ],
+        [
+          1,
+          47
+        ],
+        [
+          2,
+          57
+        ],
+        [
+          4,
+          72
+        ],
+        [
+          8,
+          61
+        ]
+      ],
+      "pellets_eaten": 142,
+      "reward_sum": 132.0,
+      "seed": 111,
+      "ticks_advanced": 239
+    },
+    {
+      "cleared": false,
+      "collisions": 1,
+      "movement_mask_histogram": [
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          52
+        ],
+        [
+          2,
+          35
+        ],
+        [
+          4,
+          83
+        ],
+        [
+          8,
+          69
+        ]
+      ],
+      "pellets_eaten": 115,
+      "reward_sum": 105.0,
+      "seed": 112,
+      "ticks_advanced": 240
+    },
+    {
+      "cleared": false,
+      "collisions": 4,
+      "movement_mask_histogram": [
+        [
+          0,
+          4
+        ],
+        [
+          1,
+          62
+        ],
+        [
+          2,
+          29
+        ],
+        [
+          4,
+          74
+        ],
+        [
+          8,
+          71
+        ]
+      ],
+      "pellets_eaten": 135,
+      "reward_sum": 95.0,
+      "seed": 113,
+      "ticks_advanced": 240
+    },
+    {
+      "cleared": false,
+      "collisions": 3,
+      "movement_mask_histogram": [
+        [
+          0,
+          3
+        ],
+        [
+          1,
+          51
+        ],
+        [
+          2,
+          47
+        ],
+        [
+          4,
+          77
+        ],
+        [
+          8,
+          62
+        ]
+      ],
+      "pellets_eaten": 135,
+      "reward_sum": 105.0,
+      "seed": 114,
+      "ticks_advanced": 240
+    },
+    {
+      "cleared": false,
+      "collisions": 3,
+      "movement_mask_histogram": [
+        [
+          0,
+          3
+        ],
+        [
+          1,
+          79
+        ],
+        [
+          2,
+          41
+        ],
+        [
+          4,
+          54
+        ],
+        [
+          8,
+          63
+        ]
+      ],
+      "pellets_eaten": 128,
+      "reward_sum": 98.0,
+      "seed": 115,
+      "ticks_advanced": 240
+    }
+  ],
+  "job": "planner-seeds",
+  "play_seeds": [
+    100,
+    101,
+    102,
+    103,
+    104,
+    105,
+    106,
+    107,
+    108,
+    109,
+    110,
+    111,
+    112,
+    113,
+    114,
+    115
+  ],
+  "play_ticks": 240,
+  "policy": "diagnostic.scripted_maze_chase_planner.v1"
+}

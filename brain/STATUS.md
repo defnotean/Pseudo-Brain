@@ -23,9 +23,15 @@ reward −3890. Val exclusive-argmax match **0.167** (= teacher S); teacher
 logit gap **−0.445**. Action-only exclusive CE
 (`dgx-play-maze-chase-distill-exclusive-ce-action-only-v1`) **failed idle
 no-op**: mask 0 × 480, 9 pellets, 17 collisions, reward −161; val exclusive-argmax
-match **0.0**; inactive logit max ≈ −4.81. Do not scale. Next GPU probe is
-exclusive CE plus value only. Named CPU farm jobs run in parallel on the
-Spark host. Campaign success is **pellets ≥ 32**
+match **0.0**; inactive logit max ≈ −4.81. Value-only exclusive CE
+(`dgx-play-maze-chase-distill-exclusive-ce-value-only-v1`,
+`play-gate.json` SHA-256 `7dc8959c…`, release `r20260818t181900z-85606667a9fa`)
+**failed idle no-op**: mask 0 × 480, 9 pellets, 17 collisions, reward −161;
+val exclusive-argmax match **0.0**; inactive logit max ≈ −4.82. Value_weight
+alone is not the idle-margin hack. Do not scale. Next GPU probe is tiled
+1:1 planner windows with the exclusive-CE aux mix that stayed above idle.
+Named CPU farm jobs ran extra planner seeds, uniform-window coverage, and
+a longer exclusive-CE routing dump. Campaign success is **pellets ≥ 32**
 with a non-idle non-D-only histogram. Official 32-step `play-gate.json`
 SHA-256
 `df9d88f4…`; 128-step `6401a922…`; window-32 `2cdedaf9…`; episode-windows

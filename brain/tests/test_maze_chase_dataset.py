@@ -228,6 +228,43 @@ class MazeChaseSequenceDatasetTests(unittest.TestCase):
             msg=f"episode-window teacher was D-only: {sorted(teacher_keys)}",
         )
 
+    def test_tiled_windows_cover_one_episode_without_overlap(self) -> None:
+        tiled = MazeChaseSequenceDataset(
+            _config(
+                sequence_count=3,
+                sequence_length=8,
+                episode_horizon=24,
+                window_sampling="tiled",
+            )
+        )
+        manifest = tiled.config.manifest_dict()
+        self.assertEqual(
+            manifest["generator_id"],
+            "irene.maze_chase.planner_teacher.tiled_windows.v1",
+        )
+        self.assertEqual(manifest["window_sampling"], "tiled_stride_across_episode")
+        uniform = MazeChaseSequenceDataset(
+            _config(sequence_count=3, sequence_length=8, episode_horizon=24)
+        )
+        self.assertNotEqual(tiled.manifest_sha256, uniform.manifest_sha256)
+        starts = [
+            sequence.transitions[0].observation.frame_id for sequence in tiled
+        ]
+        self.assertEqual(starts, [0, 8, 16])
+        seeds = {sequence.episode_seed for sequence in tiled}
+        self.assertEqual(len(seeds), 1)
+        self.assertEqual(
+            [len(sequence.transitions) for sequence in tiled],
+            [8, 8, 8],
+        )
+        with self.assertRaisesRegex(ValueError, "divisible"):
+            _config(
+                sequence_count=2,
+                sequence_length=8,
+                episode_horizon=20,
+                window_sampling="tiled",
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

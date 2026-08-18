@@ -2,11 +2,16 @@
 
 Status: **current campaign**. Exclusive-direction softmax probe
 **completed / failed** sticky S. Action-only exclusive CE **completed /
-failed idle no-op** (mask 0 × 480, 9 pellets, reward −161). Do not
-scale. Next GPU probe is exclusive CE plus value only. Named Spark CPU
-farm jobs run in parallel. Exclusive-argmax play-decode stays failed
-sticky S. Window-32 and episode-windows stay falsified idle no-op.
-RCQ-v2 seed 1702 stays terminal. No v3 registration. No sealed TEST.
+failed idle no-op**. Value-only exclusive CE **completed / failed idle
+no-op** (mask 0 × 480, 9 pellets, reward −161; val exclusive-argmax
+match 0.0; inactive logit max ≈ −4.82). Value_weight alone is not the
+idle-margin hack. Do not scale exclusive-CE, action-only, or value-only.
+Next GPU probe is tiled 1:1 planner windows with the exclusive-CE aux
+mix that stayed above idle. Named Spark CPU farm jobs finished extra
+planner seeds, uniform-window coverage, and a longer exclusive-CE
+routing dump. Exclusive-argmax play-decode stays failed sticky S.
+Window-32 and episode-windows stay falsified idle no-op. RCQ-v2 seed
+1702 stays terminal. No v3 registration. No sealed TEST.
 
 ## Exclusive-direction softmax loss result (2026-08-18)
 
@@ -489,7 +494,8 @@ and not an RCQ qualification.
 | First probe run id | `dgx-play-maze-chase-distill-probe-v1` (trained; play-gate crashed) |
 | Passing 32-step run id | `dgx-play-maze-chase-distill-probe-v2` (`play_moved: true`) |
 | Passing 128-step run id | `dgx-play-maze-chase-distill-probe-128-v1` (`play_moved: true`, same play numbers) |
-| Next probe run id | `dgx-play-maze-chase-distill-exclusive-ce-value-only-v1` |
+| Next probe run id | `dgx-play-maze-chase-distill-tiled-windows-v1` |
+| Failed value-only exclusive-CE run id | `dgx-play-maze-chase-distill-exclusive-ce-value-only-v1` |
 | Failed exclusive-CE run id | `dgx-play-maze-chase-distill-exclusive-ce-v1` |
 | Failed action-only exclusive-CE run id | `dgx-play-maze-chase-distill-exclusive-ce-action-only-v1` |
 | Failed exclusive-argmax run id | `dgx-play-maze-chase-distill-exclusive-argmax-v1` |
@@ -503,8 +509,9 @@ and not an RCQ qualification.
 | Exclusive-CE config | `brain/configs/training/dgx-play-maze-chase-distill-exclusive-ce.toml` |
 | Action-only exclusive-CE config | `brain/configs/training/dgx-play-maze-chase-distill-exclusive-ce-action-only.toml` |
 | Value-only exclusive-CE config | `brain/configs/training/dgx-play-maze-chase-distill-exclusive-ce-value-only.toml` |
+| Tiled-window exclusive-CE config | `brain/configs/training/dgx-play-maze-chase-distill-tiled-windows.toml` |
 | Model factory | `irene_brain.training.factory:build_thesis_model` |
-| Data | `irene.maze_chase.planner_teacher.episode_windows.v1` via `dataset.kind = "maze_chase"` and `episode_horizon = 240` |
+| Data | Next probe: `irene.maze_chase.planner_teacher.tiled_windows.v1` via `window_sampling = "tiled"` and `episode_horizon = 240`. Failed exclusive-CE family used `irene.maze_chase.planner_teacher.episode_windows.v1`. |
 | Probe budget | 32 optimizer steps with `sequence_length = 8` windows drawn from 240-tick planner rollouts; schema 2, constant after warmup |
 | Play eval | seeds 5/9, 240 ticks, canonical maze slot (3 ghosts, period 2, 16 extra loops) |
 
@@ -532,8 +539,14 @@ no-op pellets are 9 (reward arithmetic). Historical play-gate JSON
   equals teacher S; teacher logit gap −0.445. Do not scale.
 - **Action-only exclusive-CE probe** zeros value, world, diversity, and
   continuous weights. It failed as idle no-op (mask 0 × 480). Do not scale.
-- **Value-only exclusive-CE probe** restores `value_weight=0.1` only.
-  Sticky D / no-op / sticky-S is fail, even if `play_moved` is true.
+- **Value-only exclusive-CE probe** restores `value_weight=0.1` only. It
+  failed as idle no-op (mask 0 × 480; val match 0.0; inactive max ≈ −4.82).
+  Value_weight alone is not the idle-margin hack. Do not scale.
+- **Tiled-window exclusive-CE probe** keeps exclusive softmax, exclusive
+  argmax decode, and the exclusive-CE aux mix that stayed above idle
+  (value/world/diversity/continuous). The variable is consecutive 8-tick
+  windows covering one 240-tick planner episode 1:1. Sticky D / no-op /
+  sticky-S is fail, even if `play_moved` is true.
 
 `train.py` writes `play-gate.json` into the run directory after a
 maze_chase train or evaluate-only pass. The play gate uses reward_sum
@@ -570,9 +583,12 @@ exclusive-CE checkpoint. No GB10. Artifacts:
 | Job | Run id | Result |
 |---|---|---|
 | Planner closed-loop | `play-gated-cpu-planner-v1` | Seed 5 clears at tick 208 (142 pellets, 0 collisions, reward 152). Seed 9 clears at tick 237 (142 pellets, 1 collision, reward 142). Mixed WASD. |
+| Planner seeds 100–115 | `play-gated-cpu-planner-seeds-v1` | 4/16 clear inside 240 ticks (seeds 105/107/108/111). All 16 mixed WASD and positive (114–142 pellets). 240 ticks is tight; the older robustness row used a longer horizon. |
 | Teacher WASD hist | `play-gated-cpu-teacher-hist-v1` | Spawn train is D-heavy (D 52.3%, S 37.5%). Episode-windows train is mixed (S 35.2%, A 25.8%, W 21.9%, D 17.2%). Zero idle, zero multi-key. |
 | Teacher exclusive | `play-gated-cpu-teacher-exclusive-v1` | 256 episode-window ticks: 251 exclusive WASD, 5 idle, 0 multi-key. |
+| Uniform coverage | `play-gated-cpu-coverage-v1` | 16 train sequences = 16 different episodes × one 8-tick window each (3.3% of 240). Starts scatter (37, 173, 53, 230, …). Not 1:1 with a play-eval trajectory. |
 | Thoughtlet dump | `play-gated-cpu-thoughtlets-v1` | Exclusive-CE ckpt, 8 ticks seed 5 on CPU. Mean thought-attention entropy 3.453. WASD logits stay S-ranked (S ≈ 0.00 to −0.04; others more negative). |
+| Thoughtlet dump 32 | `play-gated-cpu-thoughtlets-long-v1` | Exclusive-CE ckpt, 32 ticks seeds 5 and 9. Argmax S×32 on both seeds from tick 0. Sticky S is not a later-tick collapse on that checkpoint. |
 | CPU play-gate | `play-gated-cpu-play-gate-v1` | Finished. Same campaign numbers as the GPU exclusive-CE gate: S×480, 20 pellets, 391 collisions, reward −3890. Report SHA `ce7911a5…` (CPU path). |
 
 ## Action-only exclusive CE result (2026-08-18)
@@ -605,11 +621,51 @@ rank the teacher. It drove every WASD logit below the −4.0 idle margin
 
 Val exclusive-argmax match **0.0**; teacher logit gap **−0.526**. Do not scale.
 
-## Value-only exclusive CE (preregistered)
+## Value-only exclusive CE result (2026-08-18)
+
+Official `play-gate.json`:
+[artifacts/play-gated-maze-chase-distill/exclusive-ce-value-only-v1-play-gate.json](./artifacts/play-gated-maze-chase-distill/exclusive-ce-value-only-v1-play-gate.json).
+
+Restoring only `value_weight=0.1` **did not** keep exclusive-CE logits
+above the −4.0 idle margin. Play is the same no-op floor as action-only.
+Val exclusive-argmax match stayed **0.0** (it did not rise from exclusive-CE's
+0.167), so a longer exclusive-CE train is not licensed.
+
+| Field | Value |
+|---|---|
+| Release | `r20260818t181900z-85606667a9fa` (archive SHA-256 `85606667a9fa…`) |
+| Container image | `sha256:177a406d7cb2…` |
+| Run id | `dgx-play-maze-chase-distill-exclusive-ce-value-only-v1` |
+| Canonical config SHA-256 | `868e067ac061f49334077080331ee710d003bacef2325a355e2000766368158d` |
+| Checkpoint | `checkpoints/step-00000032.pt` |
+| Checkpoint SHA-256 | `6784d46e19b5c0f1cd825e4efeaa5ded0b54d3523cd7020f8ec3fa66cfdace9c` |
+| `latest.json` SHA-256 | `ed4cb1923706f32386d92a40bd71719e2c7991eb5e59edf5e82e176395934e9e` |
+| Metrics SHA-256 | `681a8d24f5ff75ded737ad5e6c3c08e8701e776e438951307480f06c6b6c4c3c` |
+| `play-gate.json` SHA-256 | `7dc8959cd8a0c1f7da2e926d9ba06bc360f37f15054e0575d04aa00838cbc373` |
+| Report SHA-256 | `2c4f65f3e396c4b74a249557333aaebc195ab16d0e8c52b6e891018cd8ec7072` |
+| `play_moved` | **false** |
+| `campaign_success` | **false** |
+| `gate` | **failed** |
+| reward_sum | **−161** |
+| collisions | **17** |
+| pellets_eaten | **9** |
+| movement_mask_histogram | **[[0, 480]]** (idle) |
+| sticky_or_idle | **true** |
+
+Logged metrics at step 32: train loss 1.982, action loss 1.259, movement
+exact 0.0, exclusive-argmax match 0.0, value loss 7.23; validation loss
+1.635, action loss 1.156, movement exact 0.0, exclusive-argmax match
+**0.0**, value loss 4.79. Val teacher mix W/A/S/D = 0.375 / 0.292 /
+0.167 / 0.167. Inactive movement logit max **−4.82**; teacher logit gap
+**−0.361**. Do not scale. Do not chase `value_weight`.
+
+## Value-only exclusive CE (preregistered; now completed / failed)
 
 Hypothesis: auxiliary value/world/diversity terms are what kept
 exclusive-CE play above the idle margin (sticky S instead of no-op).
-Restore only `value_weight=0.1`.
+Restore only `value_weight=0.1`. **Falsified:** idle no-op, same as
+action-only. The idle-margin mix that stayed above −4 was
+world/diversity/continuous together with value, not value alone.
 
 | Field | Value |
 |---|---|
@@ -620,15 +676,53 @@ Restore only `value_weight=0.1`.
 | Action loss | `exclusive_wasd_softmax_v1` |
 | Weights | `action_weight=1.0`, `value_weight=0.1`; world/diversity/continuous = 0 |
 | Budget | 32 optimizer steps |
+| Result | idle no-op; 9 pellets; val match 0.0; inactive max ≈ −4.82 |
 
-## Spark sequence (value-only exclusive-CE probe)
+## Tiled 1:1 planner windows (preregistered)
+
+Hypothesis: uniform 8-tick lottery never shows a full planner trajectory
+(CPU coverage: 16 episodes × 8 ticks = 3.3% of 240). Cycle supervision
+and label-smoothing-off are already the exclusive-CE loss. Teach the
+planner 1:1 with consecutive non-overlapping windows of one 240-tick
+episode (`window_sampling = "tiled"`, 30 train sequences = 240/8). Keep
+exclusive softmax, exclusive-argmax decode, and the exclusive-CE aux mix
+that stayed above idle (value 0.1 / world 0.1 / diversity 0.05 /
+continuous 0.25). Not a step-count scale-up of failed exclusive-CE.
+
+| Field | Value |
+|---|---|
+| Run id | `dgx-play-maze-chase-distill-tiled-windows-v1` |
+| Config | `brain/configs/training/dgx-play-maze-chase-distill-tiled-windows.toml` |
+| Canonical config SHA-256 | `2c126296c820830d037c0fc14053f1cbdbd05ec40d218ea2e84975cb02002b83` |
+| Play decode | `exclusive_argmax_wasd_v1` (idle margin −4.0; kept) |
+| Action loss | `exclusive_wasd_softmax_v1` |
+| Teacher | `irene.maze_chase.planner_teacher.tiled_windows.v1` |
+| Batch-source | `maze_chase_tiled_windows` |
+| Weights | exclusive-CE aux mix (value/world/diversity/continuous restored) |
+| Budget | 32 optimizer steps, `sequence_length = 8`, `episode_horizon = 240`, `train_sequences = 30` |
+| Play eval | seeds 5/9 × 240 ticks; honest `pellet_eaten`; WASD histogram |
+| Campaign pass | `pellets_eaten >= 32` and histogram not idle / D-only / one-key sticky |
+
+## Spark sequence (value-only exclusive-CE probe, completed; failed idle)
+
+1. `Invoke-DgxPreflight.ps1`
+2. `Sync-DgxBrainRelease.ps1` (release `r20260818t181900z-85606667a9fa`)
+3. `Invoke-DgxBrainSmoke.ps1` on `dgx-smoke.toml`
+4. `Start-DgxBrainTraining.ps1` with
+   `dgx-play-maze-chase-distill-exclusive-ce-value-only.toml`, run id
+   `dgx-play-maze-chase-distill-exclusive-ce-value-only-v1`, Tmux with
+   `-AcknowledgeDetached`
+5. `play-gate.json` failed idle no-op: reward −161 / collisions 17 /
+   9 pellets / histogram [[0, 480]]. Val match 0.0. Do not scale.
+
+## Spark sequence (tiled-window exclusive-CE probe)
 
 1. `Invoke-DgxPreflight.ps1`
 2. `Sync-DgxBrainRelease.ps1`
 3. `Invoke-DgxBrainSmoke.ps1` on `dgx-smoke.toml`
 4. `Start-DgxBrainTraining.ps1` with
-   `dgx-play-maze-chase-distill-exclusive-ce-value-only.toml`, run id
-   `dgx-play-maze-chase-distill-exclusive-ce-value-only-v1`, Tmux with
+   `dgx-play-maze-chase-distill-tiled-windows.toml`, run id
+   `dgx-play-maze-chase-distill-tiled-windows-v1`, Tmux with
    `-AcknowledgeDetached`
 5. Keep named CPU farm jobs on the Spark host while the GB10 trains.
 

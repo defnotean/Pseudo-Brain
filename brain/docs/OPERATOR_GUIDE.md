@@ -13,12 +13,15 @@ pellets, 391 collisions) but campaign still failed and val
 predicted-positive stayed 0.0. Exclusive-direction softmax
 (`exclusive_wasd_softmax_v1`) **failed sticky S** (S×480; val match
 0.167; gap −0.445). Action-only exclusive CE **failed idle no-op**
-(mask 0 × 480). Do not retry or scale those recipes. The next named GPU
-probe is exclusive CE plus value only (world/diversity/continuous 0).
-Campaign success is pellets ≥ 32 with a non-idle non-D-only histogram.
-One GB10 train at a time; named CPU farm jobs run in parallel on the host.
+(mask 0 × 480). Value-only exclusive CE **failed idle no-op** (mask
+0 × 480; val match 0.0; inactive logit max ≈ −4.82). Value_weight
+alone is not the idle-margin hack. Do not retry or scale those recipes.
+The next named GPU probe is tiled 1:1 planner windows with the
+exclusive-CE aux mix that stayed above idle. Campaign success is
+pellets ≥ 32 with a non-idle non-D-only histogram. One GB10 train at a
+time; named CPU farm jobs run in parallel on the host.
 
-The value-only exclusive-CE launch (preregistered; 32 steps; one GB10):
+The tiled-window exclusive-CE launch (preregistered; 32 steps; one GB10):
 
 ```powershell
 & .\brain\scripts\dgx\Invoke-DgxPreflight.ps1 `
@@ -49,8 +52,8 @@ The value-only exclusive-CE launch (preregistered; 32 steps; one GB10):
   -RemoteWorkDir '~/projects/pseudo-brain' `
   -ReleaseId '<release-id>' `
   -ContainerImage 'vllm/vllm-openai:nightly-aarch64' `
-  -ConfigRelativePath 'brain/configs/training/dgx-play-maze-chase-distill-exclusive-ce-value-only.toml' `
-  -RunId 'dgx-play-maze-chase-distill-exclusive-ce-value-only-v1' `
+  -ConfigRelativePath 'brain/configs/training/dgx-play-maze-chase-distill-tiled-windows.toml' `
+  -RunId 'dgx-play-maze-chase-distill-tiled-windows-v1' `
   -LaunchMode Tmux `
   -AcknowledgeDetached `
   -MinFreeDiskGiB 20 `
@@ -63,8 +66,8 @@ Scale only if `play-gate.json` shows `campaign_success: true` (pellets ≥ 32
 and a WASD histogram that is not idle / D-only / one-key sticky). Exclusive-argmax did not:
 20 pellets, sticky S, val predicted-positive 0.0. Exclusive-CE failed
 S×480 / val match 0.167. Action-only exclusive CE failed idle no-op.
-Do not scale those recipes. Exclusive CE plus value only is the next
-named GPU probe. Record:
+Value-only exclusive CE failed idle no-op (val match 0.0). Do not scale
+those recipes. Tiled 1:1 planner windows is the next named GPU probe. Record:
 [runs/2026-08-18-play-gated-maze-chase-distill.md](runs/2026-08-18-play-gated-maze-chase-distill.md).
 
 The live `rcq_v2_reference_v2` reference on seed 1702 already failed the

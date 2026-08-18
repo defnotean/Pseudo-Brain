@@ -53,6 +53,11 @@ _GENERATOR_ID = "irene.maze_chase.planner_teacher.v1"
 _EPISODE_WINDOW_GENERATOR_ID = (
     "irene.maze_chase.planner_teacher.episode_windows.v1"
 )
+_TILED_WINDOW_GENERATOR_ID = (
+    "irene.maze_chase.planner_teacher.tiled_windows.v1"
+)
+_UNIFORM_WINDOW_SAMPLING = "uniform_start_across_episode"
+_TILED_WINDOW_SAMPLING = "tiled_stride_across_episode"
 _LICENSE_RECORD_ID = "original-project-content"
 
 # The transition and sequence containers are family-generic: their
@@ -96,6 +101,12 @@ class MazeChaseDatasetConfig:
     # sequence_length window from a uniform start tick — including later
     # pellets and corridor choices the 8-tick spawn snippets never showed.
     episode_horizon: int = 0
+    # "uniform" keeps the hashed start. "tiled" walks consecutive
+    # non-overlapping windows of one episode so every teacher tick is a
+    # label (1:1 with a 240-tick play-eval horizon when sequence_count
+    # covers episode_horizon / sequence_length). Spawn-only (horizon 0)
+    # stays uniform-only so planner_teacher.v1 hashes stay byte-identical.
+    window_sampling: str = "uniform"
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "split", _split(self.split))
@@ -162,17 +173,37 @@ class MazeChaseDatasetConfig:
             raise ValueError(
                 "episode_horizon must be 0 or greater than sequence_length"
             )
+        sampling = self.window_sampling
+        if not isinstance(sampling, str) or sampling not in {"uniform", "tiled"}:
+            raise ValueError("window_sampling must be uniform or tiled")
+        if sampling == "tiled":
+            if horizon <= 0:
+                raise ValueError("tiled window_sampling requires episode_horizon > 0")
+            if horizon % length != 0:
+                raise ValueError(
+                    "tiled window_sampling requires episode_horizon divisible "
+                    "by sequence_length"
+                )
         object.__setattr__(self, "sequence_count", count)
         object.__setattr__(self, "sequence_length", length)
         object.__setattr__(self, "seed_offset", offset)
         object.__setattr__(self, "discount", discount)
         object.__setattr__(self, "episode_horizon", horizon)
+        object.__setattr__(self, "window_sampling", sampling)
 
     @property
     def generator_id(self) -> str:
+        if self.window_sampling == "tiled":
+            return _TILED_WINDOW_GENERATOR_ID
         if self.episode_horizon > 0:
             return _EPISODE_WINDOW_GENERATOR_ID
         return _GENERATOR_ID
+
+    @property
+    def windows_per_episode(self) -> int:
+        if self.window_sampling != "tiled":
+            return 1
+        return self.episode_horizon // self.sequence_length
 
     @property
     def total_transitions(self) -> int:
@@ -216,7 +247,11 @@ class MazeChaseDatasetConfig:
         # byte-identical to planner_teacher.v1.
         if self.episode_horizon > 0:
             payload["episode_horizon"] = self.episode_horizon
-            payload["window_sampling"] = "uniform_start_across_episode"
+            payload["window_sampling"] = (
+                _TILED_WINDOW_SAMPLING
+                if self.window_sampling == "tiled"
+                else _UNIFORM_WINDOW_SAMPLING
+            )
         return payload
 
 
@@ -277,9 +312,10 @@ class MazeChaseSequenceDataset(Sequence[MazeChaseSequence]):
         )
 
         config = self.config
+        episode_index, window_index = self._episode_and_window(sequence_index)
         episode_seed = split_episode_seed(
             config.split,
-            config.seed_offset + sequence_index,
+            config.seed_offset + episode_index,
         )
         rollout_ticks = (
             config.episode_horizon
@@ -331,7 +367,11 @@ class MazeChaseSequenceDataset(Sequence[MazeChaseSequence]):
             if outcome.terminated:
                 break
 
-        raw_transitions = self._episode_window(sequence_index, raw_transitions)
+        raw_transitions = self._episode_window(
+            sequence_index,
+            raw_transitions,
+            window_index=window_index,
+        )
 
         running_return = 0.0
         reversed_transitions: list[MazeChaseTransition] = []
@@ -363,20 +403,33 @@ class MazeChaseSequenceDataset(Sequence[MazeChaseSequence]):
             transitions=tuple(reversed(reversed_transitions)),
         )
 
+    def _episode_and_window(self, sequence_index: int) -> tuple[int, int | None]:
+        """Return (episode_index, tiled window index or None for uniform)."""
+
+        if self.config.window_sampling != "tiled":
+            return sequence_index, None
+        windows = self.config.windows_per_episode
+        return sequence_index // windows, sequence_index % windows
+
     def _episode_window(
         self,
         sequence_index: int,
         raw_transitions: list[_TransitionWithoutValue],
+        *,
+        window_index: int | None,
     ) -> list[_TransitionWithoutValue]:
         """Slice a fixed-length window from a longer planner trajectory.
 
         Spawn-only datasets (``episode_horizon == 0``) already generated
         exactly ``sequence_length`` ticks from reset, so they pass through.
         Episode-window datasets pick a deterministic uniform start so later
-        pellets and corridor choices can appear. Value targets are then
-        recomputed on the sliced window (zero-bootstrap at the window end)
-        so the 8-tick value scale stays comparable to the working probes —
-        lengthening the *window* was the falsified window-32 idea.
+        pellets and corridor choices can appear. Tiled sampling walks
+        consecutive non-overlapping windows of one episode instead, so the
+        teacher actions match a full play-eval horizon 1:1. Value targets
+        are then recomputed on the sliced window (zero-bootstrap at the
+        window end) so the 8-tick value scale stays comparable to the
+        working probes — lengthening the *window* was the falsified
+        window-32 idea.
         """
 
         length = self.config.sequence_length
@@ -389,7 +442,14 @@ class MazeChaseSequenceDataset(Sequence[MazeChaseSequence]):
                 f"{length} ticks but the planner trajectory has {available}"
             )
         max_start = available - length
-        if max_start == 0:
+        if window_index is not None:
+            start = window_index * length
+            if start > max_start:
+                raise RuntimeError(
+                    "tiled window "
+                    f"{window_index} starts at tick {start} past {max_start}"
+                )
+        elif max_start == 0:
             start = 0
         else:
             digest = sha256(

@@ -15,7 +15,15 @@ import os
 from pathlib import Path
 import sys
 
-JOBS = ("planner", "teacher-hist", "teacher-exclusive", "play-gate", "thoughtlets")
+JOBS = (
+    "planner",
+    "planner-seeds",
+    "teacher-hist",
+    "teacher-exclusive",
+    "coverage",
+    "play-gate",
+    "thoughtlets",
+)
 WASD = (
     ("w", 26),
     ("a", 4),
@@ -111,11 +119,27 @@ def _histogram_from_source(source, *, split: str) -> dict[str, object]:
     }
 
 
-def job_planner(out_dir: Path) -> None:
+def _parse_seeds(raw: str, *, default: tuple[int, ...]) -> tuple[int, ...]:
+    text = raw.strip()
+    if not text:
+        return default
+    if "-" in text and "," not in text:
+        low_text, high_text = text.split("-", 1)
+        low = int(low_text)
+        high = int(high_text)
+        if high < low or high - low + 1 > 16:
+            raise SystemExit("seed range must cover 1-16 seeds")
+        return tuple(range(low, high + 1))
+    seeds = tuple(int(part.strip()) for part in text.split(",") if part.strip())
+    if not seeds or len(seeds) > 16:
+        raise SystemExit("need 1-16 seeds")
+    return seeds
+
+
+def _write_planner_episodes(out_dir: Path, *, seeds: tuple[int, ...], job: str) -> None:
     from irene_brain.evaluation.closed_loop_play import run_policy_closed_loop_episode
     from irene_brain.evaluation.diagnostic_policies import ScriptedMazeChasePlannerPolicy
     from irene_brain.training.play_gate import (
-        PLAY_SEEDS,
         PLAY_TICKS,
         maze_chase_environment_factory,
         maze_chase_play_config,
@@ -123,7 +147,7 @@ def job_planner(out_dir: Path) -> None:
 
     config = maze_chase_play_config()
     episodes = []
-    for seed in PLAY_SEEDS:
+    for seed in seeds:
         episode = run_policy_closed_loop_episode(
             ScriptedMazeChasePlannerPolicy(),
             seed=seed,
@@ -143,17 +167,31 @@ def job_planner(out_dir: Path) -> None:
                 ],
             }
         )
+    filename = (
+        "planner-closed-loop.json" if job == "planner" else "planner-seeds.json"
+    )
     _write(
-        out_dir / "planner-closed-loop.json",
+        out_dir / filename,
         {
-            "job": "planner",
+            "job": job,
             "campaign_id": "play_gated_maze_chase_distill_v1",
             "policy": "diagnostic.scripted_maze_chase_planner.v1",
-            "play_seeds": list(PLAY_SEEDS),
+            "play_seeds": list(seeds),
             "play_ticks": PLAY_TICKS,
             "episodes": episodes,
+            "clears": sum(1 for episode in episodes if episode["cleared"]),
         },
     )
+
+
+def job_planner(out_dir: Path) -> None:
+    from irene_brain.training.play_gate import PLAY_SEEDS
+
+    _write_planner_episodes(out_dir, seeds=PLAY_SEEDS, job="planner")
+
+
+def job_planner_seeds(out_dir: Path, *, seeds: tuple[int, ...]) -> None:
+    _write_planner_episodes(out_dir, seeds=seeds, job="planner-seeds")
 
 
 def job_teacher_hist(out_dir: Path) -> None:
@@ -191,6 +229,70 @@ def job_teacher_exclusive(out_dir: Path) -> None:
             "hypothesis": "planner labels are one of WASD or idle, never two keys",
             "train": hist,
             "exclusive_or_idle": hist["multi_wasd"] == 0,
+        },
+    )
+
+
+def job_coverage(out_dir: Path) -> None:
+    from irene_brain.data.maze_chase_dataset import (
+        DatasetSplit,
+        MazeChaseDatasetConfig,
+        MazeChaseSequenceDataset,
+    )
+
+    uniform = MazeChaseSequenceDataset(
+        MazeChaseDatasetConfig(
+            split=DatasetSplit.TRAIN,
+            sequence_count=16,
+            sequence_length=8,
+            episode_horizon=240,
+        )
+    )
+    rows = []
+    by_episode: dict[int, list[int]] = {}
+    for index, sequence in enumerate(uniform):
+        start = int(sequence.transitions[0].observation.frame_id)
+        rows.append(
+            {
+                "sequence_index": index,
+                "episode_seed": sequence.episode_seed,
+                "window_start": start,
+            }
+        )
+        by_episode.setdefault(sequence.episode_seed, []).append(start)
+    per_episode = []
+    for seed, starts in sorted(by_episode.items()):
+        covered: set[int] = set()
+        for start in starts:
+            covered.update(range(start, start + 8))
+        per_episode.append(
+            {
+                "episode_seed": seed,
+                "windows": len(starts),
+                "ticks_covered": len(covered),
+                "coverage_fraction": len(covered) / 240.0,
+            }
+        )
+    _write(
+        out_dir / "dataset-coverage.json",
+        {
+            "job": "coverage",
+            "campaign_id": "play_gated_maze_chase_distill_v1",
+            "hypothesis": (
+                "uniform 8-tick windows on 16 train sequences never cover a "
+                "full 240-tick planner episode 1:1"
+            ),
+            "generator_id": uniform.config.generator_id,
+            "window_sampling": uniform.config.manifest_dict().get("window_sampling"),
+            "source_manifest_sha256": uniform.manifest_sha256,
+            "sequences": rows,
+            "unique_episodes": len(by_episode),
+            "per_episode": per_episode,
+            "mean_coverage_fraction": (
+                sum(row["coverage_fraction"] for row in per_episode) / len(per_episode)
+                if per_episode
+                else 0.0
+            ),
         },
     )
 
@@ -268,6 +370,7 @@ def job_thoughtlets(
     config_path: Path,
     checkpoint_path: Path,
     ticks: int,
+    seeds: tuple[int, ...],
 ) -> None:
     import torch
     from irene_brain.training.batches import control_to_vector
@@ -281,8 +384,6 @@ def job_thoughtlets(
         config_path=config_path,
         checkpoint_path=checkpoint_path,
     )
-    env = maze_chase_environment_factory()
-    observation = env.reset(5)
     device = next(model.parameters()).device
     thought_noise = deterministic_eval_thought_noise(
         thoughtlets=model.config.thoughtlets,
@@ -290,61 +391,84 @@ def job_thoughtlets(
         batch_size=1,
         device=device,
     )
-    state = None
-    rows = []
+    episodes = []
     with torch.no_grad():
-        for tick in range(ticks):
-            pixels = _rgb_tensor(
-                (observation.rgb,),
-                device=device,
-                resolution=model.input_resolution,
-            )
-            previous = torch.tensor(
-                [control_to_vector(observation.previous_control)],
-                dtype=torch.float32,
-                device=device,
-            )
-            elapsed = torch.zeros(1, dtype=torch.float32, device=device)
-            output = model(
-                pixels,
-                previous,
-                elapsed,
-                state,
-                thought_noise=thought_noise,
-            )
-            state = output.next_state.detach()
-            attention = output.diagnostics.actuator_thought_attention.float()[0]
-            mass = attention.clamp_min(1e-12)
-            normalized = mass / mass.sum(dim=-1, keepdim=True)
-            entropy = -(normalized * normalized.clamp_min(1e-12).log()).sum(dim=-1)
-            mean_entropy = float(entropy.mean())
-            logits = output.action.button_logits[0].float()
-            wasd = {
-                name: float(logits[hid])
-                for name, hid in WASD
-            }
-            rows.append(
+        for seed in seeds:
+            env = maze_chase_environment_factory()
+            observation = env.reset(seed)
+            state = None
+            rows = []
+            for tick in range(ticks):
+                pixels = _rgb_tensor(
+                    (observation.rgb,),
+                    device=device,
+                    resolution=model.input_resolution,
+                )
+                previous = torch.tensor(
+                    [control_to_vector(observation.previous_control)],
+                    dtype=torch.float32,
+                    device=device,
+                )
+                elapsed = torch.zeros(1, dtype=torch.float32, device=device)
+                output = model(
+                    pixels,
+                    previous,
+                    elapsed,
+                    state,
+                    thought_noise=thought_noise,
+                )
+                state = output.next_state.detach()
+                attention = output.diagnostics.actuator_thought_attention.float()[0]
+                mass = attention.clamp_min(1e-12)
+                normalized = mass / mass.sum(dim=-1, keepdim=True)
+                entropy = -(normalized * normalized.clamp_min(1e-12).log()).sum(
+                    dim=-1
+                )
+                mean_entropy = float(entropy.mean())
+                logits = output.action.button_logits[0].float()
+                wasd = {name: float(logits[hid]) for name, hid in WASD}
+                ranked = sorted(wasd, key=lambda name: wasd[name], reverse=True)
+                rows.append(
+                    {
+                        "tick": tick,
+                        "frame_id": observation.frame_id,
+                        "mean_thought_attention_entropy": mean_entropy,
+                        "wasd_logits": wasd,
+                        "argmax": ranked[0],
+                        "value": float(output.value[0].float()),
+                    }
+                )
+                observation = env.step(observation.previous_control).observation
+            episodes.append(
                 {
-                    "tick": tick,
-                    "frame_id": observation.frame_id,
-                    "mean_thought_attention_entropy": mean_entropy,
-                    "wasd_logits": wasd,
-                    "value": float(output.value[0].float()),
+                    "seed": seed,
+                    "ticks": ticks,
+                    "rows": rows,
+                    "mean_thought_attention_entropy": (
+                        sum(row["mean_thought_attention_entropy"] for row in rows)
+                        / len(rows)
+                        if rows
+                        else 0.0
+                    ),
+                    "argmax_counts": {
+                        name: sum(1 for row in rows if row["argmax"] == name)
+                        for name, _hid in WASD
+                    },
                 }
             )
-            observation = env.step(observation.previous_control).observation
     _write(
         out_dir / "thoughtlet-routing-dump.json",
         {
             "job": "thoughtlets",
             "campaign_id": "play_gated_maze_chase_distill_v1",
             "device": "cpu",
-            "seed": 5,
+            "seeds": list(seeds),
             "ticks": ticks,
-            "rows": rows,
+            "episodes": episodes,
             "mean_thought_attention_entropy": (
-                sum(row["mean_thought_attention_entropy"] for row in rows) / len(rows)
-                if rows
+                sum(episode["mean_thought_attention_entropy"] for episode in episodes)
+                / len(episodes)
+                if episodes
                 else 0.0
             ),
         },
@@ -359,14 +483,22 @@ def main() -> int:
     parser.add_argument("--config")
     parser.add_argument("--checkpoint")
     parser.add_argument("--ticks", type=int, default=8)
+    parser.add_argument("--seeds", default="")
     arguments = parser.parse_args()
     out_dir = Path(arguments.out_dir)
     if arguments.job == "planner":
         job_planner(out_dir)
+    elif arguments.job == "planner-seeds":
+        job_planner_seeds(
+            out_dir,
+            seeds=_parse_seeds(arguments.seeds, default=tuple(range(100, 116))),
+        )
     elif arguments.job == "teacher-hist":
         job_teacher_hist(out_dir)
     elif arguments.job == "teacher-exclusive":
         job_teacher_exclusive(out_dir)
+    elif arguments.job == "coverage":
+        job_coverage(out_dir)
     elif arguments.job == "play-gate":
         if not arguments.config or not arguments.checkpoint:
             raise SystemExit("play-gate requires --config and --checkpoint")
@@ -385,6 +517,7 @@ def main() -> int:
             config_path=Path(arguments.config),
             checkpoint_path=Path(arguments.checkpoint),
             ticks=arguments.ticks,
+            seeds=_parse_seeds(arguments.seeds, default=(5, 9)),
         )
     return 0
 

@@ -338,6 +338,42 @@ class PlayGatedMazeChaseConfigTests(unittest.TestCase):
             value_only.config_sha256,
             "868e067ac061f49334077080331ee710d003bacef2325a355e2000766368158d",
         )
+        tiled = load_training_config(
+            ROOT
+            / "configs"
+            / "training"
+            / "dgx-play-maze-chase-distill-tiled-windows.toml"
+        )
+        self.assertEqual(tiled.schema_version, 2)
+        self.assertEqual(tiled.dataset.kind, "maze_chase")
+        self.assertEqual(tiled.run.max_optimizer_steps, 32)
+        self.assertEqual(tiled.dataset.sequence_length, 8)
+        self.assertEqual(tiled.dataset.episode_horizon, 240)
+        self.assertEqual(tiled.dataset.window_sampling, "tiled")
+        self.assertEqual(tiled.dataset.train_sequences, 30)
+        self.assertEqual(
+            tiled.objective.action_loss_kind,
+            "exclusive_wasd_softmax_v1",
+        )
+        self.assertEqual(
+            tiled.objective.play_decode_kind,
+            "exclusive_argmax_wasd_v1",
+        )
+        self.assertEqual(tiled.objective.action_weight, 1.0)
+        self.assertEqual(tiled.objective.value_weight, 0.1)
+        self.assertEqual(tiled.objective.world_weight, 0.1)
+        self.assertEqual(tiled.objective.diversity_weight, 0.05)
+        self.assertEqual(tiled.objective.continuous_action_weight, 0.25)
+        self.assertEqual(exclusive_ce.dataset.window_sampling, "uniform")
+        self.assertNotEqual(tiled.config_sha256, exclusive_ce.config_sha256)
+        self.assertNotEqual(tiled.config_sha256, value_only.config_sha256)
+        self.assertEqual(
+            tiled.config_sha256,
+            "2c126296c820830d037c0fc14053f1cbdbd05ec40d218ea2e84975cb02002b83",
+        )
+        tiled_source = dataset_batch_source(tiled.dataset)
+        self.assertIsInstance(tiled_source, MazeChaseBatchSource)
+        self.assertNotEqual(tiled_source.manifest_sha256, source.manifest_sha256)
 
         smoke = load_training_config(
             ROOT / "configs" / "training" / "dgx-smoke.toml"

@@ -59,11 +59,9 @@ launch_cpu() {
   echo "started $name cpus=$cpus mem=${mem}g job=$job"
 }
 
-launch_cpu play-gated-cpu-planner-v1 4 8 planner ''
-launch_cpu play-gated-cpu-teacher-hist-v1 2 6 teacher-hist ''
-launch_cpu play-gated-cpu-teacher-exclusive-v1 2 6 teacher-exclusive ''
-launch_cpu play-gated-cpu-play-gate-v1 4 12 play-gate '--config /workspace/repo/brain/configs/training/dgx-play-maze-chase-distill-exclusive-ce.toml --checkpoint /workspace/ckpt-run/checkpoints/step-00000032.pt'
-launch_cpu play-gated-cpu-thoughtlets-v1 2 8 thoughtlets '--config /workspace/repo/brain/configs/training/dgx-play-maze-chase-distill-exclusive-ce.toml --checkpoint /workspace/ckpt-run/checkpoints/step-00000032.pt --ticks 8'
+launch_cpu play-gated-cpu-planner-seeds-v1 8 16 planner-seeds '--seeds 100-115'
+launch_cpu play-gated-cpu-coverage-v1 4 8 coverage ''
+launch_cpu play-gated-cpu-thoughtlets-long-v1 4 12 thoughtlets '--config /workspace/repo/brain/configs/training/dgx-play-maze-chase-distill-exclusive-ce.toml --checkpoint /workspace/ckpt-run/checkpoints/step-00000032.pt --ticks 32 --seeds 5,9'
 
 echo '===TMUX==='
 tmux ls
