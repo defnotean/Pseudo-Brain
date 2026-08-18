@@ -7,14 +7,16 @@ value identities, and legal stopping rules are in
 [CURRENT_WORK.md](../../CURRENT_WORK.md).
 
 The live campaign is **play-gated maze-chase distill v1**, not RCQ.
-Spark-only compute. Window-32 and later-tick episode-window probes both
-**failed** as idle no-op (9 pellets, mask 0). Do not retry or scale
-either. The next probe is named play decode `exclusive_argmax_wasd_v1`
-(exactly one WASD; idle only below margin −4.0) with the episode-windows
-teacher kept. Campaign success is pellets ≥ 32 with a non-idle non-D-only
-histogram, not merely `play_moved: true`.
+Spark-only compute. Window-32 and episode-windows both **failed** idle
+no-op. Exclusive-argmax play decode **unstuck idle** (S×478 + A×2, 20
+pellets, 391 collisions) but campaign still failed and val
+predicted-positive stayed 0.0. Do not retry or scale windows or this
+decode probe. Next distinct idea is exclusive-direction loss matching
+argmax decode. Campaign success is pellets ≥ 32 with a non-idle
+non-D-only histogram.
 
-The exclusive-argmax launch:
+The completed exclusive-argmax launch (failed campaign; idle unstuck;
+do not relaunch):
 
 ```powershell
 & .\brain\scripts\dgx\Invoke-DgxPreflight.ps1 `
@@ -56,8 +58,8 @@ The exclusive-argmax launch:
 ```
 
 Scale only if `play-gate.json` shows `campaign_success: true` (pellets ≥ 32
-and a WASD histogram that is not idle / D-only). Episode-windows did not:
-idle no-op, 9 pellets, mask 0. Do not scale windows. Record:
+and a WASD histogram that is not idle / D-only). Exclusive-argmax did not:
+20 pellets, sticky S, val predicted-positive 0.0. Do not scale. Record:
 [runs/2026-08-18-play-gated-maze-chase-distill.md](runs/2026-08-18-play-gated-maze-chase-distill.md).
 
 The live `rcq_v2_reference_v2` reference on seed 1702 already failed the

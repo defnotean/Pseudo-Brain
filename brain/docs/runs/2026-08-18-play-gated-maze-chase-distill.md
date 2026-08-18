@@ -1,19 +1,62 @@
 # Play-gated maze-chase distill campaign v1 (2026-08-18)
 
-Status: **current campaign**. Exclusive-argmax play-decode probe is
-preregistered. Window-32 and episode-windows both **failed** idle no-op
-(`play_moved: false`, `campaign_success: false`, reward **-161**,
-collisions 17, **9 pellets**, histogram mask 0 × 480). Spark was idle
-after those probes. Do not scale windows. RCQ-v2 seed 1702 stays terminal.
-No v3 registration. No sealed TEST.
+Status: **current campaign**. Exclusive-argmax play-decode probe
+**completed**: idle unstuck, campaign still failed (sticky S, 20 pellets,
+391 collisions, reward −3890). Spark is idle. Do not scale. Window-32 and
+episode-windows stay falsified idle no-op. RCQ-v2 seed 1702 stays terminal.
+No v3 registration. No sealed TEST. Next distinct idea: exclusive-direction
+loss matching argmax decode (val predicted-positive stayed 0.0).
 
-## Exclusive-argmax play decode (preregistered)
+## Exclusive-argmax play decode result (2026-08-18)
+
+Official `play-gate.json`:
+[artifacts/play-gated-maze-chase-distill/exclusive-argmax-v1-play-gate.json](./artifacts/play-gated-maze-chase-distill/exclusive-argmax-v1-play-gate.json).
+
+The decode hypothesis is **confirmed for idle**, **falsified for play**.
+Independent `logit > 0` was why episode-windows sat idle (all WASD logits
+negative). Exclusive argmax pressed a key every tick. Training was
+bit-identical to episode-windows (same metrics SHA-256 `67c71b15…`); only
+play decode changed. The ranking among negative logits collapsed to **S**.
+
+| Field | Value |
+|---|---|
+| Release | `r20260818t172702z-e492020c6fca` (archive SHA-256 `e492020c6fca…`) |
+| Container image | `sha256:177a406d7cb2…` |
+| Run id | `dgx-play-maze-chase-distill-exclusive-argmax-v1` |
+| Canonical config SHA-256 | `cecd8f4b59791c5abf79515beb2ef810ea77ab5ba174c33e1886af73ab6204f4` |
+| Play decode | `exclusive_argmax_wasd_v1` (idle margin −4.0) |
+| Checkpoint | `checkpoints/step-00000032.pt` |
+| Checkpoint SHA-256 | `4663253841457f4dbe14e701354a0bd4ed6ec79f297385d18d3978283113fab2` |
+| `latest.json` SHA-256 | `69c31a7023648f1b3bb8a747b5e8f212437a62ffc162be9f51f66cdffcbc9d67` |
+| Metrics SHA-256 | `67c71b1513c43222e4171ecce5796bb3b69803a224769581e1f09fc660cd4ba7` (identical to episode-windows) |
+| `play-gate.json` SHA-256 | `865927debc345c72435fe3eaf136c72d9988242165af13c7409945f583b5b845` |
+| Report SHA-256 | `013a2aefbf47fd52ddf9faffe55abad1bd57246e8cfaee11a578561d4c1eaf4d` |
+| `play_moved` | **false** (reward far below the no-op floor) |
+| `campaign_success` | **false** |
+| `gate` | **failed** |
+| reward_sum | **−3890** |
+| collisions | **391** |
+| pellets_eaten | **20** |
+| mazes_cleared | **0** |
+| movement_mask_histogram | **[[2, 2], [4, 478]]** (A×2, S×478; mask 4 = S-only) |
+| sticky_or_idle | **false** (not idle, not D-only) |
+
+Logged metrics at step 32 match episode-windows: train loss 1.063, action
+loss 0.590, movement exact 0.0, value loss 4.51; validation loss 0.945,
+action loss 0.544, movement exact 0.0, value loss 3.80. Val teacher mix
+W/A/S/D = 0.375 / 0.292 / 0.167 / 0.167. Every WASD predicted-positive
+**0.0**; inactive movement logit max **−0.80**. Do not scale steps. Next
+is exclusive-direction loss that matches this decode.
+
+## Exclusive-argmax play decode (preregistered; now completed / failed)
 
 Hypothesis: idle play is a decode / head / threshold mismatch, not “need
 more spawn data.” Closed-loop (and val exact) uses independent `logit > 0`
 on WASD. After 32 episode-window steps every WASD predicted-positive was
 **0.0** and inactive-movement logit max was **−0.80**, so the player never
 pressed a key. Pac-Man-style play needs **exactly one** direction.
+**Confirmed for idle:** argmax unstuck the no-op histogram. **Failed for
+play:** sticky S, 20 pellets, 391 collisions.
 
 Named decode `exclusive_argmax_wasd_v1`:
 
@@ -26,8 +69,8 @@ Named decode `exclusive_argmax_wasd_v1`:
   closed-loop reports keep that default. `exclusive_argmax_wasd_v1` is
   maze_chase-only via `objective.play_decode_kind`.
 
-Training loss stays independent multi-label. The variable is play decode.
-Teacher stays `irene.maze_chase.planner_teacher.episode_windows.v1`.
+Training loss stayed independent multi-label. Teacher stayed
+`irene.maze_chase.planner_teacher.episode_windows.v1`.
 
 | Field | Value |
 |---|---|
@@ -39,7 +82,8 @@ Teacher stays `irene.maze_chase.planner_teacher.episode_windows.v1`.
 | Budget | 32 optimizer steps, `sequence_length = 8`, `episode_horizon = 240` |
 | Play eval | seeds 5/9 × 240 ticks; honest `pellet_eaten`; WASD histogram |
 | Campaign pass | `pellets_eaten >= 32` and histogram not idle / D-only |
-| Stop | If play is still idle, inspect post-train logit distributions. Scale steps only if val predicted-positive is already >0 and play is still idle. If val predicted-positive stays 0, fix the head/loss; do not scale. |
+| Result | idle unstuck (S×478 + A×2); 20 pellets; 391 collisions; val predicted-positive 0.0 |
+| Stop | Val predicted-positive stayed 0. Do not scale. Next idea is exclusive-direction loss matching argmax decode. |
 
 ## Episode-window probe result (2026-08-18)
 
@@ -368,7 +412,8 @@ and not an RCQ qualification.
 | First probe run id | `dgx-play-maze-chase-distill-probe-v1` (trained; play-gate crashed) |
 | Passing 32-step run id | `dgx-play-maze-chase-distill-probe-v2` (`play_moved: true`) |
 | Passing 128-step run id | `dgx-play-maze-chase-distill-probe-128-v1` (`play_moved: true`, same play numbers) |
-| Next probe run id | `dgx-play-maze-chase-distill-exclusive-argmax-v1` (preregistered) |
+| Next probe run id | none started; exclusive-argmax **failed** campaign (idle unstuck, sticky S) |
+| Failed exclusive-argmax run id | `dgx-play-maze-chase-distill-exclusive-argmax-v1` |
 | Failed episode-windows run id | `dgx-play-maze-chase-distill-episode-windows-v1` |
 | Failed window-32 run id | `dgx-play-maze-chase-distill-window32-v1` (idle no-op; do not retry) |
 | 32-step config | `brain/configs/training/dgx-play-maze-chase-distill-probe.toml` |
@@ -396,8 +441,10 @@ no-op pellets are 9 (reward arithmetic). Historical play-gate JSON
 - **Window-32 probe** failed as idle no-op. Do not retry or scale it.
 - **Episode-windows probe** failed as idle no-op after the teacher mix
   unstuck from D. Do not scale it.
-- **Exclusive-argmax probe** is the next distinct idea (play decode, not
-  more windows). Sticky D / no-op is fail, even if `play_moved` is true.
+- **Exclusive-argmax probe** unstuck idle (S×478 + A×2) but failed
+  campaign (20 pellets, 391 collisions). Val predicted-positive stayed
+  0.0. Do not scale. Next is exclusive-direction loss matching this
+  decode. Sticky D / no-op / sticky-S is fail, even if `play_moved` is true.
 
 `train.py` writes `play-gate.json` into the run directory after a
 maze_chase train or evaluate-only pass. The play gate uses reward_sum
@@ -412,16 +459,18 @@ out of `targets_collected` so the cross-world no-op floor stays world-flat.
 - Transfer to other ladder worlds (one transfer world waits until play
   has moved and hygiene is tight)
 
-## Spark sequence (exclusive-argmax probe)
+## Spark sequence (exclusive-argmax probe, completed; failed campaign)
 
 1. `Invoke-DgxPreflight.ps1`
-2. `Sync-DgxBrainRelease.ps1`
-3. `Invoke-DgxBrainSmoke.ps1` on `dgx-smoke.toml`
+2. `Sync-DgxBrainRelease.ps1` (release `r20260818t172702z-e492020c6fca`)
+3. `Invoke-DgxBrainSmoke.ps1` on `dgx-smoke.toml` (receipt written)
 4. `Start-DgxBrainTraining.ps1` with
    `dgx-play-maze-chase-distill-exclusive-argmax.toml`, run id
    `dgx-play-maze-chase-distill-exclusive-argmax-v1`, Tmux with
    `-AcknowledgeDetached`
-5. Watch `play-gate.json` and the WASD histogram. Do not scale windows.
+5. `play-gate.json` failed campaign: reward −3890 / collisions 391 /
+   20 pellets / histogram [[2, 2], [4, 478]] (S-sticky). Idle unstuck.
+   Val predicted-positive 0.0. Spark is idle. Do not scale.
 
 Generic wrappers only. Never `Start-DgxRcqV2Reference.ps1`. Never point
 generic train at an RCQ config.

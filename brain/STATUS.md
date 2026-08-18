@@ -7,24 +7,20 @@ Updated: 2026-08-18
 Status: **play-gated maze-chase distill v1** is the live campaign
 (`play_gated_maze_chase_distill_v1`). Play moved on the 32-step probe v2
 and held on the 128-step probe at reward_sum **-150**, collisions **16**
-(sticky D, ~10 implied pellets). The 32-tick teacher-window probe
-**failed** at the no-op floor: reward **-161**, collisions **17**,
-**9 pellets**, idle histogram mask 0 × 480
-(`dgx-play-maze-chase-distill-window32-v1`, `play-gate.json` SHA-256
-`2cdedaf9…`). The later-tick episode-window probe also **failed** idle
-no-op at the same floor (`dgx-play-maze-chase-distill-episode-windows-v1`,
-`play-gate.json` SHA-256 `84331559…`, release
-`r20260818t170141z-55b96fa56a6e`). Sampling unstuck teacher D (val W
-37.5%, D 16.7%) but all WASD logits stayed negative, so independent
-`logit > 0` never pressed a key. Do not retry or scale either failed
-idea. The next probe is named play decode `exclusive_argmax_wasd_v1`
-(exactly one WASD; idle only below margin −4.0) with the same
-episode-windows teacher and 32-step budget. Campaign success is
-**pellets ≥ 32** with a non-idle non-D-only histogram, not
-`reward_sum > -161`. Official 32-step `play-gate.json` SHA-256
-`df9d88f4…`; 128-step `play-gate.json` SHA-256 `6401a922…`. Logger train
-loss is not the gate. Workstation is orchestration; all compute is Spark.
-Record:
+(sticky D, ~10 implied pellets). Window-32 and episode-windows **failed**
+idle no-op (9 pellets, mask 0 × 480). Named play decode
+`exclusive_argmax_wasd_v1` **unstuck idle** on the same episode-windows
+teacher and 32-step budget (`dgx-play-maze-chase-distill-exclusive-argmax-v1`,
+`play-gate.json` SHA-256 `865927de…`, release `r20260818t172702z-e492020c6fca`):
+histogram **S×478 + A×2**, **20 pellets**, 391 collisions, reward **−3890**,
+`sticky_or_idle: false`. Val WASD predicted-positive stayed **0.0**
+(metrics SHA identical to episode-windows). Campaign still failed (pellets
+< 32). Do not scale. Next distinct idea is exclusive-direction loss that
+matches argmax decode. Campaign success is **pellets ≥ 32** with a
+non-idle non-D-only histogram. Official 32-step `play-gate.json` SHA-256
+`df9d88f4…`; 128-step `6401a922…`; window-32 `2cdedaf9…`; episode-windows
+`84331559…`. Logger train loss is not the gate. Workstation is
+orchestration; all compute is Spark. Record:
 [docs/runs/2026-08-18-play-gated-maze-chase-distill.md](./docs/runs/2026-08-18-play-gated-maze-chase-distill.md).
 
 Historical: live qualification `rcq_v2_reference_v2` is **terminally failed**. The
