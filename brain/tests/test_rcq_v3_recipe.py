@@ -65,6 +65,7 @@ class RecipeFieldConfigurationTests(unittest.TestCase):
                 "dgx-play-maze-chase-distill-tiled-windows",
                 "dgx-play-maze-chase-distill-episode-update",
                 "dgx-play-maze-chase-distill-multi-episode",
+                "dgx-play-maze-chase-distill-turn-weighted",
             }:
                 continue
             loaded = load_training_config(path)

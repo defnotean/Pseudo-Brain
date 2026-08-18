@@ -1,19 +1,70 @@
 # Play-gated maze-chase distill campaign v1 (2026-08-18)
 
-Status: **current campaign**. Full-episode tiled update **completed /
+Status: **current campaign**. Multi-episode tiled tiles **completed /
+failed** mixed W/A/D. Full-episode tiled update **completed /
 failed** sticky D. Tiled 1:1 planner windows **completed /
 failed** sticky A. Exclusive-direction softmax probe **completed /
 failed** sticky S. Action-only exclusive CE **completed /
 failed idle no-op**. Value-only exclusive CE **completed / failed idle
 no-op** (mask 0 × 480, 9 pellets, reward −161; val exclusive-argmax
 match 0.0; inactive logit max ≈ −4.82). Do not scale exclusive-CE,
-action-only, value-only, tiled-windows, or accumulation-30. Next GPU
-probe is 90 tiled windows covering three 240-tick planner episodes at
-the same accum 30. That GPU run is live:
-`dgx-play-maze-chase-distill-multi-episode-v1`, release
-`r20260818t192855z-6d85cc69dd69`. Exclusive-argmax play-decode
-stays failed sticky S. Window-32 and episode-windows stay falsified idle
-no-op. RCQ-v2 seed 1702 stays terminal. No v3 registration. No sealed TEST.
+action-only, value-only, tiled-windows, accumulation-30, or the 90-seq
+multi-episode recipe (pellets 17, not ≫ 20). Next GPU probe is
+turn-weighted exclusive CE on the same 90 tiled windows / accum 30.
+Exclusive-argmax play-decode stays failed sticky S. Window-32 and
+episode-windows stay falsified idle no-op. RCQ-v2 seed 1702 stays
+terminal. No v3 registration. No sealed TEST.
+
+## Multi-episode tiled tiles result (2026-08-18)
+
+Official `play-gate.json`:
+[artifacts/play-gated-maze-chase-distill/multi-episode-v1-play-gate.json](./artifacts/play-gated-maze-chase-distill/multi-episode-v1-play-gate.json).
+
+Three 240-tick planner episodes **did mix closed-loop play** (first
+non-one-key histogram: W×48 + A×200 + D×232) but did **not** beat
+mode-collapse on validation or the pellet floor. Pellets 17 are below
+exclusive-argmax's sticky-S 20 and far below 32. Collisions stayed at
+the no-op floor (17), not a chase. Val exclusive-argmax match **0.083**
+equals teacher A, the same copy-a-constant signature as tiled-windows.
+CPU window-majority already showed 79/90 mixed tiles and a nearly
+balanced teacher (W 23.9% / A 23.5% / S 24.6% / D 26.9%), so this is
+not a coverage miss. Do not scale 90-seq. Next teaching signal is
+turn-weighted exclusive CE (hold ×0.1, change ×1.0).
+
+| Field | Value |
+|---|---|
+| Release | `r20260818t192855z-6d85cc69dd69` (archive SHA-256 `6d85cc69dd69…`) |
+| Container image | `sha256:177a406d7cb2…` |
+| Run id | `dgx-play-maze-chase-distill-multi-episode-v1` |
+| Canonical config SHA-256 | `4231288135f8465008a106f1133a8f1a9321f7ee0a8cf7aa76494a0788c72c54` |
+| Launch `run.env` config SHA-256 | `82d8a17475159cf0f027af09ae2ab5bd5bc11e08eabd9bf4040a5bf9cf5bbac6` |
+| Play decode | `exclusive_argmax_wasd_v1` (idle margin −4.0; kept) |
+| Action loss | `exclusive_wasd_softmax_v1` |
+| Teacher | `irene.maze_chase.planner_teacher.tiled_windows.v1` (90 windows / 3 episodes) |
+| Checkpoint | `checkpoints/step-00000032.pt` |
+| Checkpoint SHA-256 | `650e7de46c3b9ee4ca638440e88e9edcc77cf52072b54dd2b43991082b079378` |
+| `latest.json` SHA-256 | `9c3dc46511914231f64906a05f7b7fa438ee8b35b14ab8fffb411bda4cc75139` |
+| Metrics SHA-256 | `09d62434f55004cac3c3923a056c271451672bedb46f92cba9664e847eb59747` |
+| `play-gate.json` SHA-256 | `c6367334a1429c8c4d1a6f40a6958de2c9555c0b570b63ca7bd8c6ae3cb2b15f` |
+| Report SHA-256 | `1a2e1573d71b09462dc4ef21e933641603bd060b0500f4ade320fba92c3a2fde` |
+| `play_moved` | **true** (thin: −153 vs no-op −161) |
+| `campaign_success` | **false** |
+| `gate` | **failed** |
+| reward_sum | **−153** |
+| collisions | **17** |
+| pellets_eaten | **17** |
+| mazes_cleared | **0** |
+| movement_mask_histogram | **[[1, 48], [2, 200], [8, 232]]** (W×48 + A×200 + D×232) |
+| sticky_or_idle | **false** (mixed, not idle / D-only; still campaign-fail) |
+
+Logged metrics at step 32: train loss 1.821, action loss 1.218, movement
+exact 0.006, exclusive-argmax match 0.294, value loss 5.88; validation
+loss 1.648, action loss 1.205, movement exact 0.0, exclusive-argmax
+match **0.083**, value loss 4.26. Val teacher mix W/A/S/D ≈ 0.250 /
+0.083 / 0.250 / 0.417. Every val WASD predicted-positive **0.0**;
+teacher movement logit gap **−0.082**; inactive movement logit max
+**−0.562**. Train exclusive-argmax match tracked the batch D rate
+(0.294 ≈ 0.306). Do not scale.
 
 ## Full-episode tiled update result (2026-08-18)
 
@@ -590,7 +641,8 @@ and not an RCQ qualification.
 | First probe run id | `dgx-play-maze-chase-distill-probe-v1` (trained; play-gate crashed) |
 | Passing 32-step run id | `dgx-play-maze-chase-distill-probe-v2` (`play_moved: true`) |
 | Passing 128-step run id | `dgx-play-maze-chase-distill-probe-128-v1` (`play_moved: true`, same play numbers) |
-| Next probe run id | `dgx-play-maze-chase-distill-multi-episode-v1` |
+| Next probe run id | `dgx-play-maze-chase-distill-turn-weighted-v1` |
+| Failed multi-episode tiled run id | `dgx-play-maze-chase-distill-multi-episode-v1` |
 | Failed full-episode tiled-update run id | `dgx-play-maze-chase-distill-episode-update-v1` |
 | Failed tiled-window exclusive-CE run id | `dgx-play-maze-chase-distill-tiled-windows-v1` |
 | Failed value-only exclusive-CE run id | `dgx-play-maze-chase-distill-exclusive-ce-value-only-v1` |
@@ -610,8 +662,9 @@ and not an RCQ qualification.
 | Tiled-window exclusive-CE config | `brain/configs/training/dgx-play-maze-chase-distill-tiled-windows.toml` |
 | Full-episode tiled-update config | `brain/configs/training/dgx-play-maze-chase-distill-episode-update.toml` |
 | Multi-episode tiled config | `brain/configs/training/dgx-play-maze-chase-distill-multi-episode.toml` |
+| Turn-weighted exclusive-CE config | `brain/configs/training/dgx-play-maze-chase-distill-turn-weighted.toml` |
 | Model factory | `irene_brain.training.factory:build_thesis_model` |
-| Data | Next probe: `irene.maze_chase.planner_teacher.tiled_windows.v1` with `train_sequences = 90` (three 240-tick episodes, coverage 1.0 each) and `gradient_accumulation_steps = 30`. Failed episode-update used 30 sequences / accum 30 on one episode. Failed tiled-windows used batch 1 / accum 1. Failed exclusive-CE family used `irene.maze_chase.planner_teacher.episode_windows.v1`. |
+| Data | Next probe: same `irene.maze_chase.planner_teacher.tiled_windows.v1` 90-window teacher; loss is `exclusive_wasd_softmax_turn_weighted_v1` (hold ×0.1). Failed multi-episode used unweighted exclusive CE on that teacher. Failed episode-update used 30 sequences / accum 30 on one episode. Failed tiled-windows used batch 1 / accum 1. Failed exclusive-CE family used `irene.maze_chase.planner_teacher.episode_windows.v1`. |
 | Probe budget | 32 optimizer steps with `sequence_length = 8` windows drawn from 240-tick planner rollouts; schema 2, constant after warmup |
 | Play eval | seeds 5/9, 240 ticks, canonical maze slot (3 ghosts, period 2, 16 extra loops) |
 
@@ -851,7 +904,7 @@ optimizer update averages all 30 tiles of the 240-tick episode. Same
 | Campaign pass | `pellets_eaten >= 32` and histogram not idle / D-only / one-key sticky |
 | Result | D×431 + A×49; 10 pellets; 16 collisions; reward −150; val match 0.417 |
 
-## Multi-episode tiled tiles (preregistered)
+## Multi-episode tiled tiles (preregistered; now completed / failed)
 
 Hypothesis: one planner episode still has a dominant opening, so accum-30
 over those 30 tiles collapsed to sticky D (val match = teacher D).
@@ -861,6 +914,8 @@ exclusive-argmax decode, the exclusive-CE aux mix, and
 `gradient_accumulation_steps = 30`. Set `train_sequences = 90` so tiled
 windows cover three 240-tick episodes 1:1 and each update can mix
 openings. Not an accumulation scale-up.
+**Falsified as a campaign pass:** mixed W/A/D play, 17 pellets, val
+match 0.083 = teacher A. Do not scale 90-seq.
 
 | Field | Value |
 |---|---|
@@ -870,6 +925,33 @@ openings. Not an accumulation scale-up.
 | Play decode | `exclusive_argmax_wasd_v1` (idle margin −4.0; kept) |
 | Action loss | `exclusive_wasd_softmax_v1` |
 | Teacher | `irene.maze_chase.planner_teacher.tiled_windows.v1` (90 windows / 3 episodes) |
+| Batch-source | `maze_chase_tiled_windows` |
+| Weights | exclusive-CE aux mix (value/world/diversity/continuous restored) |
+| Budget | 32 optimizer steps, `batch_size = 1`, `gradient_accumulation_steps = 30`, `train_sequences = 90` |
+| Play eval | seeds 5/9 × 240 ticks; honest `pellet_eaten`; WASD histogram |
+| Campaign pass | `pellets_eaten >= 32` and histogram not idle / D-only / one-key sticky |
+| Result | W×48 + A×200 + D×232; 17 pellets; 17 collisions; reward −153; val match 0.083 = teacher A |
+
+## Turn-weighted exclusive CE (preregistered)
+
+Hypothesis: 32-step exclusive CE copies a constant key even when the
+teacher is mixed, because corridor holds dominate the window. CPU
+window-majority: 79/90 mixed, mean majority 0.614, tick mix already
+near-uniform. Multi-episode mixed closed-loop play but val match still
+equals one teacher key (A at 0.083). Keep the same 90 tiled windows,
+accum 30, exclusive-argmax decode, and exclusive-CE aux mix. Switch the
+loss to `exclusive_wasd_softmax_turn_weighted_v1`: teacher direction
+*changes* keep weight 1.0; holds are ×0.1. Teaching-signal change, not
+more episodes.
+
+| Field | Value |
+|---|---|
+| Run id | `dgx-play-maze-chase-distill-turn-weighted-v1` |
+| Config | `brain/configs/training/dgx-play-maze-chase-distill-turn-weighted.toml` |
+| Canonical config SHA-256 | `3af3cd9974020d3b72f202552605fc6b1910a52f3937f06dc69b66286d759f7b` |
+| Play decode | `exclusive_argmax_wasd_v1` (idle margin −4.0; kept) |
+| Action loss | `exclusive_wasd_softmax_turn_weighted_v1` (hold ×0.1) |
+| Teacher | `irene.maze_chase.planner_teacher.tiled_windows.v1` (same 90-window manifest as multi-episode) |
 | Batch-source | `maze_chase_tiled_windows` |
 | Weights | exclusive-CE aux mix (value/world/diversity/continuous restored) |
 | Budget | 32 optimizer steps, `batch_size = 1`, `gradient_accumulation_steps = 30`, `train_sequences = 90` |
@@ -913,7 +995,7 @@ openings. Not an accumulation scale-up.
    10 pellets / histogram [[2, 49], [8, 431]]. Val match 0.417 = teacher D.
    Do not scale accumulation-30.
 
-## Spark sequence (multi-episode tiled probe)
+## Spark sequence (multi-episode tiled probe, completed; failed mixed W/A/D)
 
 1. `Invoke-DgxPreflight.ps1`
 2. `Sync-DgxBrainRelease.ps1` (release `r20260818t192855z-6d85cc69dd69`)
@@ -921,6 +1003,19 @@ openings. Not an accumulation scale-up.
 4. `Start-DgxBrainTraining.ps1` with
    `dgx-play-maze-chase-distill-multi-episode.toml`, run id
    `dgx-play-maze-chase-distill-multi-episode-v1`, Tmux with
+   `-AcknowledgeDetached`
+5. `play-gate.json` failed mixed W/A/D: reward −153 / collisions 17 /
+   17 pellets / histogram [[1, 48], [2, 200], [8, 232]]. Val match
+   0.083 = teacher A. Do not scale 90-seq.
+
+## Spark sequence (turn-weighted exclusive-CE probe)
+
+1. `Invoke-DgxPreflight.ps1`
+2. `Sync-DgxBrainRelease.ps1`
+3. `Invoke-DgxBrainSmoke.ps1` on `dgx-smoke.toml`
+4. `Start-DgxBrainTraining.ps1` with
+   `dgx-play-maze-chase-distill-turn-weighted.toml`, run id
+   `dgx-play-maze-chase-distill-turn-weighted-v1`, Tmux with
    `-AcknowledgeDetached`
 5. Keep named CPU farm jobs on the Spark host while the GB10 trains.
 
@@ -990,8 +1085,9 @@ Generic wrappers only. Never `Start-DgxRcqV2Reference.ps1`. Never point
 generic train at an RCQ config.
 
 The B2 world-model-actor manifest was regenerated because `objective.py` is in
-that family's source set (new digest `be571ba4…`; previous `885aff85…`,
-then `3d2e3cc0…`, then `c207401f…`).
+that family's source set (new digest `4e603895…`; previous `be571ba4…`,
+`885aff85…`, `3d2e3cc0…`, then `c207401f…`).
 No actor parameter or recipe identity changed.
 The matched-baseline architecture manifest is a new comparison identity
-`5e0f2536…` (previous live `eda3cf38…`) for the same source-file reason.
+`3d7ff5bd…` (previous live `5e0f2536…`, then `eda3cf38…`) for the same
+source-file reason.

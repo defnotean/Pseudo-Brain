@@ -40,10 +40,15 @@ reward **−165**, `sticky_or_idle: false`. Val exclusive-argmax match **0.083**
 `b9b7888c194f72d91b6464b6e3e99dc2e52103db35c9a4d441ca69b60ee80c40`)
 **failed sticky D**: histogram **D×431 + A×49**, 10 pellets, 16 collisions,
 reward **−150**. Val exclusive-argmax match **0.417** equals teacher D, not a
-ranking gain. Do not scale accumulation-30. Next GPU probe is 90 tiled
-windows covering three planner episodes at the same accum 30, now running
-as `dgx-play-maze-chase-distill-multi-episode-v1` on release
-`r20260818t192855z-6d85cc69dd69`. Named CPU
+ranking gain. Do not scale accumulation-30. Multi-episode tiled tiles
+(`dgx-play-maze-chase-distill-multi-episode-v1`,
+`play-gate.json` SHA-256 `c6367334…`, release
+`r20260818t192855z-6d85cc69dd69`, canonical config SHA-256
+`4231288135f8465008a106f1133a8f1a9321f7ee0a8cf7aa76494a0788c72c54`)
+**failed mixed W/A/D**: histogram **W×48 + A×200 + D×232**, 17 pellets,
+17 collisions, reward **−153**. Val exclusive-argmax match **0.083**
+equals teacher A. Do not scale 90-seq. Next GPU probe is turn-weighted
+exclusive CE (`dgx-play-maze-chase-distill-turn-weighted-v1`). Named CPU
 farm jobs finished planner seeds 132–147, tiled teacher mix, multi-episode
 coverage, off-policy teacher labels, an episode-update thoughtlet dump,
 and a 90-window majority audit (79 mixed / 10 pure, mean majority 0.614).
@@ -142,8 +147,8 @@ local freeze on 2026-08-16, twice on 2026-08-17 (RCQ-v3 recipe options, then
 v3 smoke-factory squash parity), and again on 2026-08-17 when the baseline
 suite gained the reset-slot, dense-routing, reactive, and serial-depth
 ablations. Live digest
-`5e0f2536d0421bb8a2c44b58f835545fdb2e5a5593035a9a9ee6c3a33e86e830` (previous
-`eda3cf38…`, `78ba9cfc…`, `8a41131e…`, `f4e9b355…`, `eb46988b…`, `5decb402…`,
+`3d7ff5bd338503a79ea43a4949d48c073615f78bc6fa553cc8169a14d688fba3` (previous
+`5e0f2536…`, `eda3cf38…`, `78ba9cfc…`, `8a41131e…`, `f4e9b355…`, `eb46988b…`, `5decb402…`,
 and `30d4c119…`; all are
 explicit `new_comparison` identities). The
 historical first-matched campaign pin `52bba6a9…` is unchanged and that
@@ -429,8 +434,8 @@ is inherited unchanged. `train.py` resolves the model's fail-closed
 `training_objective_class_path` hook; the recipe is
 `configs/training/baseline-stagea-world-model-actor.toml`; and the family
 is pinned by its own manifest (`configs/world-model-actor-manifest.json`,
-digest `be571ba4…`, previous `885aff85…`, `3d2e3cc0…`, then `c207401f…`) with a fail-closed 1%-band gate, not the slot-suite
-manifest (regenerated for exclusive WASD softmax, digest `5e0f2536…`). B3 (task
+digest `4e603895…`, previous `be571ba4…`, `885aff85…`, `3d2e3cc0…`, then `c207401f…`) with a fail-closed 1%-band gate, not the slot-suite
+manifest (regenerated for turn-weighted exclusive WASD softmax, digest `3d7ff5bd…`). B3 (task
 specialist) remains blocked on ladder dataset generation (7 new tests;
 play-safe gate green, 558 tests). Record:
 [docs/runs/2026-08-18-world-model-actor.md](./docs/runs/2026-08-18-world-model-actor.md).

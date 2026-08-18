@@ -134,6 +134,7 @@ class CalibratedActionLossTests(unittest.TestCase):
         button_indices: object | None = None,
         loss_kind: str = "support_aware_calibrated_v1",
         movement_key_indices: object | None = None,
+        exclusive_row_weights: object | None = None,
     ) -> object:
         assert torch is not None
         if button_indices is None:
@@ -145,10 +146,15 @@ class CalibratedActionLossTests(unittest.TestCase):
                 dtype=torch.long,
             ),
         }
-        if movement_key_indices is None and loss_kind == "exclusive_wasd_softmax_v1":
+        if movement_key_indices is None and loss_kind in {
+            "exclusive_wasd_softmax_v1",
+            "exclusive_wasd_softmax_turn_weighted_v1",
+        }:
             movement_key_indices = torch.tensor(WASD_CONTROL_INDICES, dtype=torch.long)
         if movement_key_indices is not None:
             kwargs["movement_key_indices"] = movement_key_indices
+        if exclusive_row_weights is not None:
+            kwargs["exclusive_row_weights"] = exclusive_row_weights
         return _structured_action_loss(
             CalibratedActionLossTests.prediction(button_logits),
             target,
@@ -388,6 +394,47 @@ class ExclusiveWasdSoftmaxLossTests(unittest.TestCase):
             loss_kind="exclusive_wasd_softmax_v1",
         )
         self.assertLess(float(idle_loss), float(moving_loss))
+
+    def test_turn_weighted_exclusive_ce_downweights_holds(self) -> None:
+        assert torch is not None
+        from irene_brain.training.objective import (
+            EXCLUSIVE_WASD_HOLD_WEIGHT,
+            _exclusive_wasd_turn_weights,
+        )
+
+        self.assertEqual(EXCLUSIVE_WASD_HOLD_WEIGHT, 0.1)
+        current = torch.tensor(
+            [[1.0, 0.0, 0.0, 0.0], [1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0]]
+        )
+        previous = torch.tensor(
+            [[1.0, 0.0, 0.0, 0.0], [1.0, 0.0, 0.0, 0.0], [1.0, 0.0, 0.0, 0.0]]
+        )
+        weights = _exclusive_wasd_turn_weights(current, previous)
+        self.assertEqual([round(float(value), 5) for value in weights], [0.1, 0.1, 1.0])
+
+        target = torch.zeros(1, CONTROL_VECTOR_SIZE)
+        target[0, int(HidKey.W)] = 1.0
+        sticky_s = torch.full((1, len(BUTTON_TARGET_INDICES)), -2.0)
+        sticky_s[0, int(HidKey.S)] = -0.5
+        unweighted = CalibratedActionLossTests.loss(
+            sticky_s,
+            target,
+            loss_kind="exclusive_wasd_softmax_v1",
+        )
+        turn = CalibratedActionLossTests.loss(
+            sticky_s,
+            target,
+            loss_kind="exclusive_wasd_softmax_turn_weighted_v1",
+            exclusive_row_weights=torch.ones(1),
+        )
+        hold = CalibratedActionLossTests.loss(
+            sticky_s,
+            target,
+            loss_kind="exclusive_wasd_softmax_turn_weighted_v1",
+            exclusive_row_weights=torch.full((1,), EXCLUSIVE_WASD_HOLD_WEIGHT),
+        )
+        self.assertAlmostEqual(float(turn), float(unweighted), places=6)
+        self.assertLess(float(hold), float(turn))
 
 
 if __name__ == "__main__":

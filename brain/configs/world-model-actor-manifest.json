@@ -1,16 +1,16 @@
 {
   "implementation": {
-    "source_bundle_sha256": "46e2a2fb5800f623009cec2191b0899ace21f345384007f3114456d73bd802f1",
+    "source_bundle_sha256": "d1f4f1598ac4d356a5f163f1d38aed7294409a1575857cc6c64521a5e2997d43",
     "source_files": {
       "src/irene_brain/model/world_model_actor.py": "eef3d6820604c1d1e67fe40c95e0e3aa48b78ca644335b872858c2230925f3fd",
       "src/irene_brain/training/factory.py": "c6230b36fde9925d8e65fa6334def360effbd856ee84341517c9610fedd6af2a",
-      "src/irene_brain/training/objective.py": "1225bf98d0c4dc3e5bb4b1cf4138c110a7f9a33b4a7056d9c47bf9d5c164ce7a",
+      "src/irene_brain/training/objective.py": "508ab6eb163703e3f33c3eca488a7d2c50c9cb3a9a0badf443a57adc9633ffb0",
       "src/irene_brain/training/train.py": "29bc043ebeab17a596710383ed550da73337a4a3a3095a5e4087c40c79c162c6",
       "src/irene_brain/training/world_model_objective.py": "88ad79ac3cce21240b8dfb506f0bbeb327a6d834cda19fca090e025b02592322"
     }
   },
   "manifest_kind": "world_model_actor_recipe_family",
-  "manifest_sha256": "be571ba4aeca1f5f2c86867e7978959ba8b9ec99ff3394b5867e2d7a2012a674",
+  "manifest_sha256": "4e603895d0598a7fe448b5e112ad9749773d0c946c6ddcf45ade726d6968e9a0",
   "parameter_tolerance_fraction": 0.01,
   "reference_trainable_parameters": 29674318,
   "reference_variant_id": "irene.thought_field.routed.v1",

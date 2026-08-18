@@ -30,11 +30,13 @@ A×476 + D×4, 15 pellets, 18 collisions, reward −165; val exclusive-argmax
 match **0.083** (down from exclusive-CE 0.167). Full-episode tiled
 update (accum 30) **failed sticky D**: histogram **D×431 + A×49**, 10
 pellets, 16 collisions, −150; val exclusive-argmax match **0.417**
-(= teacher D, not a ranking gain). Do not scale accumulation-30.
-Closed-loop BC at spawn is not next: off-policy planner labels on
-idle/W/A/D were S×32. Next GPU probe is multi-episode tiled tiles at
-the same accum 30 (`dgx-play-maze-chase-distill-multi-episode-v1`), now
-live on Spark release `r20260818t192855z-6d85cc69dd69`. Spark CPU farm
+(= teacher D, not a ranking gain). Multi-episode tiled tiles (90
+windows / accum 30) **failed mixed W/A/D**: histogram **W×48 + A×200 +
+D×232**, 17 pellets, 17 collisions, −153; val exclusive-argmax match
+**0.083** (= teacher A). Do not scale 90-seq. Closed-loop BC at spawn is
+not next: off-policy planner labels on idle/W/A/D were S×32. Next GPU
+probe is turn-weighted exclusive CE on the same 90 tiled windows
+(`dgx-play-maze-chase-distill-turn-weighted-v1`). Spark CPU farm
 also finished planner seeds 132–147 (5/16 clear), tiled teacher mix,
 three-episode coverage, an episode-update thoughtlet dump
 (open-loop A; closed-loop sticky D), and a window-majority audit
@@ -54,7 +56,7 @@ campaign.
 |---|---|---|
 | 0 | Source lives in this Git repository and on private GitHub | Done. `defnotean/Pseudo-Brain`, branch `defnotean/pseudo-brain` |
 | 1 | Write operator documentation and freeze tooling | Done |
-| 2 | Freeze implementation source and regenerate the matched-baseline architecture manifest | Done. Live digest `5e0f2536…` (2026-08-18 exclusive WASD softmax loss on maze-chase). Historical `eda3cf38…`, `78ba9cfc…`, `8a41131e…`, `f4e9b355…`, `eb46988b…`, `5decb402…`, `30d4c119…`, and first-matched pin `52bba6a9…` unchanged. |
+| 2 | Freeze implementation source and regenerate the matched-baseline architecture manifest | Done. Live digest `3d7ff5bd…` (2026-08-18 turn-weighted exclusive WASD softmax). Historical `5e0f2536…`, `eda3cf38…`, `78ba9cfc…`, `8a41131e…`, `f4e9b355…`, `eb46988b…`, `5decb402…`, `30d4c119…`, and first-matched pin `52bba6a9…` unchanged. |
 | 3 | Run local CPU-only tests, including the regenerated manifest identity | Done. 299 tests passed, one expected POSIX skip. |
 | 4 | Build the create-once, target-blind RCQ-v2 registration and record its SHA-256 | Live v2 `6cc98739c78499a990a4b3480524c48dd49243c1e3c63094977a9a917df49690`. Historical v1 `33f7900c…` preserved. Copy the live digest off-repo. |
 | 5 | DGX preflight and immutable release sync | Done for live release `r20260817t021531z-7a2967ebec60`. Historical v1 release stays unused for training. |
@@ -63,7 +65,7 @@ campaign.
 | 8 | Newly named qualification after the invariance capture fix | Done. Live file `registrations/rcq-v2-reference-v2.json`. Do not edit v1. |
 | 9 | Preclaim, independent review, final authorization, one-shot TEST | Blocked. This qualification failed the entry gate. Do not preclaim or open TEST. |
 | — | RCQ-v3 registration ceremony | **Deferred.** Do not run `New-RcqV3Registration.ps1`. |
-| — | Current campaign | Play-gated maze-chase distill v1. Sticky D at 32/128 spawn-only. Window-32 and episode-windows failed idle. Exclusive argmax unstuck idle then sticky S. Exclusive softmax failed S×480. Action-only exclusive CE failed idle no-op. Value-only exclusive CE failed idle no-op. Tiled 1:1 windows failed sticky A (A×476 + D×4, 15 pellets, val match 0.083). Full-episode tiled update failed sticky D (D×431 + A×49, 10 pellets, val match 0.417 = teacher D). Next GPU: multi-episode tiled tiles at accum 30. Do not scale the failed recipes. |
+| — | Current campaign | Play-gated maze-chase distill v1. Sticky D at 32/128 spawn-only. Window-32 and episode-windows failed idle. Exclusive argmax unstuck idle then sticky S. Exclusive softmax failed S×480. Action-only exclusive CE failed idle no-op. Value-only exclusive CE failed idle no-op. Tiled 1:1 windows failed sticky A (A×476 + D×4, 15 pellets, val match 0.083). Full-episode tiled update failed sticky D (D×431 + A×49, 10 pellets, val match 0.417 = teacher D). Multi-episode tiled tiles failed mixed W/A/D (W×48 + A×200 + D×232, 17 pellets, val match 0.083 = teacher A). Next GPU: turn-weighted exclusive CE. Do not scale the failed recipes. |
 | — | Compute | Spark only. One scientific GPU train at a time on the GB10; many named CPU jobs in parallel on the ARM host. Generic wrappers, never RCQ-v2 start/resume. |
 
 Do not skip ahead. Do not open sealed TEST ranges to "check" labels. Do not

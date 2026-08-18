@@ -36,12 +36,21 @@ _MOVEMENT_KEYS = (
 # Idle uses the same margin as closed-loop play: winner strictly below -4.0.
 # Frozen RCQ-v2 / moving-shapes keep support_aware_calibrated_v1.
 EXCLUSIVE_WASD_SOFTMAX_V1 = "exclusive_wasd_softmax_v1"
+EXCLUSIVE_WASD_SOFTMAX_TURN_WEIGHTED_V1 = "exclusive_wasd_softmax_turn_weighted_v1"
 EXCLUSIVE_WASD_SOFTMAX_IDLE_MARGIN = -4.0
+EXCLUSIVE_WASD_HOLD_WEIGHT = 0.1
 _ACTION_LOSS_KINDS = frozenset(
     {
         "sparse_hard_negative_v1",
         "support_aware_calibrated_v1",
         EXCLUSIVE_WASD_SOFTMAX_V1,
+        EXCLUSIVE_WASD_SOFTMAX_TURN_WEIGHTED_V1,
+    }
+)
+_EXCLUSIVE_WASD_LOSS_KINDS = frozenset(
+    {
+        EXCLUSIVE_WASD_SOFTMAX_V1,
+        EXCLUSIVE_WASD_SOFTMAX_TURN_WEIGHTED_V1,
     }
 )
 
@@ -300,6 +309,24 @@ class ThoughtFieldObjective(nn.Module):
                 dtype=torch.float32,
                 device=device,
             )
+            exclusive_row_weights = None
+            if self.action_loss_kind == EXCLUSIVE_WASD_SOFTMAX_TURN_WEIGHTED_V1:
+                previous_action_target = torch.tensor(
+                    [
+                        control_to_vector(
+                            batch.sequences[batch_index]
+                            .transitions[time_index - 1]
+                            .action_target
+                        )
+                        for batch_index, _transition in enumerate(transitions)
+                    ],
+                    dtype=torch.float32,
+                    device=device,
+                )
+                exclusive_row_weights = _exclusive_wasd_turn_weights(
+                    action_target.index_select(1, self.movement_key_indices),
+                    previous_action_target.index_select(1, self.movement_key_indices),
+                )
             key_target = action_target[:, :256] > 0.5
             value_target = torch.tensor(
                 [transition.value_target for transition in transitions],
@@ -331,6 +358,7 @@ class ThoughtFieldObjective(nn.Module):
                     deadzone_hinge_margin=self.deadzone_hinge_margin,
                     opposite_pair_weight=self.opposite_pair_weight,
                     movement_key_indices=self.movement_key_indices,
+                    exclusive_row_weights=exclusive_row_weights,
                 )
                 for prediction in output.anytime_actions
             )
@@ -812,6 +840,7 @@ def _structured_action_loss(
     deadzone_hinge_margin: float = 0.04,
     opposite_pair_weight: float = 0.0,
     movement_key_indices: Tensor | None = None,
+    exclusive_row_weights: Tensor | None = None,
 ) -> Tensor:
     button_target = target.index_select(1, button_indices)
     button_logits = prediction.button_logits.float()
@@ -832,10 +861,21 @@ def _structured_action_loss(
             background_tail_mix=background_tail_mix,
             background_tail_temperature=background_tail_temperature,
         )
-    elif loss_kind == EXCLUSIVE_WASD_SOFTMAX_V1:
+    elif loss_kind in _EXCLUSIVE_WASD_LOSS_KINDS:
         if movement_key_indices is None:
             raise ValueError(
-                "exclusive_wasd_softmax_v1 requires movement_key_indices in W, A, S, D order"
+                "exclusive WASD softmax requires movement_key_indices in W, A, S, D order"
+            )
+        if (
+            loss_kind == EXCLUSIVE_WASD_SOFTMAX_TURN_WEIGHTED_V1
+            and exclusive_row_weights is None
+        ):
+            raise ValueError(
+                "exclusive_wasd_softmax_turn_weighted_v1 requires exclusive_row_weights"
+            )
+        if loss_kind == EXCLUSIVE_WASD_SOFTMAX_V1 and exclusive_row_weights is not None:
+            raise ValueError(
+                "exclusive_wasd_softmax_v1 rejects exclusive_row_weights"
             )
         button_loss = _exclusive_wasd_softmax_button_loss(
             button_logits,
@@ -846,6 +886,7 @@ def _structured_action_loss(
             background_weight=background_weight,
             background_tail_mix=background_tail_mix,
             background_tail_temperature=background_tail_temperature,
+            exclusive_row_weights=exclusive_row_weights,
         )
     else:
         raise ValueError(f"unsupported action loss kind: {loss_kind}")
@@ -1006,6 +1047,36 @@ def _exclusive_wasd_row_loss(wasd_logits: Tensor, wasd_target: Tensor) -> Tensor
     return torch.where(idle, idle_loss, directed)
 
 
+def _exclusive_wasd_class_ids(wasd_target: Tensor) -> Tensor:
+    if wasd_target.ndim != 2 or tuple(wasd_target.shape[1:]) != (4,):
+        raise ValueError("WASD targets must have shape [batch, 4]")
+    positive = wasd_target > 0.5
+    idle = ~positive.any(dim=1)
+    class_ids = positive.to(dtype=torch.long).argmax(dim=1)
+    return torch.where(idle, torch.full_like(class_ids, -1), class_ids)
+
+
+def _exclusive_wasd_turn_weights(current: Tensor, previous: Tensor) -> Tensor:
+    """Weight teacher direction *changes* over corridor holds.
+
+    Exclusive CE on mixed tiled windows still collapsed to a constant key
+    because most ticks are holds. Down-weighting holds (0.1) relative to
+    turns (1.0) is a teaching-signal change, not a coverage tweak.
+    """
+
+    if tuple(current.shape) != tuple(previous.shape):
+        raise ValueError("turn weights need matching current and previous WASD targets")
+    change = _exclusive_wasd_class_ids(current) != _exclusive_wasd_class_ids(previous)
+    ones = torch.ones(current.shape[0], dtype=current.dtype, device=current.device)
+    holds = torch.full(
+        (current.shape[0],),
+        EXCLUSIVE_WASD_HOLD_WEIGHT,
+        dtype=current.dtype,
+        device=current.device,
+    )
+    return torch.where(change, ones, holds)
+
+
 def _exclusive_wasd_softmax_button_loss(
     button_logits: Tensor,
     button_target: Tensor,
@@ -1016,6 +1087,7 @@ def _exclusive_wasd_softmax_button_loss(
     background_weight: float,
     background_tail_mix: float,
     background_tail_temperature: float,
+    exclusive_row_weights: Tensor | None = None,
 ) -> Tensor:
     """Exclusive WASD softmax plus the frozen non-movement background tail.
 
@@ -1040,6 +1112,10 @@ def _exclusive_wasd_softmax_button_loss(
         button_logits.index_select(1, columns),
         button_target.index_select(1, columns),
     )
+    if exclusive_row_weights is not None:
+        if tuple(exclusive_row_weights.shape) != tuple(exclusive.shape):
+            raise ValueError("exclusive_row_weights must match the WASD batch")
+        exclusive = exclusive * exclusive_row_weights
 
     wasd_emitted = torch.zeros(
         button_logits.shape[1],
@@ -1358,7 +1434,9 @@ def _movement_metric_counts(
 
 
 __all__ = [
+    "EXCLUSIVE_WASD_HOLD_WEIGHT",
     "EXCLUSIVE_WASD_SOFTMAX_IDLE_MARGIN",
+    "EXCLUSIVE_WASD_SOFTMAX_TURN_WEIGHTED_V1",
     "EXCLUSIVE_WASD_SOFTMAX_V1",
     "LossOutput",
     "ThoughtFieldObjective",
