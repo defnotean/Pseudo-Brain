@@ -52,7 +52,29 @@ class WorldSlot:
 
 
 def default_world_slots() -> tuple[WorldSlot, ...]:
-    """The six in-repo worlds in canonical matrix order."""
+    """The in-repo worlds in canonical matrix order.
+
+    The first six slots are the ladder worlds in their canonical
+    configurations. The remaining slots promote each registered maze_chase
+    variant axis (ghost AI rules, speed curves, sticky/delayed input) to its
+    own world slot so the matrix measures how every policy degrades when the
+    mechanics move away from the canonical slot. Variant slots are appended
+    only — never reordered — so historical cells stay byte-identical.
+    """
+
+    def maze_chase_variant(**overrides: object) -> Callable[[ClosedLoopPlayConfig], object]:
+        def factory(config: ClosedLoopPlayConfig) -> object:
+            knobs: dict[str, object] = {
+                "ghost_count": 3,
+                "ghost_period": 2,
+                "extra_loops": 16,
+                "tick_period_ns": config.tick_period_ns,
+                "max_ticks": config.max_ticks,
+            }
+            knobs.update(overrides)
+            return MazeChaseEnv(**knobs)  # type: ignore[arg-type]
+
+        return factory
 
     return (
         WorldSlot(
@@ -99,13 +121,35 @@ def default_world_slots() -> tuple[WorldSlot, ...]:
         ),
         WorldSlot(
             "world.maze_chase.v1",
-            lambda config: MazeChaseEnv(
-                ghost_count=3,
-                ghost_period=2,
-                extra_loops=16,
-                tick_period_ns=config.tick_period_ns,
-                max_ticks=config.max_ticks,
-            ),
+            maze_chase_variant(),
+        ),
+        WorldSlot(
+            "world.maze_chase.ambush.v1",
+            maze_chase_variant(ghost_rule="ambush"),
+        ),
+        WorldSlot(
+            "world.maze_chase.shy.v1",
+            maze_chase_variant(ghost_rule="shy"),
+        ),
+        WorldSlot(
+            "world.maze_chase.mixed.v1",
+            maze_chase_variant(ghost_rule="mixed"),
+        ),
+        WorldSlot(
+            "world.maze_chase.elroy.v1",
+            maze_chase_variant(ghost_elroy=True),
+        ),
+        WorldSlot(
+            "world.maze_chase.slow_player.v1",
+            maze_chase_variant(player_period=2),
+        ),
+        WorldSlot(
+            "world.maze_chase.delayed_input.v1",
+            maze_chase_variant(input_delay_ticks=2),
+        ),
+        WorldSlot(
+            "world.maze_chase.sticky.v1",
+            maze_chase_variant(sticky_direction=True),
         ),
     )
 

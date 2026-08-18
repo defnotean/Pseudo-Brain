@@ -201,6 +201,12 @@ PLAN.md §20 defines the ladder; the work items in this repo are:
    a pellet path: it clears all three canonical mazes (+426 reward, 3
    catches, 3/3 clears), and the matrix is now 6 worlds × 5 policies
    ([runs/2026-08-17-maze-chase-planner-policy.md](runs/2026-08-17-maze-chase-planner-policy.md)).
+   Every registered variant axis is also promoted to its own matrix world
+   slot (13 worlds × 5 policies = 65 cells), which shows the planner
+   clearing mixed/shy/ambush rules, degrading gracefully under elroy and
+   slow-player speed curves, and going negative only under two-tick input
+   delay — the actuation-latency signature
+   ([runs/2026-08-17-maze-chase-variant-matrix-slots.md](runs/2026-08-17-maze-chase-variant-matrix-slots.md)).
 4. **The arcade proof gate** (PLAN.md §31 Phase 4): kernel p99 ≤ 8 ms,
    end-to-end p99 ≤ 16.67 ms at frame skip 1, ≥10% score over the matched
    real-time recurrent/world-model baseline across ≥100 seeds, positive
