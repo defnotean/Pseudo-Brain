@@ -14,13 +14,17 @@ and held on the 128-step probe at reward_sum **-150**, collisions **16**
 `2cdedaf9…`). The later-tick episode-window probe also **failed** idle
 no-op at the same floor (`dgx-play-maze-chase-distill-episode-windows-v1`,
 `play-gate.json` SHA-256 `84331559…`, release
-`r20260818t170141z-55b96fa56a6e`). Sampling worked (val teacher D 16.7%,
-W 37.5%) but all WASD logits stayed negative. Do not retry or scale
-either failed idea. Campaign success is **pellets ≥ 32** with a non-idle
-non-D-only histogram, not `reward_sum > -161`. Official 32-step
-`play-gate.json` SHA-256 `df9d88f4…`; 128-step `play-gate.json` SHA-256
-`6401a922…`. Logger train loss is not the gate. Workstation is
-orchestration; all compute is Spark. Record:
+`r20260818t170141z-55b96fa56a6e`). Sampling unstuck teacher D (val W
+37.5%, D 16.7%) but all WASD logits stayed negative, so independent
+`logit > 0` never pressed a key. Do not retry or scale either failed
+idea. The next probe is named play decode `exclusive_argmax_wasd_v1`
+(exactly one WASD; idle only below margin −4.0) with the same
+episode-windows teacher and 32-step budget. Campaign success is
+**pellets ≥ 32** with a non-idle non-D-only histogram, not
+`reward_sum > -161`. Official 32-step `play-gate.json` SHA-256
+`df9d88f4…`; 128-step `play-gate.json` SHA-256 `6401a922…`. Logger train
+loss is not the gate. Workstation is orchestration; all compute is Spark.
+Record:
 [docs/runs/2026-08-18-play-gated-maze-chase-distill.md](./docs/runs/2026-08-18-play-gated-maze-chase-distill.md).
 
 Historical: live qualification `rcq_v2_reference_v2` is **terminally failed**. The
@@ -396,7 +400,7 @@ is inherited unchanged. `train.py` resolves the model's fail-closed
 `training_objective_class_path` hook; the recipe is
 `configs/training/baseline-stagea-world-model-actor.toml`; and the family
 is pinned by its own manifest (`configs/world-model-actor-manifest.json`,
-digest `3d2e3cc0…`, previous `c207401f…`) with a fail-closed 1%-band gate, not the slot-suite
+digest `885aff85…`, previous `3d2e3cc0…` then `c207401f…`) with a fail-closed 1%-band gate, not the slot-suite
 manifest (regenerated for the refactor, digest `eda3cf38…`). B3 (task
 specialist) remains blocked on ladder dataset generation (7 new tests;
 play-safe gate green, 558 tests). Record:

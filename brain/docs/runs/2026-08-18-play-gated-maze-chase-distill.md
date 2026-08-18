@@ -1,10 +1,45 @@
 # Play-gated maze-chase distill campaign v1 (2026-08-18)
 
-Status: **current campaign**. Episode-window probe **failed**: idle no-op
+Status: **current campaign**. Exclusive-argmax play-decode probe is
+preregistered. Window-32 and episode-windows both **failed** idle no-op
 (`play_moved: false`, `campaign_success: false`, reward **-161**,
-collisions 17, **9 pellets**, histogram mask 0 × 480). Spark is idle.
-Do not scale. Window-32 stays falsified. RCQ-v2 seed 1702 stays terminal.
+collisions 17, **9 pellets**, histogram mask 0 × 480). Spark was idle
+after those probes. Do not scale windows. RCQ-v2 seed 1702 stays terminal.
 No v3 registration. No sealed TEST.
+
+## Exclusive-argmax play decode (preregistered)
+
+Hypothesis: idle play is a decode / head / threshold mismatch, not “need
+more spawn data.” Closed-loop (and val exact) uses independent `logit > 0`
+on WASD. After 32 episode-window steps every WASD predicted-positive was
+**0.0** and inactive-movement logit max was **−0.80**, so the player never
+pressed a key. Pac-Man-style play needs **exactly one** direction.
+
+Named decode `exclusive_argmax_wasd_v1`:
+
+- Press the unique WASD argmax (HID 26 / 4 / 22 / 7).
+- Ties keep the earliest key in W/A/S/D bit order.
+- Idle only when the winning logit is strictly below margin **−4.0**
+  (well below the observed −0.80 cluster).
+- Non-movement buttons stay on frozen `logit > 0`.
+- Default `independent_logit_gt_zero_v1` is unchanged. RCQ moving-shapes
+  closed-loop reports keep that default. `exclusive_argmax_wasd_v1` is
+  maze_chase-only via `objective.play_decode_kind`.
+
+Training loss stays independent multi-label. The variable is play decode.
+Teacher stays `irene.maze_chase.planner_teacher.episode_windows.v1`.
+
+| Field | Value |
+|---|---|
+| Run id | `dgx-play-maze-chase-distill-exclusive-argmax-v1` |
+| Config | `brain/configs/training/dgx-play-maze-chase-distill-exclusive-argmax.toml` |
+| Canonical config SHA-256 | `cecd8f4b59791c5abf79515beb2ef810ea77ab5ba174c33e1886af73ab6204f4` |
+| Play decode | `exclusive_argmax_wasd_v1` (idle margin −4.0) |
+| Batch-source | same episode-windows teacher as the failed later-tick probe |
+| Budget | 32 optimizer steps, `sequence_length = 8`, `episode_horizon = 240` |
+| Play eval | seeds 5/9 × 240 ticks; honest `pellet_eaten`; WASD histogram |
+| Campaign pass | `pellets_eaten >= 32` and histogram not idle / D-only |
+| Stop | If play is still idle, inspect post-train logit distributions. Scale steps only if val predicted-positive is already >0 and play is still idle. If val predicted-positive stays 0, fix the head/loss; do not scale. |
 
 ## Episode-window probe result (2026-08-18)
 
@@ -333,13 +368,14 @@ and not an RCQ qualification.
 | First probe run id | `dgx-play-maze-chase-distill-probe-v1` (trained; play-gate crashed) |
 | Passing 32-step run id | `dgx-play-maze-chase-distill-probe-v2` (`play_moved: true`) |
 | Passing 128-step run id | `dgx-play-maze-chase-distill-probe-128-v1` (`play_moved: true`, same play numbers) |
-| Next probe run id | none started; episode-windows **failed** idle no-op |
+| Next probe run id | `dgx-play-maze-chase-distill-exclusive-argmax-v1` (preregistered) |
 | Failed episode-windows run id | `dgx-play-maze-chase-distill-episode-windows-v1` |
 | Failed window-32 run id | `dgx-play-maze-chase-distill-window32-v1` (idle no-op; do not retry) |
 | 32-step config | `brain/configs/training/dgx-play-maze-chase-distill-probe.toml` |
 | 128-step config | `brain/configs/training/dgx-play-maze-chase-distill-probe-128.toml` |
 | Window-32 config | `brain/configs/training/dgx-play-maze-chase-distill-window32.toml` |
 | Episode-windows config | `brain/configs/training/dgx-play-maze-chase-distill-episode-windows.toml` |
+| Exclusive-argmax config | `brain/configs/training/dgx-play-maze-chase-distill-exclusive-argmax.toml` |
 | Model factory | `irene_brain.training.factory:build_thesis_model` |
 | Data | `irene.maze_chase.planner_teacher.episode_windows.v1` via `dataset.kind = "maze_chase"` and `episode_horizon = 240` |
 | Probe budget | 32 optimizer steps with `sequence_length = 8` windows drawn from 240-tick planner rollouts; schema 2, constant after warmup |
@@ -360,7 +396,8 @@ no-op pellets are 9 (reward arithmetic). Historical play-gate JSON
 - **Window-32 probe** failed as idle no-op. Do not retry or scale it.
 - **Episode-windows probe** failed as idle no-op after the teacher mix
   unstuck from D. Do not scale it.
-- **Sticky D / no-op is fail**, even if `play_moved` is true.
+- **Exclusive-argmax probe** is the next distinct idea (play decode, not
+  more windows). Sticky D / no-op is fail, even if `play_moved` is true.
 
 `train.py` writes `play-gate.json` into the run directory after a
 maze_chase train or evaluate-only pass. The play gate uses reward_sum
@@ -374,6 +411,20 @@ out of `targets_collected` so the cross-world no-op floor stays world-flat.
 - Physical 60 Hz latency
 - Transfer to other ladder worlds (one transfer world waits until play
   has moved and hygiene is tight)
+
+## Spark sequence (exclusive-argmax probe)
+
+1. `Invoke-DgxPreflight.ps1`
+2. `Sync-DgxBrainRelease.ps1`
+3. `Invoke-DgxBrainSmoke.ps1` on `dgx-smoke.toml`
+4. `Start-DgxBrainTraining.ps1` with
+   `dgx-play-maze-chase-distill-exclusive-argmax.toml`, run id
+   `dgx-play-maze-chase-distill-exclusive-argmax-v1`, Tmux with
+   `-AcknowledgeDetached`
+5. Watch `play-gate.json` and the WASD histogram. Do not scale windows.
+
+Generic wrappers only. Never `Start-DgxRcqV2Reference.ps1`. Never point
+generic train at an RCQ config.
 
 ## Spark sequence (episode-windows probe, completed; failed)
 
@@ -422,5 +473,6 @@ Generic wrappers only. Never `Start-DgxRcqV2Reference.ps1`. Never point
 generic train at an RCQ config.
 
 The B2 world-model-actor manifest was regenerated because `train.py` is in
-that family's source set (new digest `3d2e3cc0…`; previous `c207401f…`).
+that family's source set (new digest `885aff85…`; previous `3d2e3cc0…`,
+then `c207401f…`).
 No actor parameter or recipe identity changed.

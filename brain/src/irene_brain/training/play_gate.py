@@ -23,6 +23,9 @@ from pathlib import Path
 from ..environments.maze_chase import MazeChaseEnv
 from ..evaluation.closed_loop_play import (
     ClosedLoopPlayConfig,
+    EXCLUSIVE_ARGMAX_WASD_IDLE_MARGIN,
+    EXCLUSIVE_ARGMAX_WASD_V1,
+    INDEPENDENT_LOGIT_GT_ZERO_V1,
     evaluate_closed_loop_play,
 )
 
@@ -37,8 +40,14 @@ IDLE_MOVEMENT_MASK = 0
 D_ONLY_MOVEMENT_MASK = 8
 
 
-def maze_chase_play_config() -> ClosedLoopPlayConfig:
-    return ClosedLoopPlayConfig(episode_seeds=PLAY_SEEDS, max_ticks=PLAY_TICKS)
+def maze_chase_play_config(
+    decode_kind: str = INDEPENDENT_LOGIT_GT_ZERO_V1,
+) -> ClosedLoopPlayConfig:
+    return ClosedLoopPlayConfig(
+        episode_seeds=PLAY_SEEDS,
+        max_ticks=PLAY_TICKS,
+        decode_kind=decode_kind,
+    )
 
 
 def maze_chase_environment_factory() -> MazeChaseEnv:
@@ -55,10 +64,14 @@ def _is_sticky_or_idle(histogram: dict[int, int]) -> bool:
     return not active or active <= {IDLE_MOVEMENT_MASK, D_ONLY_MOVEMENT_MASK}
 
 
-def evaluate_maze_chase_play(model: object) -> dict[str, object]:
+def evaluate_maze_chase_play(
+    model: object,
+    *,
+    decode_kind: str = INDEPENDENT_LOGIT_GT_ZERO_V1,
+) -> dict[str, object]:
     report = evaluate_closed_loop_play(
         model,
-        config=maze_chase_play_config(),
+        config=maze_chase_play_config(decode_kind),
         model_description=CAMPAIGN_ID,
         environment_factory=maze_chase_environment_factory,
     )
@@ -79,7 +92,7 @@ def evaluate_maze_chase_play(model: object) -> dict[str, object]:
         1 for episode in report.episodes if episode.ticks_advanced < PLAY_TICKS
     )
     campaign_success = pellets >= CAMPAIGN_PELLET_FLOOR and not sticky_or_idle
-    return {
+    payload: dict[str, object] = {
         "campaign_id": CAMPAIGN_ID,
         "play_seeds": list(PLAY_SEEDS),
         "play_ticks": PLAY_TICKS,
@@ -99,12 +112,21 @@ def evaluate_maze_chase_play(model: object) -> dict[str, object]:
         "sticky_or_idle": sticky_or_idle,
         "campaign_success": campaign_success,
         "gate": "passed" if campaign_success else "failed",
+        "play_decode_kind": decode_kind,
         "report_sha256": report.sha256,
     }
+    if decode_kind == EXCLUSIVE_ARGMAX_WASD_V1:
+        payload["play_decode_idle_margin"] = EXCLUSIVE_ARGMAX_WASD_IDLE_MARGIN
+    return payload
 
 
-def write_maze_chase_play_gate(model: object, run_dir: Path) -> dict[str, object]:
-    payload = evaluate_maze_chase_play(model)
+def write_maze_chase_play_gate(
+    model: object,
+    run_dir: Path,
+    *,
+    decode_kind: str = INDEPENDENT_LOGIT_GT_ZERO_V1,
+) -> dict[str, object]:
+    payload = evaluate_maze_chase_play(model, decode_kind=decode_kind)
     path = Path(run_dir) / "play-gate.json"
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(

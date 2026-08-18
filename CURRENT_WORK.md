@@ -18,9 +18,11 @@ The current experiment is **Play-gated maze-chase distill v1**
 thought-field can learn to play maze-chase closed-loop after planner
 distillation, measured by play (reward / collisions / pellets), not by
 action loss. Probe v2 and the 128-step follow-up sat at reward **-150**
-(sticky D, ~10 implied pellets). Window-32 and the later-tick episode-window
-probe both **failed** at the no-op floor (idle, 9 pellets, mask 0). Spark
-is idle. Do not scale. Record:
+(sticky D, ~10 implied pellets). Window-32 and later-tick episode-windows
+both **failed** idle no-op (9 pellets, mask 0). The next distinct idea is
+named play decode `exclusive_argmax_wasd_v1` (exactly one WASD key; idle
+only below margin −4.0), keeping the episode-windows teacher and 32-step
+budget. Do not scale windows. Record:
 [brain/docs/runs/2026-08-18-play-gated-maze-chase-distill.md](brain/docs/runs/2026-08-18-play-gated-maze-chase-distill.md).
 
 All training, probes, and play evals run on the Spark. This workstation is
@@ -45,7 +47,7 @@ campaign.
 | 8 | Newly named qualification after the invariance capture fix | Done. Live file `registrations/rcq-v2-reference-v2.json`. Do not edit v1. |
 | 9 | Preclaim, independent review, final authorization, one-shot TEST | Blocked. This qualification failed the entry gate. Do not preclaim or open TEST. |
 | — | RCQ-v3 registration ceremony | **Deferred.** Do not run `New-RcqV3Registration.ps1`. |
-| — | Current campaign | Play-gated maze-chase distill v1. Sticky D at 32/128 spawn-only steps (~10 pellets). Window-32 and episode-windows both failed idle no-op (9 pellets, mask 0). Spark idle. Do not scale. |
+| — | Current campaign | Play-gated maze-chase distill v1. Sticky D at 32/128 spawn-only steps (~10 pellets). Window-32 and episode-windows both failed idle no-op (9 pellets, mask 0). Next: exclusive WASD argmax play decode; keep episode_windows teacher. |
 | — | Compute | Spark only. One bounded job at a time. Generic wrappers, never RCQ-v2 start/resume. |
 
 Do not skip ahead. Do not open sealed TEST ranges to "check" labels. Do not

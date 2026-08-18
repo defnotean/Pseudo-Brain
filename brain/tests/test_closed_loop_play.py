@@ -17,6 +17,9 @@ if str(SRC) not in sys.path:
 
 from irene_brain.evaluation.closed_loop_play import (
     ClosedLoopPlayConfig,
+    EXCLUSIVE_ARGMAX_WASD_IDLE_MARGIN,
+    EXCLUSIVE_ARGMAX_WASD_V1,
+    INDEPENDENT_LOGIT_GT_ZERO_V1,
     decode_closed_loop_control,
 )
 from irene_brain.training.batches import BUTTON_TARGET_INDICES
@@ -74,6 +77,95 @@ class DecodeClosedLoopControlTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             decode_closed_loop_control(_packed_logits(), [0.0] * 10)
 
+    def test_default_decode_kind_is_independent_logit_gt_zero(self) -> None:
+        self.assertEqual(
+            ClosedLoopPlayConfig(episode_seeds=(1,)).decode_kind,
+            INDEPENDENT_LOGIT_GT_ZERO_V1,
+        )
+
+    def test_independent_all_negative_wasd_stays_idle(self) -> None:
+        logits = [0.0] * len(BUTTON_TARGET_INDICES)
+        logits[BUTTON_TARGET_INDICES.index(26)] = -1.2
+        logits[BUTTON_TARGET_INDICES.index(4)] = -0.80
+        logits[BUTTON_TARGET_INDICES.index(22)] = -2.0
+        logits[BUTTON_TARGET_INDICES.index(7)] = -3.0
+        control, stats = decode_closed_loop_control(logits, [0.0] * 11)
+        self.assertEqual(control.keys_down, ())
+        self.assertEqual(stats["movement_mask"], 0)
+
+    def test_exclusive_argmax_presses_ranked_negative_winner(self) -> None:
+        logits = [0.0] * len(BUTTON_TARGET_INDICES)
+        logits[BUTTON_TARGET_INDICES.index(26)] = -1.2
+        logits[BUTTON_TARGET_INDICES.index(4)] = -0.80
+        logits[BUTTON_TARGET_INDICES.index(22)] = -2.0
+        logits[BUTTON_TARGET_INDICES.index(7)] = -3.0
+        control, stats = decode_closed_loop_control(
+            logits,
+            [0.0] * 11,
+            decode_kind=EXCLUSIVE_ARGMAX_WASD_V1,
+        )
+        self.assertEqual(control.keys_down, (4,))
+        self.assertEqual(stats["movement_mask"], 0b0010)
+        self.assertEqual(stats["opposite_conflict"], 0)
+
+    def test_exclusive_argmax_idles_only_below_documented_margin(self) -> None:
+        logits = [0.0] * len(BUTTON_TARGET_INDICES)
+        below = EXCLUSIVE_ARGMAX_WASD_IDLE_MARGIN - 0.01
+        for key in (26, 4, 22, 7):
+            logits[BUTTON_TARGET_INDICES.index(key)] = below
+        control, stats = decode_closed_loop_control(
+            logits,
+            [0.0] * 11,
+            decode_kind=EXCLUSIVE_ARGMAX_WASD_V1,
+        )
+        self.assertEqual(control.keys_down, ())
+        self.assertEqual(stats["movement_mask"], 0)
+
+        logits[BUTTON_TARGET_INDICES.index(26)] = EXCLUSIVE_ARGMAX_WASD_IDLE_MARGIN
+        control, stats = decode_closed_loop_control(
+            logits,
+            [0.0] * 11,
+            decode_kind=EXCLUSIVE_ARGMAX_WASD_V1,
+        )
+        self.assertEqual(control.keys_down, (26,))
+        self.assertEqual(stats["movement_mask"], 0b0001)
+
+    def test_exclusive_argmax_breaks_ties_in_wasd_bit_order(self) -> None:
+        logits = [0.0] * len(BUTTON_TARGET_INDICES)
+        logits[BUTTON_TARGET_INDICES.index(26)] = -0.5
+        logits[BUTTON_TARGET_INDICES.index(4)] = -0.5
+        logits[BUTTON_TARGET_INDICES.index(22)] = -2.0
+        logits[BUTTON_TARGET_INDICES.index(7)] = -2.0
+        control, _stats = decode_closed_loop_control(
+            logits,
+            [0.0] * 11,
+            decode_kind=EXCLUSIVE_ARGMAX_WASD_V1,
+        )
+        self.assertEqual(control.keys_down, (26,))
+
+    def test_exclusive_argmax_mutually_excludes_opposite_keys(self) -> None:
+        control, stats = decode_closed_loop_control(
+            _packed_logits(26, 22, 4),
+            [0.0] * 11,
+            decode_kind=EXCLUSIVE_ARGMAX_WASD_V1,
+        )
+        self.assertEqual(control.keys_down, (26,))
+        self.assertEqual(stats["opposite_conflict"], 0)
+        self.assertEqual(stats["movement_mask"], 0b0001)
+
+    def test_exclusive_decode_rejects_unknown_kind(self) -> None:
+        with self.assertRaises(ValueError):
+            decode_closed_loop_control(
+                _packed_logits(),
+                [0.0] * 11,
+                decode_kind="softmax_wasd_v1",
+            )
+        with self.assertRaises(ValueError):
+            ClosedLoopPlayConfig(
+                episode_seeds=(1,),
+                decode_kind="softmax_wasd_v1",
+            )
+
 
 class ClosedLoopPlayConfigTests(unittest.TestCase):
     def test_requires_non_empty_unique_seeds(self) -> None:
@@ -95,6 +187,7 @@ class ClosedLoopPlayConfigTests(unittest.TestCase):
         encoded = config.to_dict()
         self.assertEqual(encoded["episode_seeds"], [11, 22])
         self.assertEqual(encoded["max_ticks"], 30)
+        self.assertEqual(encoded["decode_kind"], INDEPENDENT_LOGIT_GT_ZERO_V1)
 
 
 @unittest.skipUnless(torch is not None, "PyTorch is not installed")

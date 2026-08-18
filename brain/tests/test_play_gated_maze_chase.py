@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 import unittest
 import sys
@@ -163,6 +164,67 @@ class PlayGatedMazeChaseConfigTests(unittest.TestCase):
         self.assertEqual(windows.to_dict()["dataset"]["episode_horizon"], 240)
         source = dataset_batch_source(windows.dataset)
         self.assertIsInstance(source, MazeChaseBatchSource)
+        self.assertEqual(
+            windows.config_sha256,
+            "8738d61a34216dc6749919171ad60eaec64c7e7cf6edc80932cde7a1ff296e7b",
+        )
+        self.assertNotIn("play_decode_kind", windows.to_dict()["objective"])
+
+    def test_exclusive_argmax_probe_keeps_episode_windows_teacher(self) -> None:
+        windows = load_training_config(
+            ROOT
+            / "configs"
+            / "training"
+            / "dgx-play-maze-chase-distill-episode-windows.toml"
+        )
+        exclusive = load_training_config(
+            ROOT
+            / "configs"
+            / "training"
+            / "dgx-play-maze-chase-distill-exclusive-argmax.toml"
+        )
+        self.assertEqual(exclusive.schema_version, 2)
+        self.assertEqual(exclusive.dataset.kind, "maze_chase")
+        self.assertEqual(exclusive.run.max_optimizer_steps, 32)
+        self.assertEqual(exclusive.dataset.sequence_length, 8)
+        self.assertEqual(exclusive.dataset.episode_horizon, 240)
+        self.assertEqual(
+            exclusive.objective.play_decode_kind,
+            "exclusive_argmax_wasd_v1",
+        )
+        self.assertEqual(
+            windows.objective.play_decode_kind,
+            "independent_logit_gt_zero_v1",
+        )
+        self.assertEqual(exclusive.run.seed, windows.run.seed)
+        self.assertEqual(exclusive.run.model_factory, windows.run.model_factory)
+        self.assertEqual(
+            exclusive.optimization.scheduler_kind,
+            windows.optimization.scheduler_kind,
+        )
+        self.assertNotEqual(windows.config_sha256, exclusive.config_sha256)
+        self.assertEqual(
+            exclusive.to_dict()["objective"]["play_decode_kind"],
+            "exclusive_argmax_wasd_v1",
+        )
+        source = dataset_batch_source(exclusive.dataset)
+        self.assertIsInstance(source, MazeChaseBatchSource)
+        self.assertEqual(
+            source.manifest_sha256,
+            dataset_batch_source(windows.dataset).manifest_sha256,
+        )
+
+        smoke = load_training_config(
+            ROOT / "configs" / "training" / "dgx-smoke.toml"
+        )
+        with self.assertRaisesRegex(ValueError, "only valid for maze_chase"):
+            replace(
+                smoke,
+                objective=replace(
+                    smoke.objective,
+                    play_decode_kind="exclusive_argmax_wasd_v1",
+                ),
+            )
 
     def test_play_gate_floor_is_frozen(self) -> None:
         self.assertEqual(CAMPAIGN_ID, "play_gated_maze_chase_distill_v1")
@@ -192,6 +254,8 @@ class PlayGatedMazeChaseConfigTests(unittest.TestCase):
         self.assertIn("movement_mask_histogram", source)
         self.assertIn("campaign_success", source)
         self.assertIn("sticky_or_idle", source)
+        self.assertIn("play_decode_kind", source)
+        self.assertIn("decode_kind", source)
 
     def test_maze_chase_play_counts_pellets_not_targets(self) -> None:
         class _Cycle:

@@ -9,10 +9,12 @@ value identities, and legal stopping rules are in
 The live campaign is **play-gated maze-chase distill v1**, not RCQ.
 Spark-only compute. Window-32 and later-tick episode-window probes both
 **failed** as idle no-op (9 pellets, mask 0). Do not retry or scale
-either. Campaign success is pellets ≥ 32 with a non-idle non-D-only
-histogram, not merely `play_moved: true`. Spark is idle.
+either. The next probe is named play decode `exclusive_argmax_wasd_v1`
+(exactly one WASD; idle only below margin −4.0) with the episode-windows
+teacher kept. Campaign success is pellets ≥ 32 with a non-idle non-D-only
+histogram, not merely `play_moved: true`.
 
-The completed episode-windows launch (failed; do not relaunch):
+The exclusive-argmax launch:
 
 ```powershell
 & .\brain\scripts\dgx\Invoke-DgxPreflight.ps1 `
@@ -43,8 +45,8 @@ The completed episode-windows launch (failed; do not relaunch):
   -RemoteWorkDir '~/projects/pseudo-brain' `
   -ReleaseId '<release-id>' `
   -ContainerImage 'vllm/vllm-openai:nightly-aarch64' `
-  -ConfigRelativePath 'brain/configs/training/dgx-play-maze-chase-distill-episode-windows.toml' `
-  -RunId 'dgx-play-maze-chase-distill-episode-windows-v1' `
+  -ConfigRelativePath 'brain/configs/training/dgx-play-maze-chase-distill-exclusive-argmax.toml' `
+  -RunId 'dgx-play-maze-chase-distill-exclusive-argmax-v1' `
   -LaunchMode Tmux `
   -AcknowledgeDetached `
   -MinFreeDiskGiB 20 `
@@ -55,7 +57,7 @@ The completed episode-windows launch (failed; do not relaunch):
 
 Scale only if `play-gate.json` shows `campaign_success: true` (pellets ≥ 32
 and a WASD histogram that is not idle / D-only). Episode-windows did not:
-idle no-op, 9 pellets, mask 0. Do not scale. Record:
+idle no-op, 9 pellets, mask 0. Do not scale windows. Record:
 [runs/2026-08-18-play-gated-maze-chase-distill.md](runs/2026-08-18-play-gated-maze-chase-distill.md).
 
 The live `rcq_v2_reference_v2` reference on seed 1702 already failed the

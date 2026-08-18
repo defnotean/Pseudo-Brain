@@ -38,7 +38,24 @@ from ..types import ActionEnvelope, GenericControl, Observation, StepOutcome
 _DEADZONE = 0.05
 # HID usage identifiers in W, A, S, D bit order (matches MovingShapesEnv._KEY_BITS).
 _MOVEMENT_KEYS = (26, 4, 22, 7)
+_MOVEMENT_KEY_SET = frozenset(_MOVEMENT_KEYS)
 _NANOSECONDS_PER_SECOND = 1_000_000_000
+
+# Named play-decode identities. The frozen RCQ / moving-shapes path is
+# independent logit > 0 (four independent sigmoids). Maze-chase Pac-Man
+# play needs exactly one direction; exclusive_argmax_wasd_v1 picks the
+# unique WASD argmax and idles only when even the winner is well below
+# the documented margin. Do not silently retarget historical RCQ decode.
+INDEPENDENT_LOGIT_GT_ZERO_V1 = "independent_logit_gt_zero_v1"
+EXCLUSIVE_ARGMAX_WASD_V1 = "exclusive_argmax_wasd_v1"
+PLAY_DECODE_KINDS = frozenset(
+    {INDEPENDENT_LOGIT_GT_ZERO_V1, EXCLUSIVE_ARGMAX_WASD_V1}
+)
+# Episode-windows play sat at inactive-movement logit max -0.80 with
+# every WASD predicted-positive 0.0. A ranked-but-all-negative head
+# should still press one key. Idle only if the winning logit is strictly
+# below this margin (well below that cluster and typical BCE scale).
+EXCLUSIVE_ARGMAX_WASD_IDLE_MARGIN = -4.0
 
 
 def _plain_int(value: object, *, name: str, minimum: int, maximum: int) -> int:
@@ -71,6 +88,7 @@ class ClosedLoopPlayConfig:
     inference_latency_ns: int = 0
     submit_deadline_slack_ns: int = 0
     expiry_slack_ns: int = 33_333_334
+    decode_kind: str = INDEPENDENT_LOGIT_GT_ZERO_V1
 
     def __post_init__(self) -> None:
         if not isinstance(self.episode_seeds, tuple) or not self.episode_seeds:
@@ -111,10 +129,19 @@ class ClosedLoopPlayConfig:
             minimum=1,
             maximum=2**63 - 1,
         )
+        if (
+            not isinstance(self.decode_kind, str)
+            or self.decode_kind not in PLAY_DECODE_KINDS
+        ):
+            raise ValueError(
+                "decode_kind must be independent_logit_gt_zero_v1 or "
+                "exclusive_argmax_wasd_v1"
+            )
 
     def to_dict(self) -> dict[str, object]:
         return {
             "decision_interval_ns": self.decision_interval_ns,
+            "decode_kind": self.decode_kind,
             "episode_seeds": list(self.episode_seeds),
             "expiry_slack_ns": self.expiry_slack_ns,
             "hazard_count": self.hazard_count,
@@ -196,18 +223,64 @@ def control_audit_stats(control: GenericControl) -> dict[str, int | float]:
     )
 
 
+def _active_buttons_independent(button_logits: Sequence[float]) -> list[int]:
+    return [
+        BUTTON_TARGET_INDICES[index]
+        for index, logit in enumerate(button_logits)
+        if logit > 0.0
+    ]
+
+
+def _active_buttons_exclusive_argmax_wasd(
+    button_logits: Sequence[float],
+) -> list[int]:
+    """Press exactly one WASD key: the unique argmax.
+
+    Non-movement buttons stay on the frozen independent ``logit > 0``
+    rule. WASD ties keep the earliest key in W/A/S/D bit order. Idle
+    only when the winning logit is strictly below
+    ``EXCLUSIVE_ARGMAX_WASD_IDLE_MARGIN``.
+    """
+
+    active = [
+        BUTTON_TARGET_INDICES[index]
+        for index, logit in enumerate(button_logits)
+        if logit > 0.0 and BUTTON_TARGET_INDICES[index] not in _MOVEMENT_KEY_SET
+    ]
+    movement_logits = tuple(
+        float(button_logits[BUTTON_TARGET_INDICES.index(key)])
+        for key in _MOVEMENT_KEYS
+    )
+    winner = 0
+    for index, logit in enumerate(movement_logits):
+        if logit > movement_logits[winner]:
+            winner = index
+    if movement_logits[winner] < EXCLUSIVE_ARGMAX_WASD_IDLE_MARGIN:
+        return active
+    active.append(_MOVEMENT_KEYS[winner])
+    return active
+
+
 def decode_closed_loop_control(
     button_logits: Sequence[float],
     continuous: Sequence[float],
+    *,
+    decode_kind: str = INDEPENDENT_LOGIT_GT_ZERO_V1,
 ) -> tuple[GenericControl, dict[str, int | float]]:
     """Decode the final-exit action into a GenericControl plus audit stats.
 
     ``button_logits`` is the packed 296-entry vector emitted by the model; it
-    is unpacked through ``BUTTON_TARGET_INDICES`` exactly like the open-loop
-    RCQ decode, so a channel activates strictly above a zero logit. Continuous
-    channels never actuate in the closed loop (the moving-shapes world reads
-    only W/A/S/D), but their deadzone violations are counted so the RCQ-v2
+    is unpacked through ``BUTTON_TARGET_INDICES``. The default
+    ``independent_logit_gt_zero_v1`` is the frozen RCQ / moving-shapes rule:
+    a channel activates strictly above a zero logit. Continuous channels
+    never actuate in the closed loop (the moving-shapes world reads only
+    W/A/S/D), but their deadzone violations are counted so the RCQ-v2
     quiescence failure stays visible here.
+
+    ``exclusive_argmax_wasd_v1`` is the maze-chase play decode: exactly one
+    of W/A/S/D, the argmax, with idle only when the winner is below
+    ``EXCLUSIVE_ARGMAX_WASD_IDLE_MARGIN``. Do not pass that kind into the
+    historical RCQ moving-shapes path.
     """
 
     if len(button_logits) != len(BUTTON_TARGET_INDICES):
@@ -216,11 +289,15 @@ def decode_closed_loop_control(
         )
     if len(continuous) != 11:
         raise ValueError("continuous must contain exactly 11 entries")
-    active = [
-        BUTTON_TARGET_INDICES[index]
-        for index, logit in enumerate(button_logits)
-        if logit > 0.0
-    ]
+    if decode_kind == INDEPENDENT_LOGIT_GT_ZERO_V1:
+        active = _active_buttons_independent(button_logits)
+    elif decode_kind == EXCLUSIVE_ARGMAX_WASD_V1:
+        active = _active_buttons_exclusive_argmax_wasd(button_logits)
+    else:
+        raise ValueError(
+            "decode_kind must be independent_logit_gt_zero_v1 or "
+            "exclusive_argmax_wasd_v1"
+        )
     keys = tuple(index for index in active if index < 256)
     mouse_buttons = tuple(index - 256 for index in active if 256 <= index < 264)
     gamepad_buttons = tuple(index - 267 for index in active if index >= 267)
@@ -579,6 +656,7 @@ def run_closed_loop_episode(
                 float(continuous_values[index])
                 for index in CONTINUOUS_TARGET_INDICES
             ],
+            decode_kind=config.decode_kind,
         )
         return control, stats, float(output.value[0].float().cpu())
 
@@ -678,6 +756,10 @@ __all__ = [
     "ClosedLoopPlayConfig",
     "ClosedLoopPlayReport",
     "DecisionTiming",
+    "EXCLUSIVE_ARGMAX_WASD_IDLE_MARGIN",
+    "EXCLUSIVE_ARGMAX_WASD_V1",
+    "INDEPENDENT_LOGIT_GT_ZERO_V1",
+    "PLAY_DECODE_KINDS",
     "control_audit_stats",
     "decode_closed_loop_control",
     "evaluate_closed_loop_play",

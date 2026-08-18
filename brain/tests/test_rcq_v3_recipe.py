@@ -52,11 +52,13 @@ class RecipeFieldConfigurationTests(unittest.TestCase):
         self.assertNotIn("continuous_deadzone_hinge_margin", canonical)
         self.assertNotIn("opposite_key_pair_weight", canonical)
         self.assertNotIn("continuous_output_squash", canonical)
+        self.assertNotIn("play_decode_kind", canonical)
         for path in sorted((BRAIN_ROOT / "configs" / "training").glob("*.toml")):
             if path.stem in {
                 "dgx-rcq-v3-reference-candidate",
                 "dgx-rcq-v3-reference",
                 "dgx-rcq-v3-staging-canary",
+                "dgx-play-maze-chase-distill-exclusive-argmax",
             }:
                 continue
             loaded = load_training_config(path)
@@ -68,6 +70,11 @@ class RecipeFieldConfigurationTests(unittest.TestCase):
             )
             self.assertEqual(loaded.objective.opposite_key_pair_weight, 0.0, path.name)
             self.assertEqual(loaded.objective.continuous_output_squash, "none", path.name)
+            self.assertEqual(
+                loaded.objective.play_decode_kind,
+                "independent_logit_gt_zero_v1",
+                path.name,
+            )
 
     def test_v3_candidate_config_parses_with_its_review_values(self) -> None:
         candidate = load_training_config(

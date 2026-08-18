@@ -230,7 +230,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         if config.dataset.kind == "maze_chase":
             from .play_gate import write_maze_chase_play_gate
 
-            write_maze_chase_play_gate(system.objective.model, run_dir)
+            write_maze_chase_play_gate(
+                system.objective.model,
+                run_dir,
+                decode_kind=config.objective.play_decode_kind,
+            )
         return 0
 
     summary = trainer.run(
@@ -271,7 +275,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     if config.dataset.kind == "maze_chase":
         from .play_gate import write_maze_chase_play_gate
 
-        write_maze_chase_play_gate(system.objective.model, run_dir)
+        write_maze_chase_play_gate(
+            system.objective.model,
+            run_dir,
+            decode_kind=config.objective.play_decode_kind,
+        )
     return 0 if summary.completed or summary.stop_reason == "operational_stop" else 1
 
 

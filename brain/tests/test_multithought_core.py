@@ -65,6 +65,7 @@ class ObjectiveConfigurationTests(unittest.TestCase):
                 "dgx-rcq-v3-reference-candidate",
                 "dgx-rcq-v3-reference",
                 "dgx-rcq-v3-staging-canary",
+                "dgx-play-maze-chase-distill-exclusive-argmax",
             }:
                 continue
             self.assertEqual(

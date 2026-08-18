@@ -35,6 +35,10 @@ OBJECTIVE_OPTIONAL_DEFAULTS: dict[str, object] = {
     "continuous_deadzone_hinge_margin": 0.04,
     "opposite_key_pair_weight": 0.0,
     "continuous_output_squash": "none",
+    # Frozen RCQ / moving-shapes closed-loop decode. Omitted from canonical
+    # JSON at this default so every historical configuration hash stays
+    # byte-identical. exclusive_argmax_wasd_v1 is maze_chase-only.
+    "play_decode_kind": "independent_logit_gt_zero_v1",
 }
 
 # Maze-chase episode-window sampling. Omitted from canonical JSON at 0 so
@@ -248,6 +252,7 @@ class ObjectiveConfig:
     continuous_deadzone_hinge_margin: float = 0.04
     opposite_key_pair_weight: float = 0.0
     continuous_output_squash: str = "none"
+    play_decode_kind: str = "independent_logit_gt_zero_v1"
 
     def __post_init__(self) -> None:
         action_loss_kind = _string(
@@ -385,6 +390,19 @@ class ObjectiveConfig:
                 "objective.continuous_output_squash must be none or deadzone_tanh"
             )
         object.__setattr__(self, "continuous_output_squash", squash)
+        play_decode = _string(
+            self.play_decode_kind,
+            name="objective.play_decode_kind",
+        )
+        if play_decode not in {
+            "independent_logit_gt_zero_v1",
+            "exclusive_argmax_wasd_v1",
+        }:
+            raise ValueError(
+                "objective.play_decode_kind must be independent_logit_gt_zero_v1 "
+                "or exclusive_argmax_wasd_v1"
+            )
+        object.__setattr__(self, "play_decode_kind", play_decode)
 
 
 @dataclass(frozen=True, slots=True)
@@ -666,6 +684,14 @@ class TrainingConfig:
             raise ValueError("training requires explicit artifact-write permission")
         if self.optimization.warmup_steps > self.run.max_optimizer_steps:
             raise ValueError("warmup_steps cannot exceed max_optimizer_steps")
+        if (
+            self.objective.play_decode_kind != "independent_logit_gt_zero_v1"
+            and self.dataset.kind != "maze_chase"
+        ):
+            raise ValueError(
+                "objective.play_decode_kind other than independent_logit_gt_zero_v1 "
+                "is only valid for maze_chase"
+            )
         if (
             self.schema_version == 1
             and self.optimization.scheduler_kind != COSINE_AFTER_WARMUP
