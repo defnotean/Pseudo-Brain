@@ -292,6 +292,7 @@ class LatentLookaheadPlanner(nn.Module):
             self.time_encoder = model.time_encoder
             self.value_head = model.value_per_thought
             self.counterfactual_foresight_head = getattr(model, "counterfactual_foresight_head", None)
+            self.topological_goal_head = getattr(model, "topological_goal_head", None)
         else:
             self.brain_cell = BrainCell(
                 width=width,
@@ -502,6 +503,11 @@ class LatentLookaheadPlanner(nn.Module):
         if getattr(self, "counterfactual_foresight_head", None) is not None:
             cf_preds = self.counterfactual_foresight_head.forward_all_actions(state.thoughts)
 
+        # Check topological goal head if present
+        topo_pred = None
+        if getattr(self, "topological_goal_head", None) is not None:
+            topo_pred = self.topological_goal_head(state.thoughts)
+
         # Compute branch cumulative utilities
         results: list[LookaheadBranchResult] = []
         for b_idx in range(num_branches):
@@ -527,10 +533,11 @@ class LatentLookaheadPlanner(nn.Module):
                 is_pruned = True
                 prune_reason = "dead_end_utility_threshold"
 
+            first_act = candidate_sequences[b_idx][0]
+            a_idx = int(first_act) if isinstance(first_act, (int, DirectionalAction)) else 0
+
             # Apply Counterfactual Foresight branch safety assessment
             if cf_preds is not None:
-                first_act = candidate_sequences[b_idx][0]
-                a_idx = int(first_act) if isinstance(first_act, (int, DirectionalAction)) else 0
                 if a_idx in cf_preds:
                     cf_branch = cf_preds[a_idx]
                     cf_haz = float(cf_branch.hazard_probability[0, 0, 0].item())
@@ -540,6 +547,17 @@ class LatentLookaheadPlanner(nn.Module):
                         prune_reason = "counterfactual_hazard_predicted"
                     if cf_esc < 0.0:
                         u_cumulative += cf_esc * 2.0
+
+            # Apply Topological Goal and Junction routing bonus if not pruned
+            if topo_pred is not None and not is_pruned:
+                # Cardinal action direction vectors: None=(0,0), W=(0,-1), A=(-1,0), S=(0,1), D=(1,0)
+                _ACT_VEC = {0: (0.0, 0.0), 1: (0.0, -1.0), 2: (-1.0, 0.0), 3: (0.0, 1.0), 4: (1.0, 0.0)}
+                vx, vy = _ACT_VEC.get(a_idx, (0.0, 0.0))
+                gx = float(topo_pred.pellet_cluster_vector[0, 0].item())
+                gy = float(topo_pred.pellet_cluster_vector[0, 1].item())
+                goal_alignment = vx * gx + vy * gy
+                j_score = float(topo_pred.junction_exit_logits[0, a_idx].item())
+                u_cumulative += 1.5 * goal_alignment + 0.5 * j_score
 
             # Apply severe penalty if pruned
             if is_pruned:

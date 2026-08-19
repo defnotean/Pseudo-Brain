@@ -24,6 +24,10 @@ from .counterfactual_foresight import (
     ActionConditionedCounterfactualForesightHead,
     CounterfactualBranchOutput,
 )
+from .topological_goal import (
+    TopologicalGoalFieldHead,
+    TopologicalGoalPrediction,
+)
 from .brain_cell import BrainCell, ContinuousTimeBlend, ResidualCrossAttention
 from .sensory import PixelEncoder
 from .spec import ThoughtFieldConfig
@@ -112,6 +116,7 @@ class ModelDiagnostics:
     future_trajectory_predictions: dict[str, Tensor] | None = None
     halting_probabilities: tuple[Tensor, ...] = ()
     counterfactual_predictions: dict[int, CounterfactualBranchOutput] | None = None
+    topological_goal_predictions: TopologicalGoalPrediction | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -269,11 +274,13 @@ class IreneBrainModel(nn.Module):
             self.adaptive_thought_gate = AdaptiveThoughtUpdateGate(width=width)
             self.future_trajectory_head = PredictiveFutureTrajectoryHead(width=width, horizons=(1, 3, 5))
             self.counterfactual_foresight_head = ActionConditionedCounterfactualForesightHead(width=width, horizons=(1, 3, 5))
+            self.topological_goal_head = TopologicalGoalFieldHead(width=width, thoughtlets=self.config.thoughtlets)
             self.halting_controller = AdaptiveHaltingController(width=width, max_cycles=self.config.cognitive_cycles)
         else:
             self.adaptive_thought_gate = None
             self.future_trajectory_head = None
             self.counterfactual_foresight_head = None
+            self.topological_goal_head = None
             self.halting_controller = None
         self._reset_parameters()
 
@@ -611,6 +618,11 @@ class IreneBrainModel(nn.Module):
             if getattr(self, "counterfactual_foresight_head", None) is not None
             else None
         )
+        topo_preds = (
+            self.topological_goal_head(thoughts)
+            if getattr(self, "topological_goal_head", None) is not None
+            else None
+        )
         summaries = thoughts.mean(dim=2)
         normalized = F.normalize(summaries, dim=-1, eps=1e-6)
         similarity = torch.matmul(normalized, normalized.transpose(-1, -2))
@@ -627,6 +639,7 @@ class IreneBrainModel(nn.Module):
             future_trajectory_predictions=future_trajectories,
             halting_probabilities=tuple(halting_probabilities),
             counterfactual_predictions=counterfactual_preds,
+            topological_goal_predictions=topo_preds,
         )
         return ModelOutput(
             action=exits[-1],

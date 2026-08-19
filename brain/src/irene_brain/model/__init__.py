@@ -57,6 +57,10 @@ __all__ = [
     "ThoughtFieldConfig",
     "directional_to_control_vector",
     "generate_directional_candidate_sequences",
+    "ActionConditionedCounterfactualForesightHead",
+    "CounterfactualBranchOutput",
+    "TopologicalGoalFieldHead",
+    "TopologicalGoalPrediction",
 ]
 
 _TORCH_EXPORTS = {
@@ -115,6 +119,16 @@ _ACTION_GROUP_EXPORTS = {
     "StructuredLossOutput",
 }
 
+_COGNITIVE_EXPORTS = {
+    "ActionConditionedCounterfactualForesightHead",
+    "CounterfactualBranchOutput",
+}
+
+_TOPO_EXPORTS = {
+    "TopologicalGoalFieldHead",
+    "TopologicalGoalPrediction",
+}
+
 
 def __getattr__(name: str) -> Any:
     if name in _TORCH_EXPORTS:
@@ -132,5 +146,11 @@ def __getattr__(name: str) -> Any:
     if name in _ACTION_GROUP_EXPORTS:
         action_groups = import_module(f"{__name__}.action_groups")
         return getattr(action_groups, name)
+    if name in _COGNITIVE_EXPORTS:
+        cf = import_module(f"{__name__}.counterfactual_foresight")
+        return getattr(cf, name)
+    if name in _TOPO_EXPORTS:
+        topo = import_module(f"{__name__}.topological_goal")
+        return getattr(topo, name)
     raise AttributeError(name)
 

@@ -34,10 +34,11 @@ class CognitiveLossOutput:
     adaptive_gate_loss: Tensor
     halting_loss: Tensor
     counterfactual_loss: Tensor = None
+    topological_goal_loss: Tensor = None
 
 
 class CognitiveAuxiliaryLoss(nn.Module):
-    """Computes supervised losses for internal thought adaptation, foresight, and counterfactual reasoning."""
+    """Computes supervised losses for internal thought adaptation, foresight, counterfactual reasoning, and topological goal routing."""
 
     def __init__(
         self,
@@ -46,6 +47,7 @@ class CognitiveAuxiliaryLoss(nn.Module):
         gate_surprise_weight: float = 1.0,
         halting_weight: float = 0.5,
         counterfactual_weight: float = 1.0,
+        topological_goal_weight: float = 1.0,
         compute_cost_per_cycle: float = 0.01,
     ) -> None:
         super().__init__()
@@ -53,6 +55,7 @@ class CognitiveAuxiliaryLoss(nn.Module):
         self.gate_surprise_weight = gate_surprise_weight
         self.halting_weight = halting_weight
         self.counterfactual_weight = counterfactual_weight
+        self.topological_goal_weight = topological_goal_weight
         self.compute_cost_per_cycle = compute_cost_per_cycle
 
     def forward(
@@ -66,6 +69,8 @@ class CognitiveAuxiliaryLoss(nn.Module):
         complexity_level: Tensor | None = None,        # [B] in [0, 1] (0 = easy corridor, 1 = danger/dead-end)
         executed_actions: Tensor | None = None,        # [B] long action indices
         actual_collisions: Tensor | None = None,       # [B, 3, 1] float (1 if collision/catch at t+k, 0 otherwise)
+        topological_goal_targets: Tensor | None = None,# [B, 2] normalized vector (dx, dy)
+        topological_exit_targets: Tensor | None = None,# [B] long action indices
     ) -> CognitiveLossOutput:
         """Compute the combined cognitive auxiliary loss.
 
@@ -157,11 +162,28 @@ class CognitiveAuxiliaryLoss(nn.Module):
             if cf_branch_losses:
                 cf_loss = torch.stack(cf_branch_losses).mean()
 
+        # 5. Topological Goal Routing Loss
+        topo_loss = zero
+        topo_preds = getattr(diagnostics, "topological_goal_predictions", None)
+        if topo_preds is not None:
+            topo_parts = []
+            if topological_goal_targets is not None:
+                # Cosine distance loss (1 - cos_sim)
+                pred_vec = topo_preds.pellet_cluster_vector
+                cos_sim = (pred_vec * topological_goal_targets).sum(dim=-1)
+                topo_parts.append((1.0 - cos_sim).mean())
+            if topological_exit_targets is not None:
+                exit_ce = F.cross_entropy(topo_preds.junction_exit_logits, topological_exit_targets)
+                topo_parts.append(exit_ce)
+            if topo_parts:
+                topo_loss = torch.stack(topo_parts).mean()
+
         total = (
             self.future_weight * (future_disp_loss + future_ghost_loss + future_escape_loss)
             + self.gate_surprise_weight * gate_loss
             + self.halting_weight * halt_loss
             + self.counterfactual_weight * cf_loss
+            + self.topological_goal_weight * topo_loss
         )
 
         return CognitiveLossOutput(
@@ -172,6 +194,7 @@ class CognitiveAuxiliaryLoss(nn.Module):
             adaptive_gate_loss=gate_loss,
             halting_loss=halt_loss,
             counterfactual_loss=cf_loss,
+            topological_goal_loss=topo_loss,
         )
 
 

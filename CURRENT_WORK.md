@@ -12,16 +12,16 @@ Pseudo-Brain is one model, not a committee. Shared-weight BrainCell thoughtlets
 keep a persistent internal state, talk sparsely, and can emit an action after
 any internal cycle. The long-term aim is human-speed closed-loop play.
 
-The live milestone is **Action-Conditioned Counterfactual Foresight**
-(`action_conditioned_counterfactual_foresight_v1`). It equips persistent
+The live milestone is **Topological Goal Field & Pellet Cluster Routing**
+(`topological_goal_routing_v1`). It equips persistent
 thoughtlets with candidate action-conditioned multi-horizon displacement ($\Delta \vec{x}(a)$),
-hazard probability ($\hat{c}(a)$), and escape-margin ($\hat{E}(a)$) prediction heads.
-Across **20 held-out evaluation seeds** (2,400 decision steps), counterfactual
-branch evaluation achieved:
-- Total ghost catches: **85** (vs **732** for baseline, an **88.4% reduction**, and vs **279** for unconditioned foresight, a **69.5% reduction**).
-- Mean pellets collected: **5.65** (vs 5.25 for baseline and 5.40 for unconditioned foresight).
-- Adaptive gate plasticity restored with $10\times$ hazard-balanced auxiliary supervision.
-Record: [brain/docs/runs/2026-08-19-action-conditioned-counterfactual-foresight.md](brain/docs/runs/2026-08-19-action-conditioned-counterfactual-foresight.md).
+hazard probability ($\hat{c}(a)$), and topological pellet cluster vector prediction ($\hat{g}_{\text{pellet}}$).
+Across **20 held-out evaluation seeds** (2,400 decision steps), topological
+branch utility integration achieved:
+- Total ghost catches: **83** (vs **727** for baseline, an **88.6% reduction**).
+- Convergence loss: **0.9619** (lowest across all evaluated variants).
+- Dead-end catch elimination and corridor exit disambiguation at multi-branch junctions.
+Record: [brain/docs/runs/2026-08-19-topological-goal-routing.md](brain/docs/runs/2026-08-19-topological-goal-routing.md).
 
 All training, probes, and play evals run on the Spark. This workstation is
 orchestration only (git, docs, DGX wrappers, SSH, hashes).
@@ -36,8 +36,8 @@ campaign.
 |---|---|---|
 | 0 | Source lives in this Git repository and on private GitHub | Done. `defnotean/Pseudo-Brain`, branch `defnotean/pseudo-brain` |
 | 1 | Write operator documentation and freeze tooling | Done |
-| 2 | Freeze implementation source and regenerate the matched-baseline architecture manifest | Done. Live digest `7539b7ed…` (2026-08-19 Action-conditioned counterfactual foresight & cognitive losses). Historical pins unchanged. |
-| 3 | Run local CPU-only tests, including the regenerated manifest identity | Done. 370+ unit tests passed. |
+| 2 | Freeze implementation source and regenerate the matched-baseline architecture manifest | Done. Live digest `7aeaa44e…` (2026-08-19 Topological goal routing & counterfactual foresight). Historical pins unchanged. |
+| 3 | Run local CPU-only tests, including the regenerated manifest identity | Done. 59 test modules passed (678 unit tests). |
 | 4 | Build the create-once, target-blind RCQ-v2 registration and record its SHA-256 | Live v2 `6cc98739c78499a990a4b3480524c48dd49243c1e3c63094977a9a917df49690`. Historical v1 `33f7900c…` preserved. Copy the live digest off-repo. |
 | 5 | DGX preflight and immutable release sync | Done for live release `r20260817t021531z-7a2967ebec60`. Historical v1 release stays unused for training. |
 | 6 | Trusted pretraining pin, then RCQ smoke, then staging canary | Done on pin `adf79ccc…`. Smoke and canary both passed. First v2 pin `2847e786…` is unused. |
@@ -45,7 +45,7 @@ campaign.
 | 8 | Newly named qualification after the invariance capture fix | Done. Live file `registrations/rcq-v2-reference-v2.json`. Do not edit v1. |
 | 9 | Preclaim, independent review, final authorization, one-shot TEST | Blocked. This qualification failed the entry gate. Do not preclaim or open TEST. |
 | — | RCQ-v3 registration ceremony | **Deferred.** Do not run `New-RcqV3Registration.ps1`. |
-| — | Current campaign | Action-Conditioned Counterfactual Foresight. **PASSED** on 20 held-out seeds: **85 total catches** (-88.4% vs baseline 732, -69.5% vs unconditioned foresight 279), **5.65 mean pellets** (highest in suite). |
+| — | Current campaign | Topological Goal Routing & Lookahead Integration. **PASSED** on 20 held-out seeds: **83 total catches** (-88.6% vs baseline 727), **0.9619 training loss** (best in suite). |
 | — | Compute | Spark only. One scientific GPU train at a time on the GB10; many named CPU jobs in parallel on the ARM host. Generic wrappers, never RCQ-v2 start/resume. |
 
 Do not skip ahead. Do not open sealed TEST ranges to "check" labels. Do not
