@@ -1,6 +1,16 @@
 """Canonical lifetime records, deterministic replay, and branch rollouts."""
 
 from .branching import evaluate_branches
+from .curriculum_dataset import (
+    CURRICULUM_SCENARIOS,
+    CurriculumDataset,
+    CurriculumDatasetConfig,
+    CurriculumScenario,
+    CurriculumSequence,
+    CurriculumSequenceDataset,
+    CurriculumTransition,
+    curriculum_dataset_manifest_sha256,
+)
 from .maze_chase_dataset import (
     MazeChaseDatasetConfig,
     MazeChaseSequence,
@@ -38,6 +48,13 @@ from .splits import (
 
 __all__ = [
     "BranchRecord",
+    "CURRICULUM_SCENARIOS",
+    "CurriculumDataset",
+    "CurriculumDatasetConfig",
+    "CurriculumScenario",
+    "CurriculumSequence",
+    "CurriculumSequenceDataset",
+    "CurriculumTransition",
     "DatasetSplit",
     "LifetimeRecord",
     "MazeChaseDatasetConfig",
@@ -61,6 +78,7 @@ __all__ = [
     "SplitLeakage",
     "StepRecord",
     "audit_split_integrity",
+    "curriculum_dataset_manifest_sha256",
     "dataset_manifest_sha256",
     "evaluate_branches",
     "maze_chase_dataset_manifest_sha256",

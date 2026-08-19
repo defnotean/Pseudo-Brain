@@ -10,6 +10,9 @@ from struct import pack
 from typing import Iterator
 
 from ..data import (
+    CurriculumDatasetConfig,
+    CurriculumScenario,
+    CurriculumSequenceDataset,
     DatasetSplit,
     MazeChaseDatasetConfig,
     MazeChaseSequenceDataset,
@@ -63,6 +66,20 @@ def dataset_batch_source(config: DatasetConfig):
                 discount=config.discount,
                 episode_horizon=config.episode_horizon,
                 window_sampling=config.window_sampling,
+            )
+        )
+    if config.kind in {"curriculum", "maze_chase_curriculum"}:
+        return CurriculumBatchSource(
+            CurriculumBatchConfig(
+                train_sequences=config.train_sequences,
+                validation_sequences=config.validation_sequences,
+                test_sequences=config.test_sequences,
+                sequence_length=config.sequence_length,
+                burn_in_steps=config.burn_in_steps,
+                seed_offset=config.seed_offset,
+                scenario=config.curriculum_scenario,
+                tick_period_ns=config.tick_period_ns,
+                discount=config.discount,
             )
         )
     raise ValueError(f"unsupported dataset.kind: {config.kind}")
@@ -410,6 +427,172 @@ class MazeChaseBatchSource:
                 if config.episode_horizon > 0
                 else "maze_chase_split_namespaces"
             ),
+            "control_layout": CONTROL_LAYOUT_ID,
+            "input_boundary": "ModelObservation-v1",
+            "burn_in_steps": config.burn_in_steps,
+            "splits": {
+                split.value: dataset.manifest_sha256
+                for split, dataset in sorted(
+                    self._datasets.items(), key=lambda item: item[0].value
+                )
+            },
+        }
+        encoded = json.dumps(
+            manifest,
+            allow_nan=False,
+            ensure_ascii=True,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("ascii")
+        self._manifest_sha256 = sha256(b"IRTRAINBATCH\x01" + encoded).hexdigest()
+
+    @property
+    def manifest_sha256(self) -> str:
+        return self._manifest_sha256
+
+    @staticmethod
+    def _split(value: str) -> DatasetSplit:
+        try:
+            return DatasetSplit(value)
+        except (TypeError, ValueError) as error:
+            raise ValueError("split must be train, validation, or test") from error
+
+    def batches_per_epoch(self, *, split: str, batch_size: int) -> int:
+        if type(batch_size) is not int or batch_size < 1:
+            raise ValueError("batch_size must be a positive integer")
+        dataset = self._datasets[self._split(split)]
+        return ceil(len(dataset) / batch_size)
+
+    def iter_batches(
+        self,
+        *,
+        split: str,
+        epoch: int,
+        start_batch: int,
+        batch_size: int,
+        max_batches: int | None = None,
+    ) -> Iterator[TrajectoryBatch]:
+        partition = self._split(split)
+        if type(epoch) is not int or epoch < 0:
+            raise ValueError("epoch must be a nonnegative integer")
+        if type(start_batch) is not int or start_batch < 0:
+            raise ValueError("start_batch must be a nonnegative integer")
+        if type(batch_size) is not int or batch_size < 1:
+            raise ValueError("batch_size must be a positive integer")
+        if max_batches is not None and (
+            type(max_batches) is not int or max_batches < 1
+        ):
+            raise ValueError("max_batches must be a positive integer or None")
+
+        dataset = self._datasets[partition]
+        total_batches = self.batches_per_epoch(split=split, batch_size=batch_size)
+        if start_batch > total_batches:
+            raise ValueError("start_batch exceeds the number of batches")
+        indices = dataset.epoch_indices(
+            epoch=epoch,
+            shuffle=partition is DatasetSplit.TRAIN,
+        )
+        emitted = 0
+        for batch_index in range(start_batch, total_batches):
+            if max_batches is not None and emitted >= max_batches:
+                break
+            start = batch_index * batch_size
+            selected = indices[start : start + batch_size]
+            yield TrajectoryBatch(
+                split=partition.value,
+                burn_in_steps=self.config.burn_in_steps,
+                sequences=tuple(dataset[index] for index in selected),
+            )
+            emitted += 1
+
+
+@dataclass(frozen=True, slots=True)
+class CurriculumBatchConfig:
+    """Split counts, sequence length, and scenario choice for :class:`CurriculumBatchSource`."""
+
+    train_sequences: int = 8_192
+    validation_sequences: int = 256
+    test_sequences: int = 256
+    sequence_length: int = 32
+    burn_in_steps: int = 1
+    seed_offset: int = 0
+    scenario: str = "mixed"
+    ghost_count: int = 3
+    ghost_period: int = 2
+    player_period: int = 1
+    extra_loops: int = 16
+    ghost_rule: str = "direct"
+    ghost_elroy: bool = False
+    input_delay_ticks: int = 0
+    sticky_direction: bool = False
+    tick_period_ns: int = MazeChaseEnv.DEFAULT_TICK_PERIOD_NS
+    discount: float = 0.99
+
+    def __post_init__(self) -> None:
+        for value, name in (
+            (self.train_sequences, "curriculum.train_sequences"),
+            (self.validation_sequences, "curriculum.validation_sequences"),
+            (self.test_sequences, "curriculum.test_sequences"),
+            (self.sequence_length, "curriculum.sequence_length"),
+            (self.burn_in_steps, "curriculum.burn_in_steps"),
+            (self.seed_offset, "curriculum.seed_offset"),
+            (self.ghost_count, "curriculum.ghost_count"),
+            (self.ghost_period, "curriculum.ghost_period"),
+            (self.player_period, "curriculum.player_period"),
+            (self.extra_loops, "curriculum.extra_loops"),
+            (self.input_delay_ticks, "curriculum.input_delay_ticks"),
+            (self.tick_period_ns, "curriculum.tick_period_ns"),
+        ):
+            if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                raise ValueError(f"{name} must be a nonnegative integer")
+        if self.train_sequences < 1 or self.validation_sequences < 1 or self.test_sequences < 1:
+            raise ValueError("sequence counts must be positive")
+        if self.sequence_length < 2:
+            raise ValueError("sequence_length must be at least 2")
+        if self.burn_in_steps >= self.sequence_length:
+            raise ValueError("burn_in_steps must be smaller than sequence_length")
+        if not (0.0 <= self.discount <= 1.0):
+            raise ValueError("discount must be in [0.0, 1.0]")
+
+
+class CurriculumBatchSource:
+    """Lazy multi-scenario sensorimotor recovery trajectories with deterministic epochs."""
+
+    def __init__(self, config: CurriculumBatchConfig) -> None:
+        if not isinstance(config, CurriculumBatchConfig):
+            raise ValueError("config must be a CurriculumBatchConfig")
+        self.config = config
+        counts = {
+            DatasetSplit.TRAIN: config.train_sequences,
+            DatasetSplit.VALIDATION: config.validation_sequences,
+            DatasetSplit.TEST: config.test_sequences,
+        }
+        self._datasets = {
+            split: CurriculumSequenceDataset(
+                CurriculumDatasetConfig(
+                    split=split,
+                    scenario=config.scenario,
+                    sequence_count=count,
+                    sequence_length=config.sequence_length,
+                    seed_offset=config.seed_offset,
+                    ghost_count=config.ghost_count,
+                    ghost_period=config.ghost_period,
+                    player_period=config.player_period,
+                    extra_loops=config.extra_loops,
+                    ghost_rule=config.ghost_rule,
+                    ghost_elroy=config.ghost_elroy,
+                    input_delay_ticks=config.input_delay_ticks,
+                    sticky_direction=config.sticky_direction,
+                    tick_period_ns=config.tick_period_ns,
+                    discount=config.discount,
+                )
+            )
+            for split, count in counts.items()
+        }
+        manifest = {
+            "schema_version": 1,
+            "batch_source": "curriculum_recovery_split_namespaces",
+            "scenario": config.scenario,
             "control_layout": CONTROL_LAYOUT_ID,
             "input_boundary": "ModelObservation-v1",
             "burn_in_steps": config.burn_in_steps,
@@ -900,6 +1083,8 @@ __all__ = [
     "CONTINUOUS_TARGET_INDICES",
     "CONTROL_LAYOUT_ID",
     "CONTROL_VECTOR_SIZE",
+    "CurriculumBatchConfig",
+    "CurriculumBatchSource",
     "GAMEPAD_AXIS_SLICE",
     "GAMEPAD_BUTTON_SLICE",
     "KEYBOARD_SLICE",

@@ -48,8 +48,9 @@ _NANOSECONDS_PER_SECOND = 1_000_000_000
 # the documented margin. Do not silently retarget historical RCQ decode.
 INDEPENDENT_LOGIT_GT_ZERO_V1 = "independent_logit_gt_zero_v1"
 EXCLUSIVE_ARGMAX_WASD_V1 = "exclusive_argmax_wasd_v1"
+STRUCTURED_ACTION_GROUP_V1 = "structured_action_group_v1"
 PLAY_DECODE_KINDS = frozenset(
-    {INDEPENDENT_LOGIT_GT_ZERO_V1, EXCLUSIVE_ARGMAX_WASD_V1}
+    {INDEPENDENT_LOGIT_GT_ZERO_V1, EXCLUSIVE_ARGMAX_WASD_V1, STRUCTURED_ACTION_GROUP_V1}
 )
 # Episode-windows play sat at inactive-movement logit max -0.80 with
 # every WASD predicted-positive 0.0. A ranked-but-all-negative head
@@ -134,8 +135,7 @@ class ClosedLoopPlayConfig:
             or self.decode_kind not in PLAY_DECODE_KINDS
         ):
             raise ValueError(
-                "decode_kind must be independent_logit_gt_zero_v1 or "
-                "exclusive_argmax_wasd_v1"
+                f"decode_kind must be one of {sorted(PLAY_DECODE_KINDS)}"
             )
 
     def to_dict(self) -> dict[str, object]:
@@ -291,12 +291,12 @@ def decode_closed_loop_control(
         raise ValueError("continuous must contain exactly 11 entries")
     if decode_kind == INDEPENDENT_LOGIT_GT_ZERO_V1:
         active = _active_buttons_independent(button_logits)
-    elif decode_kind == EXCLUSIVE_ARGMAX_WASD_V1:
+    elif decode_kind in (EXCLUSIVE_ARGMAX_WASD_V1, STRUCTURED_ACTION_GROUP_V1):
         active = _active_buttons_exclusive_argmax_wasd(button_logits)
     else:
         raise ValueError(
-            "decode_kind must be independent_logit_gt_zero_v1 or "
-            "exclusive_argmax_wasd_v1"
+            "decode_kind must be independent_logit_gt_zero_v1, "
+            "exclusive_argmax_wasd_v1, or structured_action_group_v1"
         )
     keys = tuple(index for index in active if index < 256)
     mouse_buttons = tuple(index - 256 for index in active if 256 <= index < 264)

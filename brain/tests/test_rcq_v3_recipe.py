@@ -71,6 +71,7 @@ class RecipeFieldConfigurationTests(unittest.TestCase):
                 "dgx-play-maze-chase-distill-turn-weighted-128",
                 "dgx-play-maze-chase-distill-play-peak",
                 "dgx-play-maze-chase-distill-ghost-hit",
+                "dgx-play-maze-chase-dagger-curriculum",
             }:
                 continue
             loaded = load_training_config(path)

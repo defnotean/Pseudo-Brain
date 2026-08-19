@@ -171,7 +171,7 @@ function Resolve-DgxSshTarget {
     }
 
     $ssh = Get-DgxApplication -Name 'ssh'
-    $sshConfig = & $ssh -G $SshTarget 2>$null
+    $sshConfig = & $ssh -T -G $SshTarget 2>$null
     if ($LASTEXITCODE -ne 0 -or $null -eq $sshConfig) {
         throw "OpenSSH could not resolve configuration for target '$SshTarget'."
     }
@@ -213,13 +213,19 @@ function Resolve-DgxSshTarget {
             '-T',
             '-o', 'BatchMode=yes',
             '-o', 'StrictHostKeyChecking=yes',
-            '-o', 'ConnectTimeout=10',
+            '-o', 'ConnectTimeout=30',
             '-o', 'LogLevel=ERROR'
         )
-        $probeOutput = @(
-            & $ssh @probeArguments $SshTarget `
-                '/usr/bin/env -i PATH=/usr/sbin:/usr/bin /usr/bin/uname -m' 2>$null
-        )
+        $prevEAP = $ErrorActionPreference
+        try {
+            $ErrorActionPreference = 'Continue'
+            $probeOutput = @(
+                & $ssh @probeArguments $SshTarget `
+                    '/usr/bin/env -i PATH=/usr/sbin:/usr/bin /usr/bin/uname -m' 2>$null
+            )
+        } finally {
+            $ErrorActionPreference = $prevEAP
+        }
         $remoteArchitecture = if ($probeOutput.Count -eq 1) {
             ([string]$probeOutput[0]).Trim().ToLowerInvariant()
         } else {

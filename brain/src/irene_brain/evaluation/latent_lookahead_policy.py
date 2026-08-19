@@ -1,0 +1,199 @@
+"""Closed-loop lookahead planning policy for Pseudo-Brain evaluation.
+
+Wraps an IreneBrainModel with LatentLookaheadPlanner to evaluate candidate action
+sequences forward in latent thoughtlet space at each decision step, selecting
+actions that maximize cumulative branch utility while avoiding predicted collision
+hazards.
+"""
+
+from __future__ import annotations
+
+from typing import Mapping, Sequence
+
+import torch
+from torch import Tensor
+
+from ..model.intent import DirectionalAction
+from ..model.lookahead_planner import (
+    LatentLookaheadPlanner,
+    LookaheadPlanResult,
+    directional_to_control_vector,
+)
+from ..model.torch_model import BrainState, IreneBrainModel
+from ..training.batches import control_to_vector
+from ..training.objective import _rgb_tensor, deterministic_eval_thought_noise
+from ..types import GenericControl, HidKey, Observation
+from .closed_loop_play import control_audit_stats
+
+
+# HID usage identifiers for W, A, S, D
+_KEY_W = int(HidKey.W)  # 26
+_KEY_A = int(HidKey.A)  # 4
+_KEY_S = int(HidKey.S)  # 22
+_KEY_D = int(HidKey.D)  # 7
+
+_KEY_FOR_DIRECTIONAL_ACTION = {
+    DirectionalAction.NONE: (),
+    DirectionalAction.W: (_KEY_W,),
+    DirectionalAction.A: (_KEY_A,),
+    DirectionalAction.S: (_KEY_S,),
+    DirectionalAction.D: (_KEY_D,),
+}
+
+
+class LatentLookaheadPolicy:
+    """Zero-cheating closed-loop evaluation policy powered by latent lookahead planning.
+
+    Adheres to the standard Irene evaluation policy contract:
+    - ``identity`` — stable dotted string identifier.
+    - ``uses_privileged_state`` — False (all planning is internal to latent thoughts).
+    - ``reset(episode_seed)`` — reseeds model state and planner state deterministically.
+    - ``act(observation)`` — returns the planned :class:`GenericControl`.
+    - ``decide(observation, elapsed_seconds)`` — returns (control, audit_stats, value).
+    """
+
+    identity = "model.latent_lookahead.v1"
+    uses_privileged_state = False
+
+    def __init__(
+        self,
+        model: IreneBrainModel,
+        *,
+        planner: LatentLookaheadPlanner | None = None,
+        horizon: int = 3,
+        gamma: float = 0.95,
+        hazard_weight: float = 5.0,
+        hazard_prune_threshold: float = 0.5,
+        dead_end_threshold: float = -10.0,
+        device: torch.device | str = "cpu",
+        dtype: torch.dtype = torch.float32,
+    ) -> None:
+        self.model = model
+        self.device = torch.device(device)
+        self.dtype = dtype
+        self.model.eval()
+
+        if planner is not None:
+            self.planner = planner
+        else:
+            self.planner = LatentLookaheadPlanner(
+                model=model,
+                horizon=horizon,
+                gamma=gamma,
+                hazard_weight=hazard_weight,
+                hazard_prune_threshold=hazard_prune_threshold,
+                dead_end_threshold=dead_end_threshold,
+            )
+
+        self._state: BrainState | None = None
+        self._thought_noise: Tensor | None = None
+        self._last_plan: LookaheadPlanResult | None = None
+        self._plan_history: list[LookaheadPlanResult] = []
+        self._decision_count = 0
+
+    @property
+    def last_plan(self) -> LookaheadPlanResult | None:
+        """The most recent LookaheadPlanResult produced by the planner."""
+        return self._last_plan
+
+    @property
+    def plan_history(self) -> tuple[LookaheadPlanResult, ...]:
+        """Chronological tuple of all LookaheadPlanResult records in this episode."""
+        return tuple(self._plan_history)
+
+    def reset(self, episode_seed: int) -> None:
+        """Reset internal recurrent state deterministically for a new episode."""
+        if isinstance(episode_seed, bool) or not isinstance(episode_seed, int):
+            raise TypeError("episode_seed must be an integer")
+
+        self._thought_noise = deterministic_eval_thought_noise(
+            thoughtlets=self.model.config.thoughtlets,
+            width=self.model.config.core_width,
+            batch_size=1,
+            device=self.device,
+        ).to(dtype=self.dtype)
+
+        self._state = self.model.initial_state(
+            1,
+            device=self.device,
+            dtype=self.dtype,
+            thought_noise=self._thought_noise,
+        )
+        self._last_plan = None
+        self._plan_history.clear()
+        self._decision_count = 0
+
+    def decide(
+        self,
+        observation: Observation,
+        elapsed_seconds: float = 1.0 / 60.0,
+    ) -> tuple[GenericControl, Mapping[str, int | float], float | None]:
+        """Compute the next control via latent lookahead planning with full audit stats."""
+        if self._state is None:
+            self.reset(0)
+
+        resolution = getattr(self.model, "input_resolution", (32, 32))
+        pixels = _rgb_tensor(
+            (observation.rgb,),
+            device=self.device,
+            resolution=resolution,
+        ).to(dtype=self.dtype)
+
+        prev_vector = torch.tensor(
+            [control_to_vector(observation.previous_control)],
+            dtype=self.dtype,
+            device=self.device,
+        )
+        elapsed_tensor = torch.tensor(
+            [elapsed_seconds],
+            dtype=self.dtype,
+            device=self.device,
+        )
+
+        with torch.no_grad():
+            # Ingest observation to produce latest sensory features
+            sensors = self.model.pixel_encoder(pixels)
+
+            # Evaluate lookahead planner across candidate latent trajectories
+            plan_result = self.planner.plan(
+                state=self._state,
+                sensors=sensors,
+                elapsed_seconds=elapsed_seconds,
+            )
+
+            # Advance model state using the selected action
+            action_vector = plan_result.best_action_control.unsqueeze(0)
+            model_out = self.model(
+                pixels,
+                action_vector,
+                elapsed_tensor,
+                self._state,
+                thought_noise=self._thought_noise,
+            )
+            self._state = model_out.next_state.detach()
+
+        self._last_plan = plan_result
+        self._plan_history.append(plan_result)
+        self._decision_count += 1
+
+        keys = _KEY_FOR_DIRECTIONAL_ACTION.get(plan_result.best_action, ())
+        control = GenericControl(keys_down=keys)
+
+        stats = dict(control_audit_stats(control))
+        stats["lookahead_utility"] = plan_result.best_branch.cumulative_utility
+        stats["lookahead_pruned_count"] = plan_result.pruned_count
+        stats["lookahead_best_reward"] = plan_result.best_branch.discounted_reward_sum
+        stats["lookahead_best_danger"] = plan_result.best_branch.discounted_danger_sum
+
+        terminal_val = plan_result.best_branch.terminal_value
+        return control, stats, terminal_val
+
+    def act(self, observation: Observation) -> GenericControl:
+        """Standard policy act interface."""
+        control, _, _ = self.decide(observation, elapsed_seconds=1.0 / 60.0)
+        return control
+
+
+__all__ = [
+    "LatentLookaheadPolicy",
+]

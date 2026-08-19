@@ -1,0 +1,79 @@
+# Play-gated maze-chase distill: Multi-Scenario Sensorimotor Recovery Curriculum & DAgger.
+# Trains on 262,144 balanced recovery transitions across all five scenarios:
+# 1. Wall Unsticking (90° and 180° turns from corners/dead-ends)
+# 2. Junction Decisions (branch choices at crossroads)
+# 3. Threat Evasion (repulsion from approaching ghosts)
+# 4. Motor Babbling (self-identification exploratory keypresses)
+# 5. Standard Maze Navigation
+schema_version = 2
+
+[run]
+name = "play-gated-maze-chase-dagger-curriculum"
+seed = 20260819
+model_factory = "irene_brain.training.factory:build_thesis_model"
+max_optimizer_steps = 128
+
+[dataset]
+kind = "curriculum"
+curriculum_scenario = "mixed"
+train_sequences = 8192
+validation_sequences = 256
+test_sequences = 256
+sequence_length = 32
+burn_in_steps = 2
+seed_offset = 0
+hazard_count = 3
+tick_period_ns = 16666667
+discount = 0.99
+
+[optimization]
+batch_size = 4
+gradient_accumulation_steps = 8
+learning_rate = 0.0002
+weight_decay = 0.01
+max_gradient_norm = 1.0
+warmup_steps = 8
+scheduler_kind = "cosine_after_warmup"
+
+[objective]
+action_loss_kind = "exclusive_wasd_softmax_turn_weighted_v1"
+button_support_control_indices = [4, 7, 22, 26]
+button_support_weight = 0.8
+button_background_weight = 0.2
+button_background_tail_mix = 0.9
+button_background_tail_temperature = 0.1
+continuous_action_weight = 0.25
+action_weight = 1.0
+value_weight = 0.1
+world_weight = 0.1
+diversity_weight = 0.05
+play_decode_kind = "exclusive_argmax_wasd_v1"
+
+[precision]
+device = "cuda"
+mode = "bfloat16"
+allow_tf32 = true
+
+[determinism]
+enabled = true
+num_workers = 0
+compile_model = false
+
+[logging]
+log_every_steps = 8
+evaluate_every_steps = 16
+validation_batches = 4
+checkpoint_every_steps = 16
+keep_last_checkpoints = 8
+play_eval_every_steps = 16
+play_early_stop_kind = "play_peak_v1"
+
+[resources]
+allow_gpu = true
+allow_capture = false
+allow_hid_output = false
+allow_background_threads = false
+allow_network = false
+allow_subprocess = false
+write_artifacts = true
+cpu_threads = 8

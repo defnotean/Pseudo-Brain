@@ -51,6 +51,7 @@ OBJECTIVE_OPTIONAL_DEFAULTS: dict[str, object] = {
 DATASET_OPTIONAL_DEFAULTS: dict[str, object] = {
     "episode_horizon": 0,
     "window_sampling": "uniform",
+    "curriculum_scenario": "mixed",
 }
 
 # Play scoring during training. Omitted from canonical JSON at these defaults
@@ -152,16 +153,19 @@ class DatasetConfig:
     seed_offset: int
     hazard_count: int
     tick_period_ns: int
-    discount: float
+    discount: float = 0.99
     episode_horizon: int = 0
     window_sampling: str = "uniform"
+    curriculum_scenario: str = "mixed"
 
     def __post_init__(self) -> None:
         kind = _string(self.kind, name="dataset.kind")
-        if kind not in {"moving_shapes", "maze_chase"}:
+        if kind not in {"moving_shapes", "maze_chase", "curriculum", "maze_chase_curriculum"}:
             raise ValueError(
-                "dataset.kind currently supports only moving_shapes or maze_chase"
+                "dataset.kind currently supports only moving_shapes, maze_chase, or curriculum"
             )
+        scenario = _string(self.curriculum_scenario, name="dataset.curriculum_scenario")
+        object.__setattr__(self, "curriculum_scenario", scenario)
         object.__setattr__(self, "kind", kind)
         _integer(self.train_sequences, name="dataset.train_sequences", minimum=1)
         _integer(
@@ -770,16 +774,16 @@ class TrainingConfig:
             raise ValueError("warmup_steps cannot exceed max_optimizer_steps")
         if (
             self.objective.play_decode_kind != "independent_logit_gt_zero_v1"
-            and self.dataset.kind != "maze_chase"
+            and self.dataset.kind not in {"maze_chase", "curriculum", "maze_chase_curriculum"}
         ):
             raise ValueError(
                 "objective.play_decode_kind other than independent_logit_gt_zero_v1 "
-                "is only valid for maze_chase"
+                "is only valid for maze_chase or curriculum"
             )
         if self.logging.play_eval_every_steps > 0:
-            if self.dataset.kind != "maze_chase":
+            if self.dataset.kind not in {"maze_chase", "curriculum", "maze_chase_curriculum"}:
                 raise ValueError(
-                    "logging.play_eval_every_steps is only valid for maze_chase"
+                    "logging.play_eval_every_steps is only valid for maze_chase or curriculum"
                 )
             if self.schema_version == 3:
                 raise ValueError(
@@ -793,10 +797,10 @@ class TrainingConfig:
             "exclusive_wasd_softmax_v1",
             "exclusive_wasd_softmax_turn_weighted_v1",
         }:
-            if self.dataset.kind != "maze_chase":
+            if self.dataset.kind not in {"maze_chase", "curriculum", "maze_chase_curriculum"}:
                 raise ValueError(
-                    "objective.action_loss_kind exclusive WASD softmax "
-                    "is only valid for maze_chase"
+                    f"objective.action_loss_kind {self.objective.action_loss_kind} "
+                    "is only valid for maze_chase or curriculum"
                 )
             if self.objective.play_decode_kind != "exclusive_argmax_wasd_v1":
                 raise ValueError(
