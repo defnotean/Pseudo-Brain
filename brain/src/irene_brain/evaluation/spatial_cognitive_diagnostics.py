@@ -649,7 +649,10 @@ def run_cognitive_depth_ablation(
 
     for cycles in cycles_list:
         scaled_config = replace(base_config, cognitive_cycles=cycles)
-        scaled_model = IreneBrainModel(scaled_config)
+        scaled_model = IreneBrainModel(
+            scaled_config,
+            enable_adaptive_cognition=getattr(model, "enable_adaptive_cognition", False),
+        )
         scaled_model.load_state_dict(model.state_dict(), strict=False)
         scaled_model.eval()
 

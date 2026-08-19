@@ -120,7 +120,7 @@ def main() -> int:
         cognitive_cycles=2,
         actuator=replace(base_config.actuator, continuous_squash="deadzone_tanh"),
     )
-    model = IreneBrainModel(model_config)
+    model = IreneBrainModel(model_config, enable_adaptive_cognition=True)
 
     # 2. Setup Training System
     training_config = TrainingConfig(

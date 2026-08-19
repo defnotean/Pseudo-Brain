@@ -15,6 +15,11 @@ from torch import Tensor, nn
 from torch.nn import functional as F
 
 from .actuator import ActionPrediction, DirectActuatorReadout
+from .adaptive_thought_gate import (
+    AdaptiveHaltingController,
+    AdaptiveThoughtUpdateGate,
+    PredictiveFutureTrajectoryHead,
+)
 from .brain_cell import BrainCell, ContinuousTimeBlend, ResidualCrossAttention
 from .sensory import PixelEncoder
 from .spec import ThoughtFieldConfig
@@ -99,6 +104,9 @@ class ModelDiagnostics:
     applied_expire_probability: Tensor
     cycles_completed: int
     uses_pooled_integration_token: bool = False
+    thought_update_gates: Tensor | None = None
+    future_trajectory_predictions: dict[str, Tensor] | None = None
+    halting_probabilities: tuple[Tensor, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -176,9 +184,11 @@ class IreneBrainModel(nn.Module):
         *,
         input_resolution: tuple[int, int] = (32, 32),
         plan_steps: int = 3,
+        enable_adaptive_cognition: bool = False,
     ) -> None:
         super().__init__()
         self.config = config if config is not None else ThoughtFieldConfig.smoke()
+        self.enable_adaptive_cognition = enable_adaptive_cognition
         if (
             not isinstance(input_resolution, tuple)
             or len(input_resolution) != 2
@@ -250,6 +260,14 @@ class IreneBrainModel(nn.Module):
             actuator_queries=self.config.actuator.total_queries,
         )
         self.value_per_thought = nn.Linear(width, 1)
+        if enable_adaptive_cognition:
+            self.adaptive_thought_gate = AdaptiveThoughtUpdateGate(width=width)
+            self.future_trajectory_head = PredictiveFutureTrajectoryHead(width=width, horizons=(1, 3, 5))
+            self.halting_controller = AdaptiveHaltingController(width=width, max_cycles=self.config.cognitive_cycles)
+        else:
+            self.adaptive_thought_gate = None
+            self.future_trajectory_head = None
+            self.halting_controller = None
         self._reset_parameters()
 
     def _reset_parameters(self) -> None:
@@ -427,13 +445,26 @@ class IreneBrainModel(nn.Module):
             belief=belief,
             thought_noise=thought_noise,
         )
-        lifecycle_logits = self.thought_predictions.lifecycle(thoughts.mean(dim=2))
-        expire_probability = torch.softmax(lifecycle_logits, dim=-1)[..., 2:3]
-        keep = 1.0 - expire_probability
-        refreshed = keep.unsqueeze(-1) * thoughts + (1.0 - keep.unsqueeze(-1)) * seeds
-        elapsed = elapsed_seconds.expand(batch, thoughtlets)
-        ages = torch.where(keep.squeeze(-1) >= 0.5, thought_age_seconds + elapsed, elapsed)
-        return refreshed, ages, expire_probability.squeeze(-1)
+        if self.adaptive_thought_gate is not None:
+            refreshed, alphas = self.adaptive_thought_gate(
+                thoughts=thoughts,
+                seeds=seeds,
+                sensors=sensors,
+                belief=belief,
+            )
+            lifecycle_logits = self.thought_predictions.lifecycle(thoughts.mean(dim=2))
+            legacy_expire_prob = torch.softmax(lifecycle_logits, dim=-1)[..., 2]
+            elapsed = elapsed_seconds.expand(batch, thoughtlets)
+            ages = torch.where(alphas < 0.5, thought_age_seconds + elapsed, elapsed)
+            return refreshed, ages, legacy_expire_prob
+        else:
+            lifecycle_logits = self.thought_predictions.lifecycle(thoughts.mean(dim=2))
+            expire_probability = torch.softmax(lifecycle_logits, dim=-1)[..., 2:3]
+            keep = 1.0 - expire_probability
+            refreshed = keep.unsqueeze(-1) * thoughts + (1.0 - keep.unsqueeze(-1)) * seeds
+            elapsed = elapsed_seconds.expand(batch, thoughtlets)
+            ages = torch.where(keep.squeeze(-1) >= 0.5, thought_age_seconds + elapsed, elapsed)
+            return refreshed, ages, expire_probability.squeeze(-1)
 
     def forward(
         self,
@@ -448,29 +479,20 @@ class IreneBrainModel(nn.Module):
     ) -> ModelOutput:
         if pixels.ndim != 4:
             raise ValueError("pixels must have shape [batch, 3, height, width]")
-        batch = pixels.shape[0]
-        if tuple(pixels.shape[-2:]) != self.input_resolution:
-            raise ValueError(f"pixels must use configured resolution {self.input_resolution}")
-        if tuple(previous_control.shape) != (batch, self.actuator_queries):
-            raise ValueError(
-                f"previous_control must have shape {(batch, self.actuator_queries)}"
-            )
-        if not pixels.is_floating_point() or not previous_control.is_floating_point():
-            raise ValueError("pixels and previous_control must be floating-point tensors")
-        if previous_control.device != pixels.device:
-            raise ValueError("pixels and previous_control must be on the same device")
-        if previous_control.dtype != pixels.dtype:
-            raise ValueError("pixels and previous_control must use the same dtype")
-        elapsed = self._normalize_elapsed(elapsed_seconds, batch=batch, pixels=pixels)
+        batch, channels, height, width = pixels.shape
+        if (channels, height, width) != (3, *self.input_resolution):
+            raise ValueError(f"pixels must have shape [batch, 3, {self.input_resolution[0]}, {self.input_resolution[1]}]")
+        if previous_control.ndim != 2 or tuple(previous_control.shape) != (
+            batch,
+            self.config.actuator.total_queries,
+        ):
+            raise ValueError(f"previous_control must have shape [batch, {self.config.actuator.total_queries}]")
 
         cycles = self.config.cognitive_cycles if max_cycles is None else max_cycles
-        if isinstance(cycles, bool) or not isinstance(cycles, int):
-            raise ValueError("max_cycles must be an integer")
-        if cycles < 0 or cycles > self.config.cognitive_cycles:
-            raise ValueError(
-                f"max_cycles must be between 0 and {self.config.cognitive_cycles}"
-            )
+        if type(cycles) is not int or cycles < 1:
+            raise ValueError("cycles must be a positive integer")
 
+        elapsed = self._normalize_elapsed(elapsed_seconds, batch=batch, pixels=pixels)
         if state is None:
             state = self.initial_state(
                 batch,
@@ -533,6 +555,7 @@ class IreneBrainModel(nn.Module):
         ]
         routing_indices: list[Tensor] = []
         routing_weights: list[Tensor] = []
+        halting_probabilities: list[Tensor] = []
         for cycle in range(cycles):
             allow_routing, allow_workspace_writes = self._communication_policy(cycle)
             belief, working_memory, thoughts, cycle_routing = self.brain_cell(
@@ -549,6 +572,9 @@ class IreneBrainModel(nn.Module):
             )
             routing_indices.extend(routing.indices for routing in cycle_routing)
             routing_weights.extend(routing.weights for routing in cycle_routing)
+            if self.halting_controller is not None:
+                halt_prob, _ = self.halting_controller(thoughts, cycle)
+                halting_probabilities.append(halt_prob)
             exits.append(
                 self.actuator(
                     sensors=sensors,
@@ -568,6 +594,11 @@ class IreneBrainModel(nn.Module):
             thought_age_seconds=thought_ages,
         )
         world = self.thought_predictions(thoughts, sensors, belief)
+        future_trajectories = (
+            self.future_trajectory_head(thoughts)
+            if self.future_trajectory_head is not None
+            else None
+        )
         summaries = thoughts.mean(dim=2)
         normalized = F.normalize(summaries, dim=-1, eps=1e-6)
         similarity = torch.matmul(normalized, normalized.transpose(-1, -2))
@@ -580,6 +611,9 @@ class IreneBrainModel(nn.Module):
             actuator_thought_attention=exits[-1].thought_attention,
             applied_expire_probability=applied_expire_probability,
             cycles_completed=cycles,
+            thought_update_gates=applied_expire_probability,
+            future_trajectory_predictions=future_trajectories,
+            halting_probabilities=tuple(halting_probabilities),
         )
         return ModelOutput(
             action=exits[-1],
