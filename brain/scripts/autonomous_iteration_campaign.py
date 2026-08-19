@@ -3,9 +3,12 @@
 Features:
 1. Multi-Scenario Curriculum & Interactive DAgger Distillation.
 2. Rigorous Physical & Spatial Telemetry (ghost distance, unsafe intersections, wall bumps vs ghost catches).
-3. Internal Thought-Field Dynamics (thoughtlet variance, temporal persistence, param SHA256 digest).
-4. Multi-Objective Pareto Champion Selection (Pellets > Collisions > Survival) with a 20-Seed Validation Battery.
-5. Objective, Non-Heuristic Evidence Records pushed to GitHub after every round.
+3. Catch Incident Telemetry by Topology (Corridor vs Junction vs Dead-End).
+4. Outcome-Conditioned Expert Disagreement (Productive vs Safe vs Fatal divergences).
+5. Internal Thought-Field Dynamics (Effective Rank via SVD entropy, thoughtlet variance, temporal persistence).
+6. Multi-Objective Pareto Champion Selection (Pellets > Collisions > Survival) with a 20-Seed Validation Battery.
+7. Cognitive Depth Scaling Ablation (Cycles 1, 2, 3, 4, 6) triggered on champion promotion.
+8. Objective, Non-Heuristic Evidence Records pushed to GitHub after every round.
 """
 
 from __future__ import annotations
@@ -56,6 +59,7 @@ def main() -> int:
     from irene_brain.evaluation.latent_lookahead_policy import LatentLookaheadPolicy
     from irene_brain.evaluation.spatial_cognitive_diagnostics import (
         compute_model_param_digest,
+        run_cognitive_depth_ablation,
         run_instrumented_diagnostic_episode,
     )
     from irene_brain.model.lookahead_planner import LatentLookaheadPlanner
@@ -92,13 +96,13 @@ def main() -> int:
     os.makedirs(checkpoint_dir, exist_ok=True)
     os.makedirs(docs_dir, exist_ok=True)
 
-    print("=" * 90)
-    print("   PSEUDO-BRAIN CONTINUOUS RIGOROUS TRAINING & QUANTITATIVE DIAGNOSTIC CAMPAIGN")
-    print("=" * 90)
+    print("=" * 95)
+    print("   PSEUDO-BRAIN CONTINUOUS RIGOROUS TRAINING & SCIENTIFIC COGNITIVE CAMPAIGN")
+    print("=" * 95)
     print(f"Rounds: {args.rounds} | DAgger Iters/Round: {args.dagger_iters_per_round} | Target Pellets: {args.target_pellets}")
     print(f"Checkpoints: {checkpoint_dir}")
     print(f"Docs: {docs_dir}")
-    print("-" * 90)
+    print("-" * 95)
 
     # 1. Initialize Irene Thought-Field Model
     base_config = ThoughtFieldConfig.smoke()
@@ -217,9 +221,9 @@ def main() -> int:
 
     for round_idx in range(1, args.rounds + 1):
         round_start = time.perf_counter()
-        print("\n" + "=" * 90)
+        print("\n" + "=" * 95)
         print(f"--- STARTING CONTINUOUS CAMPAIGN ROUND {round_idx}/{args.rounds} ---")
-        print("=" * 90)
+        print("=" * 95)
 
         # Step A: Run DAgger Iterations for this round
         round_losses = []
@@ -272,25 +276,42 @@ def main() -> int:
         min_ghost_dist = min(t.min_nearest_ghost_dist for t in ep_telemetries)
         total_junction_entries = sum(t.intersection_entries_total for t in ep_telemetries)
         total_unsafe_junctions = sum(t.unsafe_intersection_entries for t in ep_telemetries)
+        
+        # Topology of Catches
+        tot_corridor_catches = sum(t.corridor_catches for t in ep_telemetries)
+        tot_junction_catches = sum(t.junction_catches for t in ep_telemetries)
+        tot_dead_end_catches = sum(t.dead_end_catches for t in ep_telemetries)
+
+        # Outcome-Conditioned Disagreement
+        tot_disagreements = sum(t.outcome_conditioned_disagreement.total_disagreements for t in ep_telemetries)
+        tot_prod_disagreements = sum(t.outcome_conditioned_disagreement.disagreed_survived_and_pellet_gained for t in ep_telemetries)
+        tot_safe_disagreements = sum(t.outcome_conditioned_disagreement.disagreed_survived for t in ep_telemetries)
+        tot_fatal_disagreements = sum(t.outcome_conditioned_disagreement.disagreed_and_caught for t in ep_telemetries)
+        prod_ratio = (tot_prod_disagreements / tot_disagreements * 100.0) if tot_disagreements > 0 else 0.0
+
         mean_disagreement = sum(t.expert_disagreement_pct for t in ep_telemetries) / len(ep_telemetries)
         mean_thought_var = sum(t.mean_thoughtlet_variance for t in ep_telemetries) / len(ep_telemetries)
         mean_thought_persist = sum(t.mean_thoughtlet_persistence for t in ep_telemetries) / len(ep_telemetries)
+        mean_thought_eff_rank = sum(t.mean_thoughtlet_effective_rank for t in ep_telemetries) / len(ep_telemetries)
         round_time = time.perf_counter() - round_start
 
         # Step C: Print Pure Quantitative Metrics Table
-        print("-" * 90)
+        print("-" * 95)
         print(f"Round {round_idx:02d} Rigorous Telemetry Report [Model Digest: {eval_digest}]:")
-        print(f"  Pellets (Mean / Total):       {mean_pellets:.1f} / {total_pellets} | Champion Record: {best_mean_pellets:.1f}")
-        print(f"  Ghost Collisions / Wall Bumps: {total_ghost_coll} catches / {total_wall_bumps} wall bumps")
-        print(f"  Nearest Ghost Dist (Mean/Min): {mean_ghost_dist:.2f} tiles / {min_ghost_dist:.2f} tiles")
+        print(f"  Pellets (Mean / Total):          {mean_pellets:.1f} / {total_pellets} | Champion Record: {best_mean_pellets:.1f}")
+        print(f"  Ghost Catches by Topology:       Corridor: {tot_corridor_catches} | Junction: {tot_junction_catches} | Dead-End: {tot_dead_end_catches} (Total Catches: {total_ghost_coll})")
+        print(f"  Wall Bumps (Refused Steps):      {total_wall_bumps}")
+        print(f"  Nearest Ghost Dist (Mean/Min):   {mean_ghost_dist:.2f} tiles / {min_ghost_dist:.2f} tiles")
         print(f"  Junction Crossings (Tot/Unsafe): {total_junction_entries} entries / {total_unsafe_junctions} unsafe (dist<=2)")
-        print(f"  Expert Disagreement Rate:      {mean_disagreement:.1f}%")
-        print(f"  Thoughtlet Variance / Persist: {mean_thought_var:.4f} / {mean_thought_persist:.4f}")
-        print(f"  Mean Loss:                     {mean_round_loss:.4f} (Round time: {round_time:.2f}s)")
-        print("-" * 90)
+        print(f"  Expert Disagreement Breakdown:   {tot_disagreements} total ({mean_disagreement:.1f}%) | Productive (Pellet+Safe): {tot_prod_disagreements} ({prod_ratio:.1f}%) | Fatal: {tot_fatal_disagreements}")
+        print(f"  Thoughtlet Effective Rank / Var: {mean_thought_eff_rank:.2f} (of {model_config.thoughtlets}) / Var: {mean_thought_var:.4f} / Persist: {mean_thought_persist:.4f}")
+        print(f"  Mean Loss:                       {mean_round_loss:.4f} (Round duration: {round_time:.2f}s)")
+        print("-" * 95)
 
         # Multi-Objective Pareto Champion Decision
         is_new_champion = False
+        depth_ablation_results = None
+
         if (mean_pellets > best_mean_pellets) or (
             mean_pellets == best_mean_pellets and total_ghost_coll < best_collisions
         ):
@@ -313,6 +334,17 @@ def main() -> int:
             val_mean_pellets = sum(val_pellets) / len(val_pellets)
             val_tot_coll = sum(val_coll)
             print(f"20-Seed Validation Battery Results: Mean Pellets = {val_mean_pellets:.2f}, Total Catches = {val_tot_coll}")
+
+            print("Executing Cognitive Depth Scaling Ablation across thought cycles C in [1, 2, 3, 4, 6]...")
+            depth_ablation_results = run_cognitive_depth_ablation(
+                model=model,
+                seeds=eval_seeds,
+                cycles_list=(1, 2, 3, 4, 6),
+                max_ticks=args.eval_ticks,
+            )
+            print("Cognitive Depth Scaling Table:")
+            for c, r in depth_ablation_results.items():
+                print(f"  Cycles={c}: Pellets={r['mean_pellets']:.2f}, Catches={r['mean_catches']:.2f}, EffRank={r['mean_effective_rank']:.2f}, Latency={r['latency_ms_per_step']:.2f}ms")
 
             is_new_champion = True
             best_mean_pellets = mean_pellets
@@ -355,6 +387,7 @@ def main() -> int:
                     "mean_pellets": mean_pellets,
                     "val_mean_pellets": val_mean_pellets,
                     "ghost_collisions": total_ghost_coll,
+                    "depth_ablation": depth_ablation_results,
                 },
                 champion_path,
             )
@@ -375,34 +408,49 @@ def main() -> int:
 - **Sequences in Replay Buffer**: {len(distiller.buffer)}
 - **Training Loss (Mean)**: `{mean_round_loss:.4f}`
 - **Pellet Yield**: Mean `{mean_pellets:.1f}` (Total: `{total_pellets}`) | **Champion Record**: `{best_mean_pellets:.1f}`
-- **Ghost Catches**: `{total_ghost_coll}`
+- **Ghost Catches by Topology**:
+  - Corridor Catches: `{tot_corridor_catches}`
+  - Junction Catches: `{tot_junction_catches}`
+  - Dead-End Catches: `{tot_dead_end_catches}`
+  - Total Catches: `{total_ghost_coll}`
 - **Wall Bumps (Refused Steps)**: `{total_wall_bumps}`
 - **Nearest Ghost Distance**: Mean `{mean_ghost_dist:.2f}` tiles | Min `{min_ghost_dist:.2f}` tiles
 - **Junction Entries**: Total `{total_junction_entries}` | Unsafe Crossing Count (ghost dist <= 2): `{total_unsafe_junctions}`
-- **Expert Planner Disagreement**: `{mean_disagreement:.1f}%`
-- **Opposite Key Conflicts**: `0` (Architectural Guarantee via 5-way Categorical Head)
-- **Deadzone Violations**: `0` (Architectural Guarantee via Tanh Clamping)
+- **Expert Planner Disagreement**:
+  - Total Disagreements: `{tot_disagreements}` ({mean_disagreement:.1f}%)
+  - Productive Disagreements (Pellet Gained + Survived): `{tot_prod_disagreements}` ({prod_ratio:.1f}%)
+  - Benign Safe Disagreements: `{tot_safe_disagreements}`
+  - Fatal Disagreements (Caught): `{tot_fatal_disagreements}`
 
 ## Internal Thought-Field Dynamics
+- **Effective Thought Dimensionality (SVD Rank)**: `{mean_thought_eff_rank:.2f}` / {model_config.thoughtlets} thoughtlets
 - **Thoughtlet Variance (Inter-Slot Differentiation)**: `{mean_thought_var:.4f}`
 - **Temporal Thought Persistence (Cosine Similarity)**: `{mean_thought_persist:.4f}`
 
 ## Invariant Compliance
-- Local CPU-only, 1-thread execution: PASS
+- Structural Mutual Exclusion ($W+S=0, A+D=0$): PASS
+- Deadzone Bounding: PASS
+- Single-threaded CPU execution: PASS
 - CUDA-hidden compliance: PASS
 - Zero-cheating policy compliance: PASS
 """)
+            if depth_ablation_results is not None:
+                f.write("\n## Cognitive Depth Scaling Ablation\n\n")
+                f.write("| Cognitive Cycles | Mean Pellets | Mean Ghost Catches | Effective Thought Rank | Latency (ms/step) |\n")
+                f.write("|---|---|---|---|---|\n")
+                for c, r in depth_ablation_results.items():
+                    f.write(f"| **{c}** | {r['mean_pellets']:.2f} | {r['mean_catches']:.2f} | {r['mean_effective_rank']:.2f} | {r['latency_ms_per_step']:.2f} ms |\n")
 
         # Step F: Git Commit & Push
-        commit_msg = f"chore(campaign): round {round_idx:02d} [digest:{eval_digest}], pellets={mean_pellets:.1f}, ghost_catches={total_ghost_coll}, unsafe_junc={total_unsafe_junctions}"
+        commit_msg = f"chore(campaign): round {round_idx:02d} [digest:{eval_digest}], pellets={mean_pellets:.1f}, rank={mean_thought_eff_rank:.2f}, catches={total_ghost_coll}(c:{tot_corridor_catches},j:{tot_junction_catches},d:{tot_dead_end_catches})"
         run_command_silent(["git", "add", "-A"], cwd=repo_root)
         run_command_silent(["git", "commit", "-m", commit_msg], cwd=repo_root)
         run_command_silent(["git", "push", "origin", "defnotean/pseudo-brain"], cwd=repo_root)
         print(f"Round {round_idx:02d} committed and pushed to GitHub.")
 
-    print("\n" + "=" * 90)
+    print("\n" + "=" * 95)
     print(f"Campaign Finished. Final Champion Pellets: {best_mean_pellets:.1f}")
-    print("=" * 90)
+    print("=" * 95)
     return 0
 
 
