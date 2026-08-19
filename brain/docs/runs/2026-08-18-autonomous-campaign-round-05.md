@@ -1,27 +1,51 @@
-# Continuous Autonomous Campaign Round 05 Progress & Evidence Record
+# Continuous Autonomous Campaign Round 05 Evidence Record
 
 **Date**: 2026-08-18
-**Status**: HIGH_COLLISION_RATE
+**Status**: `ELEVATED_GHOST_COLLISIONS`
+**Model Parameter SHA256 Digest**: `c5ab43c0db21c1af`
 **Checkpoint**: `C:\Users\Demon\OneDrive\Desktop\Projects\Pseudo-Brain\brain\artifacts\checkpoints\curriculum_dagger_round_05.pt`
 
-## Telemetry & Metrics Summary
+## Quantitative Physical & Spatial Telemetry
 - **DAgger Iterations Completed**: 10
 - **Sequences in Replay Buffer**: 180
-- **Mean Training Loss**: `0.9391`
-- **Mean Pellets Eaten**: `4.0` (Total: `12`) | **Best Champion**: `5.0`
-- **Total Collisions**: `269`
-- **Opposite Key Conflicts**: `0` (Mathematically Guaranteed 0)
-- **Deadzone Violations**: `0` (Mathematically Guaranteed 0)
-- **Round Execution Time**: `17.23s`
+- **Training Loss (Mean)**: `0.9593`
+- **Rapid Metric (3-seed)**: Mean `4.0` (Total: `12`) | **Rapid Record**: `5.0`
+- **Validated Champion (20-seed)**: Pellets `5.20` | Catches `70`
+- **Ghost Catches by Topology**:
+  - Corridor Catches: `8`
+  - Junction Catches: `1`
+  - Dead-End Catches: `260`
+  - Total Catches: `269`
+- **Wall Interaction Dynamics**:
+  - Total Wall Bump Ticks: `330`
+  - Distinct Wall Contact Events: `6`
+  - Mean Repeated Pushes per Event: `55.0` (Max Streak: `94`)
+  - Mean Wall Recovery Latency: `55.0` ticks
+- **Nearest Ghost Distance**: Mean `2.31` tiles | Min `1.00` tiles
+- **Junction Entries**: Total `4` | Unsafe Crossing Count (ghost dist <= 2): `1`
 
-## Scientific Diagnosis & Action
-### Hypothesis
-Policy is exploring open corridors but colliding when ghosts approach intersections.
+## Event-Triggered Thought Dynamics (Delta T = 1 - cos(T_t, T_t+1))
+- **Normal Movement Step Delta T**: `0.00223`
+- **Wall Bump Frame Delta T**: `0.00002`
+- **Ghost Danger Frame Delta T (dist <= 2.5)**: `0.00002`
 
-### Adaptive Action
-Scaled dynamic hazard weight to 5.0.
+## Expert Disagreement & Outcome Conditioning
+- **In-Sample Direct Imitation Match**: `0.0%`
+- **Rollout Lookahead Disagreement Rate**: `96.9%` (349 decisions)
+  - Productive Disagreements (Pellet Gained + Survived): `3` (0.9%)
+  - Benign Safe Disagreements: `40`
+  - Fatal Disagreements (Caught): `306`
 
-## Invariant Safety Audit
+## Internal Thought-Field Representation Health
+- **Effective SVD Rank**: `2.99` / 4 thoughtlets
+- **Pairwise Thoughtlet Cosine Similarity**: `-0.057`
+- **Mean Thoughtlet Norm**: `5.62`
+- **Inter-Slot Variance**: `0.7840`
+- **Global Temporal Persistence**: `0.9998`
+
+## Invariant Compliance
+- Structural Mutual Exclusion ($W+S=0, A+D=0$): PASS
+- Deadzone Bounding: PASS
 - Single-threaded CPU execution: PASS
 - CUDA-hidden compliance: PASS
 - Zero-cheating policy compliance: PASS
