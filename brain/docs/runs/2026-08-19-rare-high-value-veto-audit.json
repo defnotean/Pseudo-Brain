@@ -1,0 +1,67 @@
+{
+  "42": {
+    "total_steps": 2500,
+    "choice_points_considered": 2500,
+    "actual_overrides": 0,
+    "override_rate_pct": 0.0,
+    "coverage_pct": 0.0,
+    "helpful_saves": 0,
+    "neutral_cases": 0,
+    "harmful_errors": 0,
+    "intervention_precision_pct": null,
+    "net_save_value": 0,
+    "vetoed_catches": 90
+  },
+  "43": {
+    "total_steps": 2500,
+    "choice_points_considered": 2500,
+    "actual_overrides": 0,
+    "override_rate_pct": 0.0,
+    "coverage_pct": 0.0,
+    "helpful_saves": 0,
+    "neutral_cases": 0,
+    "harmful_errors": 0,
+    "intervention_precision_pct": null,
+    "net_save_value": 0,
+    "vetoed_catches": 90
+  },
+  "44": {
+    "total_steps": 2500,
+    "choice_points_considered": 2500,
+    "actual_overrides": 0,
+    "override_rate_pct": 0.0,
+    "coverage_pct": 0.0,
+    "helpful_saves": 0,
+    "neutral_cases": 0,
+    "harmful_errors": 0,
+    "intervention_precision_pct": null,
+    "net_save_value": 0,
+    "vetoed_catches": 84
+  },
+  "45": {
+    "total_steps": 2500,
+    "choice_points_considered": 2500,
+    "actual_overrides": 0,
+    "override_rate_pct": 0.0,
+    "coverage_pct": 0.0,
+    "helpful_saves": 0,
+    "neutral_cases": 0,
+    "harmful_errors": 0,
+    "intervention_precision_pct": null,
+    "net_save_value": 0,
+    "vetoed_catches": 90
+  },
+  "46": {
+    "total_steps": 2500,
+    "choice_points_considered": 2500,
+    "actual_overrides": 0,
+    "override_rate_pct": 0.0,
+    "coverage_pct": 0.0,
+    "helpful_saves": 0,
+    "neutral_cases": 0,
+    "harmful_errors": 0,
+    "intervention_precision_pct": null,
+    "net_save_value": 0,
+    "vetoed_catches": 90
+  }
+}
