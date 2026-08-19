@@ -1,0 +1,1082 @@
+{
+  "status": "PASS",
+  "total_duration_sec": 7200.0,
+  "total_ticks": 432001,
+  "initial_rss_kb": 0.0,
+  "final_rss_kb": 0.0,
+  "net_growth_kb": 0.0,
+  "max_timing_err_ms": 156.452,
+  "checkpoints": [
+    {
+      "elapsed_sec": 60.0,
+      "ticks_completed": 3601,
+      "target_ticks": 3599,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 5.5141,
+      "timestamp": "2026-08-19 12:04:34"
+    },
+    {
+      "elapsed_sec": 120.0,
+      "ticks_completed": 7201,
+      "target_ticks": 7199,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 6.2835,
+      "timestamp": "2026-08-19 12:05:34"
+    },
+    {
+      "elapsed_sec": 180.0,
+      "ticks_completed": 10801,
+      "target_ticks": 10799,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 12.0297,
+      "timestamp": "2026-08-19 12:06:34"
+    },
+    {
+      "elapsed_sec": 240.0,
+      "ticks_completed": 14402,
+      "target_ticks": 14400,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 12.0297,
+      "timestamp": "2026-08-19 12:07:34"
+    },
+    {
+      "elapsed_sec": 300.0,
+      "ticks_completed": 18002,
+      "target_ticks": 18000,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 12.0297,
+      "timestamp": "2026-08-19 12:08:34"
+    },
+    {
+      "elapsed_sec": 360.0,
+      "ticks_completed": 21603,
+      "target_ticks": 21601,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 12.0297,
+      "timestamp": "2026-08-19 12:09:34"
+    },
+    {
+      "elapsed_sec": 420.0,
+      "ticks_completed": 25203,
+      "target_ticks": 25201,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 12.0297,
+      "timestamp": "2026-08-19 12:10:34"
+    },
+    {
+      "elapsed_sec": 480.0,
+      "ticks_completed": 28803,
+      "target_ticks": 28801,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 12.0297,
+      "timestamp": "2026-08-19 12:11:34"
+    },
+    {
+      "elapsed_sec": 540.0,
+      "ticks_completed": 32403,
+      "target_ticks": 32401,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 12.0297,
+      "timestamp": "2026-08-19 12:12:34"
+    },
+    {
+      "elapsed_sec": 600.0,
+      "ticks_completed": 36004,
+      "target_ticks": 36002,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 12.0297,
+      "timestamp": "2026-08-19 12:13:34"
+    },
+    {
+      "elapsed_sec": 660.0,
+      "ticks_completed": 39604,
+      "target_ticks": 39602,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 12.0297,
+      "timestamp": "2026-08-19 12:14:34"
+    },
+    {
+      "elapsed_sec": 720.1,
+      "ticks_completed": 43205,
+      "target_ticks": 43203,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 12.0297,
+      "timestamp": "2026-08-19 12:15:34"
+    },
+    {
+      "elapsed_sec": 780.1,
+      "ticks_completed": 46805,
+      "target_ticks": 46803,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 12.0297,
+      "timestamp": "2026-08-19 12:16:34"
+    },
+    {
+      "elapsed_sec": 840.1,
+      "ticks_completed": 50405,
+      "target_ticks": 50403,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 12.0297,
+      "timestamp": "2026-08-19 12:17:34"
+    },
+    {
+      "elapsed_sec": 900.1,
+      "ticks_completed": 54005,
+      "target_ticks": 54003,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 12.0297,
+      "timestamp": "2026-08-19 12:18:34"
+    },
+    {
+      "elapsed_sec": 960.1,
+      "ticks_completed": 57605,
+      "target_ticks": 57603,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 12.0297,
+      "timestamp": "2026-08-19 12:19:34"
+    },
+    {
+      "elapsed_sec": 1020.1,
+      "ticks_completed": 61206,
+      "target_ticks": 61204,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 12.0297,
+      "timestamp": "2026-08-19 12:20:34"
+    },
+    {
+      "elapsed_sec": 1080.1,
+      "ticks_completed": 64807,
+      "target_ticks": 64805,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 39.301,
+      "timestamp": "2026-08-19 12:21:34"
+    },
+    {
+      "elapsed_sec": 1140.1,
+      "ticks_completed": 68407,
+      "target_ticks": 68405,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 39.301,
+      "timestamp": "2026-08-19 12:22:34"
+    },
+    {
+      "elapsed_sec": 1200.1,
+      "ticks_completed": 72007,
+      "target_ticks": 72005,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 39.301,
+      "timestamp": "2026-08-19 12:23:34"
+    },
+    {
+      "elapsed_sec": 1260.1,
+      "ticks_completed": 75607,
+      "target_ticks": 75605,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 39.301,
+      "timestamp": "2026-08-19 12:24:34"
+    },
+    {
+      "elapsed_sec": 1320.1,
+      "ticks_completed": 79208,
+      "target_ticks": 79206,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 39.301,
+      "timestamp": "2026-08-19 12:25:34"
+    },
+    {
+      "elapsed_sec": 1380.1,
+      "ticks_completed": 82808,
+      "target_ticks": 82806,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 39.301,
+      "timestamp": "2026-08-19 12:26:34"
+    },
+    {
+      "elapsed_sec": 1440.1,
+      "ticks_completed": 86408,
+      "target_ticks": 86406,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 39.301,
+      "timestamp": "2026-08-19 12:27:34"
+    },
+    {
+      "elapsed_sec": 1500.1,
+      "ticks_completed": 90008,
+      "target_ticks": 90006,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 39.301,
+      "timestamp": "2026-08-19 12:28:34"
+    },
+    {
+      "elapsed_sec": 1560.1,
+      "ticks_completed": 93608,
+      "target_ticks": 93606,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 39.301,
+      "timestamp": "2026-08-19 12:29:34"
+    },
+    {
+      "elapsed_sec": 1620.1,
+      "ticks_completed": 97209,
+      "target_ticks": 97207,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 39.301,
+      "timestamp": "2026-08-19 12:30:34"
+    },
+    {
+      "elapsed_sec": 1680.1,
+      "ticks_completed": 100810,
+      "target_ticks": 100808,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 39.301,
+      "timestamp": "2026-08-19 12:31:34"
+    },
+    {
+      "elapsed_sec": 1740.1,
+      "ticks_completed": 104410,
+      "target_ticks": 104408,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 39.301,
+      "timestamp": "2026-08-19 12:32:34"
+    },
+    {
+      "elapsed_sec": 1800.2,
+      "ticks_completed": 108011,
+      "target_ticks": 108009,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 39.301,
+      "timestamp": "2026-08-19 12:33:34"
+    },
+    {
+      "elapsed_sec": 1860.2,
+      "ticks_completed": 111611,
+      "target_ticks": 111609,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 39.301,
+      "timestamp": "2026-08-19 12:34:34"
+    },
+    {
+      "elapsed_sec": 1920.2,
+      "ticks_completed": 115211,
+      "target_ticks": 115209,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 39.301,
+      "timestamp": "2026-08-19 12:35:34"
+    },
+    {
+      "elapsed_sec": 1980.2,
+      "ticks_completed": 118811,
+      "target_ticks": 118809,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 39.301,
+      "timestamp": "2026-08-19 12:36:34"
+    },
+    {
+      "elapsed_sec": 2040.2,
+      "ticks_completed": 122412,
+      "target_ticks": 122410,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 39.301,
+      "timestamp": "2026-08-19 12:37:34"
+    },
+    {
+      "elapsed_sec": 2100.2,
+      "ticks_completed": 126012,
+      "target_ticks": 126010,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 12:38:34"
+    },
+    {
+      "elapsed_sec": 2160.2,
+      "ticks_completed": 129612,
+      "target_ticks": 129610,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 12:39:34"
+    },
+    {
+      "elapsed_sec": 2220.2,
+      "ticks_completed": 133212,
+      "target_ticks": 133210,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 12:40:34"
+    },
+    {
+      "elapsed_sec": 2280.2,
+      "ticks_completed": 136812,
+      "target_ticks": 136810,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 12:41:34"
+    },
+    {
+      "elapsed_sec": 2340.2,
+      "ticks_completed": 140412,
+      "target_ticks": 140410,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 12:42:34"
+    },
+    {
+      "elapsed_sec": 2400.2,
+      "ticks_completed": 144013,
+      "target_ticks": 144011,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 12:43:34"
+    },
+    {
+      "elapsed_sec": 2460.2,
+      "ticks_completed": 147613,
+      "target_ticks": 147611,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 12:44:34"
+    },
+    {
+      "elapsed_sec": 2520.2,
+      "ticks_completed": 151213,
+      "target_ticks": 151211,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 12:45:34"
+    },
+    {
+      "elapsed_sec": 2580.2,
+      "ticks_completed": 154814,
+      "target_ticks": 154812,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 12:46:34"
+    },
+    {
+      "elapsed_sec": 2640.2,
+      "ticks_completed": 158415,
+      "target_ticks": 158413,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 12:47:34"
+    },
+    {
+      "elapsed_sec": 2700.2,
+      "ticks_completed": 162016,
+      "target_ticks": 162014,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 12:48:34"
+    },
+    {
+      "elapsed_sec": 2760.2,
+      "ticks_completed": 165616,
+      "target_ticks": 165614,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 12:49:34"
+    },
+    {
+      "elapsed_sec": 2820.2,
+      "ticks_completed": 169216,
+      "target_ticks": 169214,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 12:50:34"
+    },
+    {
+      "elapsed_sec": 2880.2,
+      "ticks_completed": 172816,
+      "target_ticks": 172814,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 12:51:34"
+    },
+    {
+      "elapsed_sec": 2940.2,
+      "ticks_completed": 176416,
+      "target_ticks": 176414,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 12:52:34"
+    },
+    {
+      "elapsed_sec": 3000.3,
+      "ticks_completed": 180017,
+      "target_ticks": 180015,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 12:53:34"
+    },
+    {
+      "elapsed_sec": 3060.3,
+      "ticks_completed": 183617,
+      "target_ticks": 183615,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 12:54:34"
+    },
+    {
+      "elapsed_sec": 3120.3,
+      "ticks_completed": 187217,
+      "target_ticks": 187215,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 12:55:34"
+    },
+    {
+      "elapsed_sec": 3180.3,
+      "ticks_completed": 190818,
+      "target_ticks": 190816,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 12:56:34"
+    },
+    {
+      "elapsed_sec": 3240.3,
+      "ticks_completed": 194418,
+      "target_ticks": 194416,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 12:57:34"
+    },
+    {
+      "elapsed_sec": 3300.3,
+      "ticks_completed": 198018,
+      "target_ticks": 198016,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 12:58:34"
+    },
+    {
+      "elapsed_sec": 3360.3,
+      "ticks_completed": 201618,
+      "target_ticks": 201616,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 12:59:34"
+    },
+    {
+      "elapsed_sec": 3420.3,
+      "ticks_completed": 205218,
+      "target_ticks": 205216,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:00:34"
+    },
+    {
+      "elapsed_sec": 3480.3,
+      "ticks_completed": 208818,
+      "target_ticks": 208816,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:01:34"
+    },
+    {
+      "elapsed_sec": 3540.3,
+      "ticks_completed": 212418,
+      "target_ticks": 212416,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:02:34"
+    },
+    {
+      "elapsed_sec": 3600.3,
+      "ticks_completed": 216019,
+      "target_ticks": 216017,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:03:34"
+    },
+    {
+      "elapsed_sec": 3660.3,
+      "ticks_completed": 219619,
+      "target_ticks": 219617,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:04:34"
+    },
+    {
+      "elapsed_sec": 3720.3,
+      "ticks_completed": 223219,
+      "target_ticks": 223217,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:05:34"
+    },
+    {
+      "elapsed_sec": 3780.3,
+      "ticks_completed": 226819,
+      "target_ticks": 226817,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:06:34"
+    },
+    {
+      "elapsed_sec": 3840.3,
+      "ticks_completed": 230419,
+      "target_ticks": 230417,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:07:34"
+    },
+    {
+      "elapsed_sec": 3900.3,
+      "ticks_completed": 234020,
+      "target_ticks": 234018,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:08:34"
+    },
+    {
+      "elapsed_sec": 3960.3,
+      "ticks_completed": 237620,
+      "target_ticks": 237618,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:09:34"
+    },
+    {
+      "elapsed_sec": 4020.3,
+      "ticks_completed": 241220,
+      "target_ticks": 241218,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:10:34"
+    },
+    {
+      "elapsed_sec": 4080.3,
+      "ticks_completed": 244821,
+      "target_ticks": 244819,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:11:34"
+    },
+    {
+      "elapsed_sec": 4140.3,
+      "ticks_completed": 248421,
+      "target_ticks": 248419,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:12:34"
+    },
+    {
+      "elapsed_sec": 4200.3,
+      "ticks_completed": 252021,
+      "target_ticks": 252019,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:13:34"
+    },
+    {
+      "elapsed_sec": 4260.3,
+      "ticks_completed": 255621,
+      "target_ticks": 255619,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:14:34"
+    },
+    {
+      "elapsed_sec": 4320.3,
+      "ticks_completed": 259221,
+      "target_ticks": 259219,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:15:34"
+    },
+    {
+      "elapsed_sec": 4380.3,
+      "ticks_completed": 262821,
+      "target_ticks": 262819,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:16:34"
+    },
+    {
+      "elapsed_sec": 4440.3,
+      "ticks_completed": 266422,
+      "target_ticks": 266420,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:17:34"
+    },
+    {
+      "elapsed_sec": 4500.3,
+      "ticks_completed": 270022,
+      "target_ticks": 270020,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:18:34"
+    },
+    {
+      "elapsed_sec": 4560.3,
+      "ticks_completed": 273622,
+      "target_ticks": 273620,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:19:34"
+    },
+    {
+      "elapsed_sec": 4620.3,
+      "ticks_completed": 277222,
+      "target_ticks": 277220,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:20:34"
+    },
+    {
+      "elapsed_sec": 4680.3,
+      "ticks_completed": 280822,
+      "target_ticks": 280820,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:21:34"
+    },
+    {
+      "elapsed_sec": 4740.4,
+      "ticks_completed": 284423,
+      "target_ticks": 284421,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:22:34"
+    },
+    {
+      "elapsed_sec": 4800.4,
+      "ticks_completed": 288024,
+      "target_ticks": 288022,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:23:34"
+    },
+    {
+      "elapsed_sec": 4860.4,
+      "ticks_completed": 291624,
+      "target_ticks": 291622,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:24:34"
+    },
+    {
+      "elapsed_sec": 4920.4,
+      "ticks_completed": 295225,
+      "target_ticks": 295223,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:25:34"
+    },
+    {
+      "elapsed_sec": 4980.4,
+      "ticks_completed": 298825,
+      "target_ticks": 298823,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:26:34"
+    },
+    {
+      "elapsed_sec": 5040.4,
+      "ticks_completed": 302425,
+      "target_ticks": 302423,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:27:34"
+    },
+    {
+      "elapsed_sec": 5100.4,
+      "ticks_completed": 306026,
+      "target_ticks": 306024,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:28:34"
+    },
+    {
+      "elapsed_sec": 5160.4,
+      "ticks_completed": 309626,
+      "target_ticks": 309624,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:29:34"
+    },
+    {
+      "elapsed_sec": 5220.4,
+      "ticks_completed": 313226,
+      "target_ticks": 313224,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:30:34"
+    },
+    {
+      "elapsed_sec": 5280.4,
+      "ticks_completed": 316826,
+      "target_ticks": 316824,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:31:34"
+    },
+    {
+      "elapsed_sec": 5340.4,
+      "ticks_completed": 320427,
+      "target_ticks": 320425,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:32:34"
+    },
+    {
+      "elapsed_sec": 5400.4,
+      "ticks_completed": 324027,
+      "target_ticks": 324025,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:33:34"
+    },
+    {
+      "elapsed_sec": 5460.4,
+      "ticks_completed": 327627,
+      "target_ticks": 327625,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:34:34"
+    },
+    {
+      "elapsed_sec": 5520.4,
+      "ticks_completed": 331227,
+      "target_ticks": 331225,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:35:34"
+    },
+    {
+      "elapsed_sec": 5580.4,
+      "ticks_completed": 334827,
+      "target_ticks": 334825,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:36:34"
+    },
+    {
+      "elapsed_sec": 5640.4,
+      "ticks_completed": 338428,
+      "target_ticks": 338426,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:37:34"
+    },
+    {
+      "elapsed_sec": 5700.4,
+      "ticks_completed": 342028,
+      "target_ticks": 342026,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:38:34"
+    },
+    {
+      "elapsed_sec": 5760.4,
+      "ticks_completed": 345628,
+      "target_ticks": 345626,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:39:34"
+    },
+    {
+      "elapsed_sec": 5820.4,
+      "ticks_completed": 349228,
+      "target_ticks": 349226,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:40:34"
+    },
+    {
+      "elapsed_sec": 5880.4,
+      "ticks_completed": 352828,
+      "target_ticks": 352826,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:41:34"
+    },
+    {
+      "elapsed_sec": 5940.4,
+      "ticks_completed": 356428,
+      "target_ticks": 356426,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:42:34"
+    },
+    {
+      "elapsed_sec": 6000.4,
+      "ticks_completed": 360028,
+      "target_ticks": 360026,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:43:34"
+    },
+    {
+      "elapsed_sec": 6060.5,
+      "ticks_completed": 363629,
+      "target_ticks": 363627,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:44:34"
+    },
+    {
+      "elapsed_sec": 6120.5,
+      "ticks_completed": 367229,
+      "target_ticks": 367227,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:45:34"
+    },
+    {
+      "elapsed_sec": 6180.5,
+      "ticks_completed": 370829,
+      "target_ticks": 370827,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:46:34"
+    },
+    {
+      "elapsed_sec": 6240.5,
+      "ticks_completed": 374429,
+      "target_ticks": 374427,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:47:34"
+    },
+    {
+      "elapsed_sec": 6300.5,
+      "ticks_completed": 378030,
+      "target_ticks": 378028,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:48:34"
+    },
+    {
+      "elapsed_sec": 6360.5,
+      "ticks_completed": 381630,
+      "target_ticks": 381628,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:49:34"
+    },
+    {
+      "elapsed_sec": 6420.5,
+      "ticks_completed": 385230,
+      "target_ticks": 385228,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:50:34"
+    },
+    {
+      "elapsed_sec": 6480.5,
+      "ticks_completed": 388830,
+      "target_ticks": 388828,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:51:34"
+    },
+    {
+      "elapsed_sec": 6540.5,
+      "ticks_completed": 392431,
+      "target_ticks": 392429,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:52:34"
+    },
+    {
+      "elapsed_sec": 6600.5,
+      "ticks_completed": 396031,
+      "target_ticks": 396029,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:53:34"
+    },
+    {
+      "elapsed_sec": 6660.5,
+      "ticks_completed": 399631,
+      "target_ticks": 399629,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:54:34"
+    },
+    {
+      "elapsed_sec": 6720.5,
+      "ticks_completed": 403231,
+      "target_ticks": 403229,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:55:34"
+    },
+    {
+      "elapsed_sec": 6780.5,
+      "ticks_completed": 406832,
+      "target_ticks": 406830,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:56:34"
+    },
+    {
+      "elapsed_sec": 6840.5,
+      "ticks_completed": 410432,
+      "target_ticks": 410430,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:57:34"
+    },
+    {
+      "elapsed_sec": 6900.5,
+      "ticks_completed": 414032,
+      "target_ticks": 414030,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:58:34"
+    },
+    {
+      "elapsed_sec": 6960.5,
+      "ticks_completed": 417632,
+      "target_ticks": 417630,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 13:59:34"
+    },
+    {
+      "elapsed_sec": 7020.5,
+      "ticks_completed": 421232,
+      "target_ticks": 421230,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 14:00:34"
+    },
+    {
+      "elapsed_sec": 7080.5,
+      "ticks_completed": 424832,
+      "target_ticks": 424830,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 14:01:34"
+    },
+    {
+      "elapsed_sec": 7140.5,
+      "ticks_completed": 428433,
+      "target_ticks": 428431,
+      "current_rss_kb": 0.0,
+      "memory_growth_kb": 0.0,
+      "max_timing_err_ms": 156.452,
+      "timestamp": "2026-08-19 14:02:34"
+    }
+  ]
+}

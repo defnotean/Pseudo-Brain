@@ -146,7 +146,7 @@ def run_two_hour_soak(total_duration_sec: float = 7200.0, checkpoint_interval_se
         json.dump(final_report, f, indent=2)
 
     print("\n" + "=" * 80)
-    print("TWO-HOUR CONTINUOUS SOAK COMPLETED SUCCESSFULLY (PASS ✅)")
+    print("TWO-HOUR CONTINUOUS SOAK COMPLETED SUCCESSFULLY (PASS [OK])")
     print(f"Duration: {total_time:.1f}s | Ticks: {ticks} | Memory Growth: {final_rss_kb - initial_rss_kb:+.2f} KB")
     print("=" * 80)
 

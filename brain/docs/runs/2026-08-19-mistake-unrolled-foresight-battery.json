@@ -1,0 +1,247 @@
+{
+  "42": {
+    "diagnostics_50_worlds": {
+      "choice_points_evaluated": 55,
+      "choice_point_safe_pick_rate": 92.7,
+      "horizon_breakdown": {
+        "H1": {
+          "pairwise_ranking_auroc": 78.1,
+          "discrimination_margin": 0.0406,
+          "mean_lethal": 0.3776,
+          "mean_safe": 0.337,
+          "brier_score": 0.1311
+        },
+        "H2": {
+          "pairwise_ranking_auroc": 66.7,
+          "discrimination_margin": 0.0192,
+          "mean_lethal": 0.4598,
+          "mean_safe": 0.4406,
+          "brier_score": 0.2138
+        },
+        "H3": {
+          "pairwise_ranking_auroc": 9.1,
+          "discrimination_margin": -0.1203,
+          "mean_lethal": 0.452,
+          "mean_safe": 0.5723,
+          "brier_score": 0.2227
+        }
+      }
+    },
+    "direct": {
+      "mean_pellets_per_ep": 0.0,
+      "total_catches": 35,
+      "mean_catches_per_ep": 1.75
+    },
+    "h1": {
+      "mean_pellets_per_ep": 0.0,
+      "total_catches": 35,
+      "mean_catches_per_ep": 1.75
+    },
+    "h2": {
+      "mean_pellets_per_ep": 0.0,
+      "total_catches": 35,
+      "mean_catches_per_ep": 1.75
+    },
+    "h3": {
+      "mean_pellets_per_ep": 0.0,
+      "total_catches": 35,
+      "mean_catches_per_ep": 1.75
+    }
+  },
+  "43": {
+    "diagnostics_50_worlds": {
+      "choice_points_evaluated": 55,
+      "choice_point_safe_pick_rate": 92.7,
+      "horizon_breakdown": {
+        "H1": {
+          "pairwise_ranking_auroc": 78.1,
+          "discrimination_margin": 0.0179,
+          "mean_lethal": 0.32,
+          "mean_safe": 0.3021,
+          "brier_score": 0.1052
+        },
+        "H2": {
+          "pairwise_ranking_auroc": 52.9,
+          "discrimination_margin": 0.0005,
+          "mean_lethal": 0.4366,
+          "mean_safe": 0.4362,
+          "brier_score": 0.1972
+        },
+        "H3": {
+          "pairwise_ranking_auroc": 36.4,
+          "discrimination_margin": -0.0195,
+          "mean_lethal": 0.4547,
+          "mean_safe": 0.4742,
+          "brier_score": 0.2152
+        }
+      }
+    },
+    "direct": {
+      "mean_pellets_per_ep": 0.0,
+      "total_catches": 35,
+      "mean_catches_per_ep": 1.75
+    },
+    "h1": {
+      "mean_pellets_per_ep": 0.0,
+      "total_catches": 191,
+      "mean_catches_per_ep": 9.55
+    },
+    "h2": {
+      "mean_pellets_per_ep": 0.0,
+      "total_catches": 191,
+      "mean_catches_per_ep": 9.55
+    },
+    "h3": {
+      "mean_pellets_per_ep": 0.0,
+      "total_catches": 191,
+      "mean_catches_per_ep": 9.55
+    }
+  },
+  "44": {
+    "diagnostics_50_worlds": {
+      "choice_points_evaluated": 53,
+      "choice_point_safe_pick_rate": 96.2,
+      "horizon_breakdown": {
+        "H1": {
+          "pairwise_ranking_auroc": 81.1,
+          "discrimination_margin": 0.0431,
+          "mean_lethal": 0.5326,
+          "mean_safe": 0.4896,
+          "brier_score": 0.2507
+        },
+        "H2": {
+          "pairwise_ranking_auroc": 71.4,
+          "discrimination_margin": 0.0278,
+          "mean_lethal": 0.5059,
+          "mean_safe": 0.4781,
+          "brier_score": 0.2499
+        },
+        "H3": {
+          "pairwise_ranking_auroc": 11.8,
+          "discrimination_margin": -0.0466,
+          "mean_lethal": 0.5126,
+          "mean_safe": 0.5592,
+          "brier_score": 0.2634
+        }
+      }
+    },
+    "direct": {
+      "mean_pellets_per_ep": 0.0,
+      "total_catches": 37,
+      "mean_catches_per_ep": 1.85
+    },
+    "h1": {
+      "mean_pellets_per_ep": 0.0,
+      "total_catches": 35,
+      "mean_catches_per_ep": 1.75
+    },
+    "h2": {
+      "mean_pellets_per_ep": 0.0,
+      "total_catches": 35,
+      "mean_catches_per_ep": 1.75
+    },
+    "h3": {
+      "mean_pellets_per_ep": 0.0,
+      "total_catches": 35,
+      "mean_catches_per_ep": 1.75
+    }
+  },
+  "45": {
+    "diagnostics_50_worlds": {
+      "choice_points_evaluated": 55,
+      "choice_point_safe_pick_rate": 87.3,
+      "horizon_breakdown": {
+        "H1": {
+          "pairwise_ranking_auroc": 75.4,
+          "discrimination_margin": 0.0263,
+          "mean_lethal": 0.3088,
+          "mean_safe": 0.2825,
+          "brier_score": 0.0957
+        },
+        "H2": {
+          "pairwise_ranking_auroc": 65.2,
+          "discrimination_margin": 0.018,
+          "mean_lethal": 0.4172,
+          "mean_safe": 0.3992,
+          "brier_score": 0.1812
+        },
+        "H3": {
+          "pairwise_ranking_auroc": 36.4,
+          "discrimination_margin": -0.0281,
+          "mean_lethal": 0.4311,
+          "mean_safe": 0.4592,
+          "brier_score": 0.199
+        }
+      }
+    },
+    "direct": {
+      "mean_pellets_per_ep": 0.0,
+      "total_catches": 35,
+      "mean_catches_per_ep": 1.75
+    },
+    "h1": {
+      "mean_pellets_per_ep": 0.0,
+      "total_catches": 37,
+      "mean_catches_per_ep": 1.85
+    },
+    "h2": {
+      "mean_pellets_per_ep": 0.0,
+      "total_catches": 37,
+      "mean_catches_per_ep": 1.85
+    },
+    "h3": {
+      "mean_pellets_per_ep": 0.0,
+      "total_catches": 37,
+      "mean_catches_per_ep": 1.85
+    }
+  },
+  "46": {
+    "diagnostics_50_worlds": {
+      "choice_points_evaluated": 55,
+      "choice_point_safe_pick_rate": 92.7,
+      "horizon_breakdown": {
+        "H1": {
+          "pairwise_ranking_auroc": 70.1,
+          "discrimination_margin": 0.023,
+          "mean_lethal": 0.5104,
+          "mean_safe": 0.4874,
+          "brier_score": 0.2426
+        },
+        "H2": {
+          "pairwise_ranking_auroc": 65.9,
+          "discrimination_margin": 0.0203,
+          "mean_lethal": 0.5043,
+          "mean_safe": 0.4839,
+          "brier_score": 0.2549
+        },
+        "H3": {
+          "pairwise_ranking_auroc": 9.1,
+          "discrimination_margin": -0.0729,
+          "mean_lethal": 0.5655,
+          "mean_safe": 0.6384,
+          "brier_score": 0.3155
+        }
+      }
+    },
+    "direct": {
+      "mean_pellets_per_ep": 0.0,
+      "total_catches": 35,
+      "mean_catches_per_ep": 1.75
+    },
+    "h1": {
+      "mean_pellets_per_ep": 0.0,
+      "total_catches": 35,
+      "mean_catches_per_ep": 1.75
+    },
+    "h2": {
+      "mean_pellets_per_ep": 0.0,
+      "total_catches": 35,
+      "mean_catches_per_ep": 1.75
+    },
+    "h3": {
+      "mean_pellets_per_ep": 0.0,
+      "total_catches": 35,
+      "mean_catches_per_ep": 1.75
+    }
+  }
+}
