@@ -3,27 +3,40 @@
 Computes exact quantitative evidence rather than heuristic narratives:
 1. Physical & Spatial Dynamics:
    - Ghost collision count vs Wall bump count.
-   - Wall-bump micro-dynamics: contact events, mean/max repeated pushes, recovery latency.
-   - Per-catch incident micro-telemetry (catch topology, pre-catch topology at t-5/t-10, nearest junction distance).
+   - Per-catch incident micro-telemetry (catch topology, topology at t-5/t-10, nearest junction distance, ghost distance delta).
    - Ghost catches categorized by topology (corridor vs junction vs dead-end).
    - Mean and minimum Euclidean distance to nearest ghost.
    - Intersection classifications (corridor vs dead-end vs 3/4-way junction).
    - Unsafe intersection crossings (entering junction when nearest ghost distance <= 2).
+   - Distance traveled & Pellets per 100 movement steps.
 
-2. Internal Thought-Field Dynamics & Effective Dimensionality:
+2. Wall Interaction & Recovery Dynamics:
+   - Distinct wall contact events.
+   - Mean repeated pushes per contact event.
+   - Maximum repeated pushes against a wall.
+   - Wall recovery latency (ticks to change direction after hitting wall).
+
+3. Event-Triggered Internal State Dynamics (Delta T = 1 - cos(T_t, T_t+1)):
+   - Delta T on normal movement frames.
+   - Delta T on wall bump frames.
+   - Delta T on high ghost proximity frames (ghost dist <= 2.5).
+
+4. Internal Thought-Field Dynamics & Effective Dimensionality:
    - Effective Rank / Dimensionality of thoughtlets (Roy & Vetterli 2007 SVD-entropy).
-   - Inter-thoughtlet pairwise cosine similarity and thoughtlet L2 norms.
-   - Event-triggered cognitive dynamics: thought delta (1 - cos sim) on ordinary frames vs wall bumps vs ghost proximity (dist <= 3).
-   - Global temporal persistence (cosine similarity between t and t-1).
+   - Mean thoughtlet norm.
+   - Pairwise thoughtlet cosine similarity (subspace alignment / collapse).
+   - Inter-thoughtlet activation variance.
+   - Global temporal persistence.
    - Model parameter SHA256 digest verification.
 
-3. Outcome-Conditioned Expert Disagreement:
+5. Outcome-Conditioned Expert Disagreement:
+   - In-sample direct model imitation agreement vs Rollout lookahead agreement.
    - Total disagreements with the expert lookahead planner.
    - Disagreements leading to productive pellet gain + survival.
    - Disagreements leading to neutral safe survival.
    - Disagreements leading to ghost catches.
 
-4. Cognitive Depth Scaling Ablation:
+6. Cognitive Depth Scaling Ablation:
    - Evaluates the same learned model across cognitive thought cycles (1, 2, 3, 4, 6).
 """
 
@@ -86,33 +99,25 @@ def compute_effective_rank(z: Tensor, eps: float = 1e-12) -> float:
         return float(max(1.0, min(float(z.shape[0]), eff_dim)))
 
 
-def compute_pairwise_cosine_similarity(z: Tensor, eps: float = 1e-12) -> tuple[float, float]:
-    """Compute mean pairwise cosine similarity and mean L2 norm across thoughtlet slots.
-
-    Args:
-        z: [N, D] matrix where N is thoughtlets.
-
-    Returns:
-        (mean_pairwise_similarity, mean_thoughtlet_norm)
-    """
-    if torch is None or not isinstance(z, Tensor) or z.ndim != 2 or z.shape[0] <= 1:
-        return 1.0, 1.0
+def compute_pairwise_cosine_similarity(z: Tensor, eps: float = 1e-12) -> float:
+    """Compute average pairwise cosine similarity across all pairs of thoughtlets in [N, D]."""
+    if torch is None or not isinstance(z, Tensor):
+        return 1.0
+    if z.ndim != 2 or z.shape[0] <= 1:
+        return 1.0
     with torch.no_grad():
-        norms = torch.norm(z.float(), dim=1, keepdim=True)
-        mean_norm = float(norms.mean().item())
-        normalized = z.float() / (norms + eps)
-        # Gram matrix of cosine similarities
-        gram = torch.matmul(normalized, normalized.t())
+        normalized = z.float() / (z.float().norm(dim=-1, keepdim=True) + eps)
+        sim_matrix = torch.mm(normalized, normalized.t())
         n = z.shape[0]
-        # Mask out diagonal (self-similarity)
+        # Mask out self-similarity diagonal
         mask = ~torch.eye(n, dtype=torch.bool, device=z.device)
-        pairwise_sim = float(gram[mask].mean().item()) if n > 1 else 1.0
-        return pairwise_sim, mean_norm
+        pair_sims = sim_matrix[mask]
+        return float(pair_sims.mean().item())
 
 
 @dataclass(frozen=True, slots=True)
 class CatchIncidentReport:
-    """Detailed micro-telemetry capturing the exact state at a ghost catch event."""
+    """Detailed micro-telemetry capturing the exact state and history at a ghost catch event."""
 
     catch_index: int
     tick: int
@@ -143,38 +148,38 @@ class CatchIncidentReport:
 
 
 @dataclass(frozen=True, slots=True)
-class WallBumpMicroDynamics:
-    """Micro-kinematic breakdown of wall collision streaks and recovery latency."""
+class WallInteractionTelemetry:
+    """Detailed telemetry measuring wall contact duration, recovery latency, and repeated pushes."""
 
-    total_bump_ticks: int
-    contact_events: int
-    mean_repeated_pushes_per_contact: float
+    wall_bump_ticks: int
+    wall_contact_events: int
+    mean_repeated_pushes_per_event: float
     max_repeated_pushes: int
-    mean_ticks_to_action_change: float
+    mean_wall_recovery_latency: float  # Ticks until direction changes after bump
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "total_bump_ticks": self.total_bump_ticks,
-            "contact_events": self.contact_events,
-            "mean_repeated_pushes_per_contact": round(self.mean_repeated_pushes_per_contact, 2),
+            "wall_bump_ticks": self.wall_bump_ticks,
+            "wall_contact_events": self.wall_contact_events,
+            "mean_repeated_pushes_per_event": round(self.mean_repeated_pushes_per_event, 2),
             "max_repeated_pushes": self.max_repeated_pushes,
-            "mean_ticks_to_action_change": round(self.mean_ticks_to_action_change, 2),
+            "mean_wall_recovery_latency": round(self.mean_wall_recovery_latency, 2),
         }
 
 
 @dataclass(frozen=True, slots=True)
-class EventTriggeredThoughtDeltas:
-    """Event-triggered thought vector change (1 - cosine similarity)."""
+class EventTriggeredThoughtDynamics:
+    """Measures internal state delta (1 - cos(T_t, T_t+1)) around specific environmental events."""
 
-    ordinary_frame_delta: float
-    wall_bump_delta: float
-    hazard_proximity_delta: float  # nearest ghost <= 3 tiles
+    mean_delta_normal_step: float
+    mean_delta_wall_bump: float
+    mean_delta_ghost_proximity: float
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "ordinary_frame_delta": round(self.ordinary_frame_delta, 6),
-            "wall_bump_delta": round(self.wall_bump_delta, 6),
-            "hazard_proximity_delta": round(self.hazard_proximity_delta, 6),
+            "mean_delta_normal_step": round(self.mean_delta_normal_step, 5),
+            "mean_delta_wall_bump": round(self.mean_delta_wall_bump, 5),
+            "mean_delta_ghost_proximity": round(self.mean_delta_ghost_proximity, 5),
         }
 
 
@@ -222,9 +227,10 @@ class SpatialCognitiveTelemetry:
     # Task Performance
     pellets_eaten: int
     ghost_collisions: int
-    wall_bumps: int
-    wall_micro_dynamics: WallBumpMicroDynamics
     survival_ticks: int
+
+    # Wall Interaction Dynamics
+    wall_dynamics: WallInteractionTelemetry
 
     # Spatial Geometry & Intersections
     mean_nearest_ghost_dist: float
@@ -246,13 +252,15 @@ class SpatialCognitiveTelemetry:
     expert_disagreement_pct: float
     outcome_conditioned_disagreement: OutcomeConditionedDisagreement
 
-    # Internal Thought-Field Telemetry
+    # Event-Triggered Internal State Dynamics
+    event_thought_dynamics: EventTriggeredThoughtDynamics
+
+    # Internal Thought-Field Representation Health
+    mean_thoughtlet_norm: float
+    mean_pairwise_thoughtlet_sim: float
     mean_thoughtlet_variance: float
     mean_thoughtlet_persistence: float
     mean_thoughtlet_effective_rank: float
-    mean_thoughtlet_norm: float
-    pairwise_cosine_similarity: float
-    event_thought_deltas: EventTriggeredThoughtDeltas
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -261,9 +269,8 @@ class SpatialCognitiveTelemetry:
             "ticks_simulated": self.ticks_simulated,
             "pellets_eaten": self.pellets_eaten,
             "ghost_collisions": self.ghost_collisions,
-            "wall_bumps": self.wall_bumps,
-            "wall_micro_dynamics": self.wall_micro_dynamics.to_dict(),
             "survival_ticks": self.survival_ticks,
+            "wall_dynamics": self.wall_dynamics.to_dict(),
             "mean_nearest_ghost_dist": round(self.mean_nearest_ghost_dist, 3),
             "min_nearest_ghost_dist": round(self.min_nearest_ghost_dist, 3),
             "intersection_entries_total": self.intersection_entries_total,
@@ -280,12 +287,14 @@ class SpatialCognitiveTelemetry:
             "pellets_per_100_moves": round(self.pellets_per_100_moves, 2),
             "expert_disagreement_pct": round(self.expert_disagreement_pct, 2),
             "outcome_disagreement": self.outcome_conditioned_disagreement.to_dict(),
-            "mean_thoughtlet_variance": round(self.mean_thoughtlet_variance, 4),
-            "mean_thoughtlet_persistence": round(self.mean_thoughtlet_persistence, 4),
-            "mean_thoughtlet_effective_rank": round(self.mean_thoughtlet_effective_rank, 2),
-            "mean_thoughtlet_norm": round(self.mean_thoughtlet_norm, 3),
-            "pairwise_cosine_similarity": round(self.pairwise_cosine_similarity, 3),
-            "event_thought_deltas": self.event_thought_deltas.to_dict(),
+            "event_thought_dynamics": self.event_thought_dynamics.to_dict(),
+            "thought_representation": {
+                "mean_norm": round(self.mean_thoughtlet_norm, 4),
+                "pairwise_cosine_sim": round(self.mean_pairwise_thoughtlet_sim, 4),
+                "variance": round(self.mean_thoughtlet_variance, 4),
+                "persistence": round(self.mean_thoughtlet_persistence, 4),
+                "effective_rank": round(self.mean_thoughtlet_effective_rank, 2),
+            },
         }
 
 
@@ -314,7 +323,7 @@ def run_instrumented_diagnostic_episode(
     max_ticks: int = 120,
     expert_policy: object | None = None,
 ) -> SpatialCognitiveTelemetry:
-    """Execute one episode with exact geometric, kinematic, cognitive, and incident telemetry."""
+    """Execute one episode with comprehensive geometric, kinematic, event-triggered thought, and incident telemetry."""
     obs = env.reset(seed)
     if hasattr(policy, "reset"):
         policy.reset(seed)
@@ -329,7 +338,6 @@ def run_instrumented_diagnostic_episode(
     # Tracking accumulators
     ghost_distances: list[float] = []
     min_ghost_distance = 999.0
-    wall_bumps = 0
     actual_moves = 0
     junction_entries = 0
     unsafe_junction_entries = 0
@@ -337,24 +345,16 @@ def run_instrumented_diagnostic_episode(
     dead_end_steps = 0
     expert_disagreements = 0
     decisions_total = 0
-    thought_variances: list[float] = []
-    thought_persistences: list[float] = []
-    thought_effective_ranks: list[float] = []
-    thought_norms: list[float] = []
-    pairwise_sims: list[float] = []
 
-    # Event-triggered thought delta tracking: Delta T = 1 - cos_sim(t, t-1)
-    ordinary_thought_deltas: list[float] = []
-    wall_bump_thought_deltas: list[float] = []
-    hazard_thought_deltas: list[float] = []
-
-    # Wall streak tracking
-    wall_streaks: list[int] = []
+    # Wall interaction tracking
+    wall_bump_ticks = 0
+    wall_contact_events = 0
     current_wall_streak = 0
-    action_change_latencies: list[int] = []
-    last_bump_action = None
-    ticks_since_bump = 0
-    tracking_recovery = False
+    wall_streaks: list[int] = []
+    recovery_latencies: list[int] = []
+    in_wall_contact = False
+    ticks_since_wall_hit = 0
+    wall_hit_action: tuple[int, ...] | None = None
 
     # Incident tracking history
     recent_ghost_dists: list[float] = []
@@ -370,6 +370,17 @@ def run_instrumented_diagnostic_episode(
     prod_disagreements = 0
     safe_disagreements = 0
     fatal_disagreements = 0
+
+    # Thought dynamics accumulators
+    thought_variances: list[float] = []
+    thought_persistences: list[float] = []
+    thought_effective_ranks: list[float] = []
+    thought_norms: list[float] = []
+    thought_pairwise_sims: list[float] = []
+
+    deltas_normal: list[float] = []
+    deltas_wall: list[float] = []
+    deltas_ghost: list[float] = []
 
     last_pos = (env._player_x, env._player_y)
     last_thought: Tensor | None = None
@@ -393,6 +404,7 @@ def run_instrumented_diagnostic_episode(
         recent_topologies.append(cell_type)
         if len(recent_ghost_dists) > 20:
             recent_ghost_dists.pop(0)
+        if len(recent_topologies) > 20:
             recent_topologies.pop(0)
 
         if cell_type == "junction" and last_pos != current_pos:
@@ -426,26 +438,24 @@ def run_instrumented_diagnostic_episode(
         if len(recent_disagreements) > 20:
             recent_disagreements.pop(0)
 
-        # 3. Inspect internal thought states and effective rank
+        # 3. Inspect internal thought states
         cur_effective_rank = 1.0
         cur_thought_delta = 0.0
         state = getattr(policy, "_state", None)
         if state is not None and hasattr(state, "thoughts") and isinstance(state.thoughts, Tensor):
             thoughts = state.thoughts[0]  # [thoughtlets, registers, width]
-            pooled_thoughts = thoughts.mean(dim=1)
-            cur_effective_rank = compute_effective_rank(pooled_thoughts)
+            pooled = thoughts.mean(dim=1)  # [thoughtlets, width]
+            cur_effective_rank = compute_effective_rank(pooled)
             thought_effective_ranks.append(cur_effective_rank)
-
-            pair_sim, mean_norm = compute_pairwise_cosine_similarity(pooled_thoughts)
-            pairwise_sims.append(pair_sim)
-            thought_norms.append(mean_norm)
+            thought_norms.append(float(pooled.norm(dim=-1).mean().item()))
+            thought_pairwise_sims.append(compute_pairwise_cosine_similarity(pooled))
 
             # Inter-thoughtlet variance
             thoughtlet_mean = thoughts.mean(dim=0, keepdim=True)
             var = float(((thoughts - thoughtlet_mean) ** 2).mean().item())
             thought_variances.append(var)
 
-            # Temporal persistence and delta T
+            # Temporal persistence (cosine sim between successive steps)
             flattened = thoughts.flatten()
             if last_thought is not None:
                 sim = float(
@@ -462,38 +472,32 @@ def run_instrumented_diagnostic_episode(
         outcome = env.step(ctrl)
         new_pos = (env._player_x, env._player_y)
 
-        # Check for wall bump vs move
-        is_wall_bump = False
-        if ctrl.keys_down and new_pos == current_pos and (tick % env._player_period == 0):
-            wall_bumps += 1
-            is_wall_bump = True
+        # Wall bump detection and streak dynamics
+        is_wall_bump = bool(ctrl.keys_down and new_pos == current_pos and (tick % env._player_period == 0))
+        if is_wall_bump:
+            wall_bump_ticks += 1
             current_wall_streak += 1
-            if not tracking_recovery:
-                tracking_recovery = True
-                last_bump_action = ctrl.keys_down
-                ticks_since_bump = 0
-            else:
-                ticks_since_bump += 1
-        elif new_pos != current_pos:
-            actual_moves += 1
-            if current_wall_streak > 0:
+            if not in_wall_contact:
+                wall_contact_events += 1
+                in_wall_contact = True
+                ticks_since_wall_hit = 0
+                wall_hit_action = ctrl.keys_down
+            deltas_wall.append(cur_thought_delta)
+        else:
+            if in_wall_contact:
                 wall_streaks.append(current_wall_streak)
                 current_wall_streak = 0
-            if tracking_recovery:
-                action_change_latencies.append(ticks_since_bump)
-                tracking_recovery = False
+                in_wall_contact = False
+                recovery_latencies.append(ticks_since_wall_hit)
+            if new_pos != current_pos:
+                actual_moves += 1
+                deltas_normal.append(cur_thought_delta)
 
-        if tracking_recovery and ctrl.keys_down != last_bump_action:
-            action_change_latencies.append(ticks_since_bump)
-            tracking_recovery = False
+        if in_wall_contact:
+            ticks_since_wall_hit += 1
 
-        # Classify event-triggered thought delta
-        if is_wall_bump:
-            wall_bump_thought_deltas.append(cur_thought_delta)
-        elif cur_nearest <= 3.0:
-            hazard_thought_deltas.append(cur_thought_delta)
-        else:
-            ordinary_thought_deltas.append(cur_thought_delta)
+        if cur_nearest <= 2.5:
+            deltas_ghost.append(cur_thought_delta)
 
         # Check for catch incident
         if env._times_caught > pre_caught:
@@ -554,8 +558,9 @@ def run_instrumented_diagnostic_episode(
         if outcome.terminated or outcome.truncated:
             break
 
-    if current_wall_streak > 0:
+    if in_wall_contact and current_wall_streak > 0:
         wall_streaks.append(current_wall_streak)
+        recovery_latencies.append(ticks_since_wall_hit)
 
     # Clean up remaining pending disagreements
     for d in pending_disagreements:
@@ -575,37 +580,23 @@ def run_instrumented_diagnostic_episode(
         disagreed_and_caught=fatal_disagreements,
     )
 
-    contact_events = len(wall_streaks)
-    mean_pushes = (sum(wall_streaks) / contact_events) if contact_events > 0 else 0.0
-    max_pushes = max(wall_streaks) if wall_streaks else 0
-    mean_recovery = (sum(action_change_latencies) / len(action_change_latencies)) if action_change_latencies else 0.0
-
-    wall_micro = WallBumpMicroDynamics(
-        total_bump_ticks=wall_bumps,
-        contact_events=contact_events,
-        mean_repeated_pushes_per_contact=mean_pushes,
-        max_repeated_pushes=max_pushes,
-        mean_ticks_to_action_change=mean_recovery,
+    wall_telemetry = WallInteractionTelemetry(
+        wall_bump_ticks=wall_bump_ticks,
+        wall_contact_events=wall_contact_events,
+        mean_repeated_pushes_per_event=sum(wall_streaks) / len(wall_streaks) if wall_streaks else 0.0,
+        max_repeated_pushes=max(wall_streaks, default=0),
+        mean_wall_recovery_latency=sum(recovery_latencies) / len(recovery_latencies) if recovery_latencies else 0.0,
     )
 
-    mean_ord_delta = sum(ordinary_thought_deltas) / len(ordinary_thought_deltas) if ordinary_thought_deltas else 0.0
-    mean_bump_delta = sum(wall_bump_thought_deltas) / len(wall_bump_thought_deltas) if wall_bump_thought_deltas else 0.0
-    mean_haz_delta = sum(hazard_thought_deltas) / len(hazard_thought_deltas) if hazard_thought_deltas else 0.0
-
-    event_deltas = EventTriggeredThoughtDeltas(
-        ordinary_frame_delta=mean_ord_delta,
-        wall_bump_delta=mean_bump_delta,
-        hazard_proximity_delta=mean_haz_delta,
+    event_dynamics = EventTriggeredThoughtDynamics(
+        mean_delta_normal_step=sum(deltas_normal) / len(deltas_normal) if deltas_normal else 0.0,
+        mean_delta_wall_bump=sum(deltas_wall) / len(deltas_wall) if deltas_wall else 0.0,
+        mean_delta_ghost_proximity=sum(deltas_ghost) / len(deltas_ghost) if deltas_ghost else 0.0,
     )
 
     mean_dist = sum(ghost_distances) / len(ghost_distances) if ghost_distances else 0.0
     disagreement_pct = (expert_disagreements / decisions_total * 100.0) if decisions_total > 0 else 0.0
     pellets_per_100 = (env._pellets_eaten / actual_moves * 100.0) if actual_moves > 0 else 0.0
-    mean_var = sum(thought_variances) / len(thought_variances) if thought_variances else 0.0
-    mean_persist = sum(thought_persistences) / len(thought_persistences) if thought_persistences else 0.0
-    mean_rank = sum(thought_effective_ranks) / len(thought_effective_ranks) if thought_effective_ranks else 1.0
-    mean_norm_val = sum(thought_norms) / len(thought_norms) if thought_norms else 1.0
-    mean_pairwise_sim = sum(pairwise_sims) / len(pairwise_sims) if pairwise_sims else 1.0
 
     return SpatialCognitiveTelemetry(
         seed=seed,
@@ -613,9 +604,8 @@ def run_instrumented_diagnostic_episode(
         ticks_simulated=env._tick,
         pellets_eaten=env._pellets_eaten,
         ghost_collisions=env._times_caught,
-        wall_bumps=wall_bumps,
-        wall_micro_dynamics=wall_micro,
         survival_ticks=env._tick,
+        wall_dynamics=wall_telemetry,
         mean_nearest_ghost_dist=mean_dist,
         min_nearest_ghost_dist=min_ghost_distance if min_ghost_distance < 900.0 else 0.0,
         intersection_entries_total=junction_entries,
@@ -630,12 +620,12 @@ def run_instrumented_diagnostic_episode(
         pellets_per_100_moves=pellets_per_100,
         expert_disagreement_pct=disagreement_pct,
         outcome_conditioned_disagreement=outcome_disagreements,
-        mean_thoughtlet_variance=mean_var,
-        mean_thoughtlet_persistence=mean_persist,
-        mean_thoughtlet_effective_rank=mean_rank,
-        mean_thoughtlet_norm=mean_norm_val,
-        pairwise_cosine_similarity=mean_pairwise_sim,
-        event_thought_deltas=event_deltas,
+        event_thought_dynamics=event_dynamics,
+        mean_thoughtlet_norm=sum(thought_norms) / len(thought_norms) if thought_norms else 0.0,
+        mean_pairwise_thoughtlet_sim=sum(thought_pairwise_sims) / len(thought_pairwise_sims) if thought_pairwise_sims else 0.0,
+        mean_thoughtlet_variance=sum(thought_variances) / len(thought_variances) if thought_variances else 0.0,
+        mean_thoughtlet_persistence=sum(thought_persistences) / len(thought_persistences) if thought_persistences else 0.0,
+        mean_thoughtlet_effective_rank=sum(thought_effective_ranks) / len(thought_effective_ranks) if thought_effective_ranks else 1.0,
     )
 
 
