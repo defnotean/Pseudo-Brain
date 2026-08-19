@@ -1,25 +1,25 @@
 # Autonomous Campaign Round 02 Diagnostic & Progress Report
 
 **Date**: 2026-08-18
-**Status**: PROGRESSING_HEALTHY
+**Status**: HIGH_COLLISION_RATE
 **Checkpoint**: `brain/artifacts/checkpoints\curriculum_dagger_round_02.pt`
 
 ## Telemetry & Metrics Summary
 - **DAgger Iterations Completed**: 4
 - **Sequences in Replay Buffer**: 84
-- **Mean Training Loss**: `1.0288`
-- **Mean Pellets Eaten**: `2.7` (Total: `8`)
-- **Total Collisions**: `5`
+- **Mean Training Loss**: `1.2147`
+- **Mean Pellets Eaten**: `3.7` (Total: `11`)
+- **Total Collisions**: `11`
 - **Opposite Key Conflicts**: `0` (Mathematically Guaranteed 0)
 - **Deadzone Violations**: `0` (Mathematically Guaranteed 0)
-- **Round Execution Time**: `7.33s`
+- **Round Execution Time**: `15.15s`
 
 ## Scientific Diagnosis
 ### Observation
-Loss decreased to 1.0288. Policy is learning turn-aways and clearing corridors.
+Policy is aggressively collecting pellets but cutting corners too close to ghost BFS trajectories.
 
 ### Action & Next Step
-Advance to next DAgger iteration with reduced beta.
+Increase lookahead hazard avoidance weight lambda to 5.5 and add evasion curriculum samples.
 
 ## Invariant Audit
 - Single-threaded CPU execution: PASS
