@@ -66,6 +66,8 @@ class LatentLookaheadPolicy:
         hazard_prune_threshold: float = 0.5,
         dead_end_threshold: float = -10.0,
         policy_prior_weight: float = 1.0,
+        selective_gating: bool = True,
+        direct_action_safety_threshold: float = 0.35,
         device: torch.device | str = "cpu",
         dtype: torch.dtype = torch.float32,
     ) -> None:
@@ -73,6 +75,8 @@ class LatentLookaheadPolicy:
         self.device = torch.device(device)
         self.dtype = dtype
         self.policy_prior_weight = policy_prior_weight
+        self.selective_gating = selective_gating
+        self.direct_action_safety_threshold = direct_action_safety_threshold
         self.model.eval()
 
         if planner is not None:
@@ -186,6 +190,24 @@ class LatentLookaheadPolicy:
                 policy_prior_weight=self.policy_prior_weight,
                 elapsed_seconds=elapsed_seconds,
             )
+
+            # Determine direct policy action
+            d_act_idx = int(policy_logits.argmax().item())
+
+            # Evaluate counterfactual danger if available
+            cf_head = getattr(self.model, "counterfactual_foresight_head", None)
+            direct_danger = 0.0
+            if cf_head is not None:
+                cf_preds = cf_head.forward_all_actions(model_out.next_state.thoughts)
+                if d_act_idx in cf_preds:
+                    direct_danger = float(cf_preds[d_act_idx].hazard_probability[0, 0, 0].item())
+
+            # If selective gating is enabled and direct action is safe, preserve direct action
+            if self.selective_gating and direct_danger < self.direct_action_safety_threshold:
+                final_action = DirectionalAction(d_act_idx)
+            else:
+                final_action = plan_result.best_action
+
             self._state = model_out.next_state.detach()
             self._last_diagnostics = model_out.diagnostics
             self._last_model_output = model_out
@@ -194,7 +216,7 @@ class LatentLookaheadPolicy:
         self._plan_history.append(plan_result)
         self._decision_count += 1
 
-        keys = _KEY_FOR_DIRECTIONAL_ACTION.get(plan_result.best_action, ())
+        keys = _KEY_FOR_DIRECTIONAL_ACTION.get(final_action, ())
         control = GenericControl(keys_down=keys)
 
         stats = dict(control_audit_stats(control))
@@ -202,6 +224,8 @@ class LatentLookaheadPolicy:
         stats["lookahead_pruned_count"] = plan_result.pruned_count
         stats["lookahead_best_reward"] = plan_result.best_branch.discounted_reward_sum
         stats["lookahead_best_danger"] = plan_result.best_branch.discounted_danger_sum
+        stats["lookahead_intervened"] = 1.0 if int(final_action) != d_act_idx else 0.0
+        stats["direct_danger"] = direct_danger
 
         terminal_val = plan_result.best_branch.terminal_value
         return control, stats, terminal_val

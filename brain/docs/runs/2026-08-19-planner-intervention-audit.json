@@ -1,0 +1,157 @@
+{
+  "42": {
+    "catches": {
+      "direct": 35,
+      "h1": 35,
+      "h2": 35,
+      "h3": 35,
+      "gated_h1_h2": 35
+    },
+    "pellets": {
+      "direct": 0,
+      "h1": 0,
+      "h2": 0,
+      "h3": 0,
+      "gated_h1_h2": 0
+    },
+    "trajectory_hashes": {
+      "direct": "f903ffd0da36",
+      "h1": "f903ffd0da36",
+      "h2": "f903ffd0da36",
+      "h3": "f903ffd0da36",
+      "gated_h1_h2": "f903ffd0da36"
+    },
+    "disagreements": {
+      "direct_vs_h1_pct": 0.0,
+      "h1_vs_h2_pct": 0.0,
+      "h2_vs_h3_pct": 0.0,
+      "direct_vs_gated_pct": 0.0
+    },
+    "raw_overrides": 0,
+    "gated_overrides": 0
+  },
+  "43": {
+    "catches": {
+      "direct": 35,
+      "h1": 199,
+      "h2": 199,
+      "h3": 199,
+      "gated_h1_h2": 35
+    },
+    "pellets": {
+      "direct": 0,
+      "h1": 0,
+      "h2": 0,
+      "h3": 0,
+      "gated_h1_h2": 0
+    },
+    "trajectory_hashes": {
+      "direct": "f903ffd0da36",
+      "h1": "6a848994cb35",
+      "h2": "6a848994cb35",
+      "h3": "6a848994cb35",
+      "gated_h1_h2": "f903ffd0da36"
+    },
+    "disagreements": {
+      "direct_vs_h1_pct": 100.0,
+      "h1_vs_h2_pct": 0.0,
+      "h2_vs_h3_pct": 0.0,
+      "direct_vs_gated_pct": 0.0
+    },
+    "raw_overrides": 1000,
+    "gated_overrides": 0
+  },
+  "44": {
+    "catches": {
+      "direct": 37,
+      "h1": 35,
+      "h2": 35,
+      "h3": 35,
+      "gated_h1_h2": 37
+    },
+    "pellets": {
+      "direct": 0,
+      "h1": 0,
+      "h2": 0,
+      "h3": 0,
+      "gated_h1_h2": 0
+    },
+    "trajectory_hashes": {
+      "direct": "2e1024a3d170",
+      "h1": "f903ffd0da36",
+      "h2": "f903ffd0da36",
+      "h3": "f903ffd0da36",
+      "gated_h1_h2": "2e1024a3d170"
+    },
+    "disagreements": {
+      "direct_vs_h1_pct": 100.0,
+      "h1_vs_h2_pct": 0.0,
+      "h2_vs_h3_pct": 0.0,
+      "direct_vs_gated_pct": 0.0
+    },
+    "raw_overrides": 1000,
+    "gated_overrides": 0
+  },
+  "45": {
+    "catches": {
+      "direct": 35,
+      "h1": 35,
+      "h2": 35,
+      "h3": 35,
+      "gated_h1_h2": 35
+    },
+    "pellets": {
+      "direct": 0,
+      "h1": 0,
+      "h2": 0,
+      "h3": 0,
+      "gated_h1_h2": 0
+    },
+    "trajectory_hashes": {
+      "direct": "f903ffd0da36",
+      "h1": "f903ffd0da36",
+      "h2": "f903ffd0da36",
+      "h3": "f903ffd0da36",
+      "gated_h1_h2": "f903ffd0da36"
+    },
+    "disagreements": {
+      "direct_vs_h1_pct": 0.0,
+      "h1_vs_h2_pct": 0.0,
+      "h2_vs_h3_pct": 0.0,
+      "direct_vs_gated_pct": 0.0
+    },
+    "raw_overrides": 0,
+    "gated_overrides": 0
+  },
+  "46": {
+    "catches": {
+      "direct": 35,
+      "h1": 199,
+      "h2": 199,
+      "h3": 199,
+      "gated_h1_h2": 34
+    },
+    "pellets": {
+      "direct": 0,
+      "h1": 0,
+      "h2": 0,
+      "h3": 0,
+      "gated_h1_h2": 0
+    },
+    "trajectory_hashes": {
+      "direct": "f903ffd0da36",
+      "h1": "6a848994cb35",
+      "h2": "6a848994cb35",
+      "h3": "6a848994cb35",
+      "gated_h1_h2": "1f1ebf47f098"
+    },
+    "disagreements": {
+      "direct_vs_h1_pct": 100.0,
+      "h1_vs_h2_pct": 0.0,
+      "h2_vs_h3_pct": 0.0,
+      "direct_vs_gated_pct": 100.0
+    },
+    "raw_overrides": 1000,
+    "gated_overrides": 1000
+  }
+}
