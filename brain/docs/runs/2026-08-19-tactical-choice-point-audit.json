@@ -1,0 +1,47 @@
+{
+  "42": {
+    "tactical_choice_points": 754,
+    "interventions": 0,
+    "helpful_saves": 0,
+    "harmful_errors": 0,
+    "neutral_cases": 0,
+    "intervention_value_ratio_pct": 100.0,
+    "net_save_value": 0
+  },
+  "43": {
+    "tactical_choice_points": 1373,
+    "interventions": 1373,
+    "helpful_saves": 5,
+    "harmful_errors": 33,
+    "neutral_cases": 1335,
+    "intervention_value_ratio_pct": 13.16,
+    "net_save_value": -28
+  },
+  "44": {
+    "tactical_choice_points": 670,
+    "interventions": 670,
+    "helpful_saves": 9,
+    "harmful_errors": 27,
+    "neutral_cases": 634,
+    "intervention_value_ratio_pct": 25.0,
+    "net_save_value": -18
+  },
+  "45": {
+    "tactical_choice_points": 754,
+    "interventions": 0,
+    "helpful_saves": 0,
+    "harmful_errors": 0,
+    "neutral_cases": 0,
+    "intervention_value_ratio_pct": 100.0,
+    "net_save_value": 0
+  },
+  "46": {
+    "tactical_choice_points": 1373,
+    "interventions": 1373,
+    "helpful_saves": 5,
+    "harmful_errors": 33,
+    "neutral_cases": 1335,
+    "intervention_value_ratio_pct": 13.16,
+    "net_save_value": -28
+  }
+}
