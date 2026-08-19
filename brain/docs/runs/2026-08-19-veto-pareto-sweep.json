@@ -1,0 +1,200 @@
+[
+  {
+    "entropy_th": 0.05,
+    "contrast_th": 0.003,
+    "drift_th": 0.03,
+    "interventions": 0,
+    "helpful": 0,
+    "neutral": 0,
+    "harmful": 0,
+    "precision_pct": null,
+    "net_value": 0
+  },
+  {
+    "entropy_th": 0.05,
+    "contrast_th": 0.003,
+    "drift_th": 0.06,
+    "interventions": 1000,
+    "helpful": 8,
+    "neutral": 987,
+    "harmful": 5,
+    "precision_pct": 61.54,
+    "net_value": 3
+  },
+  {
+    "entropy_th": 0.05,
+    "contrast_th": 0.005,
+    "drift_th": 0.03,
+    "interventions": 0,
+    "helpful": 0,
+    "neutral": 0,
+    "harmful": 0,
+    "precision_pct": null,
+    "net_value": 0
+  },
+  {
+    "entropy_th": 0.05,
+    "contrast_th": 0.005,
+    "drift_th": 0.06,
+    "interventions": 40,
+    "helpful": 0,
+    "neutral": 40,
+    "harmful": 0,
+    "precision_pct": null,
+    "net_value": 0
+  },
+  {
+    "entropy_th": 0.05,
+    "contrast_th": 0.008,
+    "drift_th": 0.03,
+    "interventions": 0,
+    "helpful": 0,
+    "neutral": 0,
+    "harmful": 0,
+    "precision_pct": null,
+    "net_value": 0
+  },
+  {
+    "entropy_th": 0.05,
+    "contrast_th": 0.008,
+    "drift_th": 0.06,
+    "interventions": 0,
+    "helpful": 0,
+    "neutral": 0,
+    "harmful": 0,
+    "precision_pct": null,
+    "net_value": 0
+  },
+  {
+    "entropy_th": 0.15,
+    "contrast_th": 0.003,
+    "drift_th": 0.03,
+    "interventions": 0,
+    "helpful": 0,
+    "neutral": 0,
+    "harmful": 0,
+    "precision_pct": null,
+    "net_value": 0
+  },
+  {
+    "entropy_th": 0.15,
+    "contrast_th": 0.003,
+    "drift_th": 0.06,
+    "interventions": 1000,
+    "helpful": 8,
+    "neutral": 987,
+    "harmful": 5,
+    "precision_pct": 61.54,
+    "net_value": 3
+  },
+  {
+    "entropy_th": 0.15,
+    "contrast_th": 0.005,
+    "drift_th": 0.03,
+    "interventions": 0,
+    "helpful": 0,
+    "neutral": 0,
+    "harmful": 0,
+    "precision_pct": null,
+    "net_value": 0
+  },
+  {
+    "entropy_th": 0.15,
+    "contrast_th": 0.005,
+    "drift_th": 0.06,
+    "interventions": 40,
+    "helpful": 0,
+    "neutral": 40,
+    "harmful": 0,
+    "precision_pct": null,
+    "net_value": 0
+  },
+  {
+    "entropy_th": 0.15,
+    "contrast_th": 0.008,
+    "drift_th": 0.03,
+    "interventions": 0,
+    "helpful": 0,
+    "neutral": 0,
+    "harmful": 0,
+    "precision_pct": null,
+    "net_value": 0
+  },
+  {
+    "entropy_th": 0.15,
+    "contrast_th": 0.008,
+    "drift_th": 0.06,
+    "interventions": 0,
+    "helpful": 0,
+    "neutral": 0,
+    "harmful": 0,
+    "precision_pct": null,
+    "net_value": 0
+  },
+  {
+    "entropy_th": 0.25,
+    "contrast_th": 0.003,
+    "drift_th": 0.03,
+    "interventions": 0,
+    "helpful": 0,
+    "neutral": 0,
+    "harmful": 0,
+    "precision_pct": null,
+    "net_value": 0
+  },
+  {
+    "entropy_th": 0.25,
+    "contrast_th": 0.003,
+    "drift_th": 0.06,
+    "interventions": 1000,
+    "helpful": 8,
+    "neutral": 987,
+    "harmful": 5,
+    "precision_pct": 61.54,
+    "net_value": 3
+  },
+  {
+    "entropy_th": 0.25,
+    "contrast_th": 0.005,
+    "drift_th": 0.03,
+    "interventions": 0,
+    "helpful": 0,
+    "neutral": 0,
+    "harmful": 0,
+    "precision_pct": null,
+    "net_value": 0
+  },
+  {
+    "entropy_th": 0.25,
+    "contrast_th": 0.005,
+    "drift_th": 0.06,
+    "interventions": 40,
+    "helpful": 0,
+    "neutral": 40,
+    "harmful": 0,
+    "precision_pct": null,
+    "net_value": 0
+  },
+  {
+    "entropy_th": 0.25,
+    "contrast_th": 0.008,
+    "drift_th": 0.03,
+    "interventions": 0,
+    "helpful": 0,
+    "neutral": 0,
+    "harmful": 0,
+    "precision_pct": null,
+    "net_value": 0
+  },
+  {
+    "entropy_th": 0.25,
+    "contrast_th": 0.008,
+    "drift_th": 0.06,
+    "interventions": 0,
+    "helpful": 0,
+    "neutral": 0,
+    "harmful": 0,
+    "precision_pct": null,
+    "net_value": 0
+  }
+]

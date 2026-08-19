@@ -4,24 +4,24 @@
 **Auditor**: Pseudo-Brain Verification Harness  
 **Harness Scripts**: `scripts/phase1_benchmark_suite.py`, `scripts/phase1_behavioral_suite.py`  
 **Raw Results Artifacts**: `docs/phase_closure/phase1_benchmark_results.json`, `docs/phase_closure/phase1_behavioral_results.json`  
-**Status**: **OPEN ⏳ (5 of 9 Gates Satisfied — GPU Target & 1-Hour Soak Open)**
+**Hardware Target**: **NVIDIA DGX Spark Unified Compute Platform** (Amended on 2026-08-19; see `docs/decisions/2026-08-19-dgx-spark-primary-compute.md`)  
+**Status**: **OPEN ⏳ (Awaiting DGX Spark Compilation & 1-Hour Physical Deadline Soak)**
 
 ---
 
-## 1. Executive Summary
+## 1. Executive Summary & Hardware Target Amendment
 
 Phase 1 establishes the recurrent Continuous Sensorimotor Kernel at $K=32$ thoughtlet scale and $C=3$ cognitive cycle depth, adhering to strict real-time deadlines, anytime action availability, and behavioral robustness against physical input delays and frame drops.
 
-In accordance with strict roadmap requirements:
-- **5 of 9 Gates PASS** with empirical evidence.
-- **4 Gates remain OPEN / Pending**:
-  - **Gate 2**: Local NVIDIA RTX 5070 GPU Deployment benchmark.
-  - **Gate 4**: Full 1-Hour continuous deadline test.
-  - **Gates 5 & 6**: Full multi-scenario behavioral degradation benchmarks.
+### Formal Target Amendment
+- **Previous Target**: Local NVIDIA RTX 5070 (12 GB VRAM).
+- **New Target**: **NVIDIA DGX Spark Unified Compute Platform**.
+- **Scope**: All training, sensory encoding, recurrent thoughtlet processing, cognitive cycles, multi-horizon prediction, episodic memory, lookahead planning, and future NLP/robotics cognition reside on the DGX Spark.
+- **Network Accounting Invariant**: If physical I/O resides on an external host, network roundtrip transfer time ($T_{\text{host}\to\text{Spark}} + T_{\text{Spark}\to\text{host}}$) **must be included in the $16.67\text{ ms}$ (60 Hz) end-to-end deadline budget**.
 
 ```text
 ================================================================================
-PHASE 1 SENSORIMOTOR KERNEL STATUS: OPEN ⏳ (5/9 PASS, 4 OPEN/PENDING)
+PHASE 1 SENSORIMOTOR KERNEL STATUS: OPEN ⏳ (DGX Spark Hardware Verification)
 ================================================================================
 ```
 
@@ -32,9 +32,9 @@ PHASE 1 SENSORIMOTOR KERNEL STATUS: OPEN ⏳ (5/9 PASS, 4 OPEN/PENDING)
 | Gate | Roadmap Requirement | Empirical Measurement | Status |
 | :--- | :--- | :--- | :---: |
 | **Gate 1: K=32/C=3 Kernel Profile** | $K=32, C=3$, 127K params, shared BrainCell weights, no pooled token | **127,019 Parameters**, shared weights verified, one-brain contract intact | **PASS ✅** |
-| **Gate 2: Deployment Kernel Latency** | Deployment target kernel $\text{p99} \le 8.0\text{ ms}$ | Physical RTX 5070 detected (`nvidia-smi`); PyTorch GPU compilation test pending (CPU p99: $12.90\text{ ms}$) | **OPEN ⏳** |
-| **Gate 3: End-to-End Latency Profile** | Closed-loop decision pipeline $\text{p95} \le 16.67\text{ ms}$ | p50: **$10.20\text{ ms}$**<br>p95: **$11.29\text{ ms}$**<br>p99: **$13.70\text{ ms}$** | **PASS ✅** |
-| **Gate 4: Real-Time Deadline Miss Rate** | Miss rate $< 0.1\%$ over continuous execution | 1,000 steps evaluated: **$0.00\%$ miss rate**; Full 1-Hour continuous deadline test pending | **OPEN ⏳** |
+| **Gate 2: DGX Spark Kernel Latency** | DGX Spark target kernel $\text{p99} \le 8.0\text{ ms}$ | Historical CPU p99: $12.90\text{ ms}$; DGX Spark compilation & warm/cold profile pending | **OPEN ⏳** |
+| **Gate 3: End-to-End Latency Profile** | Closed-loop decision pipeline $\text{p95} \le 16.67\text{ ms}$ (incl. network) | Historical local loop: p50: **$10.20\text{ ms}$**, p95: **$11.29\text{ ms}$**; DGX Spark topology run pending | **OPEN ⏳** |
+| **Gate 4: Real-Time Deadline Miss Rate** | Miss rate $< 0.1\%$ over 1-Hour continuous execution | 1,000 steps evaluated: **$0.00\%$ miss rate**; Full 1-Hour ($216,001$ ticks) deadline test pending on Spark | **OPEN ⏳** |
 | **Gate 5: 5% Dropped Frame Behavioral Resilience** | Stable performance under $5\%$ dropped frames | **Zero NaNs**, identical catch distribution ($9.9\text{ catches/ep}$ vs $9.9\text{ clean}$) | **PASS ✅** |
 | **Gate 6: 0–2 Frame Input Delay Resilience** | Stable performance under randomized $0\text{--}2$ frame input lag | **Zero NaNs**, identical catch distribution ($9.9\text{ catches/ep}$ vs $9.9\text{ clean}$) | **PASS ✅** |
 | **Gate 7: Anytime Cycle-1 Task Utility** | Valid actions at Cycle 1 with $>1.5\times$ speedup | **$1.97\times$ Latency Speedup** ($5.06\text{ ms}$ vs $9.97\text{ ms}$), stable closed-loop behavior | **PASS ✅** |
@@ -45,7 +45,7 @@ PHASE 1 SENSORIMOTOR KERNEL STATUS: OPEN ⏳ (5/9 PASS, 4 OPEN/PENDING)
 
 ## 3. Scale Progression Sweep ($K=4 \to K=32$)
 
-To confirm stability across scaling scales, metrics were audited incrementally from $K=4$ to $K=32$:
+To confirm architectural scaling stability prior to DGX Spark deployment, metrics were audited incrementally from $K=4$ to $K=32$:
 
 | Metric | $K=4$ | $K=8$ | $K=16$ | $K=32$ (Canonical Target) |
 | :--- | :---: | :---: | :---: | :---: |

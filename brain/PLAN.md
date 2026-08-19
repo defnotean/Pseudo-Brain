@@ -1,10 +1,10 @@
 # Pseudo-Brain: Streaming Thought-Field Model Build Plan
 
-Status: architecture and execution plan, version 0.1  
-Date: 2026-08-16  
-Deployment target: local NVIDIA RTX 5070 with 12,227 MiB VRAM  
-Training target: local workstation for smoke tests; the DGX Spark for
-larger experiments and offline consolidation
+Status: architecture and execution plan, version 0.2  
+Date: 2026-08-19  
+Deployment target: NVIDIA DGX Spark Unified Compute Platform (formerly local NVIDIA RTX 5070; formally amended on 2026-08-19, see `docs/decisions/2026-08-19-dgx-spark-primary-compute.md`)  
+Training target: NVIDIA DGX Spark Unified Compute Platform for all training, neural inference, cognitive unrolling, episodic memory, and real-time planning; local workstation for offline verification harness and I/O capture  
+
 
 ## 1. Executive decision
 

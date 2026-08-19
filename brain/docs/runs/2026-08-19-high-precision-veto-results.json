@@ -1,0 +1,62 @@
+{
+  "42": {
+    "total_steps": 2500,
+    "eligible_choice_points": 0,
+    "interventions": 0,
+    "coverage_pct": 0.0,
+    "helpful_saves": 0,
+    "neutral_cases": 0,
+    "harmful_errors": 0,
+    "intervention_precision_pct": null,
+    "net_save_value": 0,
+    "veto_catches": 90
+  },
+  "43": {
+    "total_steps": 2500,
+    "eligible_choice_points": 0,
+    "interventions": 0,
+    "coverage_pct": 0.0,
+    "helpful_saves": 0,
+    "neutral_cases": 0,
+    "harmful_errors": 0,
+    "intervention_precision_pct": null,
+    "net_save_value": 0,
+    "veto_catches": 90
+  },
+  "44": {
+    "total_steps": 2500,
+    "eligible_choice_points": 2500,
+    "interventions": 0,
+    "coverage_pct": 0.0,
+    "helpful_saves": 0,
+    "neutral_cases": 0,
+    "harmful_errors": 0,
+    "intervention_precision_pct": null,
+    "net_save_value": 0,
+    "veto_catches": 84
+  },
+  "45": {
+    "total_steps": 2500,
+    "eligible_choice_points": 0,
+    "interventions": 0,
+    "coverage_pct": 0.0,
+    "helpful_saves": 0,
+    "neutral_cases": 0,
+    "harmful_errors": 0,
+    "intervention_precision_pct": null,
+    "net_save_value": 0,
+    "veto_catches": 90
+  },
+  "46": {
+    "total_steps": 2500,
+    "eligible_choice_points": 2500,
+    "interventions": 0,
+    "coverage_pct": 0.0,
+    "helpful_saves": 0,
+    "neutral_cases": 0,
+    "harmful_errors": 0,
+    "intervention_precision_pct": null,
+    "net_save_value": 0,
+    "veto_catches": 90
+  }
+}
