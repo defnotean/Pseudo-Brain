@@ -1,0 +1,146 @@
+{
+  "status": "OPEN",
+  "timestamp": "2026-08-19 16:11:04 UTC",
+  "platform": {
+    "system": "Windows",
+    "release": "10",
+    "machine": "AMD64",
+    "python": "3.11.9 (tags/v3.11.9:de54cf5, Apr  2 2024, 10:12:12) [MSC v.1938 64 bit (AMD64)]",
+    "torch": "2.13.0+cpu"
+  },
+  "scaling_sweep": [
+    {
+      "K": 4,
+      "params": 127019,
+      "kernel_p95_ms": 8.353,
+      "kernel_p99_ms": 8.7361,
+      "mean_sim": 0.2662,
+      "effective_rank": 3.82
+    },
+    {
+      "K": 8,
+      "params": 127019,
+      "kernel_p95_ms": 8.7464,
+      "kernel_p99_ms": 13.0317,
+      "mean_sim": 0.2121,
+      "effective_rank": 7.3
+    },
+    {
+      "K": 16,
+      "params": 127019,
+      "kernel_p95_ms": 10.0892,
+      "kernel_p99_ms": 11.7271,
+      "mean_sim": 0.172,
+      "effective_rank": 13.98
+    },
+    {
+      "K": 32,
+      "params": 127019,
+      "kernel_p95_ms": 10.5885,
+      "kernel_p99_ms": 10.9955,
+      "mean_sim": 0.1966,
+      "effective_rank": 21.35
+    }
+  ],
+  "gates": [
+    {
+      "gate": "Phase 1 Gate 1 \u2014 K=32 / C=3 Registered Profile",
+      "thoughtlets_K": 32,
+      "cognitive_cycles_C": 3,
+      "core_width": 32,
+      "total_parameters": 127019,
+      "trainable_parameters": 127019,
+      "weights_shared_across_thoughtlets": true,
+      "weights_shared_across_cycles": true,
+      "no_pooled_integration_token": true,
+      "cycle_one_private_reads": true,
+      "passed": true,
+      "classification": "MEASURED"
+    },
+    {
+      "gate": "Phase 1 Gate 2 \u2014 Model Kernel Latency (p99 <= 8.0 ms)",
+      "warmup_steps": 50,
+      "measured_steps": 300,
+      "p50_ms": 9.9014,
+      "p95_ms": 11.0078,
+      "p99_ms": 12.8972,
+      "p999_ms": 18.0438,
+      "max_ms": 18.0438,
+      "target_p99_ms": "<= 8.0 ms",
+      "passed": false,
+      "classification": "MEASURED"
+    },
+    {
+      "gate": "Phase 1 Gate 3 \u2014 End-to-End Observation-to-Submit (p95 <= 16.67 ms)",
+      "measured_steps": 500,
+      "p50_ms": 10.1964,
+      "p95_ms": 11.2881,
+      "p99_ms": 13.6965,
+      "max_ms": 14.7919,
+      "target_p95_ms": "<= 16.67 ms (60 Hz)",
+      "passed": true,
+      "classification": "MEASURED"
+    },
+    {
+      "gate": "Phase 1 Gate 4 \u2014 Deadline Miss Rate (< 0.1%)",
+      "total_decisions": 1000,
+      "deadline_misses": 0,
+      "miss_rate_percent": 0.0,
+      "max_lateness_ms": 0.0,
+      "target_miss_rate": "< 0.1%",
+      "passed": true,
+      "classification": "MEASURED"
+    },
+    {
+      "gate": "Phase 1 Gate 5 \u2014 Dropped Frame Robustness (5% Drop)",
+      "steps_evaluated": 300,
+      "frames_dropped": 21,
+      "clean_total_reward": -1378.0,
+      "dropped_total_reward": -1378.0,
+      "recurrent_state_stable": true,
+      "nan_or_inf_detected": false,
+      "passed": true,
+      "classification": "MEASURED"
+    },
+    {
+      "gate": "Phase 1 Gate 6 \u2014 0-2 Frame Input Delay Robustness",
+      "steps_evaluated": 300,
+      "delay_range": "0-2 frames randomized",
+      "total_reward": -2528.0,
+      "recurrent_state_stable": true,
+      "passed": true,
+      "classification": "MEASURED"
+    },
+    {
+      "gate": "Phase 1 Gate 7 \u2014 Anytime / Cycle-1 Utility",
+      "cycle_1_mean_latency_ms": 5.063,
+      "cycle_3_mean_latency_ms": 9.9683,
+      "cycle_1_speedup_factor": 1.97,
+      "cycle_1_vs_3_action_agreement_pct": 100.0,
+      "valid_finite_actions": true,
+      "passed": true,
+      "classification": "MEASURED"
+    },
+    {
+      "gate": "Phase 1 Gate 8 \u2014 Continuous World Execution",
+      "tick_period_ms": 16.67,
+      "p95_observation_age_ms": 11.2314,
+      "max_observation_age_ms": 12.8639,
+      "no_pause_world": true,
+      "passed": true,
+      "classification": "MEASURED"
+    },
+    {
+      "gate": "Phase 1 Gate 9 \u2014 Thoughtlet Health at K=32",
+      "slot_count_K": 32,
+      "mean_pairwise_cosine_similarity": 0.1981,
+      "max_pairwise_cosine_similarity": 0.6766,
+      "effective_rank": 21.24,
+      "effective_rank_ceiling": 32.0,
+      "active_slot_entropy": 3.0558,
+      "zero_thoughtlet_collapse": true,
+      "passed": true,
+      "classification": "MEASURED"
+    }
+  ]
+}

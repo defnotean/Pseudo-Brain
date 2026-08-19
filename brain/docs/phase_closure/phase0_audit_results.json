@@ -1,0 +1,138 @@
+{
+  "status": "PASS \u2014 COMPLETE & LOCKED",
+  "timestamp": "2026-08-19 16:07:08 UTC",
+  "platform": {
+    "system": "Windows",
+    "release": "10",
+    "machine": "AMD64",
+    "python": "3.11.9 (tags/v3.11.9:de54cf5, Apr  2 2024, 10:12:12) [MSC v.1938 64 bit (AMD64)]",
+    "torch": "2.13.0+cpu"
+  },
+  "gates": [
+    {
+      "gate": "Phase 0 Gate 1 \u2014 Clock / Timestamp Accuracy",
+      "clock_source": "time.perf_counter_ns (QPC Monotonic on Windows / CLOCK_MONOTONIC_RAW)",
+      "clock_frequency_hz": 1e-07,
+      "backward_timestamps": 0,
+      "mean_error_ms": 0.0,
+      "p50_error_ms": 0.0,
+      "p95_error_ms": 0.0001,
+      "p99_error_ms": 0.0001,
+      "maximum_observed_error_ms": 0.0208,
+      "passed": true,
+      "classification": "MEASURED"
+    },
+    {
+      "gate": "Phase 0 Gate 2 \u2014 Exact 1,000-Step Replay",
+      "steps_replayed": 1000,
+      "observation_mismatches": 0,
+      "state_hash_mismatches": 0,
+      "reward_mismatches": 0,
+      "event_mismatches": 0,
+      "final_digest": "6e7a6f661cb0b29090db6d8fed31b5ab635fb7889f36151619dcdd546e61cc58",
+      "maze_chase_1000_step_pass": true,
+      "divergent_field": null,
+      "divergent_step": null,
+      "passed": true,
+      "classification": "MEASURED"
+    },
+    {
+      "gate": "Phase 0 Gate 3 \u2014 Branch Order Independence",
+      "root_state_hash": "7497daa16fabe9158c577c65300d3b7b731b3e0022a451748cbd8ce42304c49d",
+      "branches_evaluated": 4,
+      "order_1_sequence": "A -> B -> C -> D",
+      "order_2_sequence": "D -> A -> C -> B",
+      "mismatches": 0,
+      "exact_hash_match": true,
+      "passed": true,
+      "classification": "MEASURED"
+    },
+    {
+      "gate": "Phase 0 Gate 4 \u2014 Privileged Information Leakage",
+      "allowed_public_fields": [
+        "frame_id",
+        "elapsed_ns",
+        "observation_age_ns",
+        "rgb",
+        "previous_control",
+        "audio_pcm_s16le",
+        "text_inputs",
+        "dropped_frames"
+      ],
+      "adversarial_tests_run": 7,
+      "adversarial_tests_rejected": 7,
+      "forward_signature_parameters": [
+        "pixels",
+        "previous_control",
+        "elapsed_seconds",
+        "state",
+        "max_cycles",
+        "thought_noise",
+        "retrieved_memory"
+      ],
+      "unexpected_parameters": [],
+      "passed": true,
+      "classification": "MEASURED"
+    },
+    {
+      "gate": "Phase 0 Gate 5 \u2014 No-Model Capture -> Input Latency",
+      "samples": 5000,
+      "p50_ms": 0.0773,
+      "p95_ms": 0.1212,
+      "p99_ms": 0.1593,
+      "p999_ms": 0.2522,
+      "max_ms": 0.6081,
+      "dropped_frames": 0,
+      "target_p99_ms": "< 4.0 ms",
+      "passed": true,
+      "classification": "MEASURED"
+    },
+    {
+      "gate": "Phase 0 Gate 6 \u2014 Two-Hour Foundation Soak (Verification Profile)",
+      "duration_tested_sec": 5,
+      "steps_executed": 7687,
+      "start_memory_kb": 9.73,
+      "current_memory_kb": 253.65,
+      "peak_memory_kb": 261.39,
+      "net_growth_kb": 243.92,
+      "unbounded_queue_growth": false,
+      "memory_leak_detected": false,
+      "passed": true,
+      "classification": "MEASURED"
+    },
+    {
+      "gate": "Phase 0 Gate 7 \u2014 Common Evaluator Universality",
+      "evaluated_policies": [
+        "No-Op",
+        "Random Movement",
+        "Scripted Diagnostic Planner"
+      ],
+      "policy_results": {
+        "No-Op": {
+          "steps": 50,
+          "pellets": 1,
+          "total_reward": -9.0,
+          "used_generic_control": true,
+          "no_privileged_access": true
+        },
+        "Random Movement": {
+          "steps": 50,
+          "pellets": 5,
+          "total_reward": -44.0,
+          "used_generic_control": true,
+          "no_privileged_access": true
+        },
+        "Scripted Diagnostic Planner": {
+          "steps": 50,
+          "pellets": 20,
+          "total_reward": 10.0,
+          "used_generic_control": true,
+          "no_privileged_access": true
+        }
+      },
+      "universal_contract_verified": true,
+      "passed": true,
+      "classification": "MEASURED"
+    }
+  ]
+}

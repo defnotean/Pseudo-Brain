@@ -37,9 +37,9 @@ We executed the full 5-seed training battery (Seeds 42, 43, 44, 45, 46) and eval
 | **46** | 1.0377 | 0.1636 | 3.901 / 4.0 | 6.85 / 874 | 5.35 / 822 | Previously reckless seed showed clean stability; planner reduced catches by 52 |
 
 ### Causal Takeaways
-1. **The Convergence Gating Mechanism**: When the supervised counterfactual auxiliary loss achieves convergence ($\mathcal{L}_{\text{total}} < 0.95$, as in Seed 44), the Grounded Planner eliminates 90% of ghost collisions (dropping from 822 down to 82 catches across 20 worlds).
+1. **Capability vs Convergence Reliability**: The ghost-evasion mechanism demonstrated high capability when the counterfactual foresight head converged (Seed 44 proof-of-concept dropping from 822 down to 82 catches across 20 worlds, a 90% reduction), but convergence remains strongly seed-dependent.
 2. **Elimination of Untrained Noise**: In the broken legacy planner, every seed was trapped at 822–877 catches because the random hazard head injected $\approx 0.50$ Gaussian noise into all branches. With the grounded planner, this artificial floor is gone.
-3. **Pillar 2 Permanently Solves Collapse**: Pairwise thoughtlet similarity remained strictly between $0.0449$ and $0.1636$ (down from $0.579$ in legacy models), and effective rank remained between $3.84$ and $3.93 / 4.0$ across all five seeds.
+3. **Pillar 2 Permanently Solves Collapse**: Pairwise thoughtlet similarity remained strictly between $0.0449$ and $0.1636$ (down from $0.579$ in legacy models), and effective rank remained between $3.84$ and $3.93 / 4.0$ across all five seeds. While low cosine similarity and high effective rank demonstrate non-redundant slot utilization, causal knockout tests confirm that distinct slots drive specialized behavioral contributions.
 
 ---
 

@@ -1,0 +1,107 @@
+{
+  "42": {
+    "brier_score": 0.1269,
+    "mean_pos_hazard_prob": 0.3412,
+    "mean_neg_hazard_prob": 0.3395,
+    "discrimination_margin": 0.0017,
+    "optimal_threshold": 0.3,
+    "optimal_f1": 0.0686,
+    "recall": 0.0,
+    "precision": 0.0,
+    "accuracy": 96.6,
+    "f1": 0.0,
+    "safest_action_accuracy": 98.0,
+    "escape_margin_mae": 4.68,
+    "hazard_counts": {
+      "tp": 0,
+      "fp": 0,
+      "tn": 2414,
+      "fn": 86,
+      "total": 2500
+    }
+  },
+  "43": {
+    "brier_score": 0.0815,
+    "mean_pos_hazard_prob": 0.2537,
+    "mean_neg_hazard_prob": 0.2536,
+    "discrimination_margin": 0.0001,
+    "optimal_threshold": 0.05,
+    "optimal_f1": 0.0665,
+    "recall": 0.0,
+    "precision": 0.0,
+    "accuracy": 96.6,
+    "f1": 0.0,
+    "safest_action_accuracy": 96.0,
+    "escape_margin_mae": 4.61,
+    "hazard_counts": {
+      "tp": 0,
+      "fp": 0,
+      "tn": 2414,
+      "fn": 86,
+      "total": 2500
+    }
+  },
+  "44": {
+    "brier_score": 0.0731,
+    "mean_pos_hazard_prob": 0.2246,
+    "mean_neg_hazard_prob": 0.2294,
+    "discrimination_margin": -0.0047,
+    "optimal_threshold": 0.05,
+    "optimal_f1": 0.0717,
+    "recall": 0.0,
+    "precision": 0.0,
+    "accuracy": 96.3,
+    "f1": 0.0,
+    "safest_action_accuracy": 95.6,
+    "escape_margin_mae": 5.32,
+    "hazard_counts": {
+      "tp": 0,
+      "fp": 0,
+      "tn": 2407,
+      "fn": 93,
+      "total": 2500
+    }
+  },
+  "45": {
+    "brier_score": 0.0484,
+    "mean_pos_hazard_prob": 0.1126,
+    "mean_neg_hazard_prob": 0.113,
+    "discrimination_margin": -0.0004,
+    "optimal_threshold": 0.05,
+    "optimal_f1": 0.088,
+    "recall": 0.0,
+    "precision": 0.0,
+    "accuracy": 95.4,
+    "f1": 0.0,
+    "safest_action_accuracy": 94.0,
+    "escape_margin_mae": 3.88,
+    "hazard_counts": {
+      "tp": 0,
+      "fp": 0,
+      "tn": 2385,
+      "fn": 115,
+      "total": 2500
+    }
+  },
+  "46": {
+    "brier_score": 0.0884,
+    "mean_pos_hazard_prob": 0.2553,
+    "mean_neg_hazard_prob": 0.2526,
+    "discrimination_margin": 0.0027,
+    "optimal_threshold": 0.25,
+    "optimal_f1": 0.1124,
+    "recall": 0.0,
+    "precision": 0.0,
+    "accuracy": 95.0,
+    "f1": 0.0,
+    "safest_action_accuracy": 96.2,
+    "escape_margin_mae": 4.32,
+    "hazard_counts": {
+      "tp": 0,
+      "fp": 0,
+      "tn": 2376,
+      "fn": 124,
+      "total": 2500
+    }
+  }
+}

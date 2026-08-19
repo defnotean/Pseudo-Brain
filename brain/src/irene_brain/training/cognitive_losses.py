@@ -50,6 +50,7 @@ class CognitiveAuxiliaryLoss(nn.Module):
         topological_goal_weight: float = 1.0,
         diversity_weight: float = 0.5,
         compute_cost_per_cycle: float = 0.01,
+        hazard_positive_weight: float = 12.0,
     ) -> None:
         super().__init__()
         self.future_weight = future_weight
@@ -59,6 +60,7 @@ class CognitiveAuxiliaryLoss(nn.Module):
         self.topological_goal_weight = topological_goal_weight
         self.diversity_weight = diversity_weight
         self.compute_cost_per_cycle = compute_cost_per_cycle
+        self.hazard_positive_weight = hazard_positive_weight
 
     def forward(
         self,
@@ -142,7 +144,7 @@ class CognitiveAuxiliaryLoss(nn.Module):
             if cycle_losses:
                 halt_loss = torch.stack(cycle_losses).mean()
 
-        # 4. Action-Conditioned Counterfactual Loss
+        # 4. Action-Conditioned Counterfactual Loss (with positive class reweighting for severe class imbalance)
         cf_loss = zero
         cf_preds = getattr(diagnostics, "counterfactual_predictions", None)
         if cf_preds is not None and isinstance(cf_preds, dict) and executed_actions is not None:
@@ -156,7 +158,10 @@ class CognitiveAuxiliaryLoss(nn.Module):
                         disp_l = F.smooth_l1_loss(branch_out.predicted_displacement[i:i+1], future_disp_targets[i:i+1])
                         cf_branch_losses.append(disp_l)
                     if actual_collisions is not None:
-                        haz_l = F.binary_cross_entropy(branch_out.hazard_probability[i:i+1], actual_collisions[i:i+1])
+                        target = actual_collisions[i:i+1].clamp(0.0, 1.0)
+                        pred = branch_out.hazard_probability[i:i+1].clamp(1e-6, 1.0 - 1e-6)
+                        weight = torch.where(target > 0.5, torch.tensor(self.hazard_positive_weight, device=device), torch.tensor(1.0, device=device))
+                        haz_l = -(weight * target * torch.log(pred) + (1.0 - target) * torch.log(1.0 - pred)).mean()
                         cf_branch_losses.append(haz_l)
                     if future_escape_targets is not None:
                         esc_l = F.smooth_l1_loss(branch_out.predicted_escape_margin[i:i+1], future_escape_targets[i:i+1])
