@@ -519,42 +519,40 @@ class LatentLookaheadPlanner(nn.Module):
                 disc_d_sum += discount * float(step_dangers[k][b_idx].item())
 
             v_term = float(terminal_values[b_idx].item())
-            # Calibrated progressive hazard penalty: linear base + quadratic penalty above safety buffer (0.25)
-            danger_penalty = self.hazard_weight * disc_d_sum
-            if disc_d_sum > 0.25:
-                danger_penalty += 4.0 * (disc_d_sum - 0.25) ** 2
+            u_cumulative = (self.gamma**H) * v_term
 
-            u_cumulative = (
-                disc_r_sum
-                - danger_penalty
-                + (self.gamma**H) * v_term
-            )
+            first_act = candidate_sequences[b_idx][0]
+            a_idx = int(first_act) if isinstance(first_act, (int, DirectionalAction)) else 0
 
-            is_pruned = branch_pruned[b_idx]
-            prune_reason = branch_prune_reason[b_idx]
+            # If Counterfactual Foresight is available, use its supervised predictions for safety
+            if cf_preds is not None:
+                is_pruned = False
+                prune_reason = None
+                if a_idx in cf_preds:
+                    cf_branch = cf_preds[a_idx]
+                    cf_haz = float(cf_branch.hazard_probability[0, 0, 0].item())
+                    cf_esc = float(cf_branch.predicted_escape_margin[0, min(1, cf_branch.predicted_escape_margin.shape[1] - 1), 0].item())
+                    if cf_haz >= self.hazard_prune_threshold:
+                        is_pruned = True
+                        prune_reason = "counterfactual_hazard_predicted"
+                    else:
+                        # Calibrated progressive hazard penalty on trained counterfactual hazard
+                        danger_penalty = self.hazard_weight * cf_haz
+                        if cf_haz > 0.25:
+                            danger_penalty += 4.0 * (cf_haz - 0.25) ** 2
+                        u_cumulative -= danger_penalty
+                    if cf_esc < 0.0:
+                        u_cumulative += cf_esc * 2.0
+            else:
+                # Standalone fallback when counterfactual foresight is absent
+                is_pruned = branch_pruned[b_idx]
+                prune_reason = branch_prune_reason[b_idx]
+                u_cumulative += disc_r_sum - self.hazard_weight * disc_d_sum
 
             # Dead end check
             if not is_pruned and u_cumulative < self.dead_end_threshold:
                 is_pruned = True
                 prune_reason = "dead_end_utility_threshold"
-
-            first_act = candidate_sequences[b_idx][0]
-            a_idx = int(first_act) if isinstance(first_act, (int, DirectionalAction)) else 0
-
-            # Apply Counterfactual Foresight branch safety assessment
-            if cf_preds is not None:
-                if a_idx in cf_preds:
-                    cf_branch = cf_preds[a_idx]
-                    cf_haz = float(cf_branch.hazard_probability[0, 0, 0].item())
-                    cf_esc = float(cf_branch.predicted_escape_margin[0, min(1, cf_branch.predicted_escape_margin.shape[1] - 1), 0].item())
-                    if cf_haz >= self.hazard_prune_threshold and not is_pruned:
-                        is_pruned = True
-                        prune_reason = "counterfactual_hazard_predicted"
-                    else:
-                        # Continuous hazard cost rather than hard prune for sub-threshold hazards
-                        u_cumulative -= self.hazard_weight * cf_haz
-                    if cf_esc < 0.0:
-                        u_cumulative += cf_esc * 2.0
 
             # Apply Topological Goal and Junction routing bonus if not pruned
             if topo_pred is not None and not is_pruned:

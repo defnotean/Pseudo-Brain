@@ -48,6 +48,7 @@ class CognitiveAuxiliaryLoss(nn.Module):
         halting_weight: float = 0.5,
         counterfactual_weight: float = 1.0,
         topological_goal_weight: float = 1.0,
+        diversity_weight: float = 0.5,
         compute_cost_per_cycle: float = 0.01,
     ) -> None:
         super().__init__()
@@ -56,6 +57,7 @@ class CognitiveAuxiliaryLoss(nn.Module):
         self.halting_weight = halting_weight
         self.counterfactual_weight = counterfactual_weight
         self.topological_goal_weight = topological_goal_weight
+        self.diversity_weight = diversity_weight
         self.compute_cost_per_cycle = compute_cost_per_cycle
 
     def forward(
@@ -192,7 +194,7 @@ class CognitiveAuxiliaryLoss(nn.Module):
             + self.halting_weight * halt_loss
             + self.counterfactual_weight * cf_loss
             + self.topological_goal_weight * topo_loss
-            + 0.5 * diversity_loss
+            + self.diversity_weight * diversity_loss
         )
 
         return CognitiveLossOutput(

@@ -1,0 +1,108 @@
+{
+  "direct_actuator": {
+    "mean_pellets": 5.88,
+    "std_pellets": 0.74,
+    "mean_catches": 845.2,
+    "std_catches": 32.05,
+    "seeds": [
+      {
+        "seed": 42,
+        "pellets": 5.35,
+        "catches": 822,
+        "loss": 1.0838069369395573,
+        "digest": "87559cf3987ec0a9",
+        "sim": 0.0449,
+        "rank": 3.928
+      },
+      {
+        "seed": 43,
+        "pellets": 5.35,
+        "catches": 822,
+        "loss": 1.3734785318374634,
+        "digest": "5cda6d84681b047f",
+        "sim": 0.0894,
+        "rank": 3.887
+      },
+      {
+        "seed": 44,
+        "pellets": 5.35,
+        "catches": 822,
+        "loss": 0.9201058348019918,
+        "digest": "ee81189c2712fd90",
+        "sim": 0.0673,
+        "rank": 3.841
+      },
+      {
+        "seed": 45,
+        "pellets": 6.5,
+        "catches": 886,
+        "loss": 1.6443741371234257,
+        "digest": "9785b50586aea291",
+        "sim": 0.1134,
+        "rank": 3.921
+      },
+      {
+        "seed": 46,
+        "pellets": 6.85,
+        "catches": 874,
+        "loss": 1.0376910418272018,
+        "digest": "0b4e247e72a49060",
+        "sim": 0.1636,
+        "rank": 3.901
+      }
+    ]
+  },
+  "grounded_planner": {
+    "mean_pellets": 5.74,
+    "std_pellets": 1.1,
+    "mean_catches": 694.8,
+    "std_catches": 343.55,
+    "seeds": [
+      {
+        "seed": 42,
+        "pellets": 6.85,
+        "catches": 874,
+        "loss": 1.0838069369395573,
+        "digest": "87559cf3987ec0a9",
+        "sim": 0.0449,
+        "rank": 3.928
+      },
+      {
+        "seed": 43,
+        "pellets": 5.35,
+        "catches": 822,
+        "loss": 1.3734785318374634,
+        "digest": "5cda6d84681b047f",
+        "sim": 0.0894,
+        "rank": 3.887
+      },
+      {
+        "seed": 44,
+        "pellets": 4.3,
+        "catches": 82,
+        "loss": 0.9201058348019918,
+        "digest": "ee81189c2712fd90",
+        "sim": 0.0673,
+        "rank": 3.841
+      },
+      {
+        "seed": 45,
+        "pellets": 6.85,
+        "catches": 874,
+        "loss": 1.6443741371234257,
+        "digest": "9785b50586aea291",
+        "sim": 0.1134,
+        "rank": 3.921
+      },
+      {
+        "seed": 46,
+        "pellets": 5.35,
+        "catches": 822,
+        "loss": 1.0376910418272018,
+        "digest": "0b4e247e72a49060",
+        "sim": 0.1636,
+        "rank": 3.901
+      }
+    ]
+  }
+}
