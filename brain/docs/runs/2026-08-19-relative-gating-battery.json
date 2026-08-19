@@ -1,0 +1,137 @@
+{
+  "42": {
+    "catches": {
+      "direct": 35,
+      "rel_gated_h1": 35,
+      "rel_gated_h2": 35
+    },
+    "pellets": {
+      "direct": 0,
+      "rel_gated_h1": 0,
+      "rel_gated_h2": 0
+    },
+    "interventions": {
+      "direct": 0,
+      "rel_gated_h1": 0,
+      "rel_gated_h2": 0
+    },
+    "trajectory_hashes": {
+      "direct": "f903ffd0da36",
+      "rel_gated_h1": "f903ffd0da36",
+      "rel_gated_h2": "f903ffd0da36"
+    },
+    "disagreements": {
+      "direct_vs_h1_pct": 0.0,
+      "direct_vs_h2_pct": 0.0,
+      "h1_vs_h2_pct": 0.0
+    }
+  },
+  "43": {
+    "catches": {
+      "direct": 35,
+      "rel_gated_h1": 35,
+      "rel_gated_h2": 35
+    },
+    "pellets": {
+      "direct": 0,
+      "rel_gated_h1": 0,
+      "rel_gated_h2": 0
+    },
+    "interventions": {
+      "direct": 0,
+      "rel_gated_h1": 0,
+      "rel_gated_h2": 0
+    },
+    "trajectory_hashes": {
+      "direct": "f903ffd0da36",
+      "rel_gated_h1": "f903ffd0da36",
+      "rel_gated_h2": "f903ffd0da36"
+    },
+    "disagreements": {
+      "direct_vs_h1_pct": 0.0,
+      "direct_vs_h2_pct": 0.0,
+      "h1_vs_h2_pct": 0.0
+    }
+  },
+  "44": {
+    "catches": {
+      "direct": 37,
+      "rel_gated_h1": 37,
+      "rel_gated_h2": 37
+    },
+    "pellets": {
+      "direct": 0,
+      "rel_gated_h1": 0,
+      "rel_gated_h2": 0
+    },
+    "interventions": {
+      "direct": 0,
+      "rel_gated_h1": 0,
+      "rel_gated_h2": 0
+    },
+    "trajectory_hashes": {
+      "direct": "2e1024a3d170",
+      "rel_gated_h1": "2e1024a3d170",
+      "rel_gated_h2": "2e1024a3d170"
+    },
+    "disagreements": {
+      "direct_vs_h1_pct": 0.0,
+      "direct_vs_h2_pct": 0.0,
+      "h1_vs_h2_pct": 0.0
+    }
+  },
+  "45": {
+    "catches": {
+      "direct": 35,
+      "rel_gated_h1": 35,
+      "rel_gated_h2": 35
+    },
+    "pellets": {
+      "direct": 0,
+      "rel_gated_h1": 0,
+      "rel_gated_h2": 0
+    },
+    "interventions": {
+      "direct": 0,
+      "rel_gated_h1": 0,
+      "rel_gated_h2": 0
+    },
+    "trajectory_hashes": {
+      "direct": "f903ffd0da36",
+      "rel_gated_h1": "f903ffd0da36",
+      "rel_gated_h2": "f903ffd0da36"
+    },
+    "disagreements": {
+      "direct_vs_h1_pct": 0.0,
+      "direct_vs_h2_pct": 0.0,
+      "h1_vs_h2_pct": 0.0
+    }
+  },
+  "46": {
+    "catches": {
+      "direct": 35,
+      "rel_gated_h1": 35,
+      "rel_gated_h2": 35
+    },
+    "pellets": {
+      "direct": 0,
+      "rel_gated_h1": 0,
+      "rel_gated_h2": 0
+    },
+    "interventions": {
+      "direct": 0,
+      "rel_gated_h1": 0,
+      "rel_gated_h2": 0
+    },
+    "trajectory_hashes": {
+      "direct": "f903ffd0da36",
+      "rel_gated_h1": "f903ffd0da36",
+      "rel_gated_h2": "f903ffd0da36"
+    },
+    "disagreements": {
+      "direct_vs_h1_pct": 0.0,
+      "direct_vs_h2_pct": 0.0,
+      "h1_vs_h2_pct": 0.0
+    }
+  }
+}

@@ -1,0 +1,317 @@
+[
+  {
+    "delta_danger": 0.005,
+    "delta_opportunity": 0.0,
+    "mean_catches": 35.4,
+    "mean_pellets": 0.0,
+    "mean_interventions": 8.0,
+    "seed_catches": [
+      35,
+      35,
+      37,
+      35,
+      35
+    ],
+    "seed_interventions": [
+      0,
+      0,
+      0,
+      0,
+      40
+    ]
+  },
+  {
+    "delta_danger": 0.005,
+    "delta_opportunity": 1.0,
+    "mean_catches": 35.4,
+    "mean_pellets": 0.0,
+    "mean_interventions": 8.0,
+    "seed_catches": [
+      35,
+      35,
+      37,
+      35,
+      35
+    ],
+    "seed_interventions": [
+      0,
+      0,
+      0,
+      0,
+      40
+    ]
+  },
+  {
+    "delta_danger": 0.005,
+    "delta_opportunity": 2.0,
+    "mean_catches": 35.4,
+    "mean_pellets": 0.0,
+    "mean_interventions": 8.0,
+    "seed_catches": [
+      35,
+      35,
+      37,
+      35,
+      35
+    ],
+    "seed_interventions": [
+      0,
+      0,
+      0,
+      0,
+      40
+    ]
+  },
+  {
+    "delta_danger": 0.01,
+    "delta_opportunity": 0.0,
+    "mean_catches": 35.4,
+    "mean_pellets": 0.0,
+    "mean_interventions": 0.0,
+    "seed_catches": [
+      35,
+      35,
+      37,
+      35,
+      35
+    ],
+    "seed_interventions": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "delta_danger": 0.01,
+    "delta_opportunity": 1.0,
+    "mean_catches": 35.4,
+    "mean_pellets": 0.0,
+    "mean_interventions": 0.0,
+    "seed_catches": [
+      35,
+      35,
+      37,
+      35,
+      35
+    ],
+    "seed_interventions": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "delta_danger": 0.01,
+    "delta_opportunity": 2.0,
+    "mean_catches": 35.4,
+    "mean_pellets": 0.0,
+    "mean_interventions": 0.0,
+    "seed_catches": [
+      35,
+      35,
+      37,
+      35,
+      35
+    ],
+    "seed_interventions": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "delta_danger": 0.015,
+    "delta_opportunity": 0.0,
+    "mean_catches": 35.4,
+    "mean_pellets": 0.0,
+    "mean_interventions": 0.0,
+    "seed_catches": [
+      35,
+      35,
+      37,
+      35,
+      35
+    ],
+    "seed_interventions": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "delta_danger": 0.015,
+    "delta_opportunity": 1.0,
+    "mean_catches": 35.4,
+    "mean_pellets": 0.0,
+    "mean_interventions": 0.0,
+    "seed_catches": [
+      35,
+      35,
+      37,
+      35,
+      35
+    ],
+    "seed_interventions": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "delta_danger": 0.015,
+    "delta_opportunity": 2.0,
+    "mean_catches": 35.4,
+    "mean_pellets": 0.0,
+    "mean_interventions": 0.0,
+    "seed_catches": [
+      35,
+      35,
+      37,
+      35,
+      35
+    ],
+    "seed_interventions": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "delta_danger": 0.02,
+    "delta_opportunity": 0.0,
+    "mean_catches": 35.4,
+    "mean_pellets": 0.0,
+    "mean_interventions": 0.0,
+    "seed_catches": [
+      35,
+      35,
+      37,
+      35,
+      35
+    ],
+    "seed_interventions": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "delta_danger": 0.02,
+    "delta_opportunity": 1.0,
+    "mean_catches": 35.4,
+    "mean_pellets": 0.0,
+    "mean_interventions": 0.0,
+    "seed_catches": [
+      35,
+      35,
+      37,
+      35,
+      35
+    ],
+    "seed_interventions": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "delta_danger": 0.02,
+    "delta_opportunity": 2.0,
+    "mean_catches": 35.4,
+    "mean_pellets": 0.0,
+    "mean_interventions": 0.0,
+    "seed_catches": [
+      35,
+      35,
+      37,
+      35,
+      35
+    ],
+    "seed_interventions": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "delta_danger": 0.03,
+    "delta_opportunity": 0.0,
+    "mean_catches": 35.4,
+    "mean_pellets": 0.0,
+    "mean_interventions": 0.0,
+    "seed_catches": [
+      35,
+      35,
+      37,
+      35,
+      35
+    ],
+    "seed_interventions": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "delta_danger": 0.03,
+    "delta_opportunity": 1.0,
+    "mean_catches": 35.4,
+    "mean_pellets": 0.0,
+    "mean_interventions": 0.0,
+    "seed_catches": [
+      35,
+      35,
+      37,
+      35,
+      35
+    ],
+    "seed_interventions": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "delta_danger": 0.03,
+    "delta_opportunity": 2.0,
+    "mean_catches": 35.4,
+    "mean_pellets": 0.0,
+    "mean_interventions": 0.0,
+    "seed_catches": [
+      35,
+      35,
+      37,
+      35,
+      35
+    ],
+    "seed_interventions": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  }
+]
