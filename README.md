@@ -1,7 +1,8 @@
 # Pseudo-Brain
 
 This is the canonical workspace for the persistent multi-thought sensorimotor
-model research project.
+model research project and its long-term expansion into a general-purpose
+cognitive agent ([brain/PLAN.md §43](./brain/PLAN.md#43-long-term-research-direction-general-purpose-language-tool-use--long-horizon-agent)).
 
 **Start here:** [CURRENT_WORK.md](./CURRENT_WORK.md). That file says what the
 current experiment is, what a pass would mean, and which document to open next.

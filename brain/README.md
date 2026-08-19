@@ -2,7 +2,8 @@
 
 Pseudo-Brain is a standalone research project for a single, continuously
 running sensorimotor model with a persistent world state and many parallel
-latent microthoughts.
+latent microthoughts, scaling into a general-purpose cognitive agent
+([PLAN.md §43](./PLAN.md#43-long-term-research-direction-general-purpose-language-tool-use--long-horizon-agent)).
 
 The historical Python package name remains `irene_brain` so that immutable
 training releases and checkpoints remain verifiable. New project work lives

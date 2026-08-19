@@ -395,3 +395,23 @@ actions/physical capture, ends the thesis as an architecture claim. A failed
 RCQ-v3 does not automatically end anything — but two failed recipe iterations
 on the same failure modes would force a design-level rethink before a v4, not
 another blind retry.
+
+## 9. Long-term research horizon: general-purpose language, tool-use & long-horizon agent
+
+The Pac-Man arcade proof (Phase 4) and first-person voxel navigation (Phases 5–6) provide the essential sensorimotor, continuous timing, and counterfactual reasoning substrate. They do not represent the final boundary of the project.
+
+The ultimate long-term North Star of Pseudo-Brain (formalized in [PLAN.md §43](../PLAN.md)) is a **single general-purpose cognitive agent** capable of:
+- Understanding natural language instructions and maintaining persistent task goals.
+- Decomposing long-horizon tasks into dynamic subgoals and parallel thoughtlet states.
+- Operating software tools, command-line interfaces, filesystem operations, and system APIs.
+- Treating tool calls and physical robot actuations under a unified action framework.
+- Treating tool results, text tokens, visual frames, and sensor streams as unified observations.
+- Evaluating actions counterfactually in latent space prior to commitment.
+- Detecting mismatches between predictions and real-world results to drive fast belief revision.
+- Maintaining episodic and task memory across extended multi-hour sessions.
+- Unifying computer tool execution and physical robotics through the same central cognitive core.
+
+This long-term goal expands the single recurrent architecture without altering or deprioritizing the active sensorimotor foundations. The progression is strictly maintained:
+
+$$\mathbf{CURRENT\ WORK} \longrightarrow \mathbf{NEAR\text{-}TERM\ RESEARCH} \longrightarrow \mathbf{LONG\text{-}TERM\ GENERAL\ AGENT\ GOAL}$$
+

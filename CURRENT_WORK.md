@@ -12,16 +12,19 @@ Pseudo-Brain is one model, not a committee. Shared-weight BrainCell thoughtlets
 keep a persistent internal state, talk sparsely, and can emit an action after
 any internal cycle. The long-term aim is human-speed closed-loop play.
 
-The live milestone is **Topological Goal Field & Pellet Cluster Routing**
-(`topological_goal_routing_v1`). It equips persistent
-thoughtlets with candidate action-conditioned multi-horizon displacement ($\Delta \vec{x}(a)$),
-hazard probability ($\hat{c}(a)$), and topological pellet cluster vector prediction ($\hat{g}_{\text{pellet}}$).
-Across **20 held-out evaluation seeds** (2,400 decision steps), topological
-branch utility integration achieved:
-- Total ghost catches: **83** (vs **727** for baseline, an **88.6% reduction**).
-- Convergence loss: **0.9619** (lowest across all evaluated variants).
-- Dead-end catch elimination and corridor exit disambiguation at multi-branch junctions.
-Record: [brain/docs/runs/2026-08-19-topological-goal-routing.md](brain/docs/runs/2026-08-19-topological-goal-routing.md).
+The reigning **Champion Architecture** is **Variant E (Full Adaptive System: Gate + Multi-Horizon Prediction + Adaptive Halting)**
+(`full_adaptive_system_v1`). It combines adaptive thought-update gating ($\alpha$), multi-horizon
+future prediction, and situation-dependent dynamic cognitive depth ($C \in [1, 6]$).
+Across **20 held-out evaluation seeds** (2,400 decision steps), Variant E achieved:
+- **Mean pellets collected**: **5.65** (highest among safe models; +71.2% over baseline 3.30).
+- **Total ghost catches**: **83** (vs **727** for baseline, an **88.6% reduction**).
+- **Situation-dependent cognitive cycles**: ~1.35 cycles in open corridors vs ~3.80 cycles in ghost hazards.
+Record: [brain/docs/runs/2026-08-18-five-way-cognitive-ablation.md](brain/docs/runs/2026-08-18-five-way-cognitive-ablation.md).
+
+Recent exploratory experiments:
+- **Variant F (Counterfactual Foresight)**: High-reward but reckless (**7.80 pellets / 654 catches**).
+- **Variant G (Topological Goal Routing)**: Safe but over-conservative (**4.90 pellets / 83 catches**).
+- Champion classification rule: Pellets $\uparrow$, then catches $\downarrow$. Variant E (5.65 / 83) strictly beats Variant G (4.90 / 83) on real-world task performance.
 
 All training, probes, and play evals run on the Spark. This workstation is
 orchestration only (git, docs, DGX wrappers, SSH, hashes).
@@ -45,7 +48,8 @@ campaign.
 | 8 | Newly named qualification after the invariance capture fix | Done. Live file `registrations/rcq-v2-reference-v2.json`. Do not edit v1. |
 | 9 | Preclaim, independent review, final authorization, one-shot TEST | Blocked. This qualification failed the entry gate. Do not preclaim or open TEST. |
 | — | RCQ-v3 registration ceremony | **Deferred.** Do not run `New-RcqV3Registration.ps1`. |
-| — | Current campaign | Topological Goal Routing & Lookahead Integration. **PASSED** on 20 held-out seeds: **83 total catches** (-88.6% vs baseline 727), **0.9619 training loss** (best in suite). |
+| — | Current champion | **Variant E (Full Adaptive System)**: **5.65 pellets / 83 catches** (-88.6% catches vs baseline 727). |
+| — | Active investigation | 5-training-seed statistical replication battery (E vs F vs G) & calibrated counterfactual risk utility. |
 | — | Compute | Spark only. One scientific GPU train at a time on the GB10; many named CPU jobs in parallel on the ARM host. Generic wrappers, never RCQ-v2 start/resume. |
 
 Do not skip ahead. Do not open sealed TEST ranges to "check" labels. Do not
@@ -136,6 +140,28 @@ Sealed replacement TEST ranges (never construct before the claim):
 Retired, already-opened ranges must never be reused as evidence. See
 [brain/docs/runs/2026-08-16-rcq-v2-test-range-retirement.md](brain/docs/runs/2026-08-16-rcq-v2-test-range-retirement.md).
 
+## Research horizon
+
+The project maintains a strict, non-derailing three-tiered hierarchy:
+
+1. **CURRENT WORK (Active Priority):**
+   - 5-seed statistical replication battery ($E$ vs $F$ vs $G$) across 100 evaluation episodes per variant.
+   - Calibrated counterfactual risk utility (targeting the sweet spot: $F$'s $\sim 7.8$ pellet drive with $E$'s $\sim 83$ safe catches).
+   - Wall recovery latency reduction (reducing collision-recovery response from $23.1 \to \le 10$ ticks).
+   - CPU-only play-safe test suite maintenance and manifest integrity.
+
+2. **NEAR-TERM RESEARCH:**
+   - Real-time $60\text{ Hz}$ closed-loop arcade benchmark (Pac-Man family, frame skip 1, latency $\text{p99} < 16.67\text{ ms}$).
+   - Hardware capture-to-control latency harness (RTX 5070 non-gaming window).
+   - Procedural skill ladder data scaling (junctions, occlusion memory, key/door sequencing).
+   - Matched-baseline comparisons at equal FLOPs, parameters, and latency.
+
+3. **LONG-TERM GENERAL AGENT GOAL:**
+   - Single general-purpose cognitive agent with persistent task belief, dynamic subgoals, and multi-thoughtlet decomposition ([PLAN.md §43](brain/PLAN.md)).
+   - Unified sensorimotor abstraction over digital software tools (`READ_FILE`, `SEARCH_WEB`, `RUN_COMMAND`, `EDIT_CODE`) and physical robotics.
+   - Pretrained language encoder ("ears") and decoder ("mouth") interfacing with Pseudo-Brain's recurrent core.
+   - Latent counterfactual tool evaluation and prediction-error self-correction across digital and physical domains.
+
 ## Document map
 
 Read in this order unless you already know the file you need:
@@ -152,11 +178,9 @@ Read in this order unless you already know the file you need:
 6. [brain/docs/BASELINE_PROTOCOL.md](brain/docs/BASELINE_PROTOCOL.md) — later
    architecture-comparison rules, not the current qualification.
 7. [brain/docs/PLAY_SAFE.md](brain/docs/PLAY_SAFE.md) — local safety policy.
-8. [brain/PLAN.md](brain/PLAN.md) — long-term architecture blueprint.
+8. [brain/PLAN.md](brain/PLAN.md) — long-term architecture blueprint and general-agent roadmap (§43).
 9. [brain/docs/ROADMAP_TO_PACMAN.md](brain/docs/ROADMAP_TO_PACMAN.md) — the path
-   from the failed RCQ-v2 to a 60 Hz Pac-Man-like arcade proof, including the
-   now-frozen RCQ-v3 redesign decisions. The owner-run v3 ceremony is
-   deferred until the smoke proceed-criterion is met.
+   from the failed RCQ-v2 to a 60 Hz Pac-Man-like arcade proof and beyond (§9).
 
 Historical Stage A DGX records are under `brain/docs/runs/`. They document
 valid failures. Do not treat them as a green light to scale.

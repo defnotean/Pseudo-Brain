@@ -38,25 +38,28 @@ measurably better during a lifetime while its weights remain frozen.
 
 ## 2. What success means
 
-The near-term claim we are trying to earn is:
+The project maintains a strict three-tiered research progression:
 
-> One persistent model, using the same weights and human-facing interface in
-> every environment, can interact continuously with unfamiliar games, maintain
-> many short-lived predictive hypotheses, and improve through experience
-> without waiting for textual reasoning.
+### 2.1 Current Work
+- Validated sensorimotor and thought-field foundations.
+- Multi-horizon predictive world modeling and counterfactual collision foresight.
+- Situation-dependent dynamic cognitive depth ($C \in [1, 6]$).
+- Statistically pinned multi-seed replication batteries on held-out procedural worlds.
 
-The longer-term north star is a general artificial agent that:
+### 2.2 Near-Term Research
+- Closed-loop real-time arcade competence (Pac-Man family, $60\text{ Hz}$ frame skip one).
+- Hardware latency and continuous capture/control harness (p99 $< 16.67\text{ ms}$).
+- Spatial reasoning in rich 3D voxel worlds (first-person navigation, occlusion memory, control discovery).
+- DAgger distillation with expert recovery supervision to eliminate policy collapse.
 
-- Enters a game without being told its identity.
-- Receives only screen pixels, audio, optional language, elapsed time, and an
-  echo of its own previous controls.
-- Produces ordinary keyboard, mouse, or controller signals.
-- Learns which controls matter and how the world responds.
-- Maintains game sense: motion, threats, opportunities, object permanence,
-  uncertainty, goals, and subsecond action consequences.
-- Acts continuously at human cadence.
-- Retains useful knowledge when it returns to an earlier environment.
-- Uses one deployed checkpoint, not a committee or collection of specialists.
+### 2.3 Long-Term North Star
+The ultimate objective is a single persistent, general-purpose cognitive agent capable of:
+- Understanding natural-language instructions and maintaining persistent task goals.
+- Decomposing difficult tasks into dynamic subgoals and parallel thought latents.
+- Using software tools, APIs, code editors, file operations, web searches, and physical actuators under a unified sensorimotor framework.
+- Comparing potential actions counterfactually before execution.
+- Detecting mismatches between predictions and real-world results, and revising internal beliefs.
+- Operating computers and physical robots through the exact same persistent cognitive core.
 
 This project will not use behavior as evidence of consciousness. Here,
 understanding has operational meanings: calibrated prediction, system
@@ -1729,3 +1732,344 @@ implementation slice:
 
 That slice creates the instruments needed to find out whether the architecture
 is real.
+
+## 43. Long-term research direction: general-purpose language, tool-use & long-horizon agent
+
+This section defines the major long-term expansion of the single persistent cognitive architecture. It does **not** replace, rewrite, or deprioritize the current sensorimotor, predictive cognition, robotics, thoughtlet, ablation, and architecture-validation work (Phases 0–7). Rather, it formalizes how the very same recurrent thoughtlet core scales to general artificial agency across digital and physical domains.
+
+### 43.1 Long-term north star
+
+The ultimate objective is to develop Pseudo-Brain into a **general-purpose cognitive agent** that can:
+
+- Understand natural-language instructions and maintain persistent context.
+- Maintain a persistent, evolving understanding of a user's goal.
+- Decompose complex, ambiguous, or multi-step tasks into dynamic subgoals.
+- Perform exploratory research, query databases, and search the web.
+- Read, parse, and critically analyze unstructured documents and codebases.
+- Use software tools, command-line interfaces, and web/system APIs.
+- Inspect, debug, modify, and refactor software source code.
+- Execute programs, compile projects, and run test suites.
+- Detect environmental, logical, or verification failures.
+- Revise incorrect hypotheses and internal beliefs upon encountering contrary evidence.
+- Remember unfinished tasks, open subgoals, and working constraints across long sessions.
+- Compare candidate actions counterfactually in latent space prior to committing.
+- Sustain autonomous work over extended multi-step, multi-hour horizons.
+- Produce structured, fluent natural-language explanations and answers.
+- Eventually operate both digital computing environments and physical robots using the exact same underlying cognitive architecture.
+
+The architecture strictly unifies all inputs and outputs:
+- **Observations:** Language tokens, visual frames, tool output strings, file contents, sensor streams, and environment state feedback are all treated as diverse forms of *sensory observations*.
+- **Actions:** Tool calls, code edits, shell commands, database queries, natural language responses, and physical actuator torques/keypresses are all treated as diverse forms of *actions*.
+
+The central cognitive engine coordinating this loop is the single, persistent Pseudo-Brain.
+
+### 43.2 Core principle: the persistent cognitive loop
+
+The unified cognitive loop across physical and digital tasks follows a strict predictive, belief-updating cycle:
+
+~~~text
+OBSERVATION
+    ↓
+Language / Vision / Tool / Sensor Encoding
+    ↓
+Persistent World + Task Belief State
+    ↓
+Parallel Persistent Thoughtlets
+    ├─ Multi-Horizon Future Prediction
+    ├─ Counterfactual Action Evaluation
+    ├─ Uncertainty Estimation
+    ├─ Episodic & Task Memory Retrieval
+    └─ Dynamic Subgoal Tracking
+    ↓
+Adaptive Cognitive Depth (Cycle Halting: C ∈ [1, C_max])
+    ↓
+ACTION
+    ↓
+Tool Call / Motor Action / Code Edit / Shell Command / Text Response
+    ↓
+Observe Execution Result & Environment Consequence
+    ↓
+Compare Reality Against Latent Prediction (Prediction Error)
+    ↓
+Surprise-Triggered Thought Revision & Reconsideration
+    ↺
+~~~
+
+The goal is **not** to convert Pseudo-Brain into a standard autoregressive Large Language Model (LLM). Language is treated as an **interface to cognition**, not the cognition itself.
+
+### 43.3 Language as an input/output interface
+
+Pseudo-Brain does not need to learn human grammar or natural language tokens from scratch in its early stages. Initial implementations utilize frozen or pretrained language foundation components as sensory and motor interfaces:
+
+- **Language Encoder (Ears):** Converts natural language prompts, system messages, and task instructions into dense semantic latent embeddings.
+- **Language Decoder (Mouth):** Projects Pseudo-Brain's final task state and thought-field latents into fluent, human-readable natural language text.
+
+~~~text
+User Language Input
+       ↓
+Language Encoder (Ears)
+       ↓
+Pseudo-Brain Cognitive Core (Belief + Thoughtlets + Memory)
+       ↓
+Language Decoder (Mouth)
+       ↓
+Natural Language Response
+~~~
+
+The pretrained language modules function strictly as sensory transduction and motor generation interfaces. Persistent planning, memory retrieval, task control, tool selection, counterfactual foresight, reconsideration, and goal tracking remain exclusive responsibilities of Pseudo-Brain's recurrent core.
+
+### 43.4 Tool use as sensorimotor control
+
+Software tools and operating system APIs are treated under the exact same sensorimotor paradigm as continuous physical robot actuators or game controllers:
+
+~~~text
+Thought Field Latent State
+       ↓
+Structured Tool Action Head
+       ↓
+Select Tool (Discrete Action Index)
+       ↓
+Generate Tool Arguments / Command Parameters
+       ↓
+Execute Tool (OS Command, HTTP Request, File I/O)
+       ↓
+Receive Structured Result (Stdout, Stderr, JSON, Return Code)
+       ↓
+Encode Result into Observation Tokens
+       ↓
+Update World & Task Belief
+       ↓
+Continue Thinking / Trigger Next Action
+~~~
+
+The action space expands cleanly to include:
+- `SEARCH_WEB`: Query internet search indices.
+- `READ_PAGE`: Ingest markdown/HTML web content.
+- `READ_FILE`: View local filesystem content with byte/line offsets.
+- `WRITE_FILE`: Create or overwrite filesystem artifacts.
+- `EDIT_CODE`: Apply targeted contiguous or multi-chunk diff replacements.
+- `RUN_COMMAND`: Propose and execute shell commands with output capture.
+- `RUN_TESTS`: Invoke test runners and parse test suite summaries.
+- `QUERY_DATABASE`: Execute structured SQL or vector queries.
+- `CALL_API`: Invoke external REST or RPC interfaces.
+- `OPEN_DOCUMENT`: Render and inspect PDF, image, or video media.
+- `EXECUTE_PROGRAM`: Launch runtime interpreters or debuggers.
+- `RESPOND_TO_USER`: Emit user-facing dialogue or completed deliverables.
+
+Tool results immediately become new observations. This forms the exact same loop as robotics:
+$$\text{Act} \longrightarrow \text{Observe Consequence} \longrightarrow \text{Update Belief} \longrightarrow \text{Act Again}$$
+
+### 43.5 Task belief & persistent goals
+
+To support long-horizon problem solving without context degradation, Pseudo-Brain maintains a dedicated **Task Belief / Goal State** that tracks:
+- The overarching user objective and success criteria.
+- Completed sub-tasks and verified milestones.
+- Unfinished work and pending obligations.
+- Invariant operational constraints (e.g. CPU-only execution, safety rules).
+- Gathered empirical evidence and diagnostic logs.
+- Unresolved questions and ambiguous requirements.
+- Failed attempts and discarded hypotheses.
+- Calibrated confidence and empirical uncertainty.
+- Formal verification status against test suites.
+
+By maintaining this persistent internal task representation, the system avoids needing to reconstruct the full task context from scratch at every interaction step.
+
+### 43.6 Dynamic subgoals & parallel thoughtlet decomposition
+
+Rather than executing a brittle, hardcoded checklist, complex tasks are decomposed dynamically:
+
+~~~text
+Main Goal: Fix Failing Software Project
+   │
+   ├─ Subgoal 1: Ingest and map repository architecture
+   ├─ Subgoal 2: Reproduce failure with deterministic minimal test
+   ├─ Subgoal 3: Localize root cause via diagnostic execution
+   ├─ Subgoal 4: Apply candidate code modifications
+   ├─ Subgoal 5: Execute test suite and inspect regressions
+   ├─ Subgoal 6: Revise hypothesis if test fails
+   ├─ Subgoal 7: Verify all constraints and style requirements
+   └─ Subgoal 8: Synthesize walkthrough and report deliverable
+~~~
+
+Subgoals emerge, adapt, pause, resume, or abort dynamically based on real-time observations. Different thoughtlets can simultaneously maintain different aspects of the task (e.g. one tracking edge-case regression risks, another tracking tool execution syntax, another tracking high-level milestone progress).
+
+### 43.7 Counterfactual tool reasoning & latent foresight
+
+Extending action-conditioned foresight beyond physical navigation, the agent evaluates tool actions in latent space before execution:
+
+~~~text
+Given State z_t and Candidate Tool Actions {a_A, a_B}:
+
+Option A: Modify Parser Directly
+   ├─ Predicted outcome: Fixes immediate syntax error
+   ├─ Expected usefulness: High (0.85)
+   ├─ Uncertainty: Moderate (0.35)
+   └─ Regression risk: High (0.70 - potential downstream breakage)
+
+Option B: Modify AST Validation Layer
+   ├─ Predicted outcome: Validates AST nodes before parser ingest
+   ├─ Expected usefulness: High (0.82)
+   ├─ Uncertainty: Low (0.15)
+   └─ Regression risk: Low (0.10 - strictly additive validation)
+
+Decision: Latent Lookahead Planner selects Option B.
+~~~
+
+This counterfactual evaluation is conducted as a lightweight latent rollout, avoiding exponential action-tree explosions while preventing catastrophic tool blunders.
+
+### 43.8 Prediction error & multi-domain self-correction
+
+The adaptive thought-revision ("change my mind") mechanism generalizes seamlessly from sensorimotor navigation to digital tasks:
+
+| Domain | Expected Prediction | Actual Observation | Triggered Cognitive Response |
+|---|---|---|---|
+| **Physical Navigation** | Corridor is clear | Collision with wall / hazard | Gate surprise $\alpha \to 1.0$, flush momentum, re-route |
+| **Tool Execution** | Command returns exit 0 | Command returns non-zero error / exception | Surprise trigger, parse error output, re-plan command |
+| **Software Engineering**| Code edit fixes bug | Unit test fails with regression | Reject candidate fix, update failure log, revise hypothesis |
+| **Research & Analysis** | Source confirms hypothesis | Empirical data contradicts hypothesis | Lower belief confidence, seek primary sources, revise conclusion |
+
+Prediction mismatch is the primary operational signal that drives internal belief revision across all domains.
+
+### 43.9 Explicit uncertainty representation & adaptive compute
+
+Pseudo-Brain explicitly computes epistemic and aleatoric uncertainty over its internal task belief. It distinguishes:
+$$\text{"I have high confidence in the next action."} \quad \text{vs.} \quad \text{"My understanding is weak or data is missing."}$$
+
+When uncertainty is high, the system automatically:
+- Allocates additional internal cognitive cycles ($C \to C_{\max}$) before emitting an action.
+- Dispatches exploratory information-gathering tools (`READ_FILE`, `SEARCH_WEB`).
+- Retrieves relevant prior solutions from episodic memory.
+- Performs multi-branch counterfactual candidate comparisons.
+- Enforces stricter verification gates before concluding.
+
+### 43.10 Long-term episodic & task memory
+
+The cognitive architecture includes an episodic memory store for compressed task experiences:
+- Successful debugging strategies and verified bug fixes.
+- Documented failure modes and dead-end approaches.
+- Environment-specific quirks and tool constraints.
+- Key empirical findings, benchmark receipts, and citation traces.
+
+Retrieval is driven by associative relevance queries generated directly by the thoughtlets, preventing memory bloat while making past experiences available when facing analogous challenges.
+
+### 43.11 Staged development roadmap (Phases 1 to 8)
+
+The transition from sensorimotor foundations to general artificial agency is structured across eight concrete, verifiable phases:
+
+```text
+┌─────────────────────────────────────────────────────────────────────────┐
+│ Phase 1: Current Sensorimotor Foundation (Active Priority)             │
+│          Thoughtlets, Gating, Multi-Horizon Prediction, Depth, Memory   │
+└────────────────────────────────────┬────────────────────────────────────┘
+                                     ↓
+┌─────────────────────────────────────────────────────────────────────────┐
+│ Phase 2: Simple Language Grounding                                      │
+│          Natural language modifies persistent goal state in 2D/3D worlds│
+└────────────────────────────────────┬────────────────────────────────────┘
+                                     ↓
+┌─────────────────────────────────────────────────────────────────────────┐
+│ Phase 3: Basic Tool Interface                                           │
+│          Tool action head (READ_FILE, SEARCH, RUN_COMMAND, WRITE_FILE)  │
+└────────────────────────────────────┬────────────────────────────────────┘
+                                     ↓
+┌─────────────────────────────────────────────────────────────────────────┐
+│ Phase 4: Multi-Step Tool Tasks                                          │
+│          Goal retention across 5–10 sequential tool calls & verification│
+└────────────────────────────────────┬────────────────────────────────────┘
+                                     ↓
+┌─────────────────────────────────────────────────────────────────────────┐
+│ Phase 5: Self-Correcting Tasks                                          │
+│          Error detection, belief revision, and recovery during tool play│
+└────────────────────────────────────┬────────────────────────────────────┘
+                                     ↓
+┌─────────────────────────────────────────────────────────────────────────┐
+│ Phase 6: Coding Agent                                                   │
+│          Reproduce bug, apply fix, run test suites, explain rationale   │
+└────────────────────────────────────┬────────────────────────────────────┘
+                                     ↓
+┌─────────────────────────────────────────────────────────────────────────┐
+│ Phase 7: Research Agent                                                 │
+│          Multi-source investigation, citation verification, uncertainty │
+└────────────────────────────────────┬────────────────────────────────────┘
+                                     ↓
+┌─────────────────────────────────────────────────────────────────────────┐
+│ Phase 8: Open-Ended General Agent                                       │
+│          Autonomous subgoal creation & long-horizon task completion     │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+1. **Phase 1 — Current Sensorimotor Foundation (Active Priority):**
+   - Persistent thoughtlets, adaptive gating, multi-horizon world modeling, counterfactual foresight, dynamic cognitive depth, and continuous physical control.
+2. **Phase 2 — Simple Language Grounding:**
+   - Ground natural-language instructions (e.g. *"Move to the red key"*, *"Evade the orange hazard"*) directly into the goal context vector.
+   - Measure zero-shot instruction following in unfamiliar environments.
+3. **Phase 3 — Basic Tool Interface:**
+   - Introduce a minimal discrete tool action vocabulary (`READ_FILE`, `SEARCH`, `RUN_COMMAND`, `WRITE_FILE`).
+   - Supervise tool selection and argument generation.
+4. **Phase 4 — Multi-Step Tool Tasks:**
+   - Benchmark multi-hop tasks (e.g. *"Find config.json and report the server port"*).
+   - Evaluate goal retention, state tracking, and answer extraction.
+5. **Phase 5 — Self-Correcting Tasks:**
+   - Tasks requiring active recovery (e.g. *"Modify this configuration, run the application, and fix any resulting syntax errors"*).
+   - Measure error detection latency, thought revision, and recovery rate.
+6. **Phase 6 — Autonomous Coding Agent:**
+   - Software engineering benchmarks (bug localization, minimal reproduction, test suite execution, regression avoidance).
+   - Measure task completion, patch cleanliness, and recovery from incorrect diagnoses.
+7. **Phase 7 — Autonomous Research Agent:**
+   - Open-ended investigation of technical claims with conflicting evidence.
+   - Evaluate source evaluation, citation fidelity, uncertainty calibration, and synthesized findings.
+8. **Phase 8 — Open-Ended General Cognitive Agent:**
+   - Complex repository refactoring, novel prototype construction, and multi-domain problem solving.
+   - Dynamic subgoal creation and long-horizon execution across hours of autonomous operation.
+
+### 43.12 Unification with physical robotics
+
+A central thesis of Pseudo-Brain is that physical robotic control and digital software manipulation share the exact same underlying cognitive loop:
+
+~~~text
+                          PSEUDO-BRAIN COGNITIVE CORE
+                                       │
+            ┌──────────────────────────┼──────────────────────────┐
+            ↓                          ↓                          ↓
+     Physical Robot              Computer Tools            Natural Language
+      • Motor Torques             • Shell Commands          • User Dialogue
+      • Joint Angles              • Code Edits              • Explanation
+      • Gripper Actuation         • API Invocations         • Structured Reports
+~~~
+
+Whether navigating around a dynamic physical obstacle or recovering from a failing unit test, the agent executes the identical abstract cycle:
+$$\text{Maintain Goal} \to \text{Predict Consequence} \to \text{Act} \to \text{Observe Reality} \to \text{Detect Mismatch} \to \text{Revise Belief} \to \text{Advance Goal}$$
+
+### 43.13 Non-negotiable architectural rule
+
+The addition of language and tool capabilities must **never** degrade Pseudo-Brain into a superficial wrapper around an external Large Language Model.
+
+Pretrained encoders and decoders may be utilized as perceptual and vocal interfaces, but experiments must rigorously isolate and verify that Pseudo-Brain's internal recurrent mechanisms provide measurable, causal advantages for:
+- Persistent goal retention over long sequences.
+- Tool selection and argument precision.
+- Latent counterfactual evaluation before execution.
+- Adaptive compute allocation under uncertainty.
+- Fast belief revision upon tool failure.
+- Robustness against unexpected observation shifts.
+
+The cognitive contribution of the thought field must remain independently and empirically verifiable.
+
+### 43.14 Scientific validation protocol
+
+When language and tool phases commence, Pseudo-Brain variants must be benchmarked against standard autoregressive and reactive agents under controlled, matched conditions:
+- **Task Completion Rate:** Percentage of multi-step tasks fully solved.
+- **Tool Efficiency:** Total tool calls required per completed objective.
+- **Error Recovery Rate:** Successful resolution after encountering unexpected tool failures.
+- **Goal Retention:** Stability of the primary objective over long horizons ($> 100$ steps).
+- **Latency & Compute:** End-to-end wall-clock time and FLOP consumption.
+- **Hallucination / Regression Rate:** Introduction of false claims or broken codebase invariants.
+- **Cognitive Depth Scaling:** Measured performance gains as dynamic cycle count $C$ scales.
+- **Thoughtlet Scaling:** Performance and robustness improvements as slot count $K$ scales.
+
+Claims of architectural superiority will be accepted only with preregistered protocols, multi-seed statistical replication, and confidence intervals.
+
+### 43.15 Ultimate program objective
+
+The long-term mission of Pseudo-Brain is:
+
+> **A single persistent cognitive architecture capable of receiving natural-language goals, reasoning continuously through parallel internal thought states, predicting possible futures, using physical or digital tools, recognizing when its beliefs are wrong, correcting itself, remembering unfinished work, and completing long-horizon tasks without requiring every intermediate thought to be represented as language.**
