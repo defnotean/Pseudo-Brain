@@ -3,17 +3,18 @@
 Computes exact quantitative evidence rather than heuristic narratives:
 1. Physical & Spatial Dynamics:
    - Ghost collision count vs Wall bump count.
-   - Per-catch incident micro-telemetry (catch topology, nearest junction distance, ghost distance delta).
+   - Wall-bump micro-dynamics: contact events, mean/max repeated pushes, recovery latency.
+   - Per-catch incident micro-telemetry (catch topology, pre-catch topology at t-5/t-10, nearest junction distance).
    - Ghost catches categorized by topology (corridor vs junction vs dead-end).
    - Mean and minimum Euclidean distance to nearest ghost.
    - Intersection classifications (corridor vs dead-end vs 3/4-way junction).
    - Unsafe intersection crossings (entering junction when nearest ghost distance <= 2).
-   - Distance traveled & Pellets per 100 movement steps.
 
 2. Internal Thought-Field Dynamics & Effective Dimensionality:
    - Effective Rank / Dimensionality of thoughtlets (Roy & Vetterli 2007 SVD-entropy).
-   - Inter-thoughtlet activation variance and slot differentiation.
-   - Thought-slot temporal persistence (cosine similarity between t and t-1).
+   - Inter-thoughtlet pairwise cosine similarity and thoughtlet L2 norms.
+   - Event-triggered cognitive dynamics: thought delta (1 - cos sim) on ordinary frames vs wall bumps vs ghost proximity (dist <= 3).
+   - Global temporal persistence (cosine similarity between t and t-1).
    - Model parameter SHA256 digest verification.
 
 3. Outcome-Conditioned Expert Disagreement:
@@ -70,7 +71,6 @@ def compute_effective_rank(z: Tensor, eps: float = 1e-12) -> float:
     if z.ndim != 2 or z.shape[0] <= 1:
         return 1.0
     with torch.no_grad():
-        # Center the matrix
         centered = z.float() - z.float().mean(dim=0, keepdim=True)
         try:
             s = torch.linalg.svdvals(centered)
@@ -86,13 +86,39 @@ def compute_effective_rank(z: Tensor, eps: float = 1e-12) -> float:
         return float(max(1.0, min(float(z.shape[0]), eff_dim)))
 
 
+def compute_pairwise_cosine_similarity(z: Tensor, eps: float = 1e-12) -> tuple[float, float]:
+    """Compute mean pairwise cosine similarity and mean L2 norm across thoughtlet slots.
+
+    Args:
+        z: [N, D] matrix where N is thoughtlets.
+
+    Returns:
+        (mean_pairwise_similarity, mean_thoughtlet_norm)
+    """
+    if torch is None or not isinstance(z, Tensor) or z.ndim != 2 or z.shape[0] <= 1:
+        return 1.0, 1.0
+    with torch.no_grad():
+        norms = torch.norm(z.float(), dim=1, keepdim=True)
+        mean_norm = float(norms.mean().item())
+        normalized = z.float() / (norms + eps)
+        # Gram matrix of cosine similarities
+        gram = torch.matmul(normalized, normalized.t())
+        n = z.shape[0]
+        # Mask out diagonal (self-similarity)
+        mask = ~torch.eye(n, dtype=torch.bool, device=z.device)
+        pairwise_sim = float(gram[mask].mean().item()) if n > 1 else 1.0
+        return pairwise_sim, mean_norm
+
+
 @dataclass(frozen=True, slots=True)
 class CatchIncidentReport:
     """Detailed micro-telemetry capturing the exact state at a ghost catch event."""
 
     catch_index: int
     tick: int
-    topology: str  # 'corridor', 'junction', 'dead_end'
+    topology_at_catch: str  # 'corridor', 'junction', 'dead_end'
+    topology_t_minus_5: str
+    topology_t_minus_10: str
     nearest_junction_dist: int
     ghost_dist_t_minus_10: float
     ghost_dist_t_minus_5: float
@@ -104,13 +130,51 @@ class CatchIncidentReport:
         return {
             "catch_index": self.catch_index,
             "tick": self.tick,
-            "topology": self.topology,
+            "topology_at_catch": self.topology_at_catch,
+            "topology_t_minus_5": self.topology_t_minus_5,
+            "topology_t_minus_10": self.topology_t_minus_10,
             "nearest_junction_dist": self.nearest_junction_dist,
             "ghost_dist_t_minus_10": round(self.ghost_dist_t_minus_10, 2),
             "ghost_dist_t_minus_5": round(self.ghost_dist_t_minus_5, 2),
             "ghost_dist_t_minus_1": round(self.ghost_dist_t_minus_1, 2),
             "expert_disagreement_preceding_10": round(self.expert_disagreement_preceding_10, 2),
             "thoughtlet_effective_rank": round(self.thoughtlet_effective_rank, 2),
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class WallBumpMicroDynamics:
+    """Micro-kinematic breakdown of wall collision streaks and recovery latency."""
+
+    total_bump_ticks: int
+    contact_events: int
+    mean_repeated_pushes_per_contact: float
+    max_repeated_pushes: int
+    mean_ticks_to_action_change: float
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "total_bump_ticks": self.total_bump_ticks,
+            "contact_events": self.contact_events,
+            "mean_repeated_pushes_per_contact": round(self.mean_repeated_pushes_per_contact, 2),
+            "max_repeated_pushes": self.max_repeated_pushes,
+            "mean_ticks_to_action_change": round(self.mean_ticks_to_action_change, 2),
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class EventTriggeredThoughtDeltas:
+    """Event-triggered thought vector change (1 - cosine similarity)."""
+
+    ordinary_frame_delta: float
+    wall_bump_delta: float
+    hazard_proximity_delta: float  # nearest ghost <= 3 tiles
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "ordinary_frame_delta": round(self.ordinary_frame_delta, 6),
+            "wall_bump_delta": round(self.wall_bump_delta, 6),
+            "hazard_proximity_delta": round(self.hazard_proximity_delta, 6),
         }
 
 
@@ -159,6 +223,7 @@ class SpatialCognitiveTelemetry:
     pellets_eaten: int
     ghost_collisions: int
     wall_bumps: int
+    wall_micro_dynamics: WallBumpMicroDynamics
     survival_ticks: int
 
     # Spatial Geometry & Intersections
@@ -185,6 +250,9 @@ class SpatialCognitiveTelemetry:
     mean_thoughtlet_variance: float
     mean_thoughtlet_persistence: float
     mean_thoughtlet_effective_rank: float
+    mean_thoughtlet_norm: float
+    pairwise_cosine_similarity: float
+    event_thought_deltas: EventTriggeredThoughtDeltas
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -194,6 +262,7 @@ class SpatialCognitiveTelemetry:
             "pellets_eaten": self.pellets_eaten,
             "ghost_collisions": self.ghost_collisions,
             "wall_bumps": self.wall_bumps,
+            "wall_micro_dynamics": self.wall_micro_dynamics.to_dict(),
             "survival_ticks": self.survival_ticks,
             "mean_nearest_ghost_dist": round(self.mean_nearest_ghost_dist, 3),
             "min_nearest_ghost_dist": round(self.min_nearest_ghost_dist, 3),
@@ -214,6 +283,9 @@ class SpatialCognitiveTelemetry:
             "mean_thoughtlet_variance": round(self.mean_thoughtlet_variance, 4),
             "mean_thoughtlet_persistence": round(self.mean_thoughtlet_persistence, 4),
             "mean_thoughtlet_effective_rank": round(self.mean_thoughtlet_effective_rank, 2),
+            "mean_thoughtlet_norm": round(self.mean_thoughtlet_norm, 3),
+            "pairwise_cosine_similarity": round(self.pairwise_cosine_similarity, 3),
+            "event_thought_deltas": self.event_thought_deltas.to_dict(),
         }
 
 
@@ -268,10 +340,26 @@ def run_instrumented_diagnostic_episode(
     thought_variances: list[float] = []
     thought_persistences: list[float] = []
     thought_effective_ranks: list[float] = []
+    thought_norms: list[float] = []
+    pairwise_sims: list[float] = []
+
+    # Event-triggered thought delta tracking: Delta T = 1 - cos_sim(t, t-1)
+    ordinary_thought_deltas: list[float] = []
+    wall_bump_thought_deltas: list[float] = []
+    hazard_thought_deltas: list[float] = []
+
+    # Wall streak tracking
+    wall_streaks: list[int] = []
+    current_wall_streak = 0
+    action_change_latencies: list[int] = []
+    last_bump_action = None
+    ticks_since_bump = 0
+    tracking_recovery = False
 
     # Incident tracking history
     recent_ghost_dists: list[float] = []
     recent_disagreements: list[bool] = []
+    recent_topologies: list[str] = []
     catch_incidents: list[CatchIncidentReport] = []
     corridor_catches = 0
     junction_catches = 0
@@ -302,8 +390,10 @@ def run_instrumented_diagnostic_episode(
                 min_ghost_distance = cur_nearest
 
         recent_ghost_dists.append(cur_nearest)
+        recent_topologies.append(cell_type)
         if len(recent_ghost_dists) > 20:
             recent_ghost_dists.pop(0)
+            recent_topologies.pop(0)
 
         if cell_type == "junction" and last_pos != current_pos:
             junction_entries += 1
@@ -338,20 +428,24 @@ def run_instrumented_diagnostic_episode(
 
         # 3. Inspect internal thought states and effective rank
         cur_effective_rank = 1.0
+        cur_thought_delta = 0.0
         state = getattr(policy, "_state", None)
         if state is not None and hasattr(state, "thoughts") and isinstance(state.thoughts, Tensor):
             thoughts = state.thoughts[0]  # [thoughtlets, registers, width]
-            # Pool registers to get [thoughtlets, width]
             pooled_thoughts = thoughts.mean(dim=1)
             cur_effective_rank = compute_effective_rank(pooled_thoughts)
             thought_effective_ranks.append(cur_effective_rank)
+
+            pair_sim, mean_norm = compute_pairwise_cosine_similarity(pooled_thoughts)
+            pairwise_sims.append(pair_sim)
+            thought_norms.append(mean_norm)
 
             # Inter-thoughtlet variance
             thoughtlet_mean = thoughts.mean(dim=0, keepdim=True)
             var = float(((thoughts - thoughtlet_mean) ** 2).mean().item())
             thought_variances.append(var)
 
-            # Temporal persistence (cosine sim between successive steps)
+            # Temporal persistence and delta T
             flattened = thoughts.flatten()
             if last_thought is not None:
                 sim = float(
@@ -360,6 +454,7 @@ def run_instrumented_diagnostic_episode(
                     ).item()
                 )
                 thought_persistences.append(sim)
+                cur_thought_delta = max(0.0, 1.0 - sim)
             last_thought = flattened.detach().clone()
 
         # 4. Step environment
@@ -367,9 +462,41 @@ def run_instrumented_diagnostic_episode(
         outcome = env.step(ctrl)
         new_pos = (env._player_x, env._player_y)
 
+        # Check for wall bump vs move
+        is_wall_bump = False
+        if ctrl.keys_down and new_pos == current_pos and (tick % env._player_period == 0):
+            wall_bumps += 1
+            is_wall_bump = True
+            current_wall_streak += 1
+            if not tracking_recovery:
+                tracking_recovery = True
+                last_bump_action = ctrl.keys_down
+                ticks_since_bump = 0
+            else:
+                ticks_since_bump += 1
+        elif new_pos != current_pos:
+            actual_moves += 1
+            if current_wall_streak > 0:
+                wall_streaks.append(current_wall_streak)
+                current_wall_streak = 0
+            if tracking_recovery:
+                action_change_latencies.append(ticks_since_bump)
+                tracking_recovery = False
+
+        if tracking_recovery and ctrl.keys_down != last_bump_action:
+            action_change_latencies.append(ticks_since_bump)
+            tracking_recovery = False
+
+        # Classify event-triggered thought delta
+        if is_wall_bump:
+            wall_bump_thought_deltas.append(cur_thought_delta)
+        elif cur_nearest <= 3.0:
+            hazard_thought_deltas.append(cur_thought_delta)
+        else:
+            ordinary_thought_deltas.append(cur_thought_delta)
+
         # Check for catch incident
         if env._times_caught > pre_caught:
-            # Ghost catch occurred!
             if cell_type == "junction":
                 junction_catches += 1
             elif cell_type == "dead_end":
@@ -377,7 +504,6 @@ def run_instrumented_diagnostic_episode(
             else:
                 corridor_catches += 1
 
-            # Compute BFS distance to nearest junction
             junction_distances = _bfs_distances(current_pos, maze)
             dist_to_junction = min(
                 (junction_distances[j] for j in junction_cells if j in junction_distances),
@@ -387,13 +513,17 @@ def run_instrumented_diagnostic_episode(
             d_10 = recent_ghost_dists[-11] if len(recent_ghost_dists) >= 11 else recent_ghost_dists[0]
             d_5 = recent_ghost_dists[-6] if len(recent_ghost_dists) >= 6 else recent_ghost_dists[0]
             d_1 = recent_ghost_dists[-2] if len(recent_ghost_dists) >= 2 else recent_ghost_dists[0]
+            top_10 = recent_topologies[-11] if len(recent_topologies) >= 11 else recent_topologies[0]
+            top_5 = recent_topologies[-6] if len(recent_topologies) >= 6 else recent_topologies[0]
             preceding_10_disagreements = recent_disagreements[-10:] if recent_disagreements else [False]
             disagree_pct_10 = (sum(preceding_10_disagreements) / len(preceding_10_disagreements)) * 100.0
 
             incident = CatchIncidentReport(
                 catch_index=len(catch_incidents) + 1,
                 tick=tick,
-                topology=cell_type,
+                topology_at_catch=cell_type,
+                topology_t_minus_5=top_5,
+                topology_t_minus_10=top_10,
                 nearest_junction_dist=dist_to_junction,
                 ghost_dist_t_minus_10=d_10,
                 ghost_dist_t_minus_5=d_5,
@@ -403,7 +533,7 @@ def run_instrumented_diagnostic_episode(
             )
             catch_incidents.append(incident)
 
-        # Evaluate pending disagreements that reached N=10 ticks
+        # Evaluate pending disagreements
         resolved_disagreements = []
         for d in pending_disagreements:
             if tick - d["start_tick"] >= 10 or outcome.terminated or outcome.truncated:
@@ -419,18 +549,15 @@ def run_instrumented_diagnostic_episode(
         for r in resolved_disagreements:
             pending_disagreements.remove(r)
 
-        # Detect wall bump (action requested but position unchanged)
-        if ctrl.keys_down and new_pos == current_pos and (tick % env._player_period == 0):
-            wall_bumps += 1
-        elif new_pos != current_pos:
-            actual_moves += 1
-
         last_pos = current_pos
         obs = outcome.observation
         if outcome.terminated or outcome.truncated:
             break
 
-    # Clean up remaining pending disagreements at episode end
+    if current_wall_streak > 0:
+        wall_streaks.append(current_wall_streak)
+
+    # Clean up remaining pending disagreements
     for d in pending_disagreements:
         caught_delta = env._times_caught - d["start_caught"]
         pellet_delta = env._pellets_eaten - d["start_pellets"]
@@ -448,12 +575,37 @@ def run_instrumented_diagnostic_episode(
         disagreed_and_caught=fatal_disagreements,
     )
 
+    contact_events = len(wall_streaks)
+    mean_pushes = (sum(wall_streaks) / contact_events) if contact_events > 0 else 0.0
+    max_pushes = max(wall_streaks) if wall_streaks else 0
+    mean_recovery = (sum(action_change_latencies) / len(action_change_latencies)) if action_change_latencies else 0.0
+
+    wall_micro = WallBumpMicroDynamics(
+        total_bump_ticks=wall_bumps,
+        contact_events=contact_events,
+        mean_repeated_pushes_per_contact=mean_pushes,
+        max_repeated_pushes=max_pushes,
+        mean_ticks_to_action_change=mean_recovery,
+    )
+
+    mean_ord_delta = sum(ordinary_thought_deltas) / len(ordinary_thought_deltas) if ordinary_thought_deltas else 0.0
+    mean_bump_delta = sum(wall_bump_thought_deltas) / len(wall_bump_thought_deltas) if wall_bump_thought_deltas else 0.0
+    mean_haz_delta = sum(hazard_thought_deltas) / len(hazard_thought_deltas) if hazard_thought_deltas else 0.0
+
+    event_deltas = EventTriggeredThoughtDeltas(
+        ordinary_frame_delta=mean_ord_delta,
+        wall_bump_delta=mean_bump_delta,
+        hazard_proximity_delta=mean_haz_delta,
+    )
+
     mean_dist = sum(ghost_distances) / len(ghost_distances) if ghost_distances else 0.0
     disagreement_pct = (expert_disagreements / decisions_total * 100.0) if decisions_total > 0 else 0.0
     pellets_per_100 = (env._pellets_eaten / actual_moves * 100.0) if actual_moves > 0 else 0.0
     mean_var = sum(thought_variances) / len(thought_variances) if thought_variances else 0.0
     mean_persist = sum(thought_persistences) / len(thought_persistences) if thought_persistences else 0.0
     mean_rank = sum(thought_effective_ranks) / len(thought_effective_ranks) if thought_effective_ranks else 1.0
+    mean_norm_val = sum(thought_norms) / len(thought_norms) if thought_norms else 1.0
+    mean_pairwise_sim = sum(pairwise_sims) / len(pairwise_sims) if pairwise_sims else 1.0
 
     return SpatialCognitiveTelemetry(
         seed=seed,
@@ -462,6 +614,7 @@ def run_instrumented_diagnostic_episode(
         pellets_eaten=env._pellets_eaten,
         ghost_collisions=env._times_caught,
         wall_bumps=wall_bumps,
+        wall_micro_dynamics=wall_micro,
         survival_ticks=env._tick,
         mean_nearest_ghost_dist=mean_dist,
         min_nearest_ghost_dist=min_ghost_distance if min_ghost_distance < 900.0 else 0.0,
@@ -480,6 +633,9 @@ def run_instrumented_diagnostic_episode(
         mean_thoughtlet_variance=mean_var,
         mean_thoughtlet_persistence=mean_persist,
         mean_thoughtlet_effective_rank=mean_rank,
+        mean_thoughtlet_norm=mean_norm_val,
+        pairwise_cosine_similarity=mean_pairwise_sim,
+        event_thought_deltas=event_deltas,
     )
 
 
