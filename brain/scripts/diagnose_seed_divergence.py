@@ -1,6 +1,6 @@
-﻿"""Diagnose internal telemetry differences between good and reckless training seeds in Pseudo-Brain.
+"""Diagnose internal telemetry differences between good and reckless training seeds in Pseudo-Brain.
 
-Compares Good Seed (e.g. 43) vs Bad/Reckless Seed (e.g. 46) on identical held-out
+Compares Good Seed (43) vs Bad/Reckless Seed (46) on identical held-out
 procedural worlds to determine why identical architectures develop radically different
 safety policies.
 """
@@ -26,6 +26,8 @@ if str(SRC) not in sys.path:
 from irene_brain.data.curriculum_dataset import CurriculumDataset, CurriculumDatasetConfig
 from irene_brain.environments.maze_chase import MazeChaseEnv
 from irene_brain.evaluation.diagnostic_policies import ScriptedMazeChasePlannerPolicy
+from irene_brain.evaluation.latent_lookahead_policy import LatentLookaheadPolicy
+from irene_brain.model.lookahead_planner import LatentLookaheadPlanner
 from irene_brain.model.spec import ThoughtFieldConfig
 from irene_brain.model.torch_model import IreneBrainModel
 from irene_brain.training.batches import control_to_vector
@@ -102,62 +104,158 @@ def train_model_on_seed(train_seed: int, dagger_iters: int = 2, updates_per_iter
             sequence_length=8,
             burn_in_steps=2,
             seed_offset=0,
+            hazard_count=2,
+            tick_period_ns=16_666_667,
+            discount=0.99,
         ),
         optimization=OptimizationConfig(
-            batch_size=8,
-            learning_rate=0.001,
-            warmup_steps=4,
-            weight_decay=0.01,
-            gradient_clip_norm=1.0,
-            seed=train_seed,
+            batch_size=2,
+            gradient_accumulation_steps=1,
+            learning_rate=1e-3,
+            weight_decay=1e-4,
+            max_gradient_norm=1.0,
+            warmup_steps=0,
         ),
-        precision=PrecisionConfig(mode="fp32"),
-        resource=ResourceConfig(max_rss_mb=4096, max_threads=1, allow_gpu=False),
-        determinism=DeterminismConfig(enforce_single_thread=True, seed=train_seed),
-        logging=LoggingConfig(log_interval_steps=10),
+        precision=PrecisionConfig(
+            device="cpu",
+            mode="float32",
+            allow_tf32=False,
+        ),
+        determinism=DeterminismConfig(
+            enabled=True,
+            num_workers=0,
+            compile_model=False,
+        ),
+        logging=LoggingConfig(
+            log_every_steps=1,
+            evaluate_every_steps=1,
+            validation_batches=1,
+            checkpoint_every_steps=10,
+            keep_last_checkpoints=2,
+        ),
+        resources=ResourceConfig(
+            allow_gpu=False,
+            allow_capture=False,
+            allow_hid_output=False,
+            allow_background_threads=False,
+            allow_network=False,
+            allow_subprocess=False,
+            write_artifacts=True,
+            cpu_threads=1,
+        ),
     )
 
-    system = TorchTrainingSystem(training_config)
-    cognitive_aux = CognitiveAuxiliaryLoss(
-        prediction_weight=0.25,
-        hazard_weight=0.25,
-        depth_weight=0.05,
-    )
-    curriculum = CurriculumDataset(
-        CurriculumDatasetConfig(
-            scenario="mixed",
-            train_episodes=16,
-            val_episodes=4,
-            test_episodes=4,
-            episode_length=8,
-            seed=train_seed,
-        )
-    )
-    dagger = DAggerDistiller(
-        DAggerConfig(
-            dagger_iterations=dagger_iters,
-            rollouts_per_iter=4,
-            rollout_horizon=8,
-            updates_per_iter=updates_per_iter,
-            beta_decay=0.6,
-            batch_size=8,
-            seed=train_seed,
-        )
+    objective = ThoughtFieldObjective(model)
+    system = TorchTrainingSystem(objective, training_config)
+
+    dagger_config = DAggerConfig(
+        iterations=dagger_iters,
+        episodes_per_iteration=2,
+        max_ticks_per_episode=60,
+        initial_beta=0.8,
+        beta_decay=0.85,
+        sequence_length=8,
+        burn_in_steps=2,
+        batch_size=2,
+        updates_per_iteration=updates_per_iter,
+        ghost_count=2,
+        ghost_period=2,
+        extra_loops=8,
     )
 
-    expert_planner = ScriptedMazeChasePlannerPolicy(lookahead_steps=6)
-    env = MazeChaseEnv()
+    distiller = DAggerDistiller(
+        config=dagger_config,
+        student_model=model,
+        training_system=system,
+    )
 
-    for it in range(dagger.config.dagger_iterations):
-        dagger.run_dagger_iteration(
-            student_model=model,
-            env=env,
-            expert_planner=expert_planner,
-            training_system=system,
-            dataset=curriculum,
-            cognitive_loss_fn=cognitive_aux,
-            iteration_index=it,
-        )
+    curriculum_cfg = CurriculumDatasetConfig(
+        sequence_length=8,
+        sequence_count=40,
+        scenario="mixed",
+    )
+    curriculum_dataset = CurriculumDataset(curriculum_cfg)
+    for i in range(min(20, len(curriculum_dataset))):
+        distiller.buffer.add_sequence(curriculum_dataset[i])
+
+    cog_loss_fn = CognitiveAuxiliaryLoss(
+        future_weight=1.0,
+        gate_surprise_weight=1.0,
+        halting_weight=0.5,
+        counterfactual_weight=0.0,
+        topological_goal_weight=0.0,
+    )
+    optimizer = system.optimizer if hasattr(system, "optimizer") else None
+
+    for it in range(dagger_iters):
+        res = distiller.run_dagger_iteration(iteration=it)
+        if optimizer is not None and len(distiller.buffer) > 0:
+            model.train()
+            for _ in range(updates_per_iter):
+                batch = distiller.buffer.sample_batch(batch_size=2, burn_in_steps=2)
+                for seq in batch.sequences:
+                    if len(seq.transitions) < 6:
+                        continue
+                    t0_obs = seq.transitions[2]
+                    device = next(model.parameters()).device
+                    rgb_0 = _rgb_tensor(
+                        (t0_obs.observation.rgb,),
+                        device=device,
+                        resolution=getattr(model, "input_resolution", None),
+                    )
+                    prev_c = torch.tensor([control_to_vector(t0_obs.observation.previous_control)], dtype=torch.float32, device=device)
+                    dt = torch.tensor([0.016], dtype=torch.float32, device=device)
+                    st = model.initial_state(batch_size=1)
+                    
+                    out = model(rgb_0, prev_c, dt, st)
+                    
+                    act_vec = control_to_vector(t0_obs.action_target)
+                    wasd = [act_vec[int(k)] for k in (HidKey.W, HidKey.A, HidKey.S, HidKey.D)]
+                    if any(w > 0.5 for w in wasd):
+                        act_idx = 1 + wasd.index(max(wasd))
+                    else:
+                        act_idx = 0
+                    
+                    haz_flags = []
+                    for h_off in (1, 3, 5):
+                        idx = min(len(seq.transitions) - 1, 2 + h_off)
+                        fut_t = seq.transitions[idx]
+                        is_haz = 1.0 if any(ev in ("collision", "caught") for ev in fut_t.event_targets) else 0.0
+                        haz_flags.append([is_haz])
+                    
+                    actual_collisions = torch.tensor([haz_flags], dtype=torch.float32)
+                    executed_actions = torch.tensor([act_idx], dtype=torch.long)
+                    future_disp_targets = torch.zeros((1, 3, 2), dtype=torch.float32)
+                    
+                    vec_targets = torch.zeros((1, 2), dtype=torch.float32)
+                    if act_idx == 1:
+                        vec_targets[0, 1] = -1.0
+                    elif act_idx == 2:
+                        vec_targets[0, 0] = -1.0
+                    elif act_idx == 3:
+                        vec_targets[0, 1] = 1.0
+                    elif act_idx == 4:
+                        vec_targets[0, 0] = 1.0
+
+                    is_hazard = any(ev in ("collision", "caught") for ev in t0_obs.event_targets) or (actual_collisions[0, 0, 0].item() > 0.5)
+                    hazard_mask = torch.tensor([is_hazard], dtype=torch.bool)
+                    
+                    cog_out = cog_loss_fn(
+                        diagnostics=out.diagnostics,
+                        future_disp_targets=future_disp_targets,
+                        executed_actions=executed_actions,
+                        actual_collisions=actual_collisions,
+                        hazard_mask=hazard_mask,
+                        topological_goal_targets=None,
+                        topological_exit_targets=None,
+                    )
+                    
+                    if cog_out.total_loss.requires_grad:
+                        optimizer.zero_grad()
+                        cog_out.total_loss.backward()
+                        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+                        optimizer.step()
+
     model.eval()
     return model
 
@@ -215,44 +313,61 @@ def run_instrumented_telemetry(
     total_decision_steps = 0
 
     wasd_to_dir = {
-        HidKey.KEY_W: (0, -1),
-        HidKey.KEY_S: (0, 1),
-        HidKey.KEY_A: (-1, 0),
-        HidKey.KEY_D: (1, 0),
+        1: (0, -1), # W (up)
+        2: (-1, 0), # A (left)
+        3: (0, 1),  # S (down)
+        4: (1, 0),  # D (right)
     }
+
+    planner = LatentLookaheadPlanner(
+        model=model,
+        horizon=3,
+        gamma=0.95,
+        hazard_weight=5.0,
+        cognitive_cycles_per_step=model.config.cognitive_cycles,
+    )
+    policy = LatentLookaheadPolicy(model=model, planner=planner)
 
     for ev_seed in eval_seeds:
         obs = env.reset(seed=ev_seed)
+        policy.reset(episode_seed=ev_seed)
         state = model.initial_state(batch_size=1)
-        prev_pos = (obs.player_pos[0], obs.player_pos[1])
+        prev_pos = (env._player_x, env._player_y)
         
         for tick in range(ticks_per_eval):
             total_decision_steps += 1
-            obs_tensor = _rgb_tensor([obs.screen_rgb])
-            prev_ctrl = control_to_vector(obs.last_applied_control)
+            device = next(model.parameters()).device
+            rgb = _rgb_tensor((obs.rgb,), device=device, resolution=getattr(model, "input_resolution", None))
+            prev_ctrl_vec = torch.tensor([control_to_vector(obs.previous_control)], dtype=torch.float32, device=device)
+            dt = torch.tensor([0.016], dtype=torch.float32, device=device)
             
             with torch.no_grad():
-                out = model(
-                    pixels=obs_tensor,
-                    previous_control=prev_ctrl.unsqueeze(0) if prev_ctrl.dim() == 1 else prev_ctrl,
-                    state=state,
-                )
-            state = out.next_state
-
-            px, py = obs.player_pos
-            ghost_dists = [math.hypot(px - gx, py - gy) for (gx, gy) in obs.ghost_positions]
+                out = model(rgb, prev_ctrl_vec, dt, state)
+                state = out.next_state
+            
+            px, py = env._player_x, env._player_y
+            ghost_dists = [math.hypot(px - gx, py - gy) for (gx, gy) in env._ghosts]
             min_ghost_dist = min(ghost_dists) if ghost_dists else 999.0
             nearest_ghost_idx = ghost_dists.index(min_ghost_dist) if ghost_dists else -1
             
             is_danger = min_ghost_dist <= 2.5
             
-            pred_danger_prob = float(torch.sigmoid(out.action_logits[:, 0]).item())
-            if hasattr(model, "hazard_head") and model.hazard_head is not None:
-                pred_danger_prob = float(torch.sigmoid(model.hazard_head(state.thoughtlets)).mean().item())
-            elif hasattr(out, "hazard_pred") and out.hazard_pred is not None:
-                pred_danger_prob = float(torch.sigmoid(out.hazard_pred).mean().item())
-            else:
-                pred_danger_prob = 1.0 if (out.cognitive_cycles_executed is not None and out.cognitive_cycles_executed.float().mean().item() > 2.0) else 0.0
+            # Extract hazard prediction from world predictions / diagnostics
+            diag = out.diagnostics
+            pred_danger_prob = 0.0
+            if hasattr(out, "world") and out.world is not None:
+                if hasattr(out.world, "occurrence_logits") and out.world.occurrence_logits is not None:
+                    pred_danger_prob = max(pred_danger_prob, float(torch.sigmoid(out.world.occurrence_logits).max().item()))
+                if hasattr(out.world, "urgency") and out.world.urgency is not None:
+                    pred_danger_prob = max(pred_danger_prob, float(torch.sigmoid(out.world.urgency).max().item()))
+            if diag.future_trajectory_predictions is not None:
+                fut = diag.future_trajectory_predictions
+                if "collision_logits" in fut:
+                    pred_danger_prob = max(pred_danger_prob, float(torch.sigmoid(fut["collision_logits"]).max().item()))
+                elif "future_hazards" in fut:
+                    pred_danger_prob = max(pred_danger_prob, float(torch.sigmoid(fut["future_hazards"]).max().item()))
+            elif diag.cycles_completed > 2:
+                pred_danger_prob = 1.0
 
             if is_danger:
                 danger_steps += 1
@@ -265,39 +380,51 @@ def run_instrumented_telemetry(
                 if pred_danger_prob > 0.5:
                     false_pos_danger += 1
 
-            cycles = float(out.cognitive_cycles_executed.float().mean().item()) if out.cognitive_cycles_executed is not None else 3.0
+            cycles = float(diag.cycles_completed)
             if is_danger:
                 hazard_cycles_list.append(cycles)
             else:
                 open_cycles_list.append(cycles)
 
-            alpha = float(state.thought_gate_alpha.mean().item()) if hasattr(state, "thought_gate_alpha") and state.thought_gate_alpha is not None else 1.0
+            alpha = 1.0
+            if diag.thought_update_gates is not None:
+                alpha = float(diag.thought_update_gates.mean().item())
             if is_danger:
                 hazard_alpha_list.append(alpha)
             else:
                 open_alpha_list.append(alpha)
 
-            if state.thoughtlets is not None:
-                effective_ranks.append(compute_thoughtlet_effective_rank(state.thoughtlets))
-                slot_sims.append(compute_thoughtlet_slot_similarity(state.thoughtlets))
+            st = state
+            if hasattr(st, "thoughts") and st.thoughts is not None:
+                th = st.thoughts
+                if th.dim() >= 3:
+                    th_flat = th.reshape(th.shape[0], th.shape[1], -1)[0]
+                else:
+                    th_flat = th
+                effective_ranks.append(compute_thoughtlet_effective_rank(th_flat))
+                slot_sims.append(compute_thoughtlet_slot_similarity(th_flat))
 
-            action_logits = out.action_logits
-            wasd_indices = [HidKey.KEY_W.value, HidKey.KEY_A.value, HidKey.KEY_S.value, HidKey.KEY_D.value]
-            wasd_logits = action_logits[0, wasd_indices]
-            wasd_probs = F.softmax(wasd_logits, dim=-1)
-            entropy = -torch.sum(wasd_probs * torch.log(wasd_probs + 1e-8)).item()
+            button_logits = out.action.button_logits[0]
+            wasd_keys = [int(HidKey.W), int(HidKey.A), int(HidKey.S), int(HidKey.D)]
+            wasd_logits = torch.tensor([0.0] + [button_logits[k].item() for k in wasd_keys], device=device)
+            probs = F.softmax(wasd_logits, dim=-1)
+            entropy = -torch.sum(probs * torch.log(probs + 1e-8)).item()
             
             if is_danger:
                 action_entropy_danger.append(entropy)
             else:
                 action_entropy_open.append(entropy)
 
-            chosen_key_idx = wasd_indices[torch.argmax(wasd_probs).item()]
-            chosen_key = HidKey(chosen_key_idx)
-            chosen_dx, chosen_dy = wasd_to_dir.get(chosen_key, (0, 0))
+            control = policy.act(obs)
+            is_w = int(HidKey.W) in control.keys_down
+            is_a = int(HidKey.A) in control.keys_down
+            is_s = int(HidKey.S) in control.keys_down
+            is_d = int(HidKey.D) in control.keys_down
+            chosen_dx = (1 if is_d else 0) - (1 if is_a else 0)
+            chosen_dy = (1 if is_s else 0) - (1 if is_w else 0)
 
             if is_danger and nearest_ghost_idx >= 0:
-                gx, gy = obs.ghost_positions[nearest_ghost_idx]
+                gx, gy = env._ghosts[nearest_ghost_idx]
                 v_gx, v_gy = gx - px, gy - py
                 dot = chosen_dx * v_gx + chosen_dy * v_gy
                 if dot < 0:
@@ -305,16 +432,15 @@ def run_instrumented_telemetry(
                 elif dot > 0:
                     suicide_actions += 1
 
-            control = obs.last_applied_control
-            control = control.with_key_pressed(chosen_key)
-            obs = env.step(control)
+            outcome = env.step(control)
+            obs = outcome.observation
             
-            if (obs.player_pos[0], obs.player_pos[1]) == prev_pos and (chosen_dx != 0 or chosen_dy != 0):
+            if (env._player_x, env._player_y) == prev_pos and (chosen_dx != 0 or chosen_dy != 0):
                 wall_collisions += 1
-            prev_pos = (obs.player_pos[0], obs.player_pos[1])
+            prev_pos = (env._player_x, env._player_y)
 
-        total_pellets += obs.pellets_eaten
-        total_catches += obs.ghost_catches
+        total_pellets += env._pellets_eaten
+        total_catches += env._times_caught
 
     danger_recall = (true_pos_danger / max(1, danger_steps)) * 100.0
     danger_precision = (true_pos_danger / max(1, true_pos_danger + false_pos_danger)) * 100.0
@@ -380,7 +506,7 @@ def main() -> None:
     print(f"{'Danger Prediction Precision (%)':<38} | {good_telemetry.danger_precision:<18.1f} | {bad_telemetry.danger_precision:<18.1f} | {'Hazard precision'}")
     print(f"{'Hazard Cycles Allocated (C_hazard)':<38} | {good_telemetry.mean_hazard_cycles:<18.2f} | {bad_telemetry.mean_hazard_cycles:<18.2f} | {'Extra compute under threat'}")
     print(f"{'Open-Space Cycles (C_open)':<38} | {good_telemetry.mean_open_cycles:<18.2f} | {bad_telemetry.mean_open_cycles:<18.2f} | {'Baseline compute'}")
-    print(f"{'Surprise Gate α (Hazard)':<38} | {good_telemetry.mean_hazard_gate_alpha:<18.3f} | {bad_telemetry.mean_hazard_gate_alpha:<18.3f} | {'Reconsideration intensity'}")
+    print(f"{'Surprise Gate alpha (Hazard)':<38} | {good_telemetry.mean_hazard_gate_alpha:<18.3f} | {bad_telemetry.mean_hazard_gate_alpha:<18.3f} | {'Reconsideration intensity'}")
     print(f"{'Thoughtlet Effective Rank (1-4)':<38} | {good_telemetry.mean_thought_effective_rank:<18.2f} | {bad_telemetry.mean_thought_effective_rank:<18.2f} | {'Slot dimensional diversity'}")
     print(f"{'Thoughtlet Pairwise Cosine Sim':<38} | {good_telemetry.mean_thought_slot_similarity:<18.3f} | {bad_telemetry.mean_thought_slot_similarity:<18.3f} | {'Lower = specialized'}")
     print(f"{'Action Entropy under Danger':<38} | {good_telemetry.mean_action_entropy_danger:<18.3f} | {bad_telemetry.mean_action_entropy_danger:<18.3f} | {'Decision hesitation/spread'}")
