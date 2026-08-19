@@ -178,16 +178,25 @@ class CognitiveAuxiliaryLoss(nn.Module):
             if topo_parts:
                 topo_loss = torch.stack(topo_parts).mean()
 
-        total = (
+        # 6. Permutation-Invariant Thoughtlet Diversity / Anti-Collapse Loss
+        diversity_loss = zero
+        thought_sim = getattr(diagnostics, "thought_cosine_similarity", None)
+        if thought_sim is not None and thought_sim.shape[-1] > 1:
+            K = thought_sim.shape[-1]
+            off_diag = ~torch.eye(K, dtype=torch.bool, device=thought_sim.device)
+            diversity_loss = thought_sim[..., off_diag].square().mean()
+
+        total_loss = (
             self.future_weight * (future_disp_loss + future_ghost_loss + future_escape_loss)
             + self.gate_surprise_weight * gate_loss
             + self.halting_weight * halt_loss
             + self.counterfactual_weight * cf_loss
             + self.topological_goal_weight * topo_loss
+            + 0.5 * diversity_loss
         )
 
         return CognitiveLossOutput(
-            total_loss=total,
+            total_loss=total_loss,
             future_displacement_loss=future_disp_loss,
             future_ghost_loss=future_ghost_loss,
             future_escape_margin_loss=future_escape_loss,

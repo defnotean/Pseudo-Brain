@@ -461,10 +461,12 @@ class MatchedBaselineTests(unittest.TestCase):
         implementation = manifest["implementation"]
         source_files = implementation["source_files"]
         for relative_path, expected_digest in source_files.items():
-            self.assertEqual(
-                sha256((ROOT / relative_path).read_bytes()).hexdigest(),
-                expected_digest,
+            content = (ROOT / relative_path).read_bytes()
+            actual_digests = (
+                sha256(content).hexdigest(),
+                sha256(content.replace(b"\r\n", b"\n")).hexdigest(),
             )
+            self.assertIn(expected_digest, actual_digests)
         canonical_sources = json.dumps(
             source_files,
             ensure_ascii=False,

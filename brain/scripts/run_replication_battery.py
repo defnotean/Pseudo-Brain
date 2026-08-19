@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 import argparse
 from dataclasses import replace
 import json
@@ -308,22 +308,27 @@ def stats(values: list[float]) -> tuple[float, float]:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
+    parser.add_argument("--variant", type=str, default="all", choices=["all", "E_champion", "F_counterfactual", "G_topological"])
     parser.add_argument("--dagger-iters", type=int, default=2)
     parser.add_argument("--updates-per-iter", type=int, default=12)
     parser.add_argument("--eval-ticks", type=int, default=120)
     args = parser.parse_args()
 
-    variant_specs = [
+    all_variant_specs = [
         ("E_champion", False, False),
         ("F_counterfactual", True, False),
         ("G_topological", True, True),
     ]
+    if args.variant == "all":
+        variant_specs = all_variant_specs
+    else:
+        variant_specs = [s for s in all_variant_specs if s[0] == args.variant]
 
     all_results = {}
 
-    print("=" * 90)
+    print("=" * 105)
     print("  MULTI-SEED REPLICATION BATTERY (5 Training Seeds x 20 Held-Out Validation Seeds)")
-    print("=" * 90)
+    print("=" * 105)
 
     for vid, use_cf, use_topo in variant_specs:
         print(f"\n>>> Running Variant: {vid}")
@@ -344,11 +349,11 @@ def main() -> None:
             )
         all_results[vid] = runs
 
-    print("\n" + "=" * 90)
+    print("\n" + "=" * 105)
     print("  STATISTICAL REPLICATION SUMMARY (5 Training Seeds x 20 Held-Out Seeds = 100 Episodes/Variant)")
-    print("=" * 90)
-    print(f"{'Variant':<22} | {'Mean Pellets':<18} | {'Total Catches':<18} | {'Final Loss':<15}")
-    print("-" * 90)
+    print("=" * 105)
+    print(f"{'Variant':<20} | {'Mean Pellets':<16} | {'Catches (Mean+/-Std)':<22} | {'Worst Seed':<12} | {'Best Seed':<12}")
+    print("-" * 105)
 
     summary = {}
     for vid, _, _ in variant_specs:
@@ -359,22 +364,26 @@ def main() -> None:
         p_mean, p_std = stats(pellets)
         c_mean, c_std = stats(catches)
         l_mean, l_std = stats(losses)
+        worst_catches = max(catches)
+        best_catches = min(catches)
 
         summary[vid] = {
             "mean_pellets": round(p_mean, 2),
             "std_pellets": round(p_std, 2),
             "mean_catches": round(c_mean, 1),
             "std_catches": round(c_std, 1),
+            "worst_catches": worst_catches,
+            "best_catches": best_catches,
             "mean_loss": round(l_mean, 4),
             "std_loss": round(l_std, 4),
             "runs": all_results[vid],
         }
 
         print(
-            f"{vid:<22} | {p_mean:.2f} +/- {p_std:.2f}         | {c_mean:.1f} +/- {c_std:.1f}         | {l_mean:.4f} +/- {l_std:.4f}"
+            f"{vid:<20} | {p_mean:.2f} +/- {p_std:.2f}    | {c_mean:.1f} +/- {c_std:.1f}          | {worst_catches:<12d} | {best_catches:<12d}"
         )
 
-    print("=" * 90)
+    print("=" * 105)
 
     out_path = pathlib.Path(__file__).resolve().parents[1] / "artifacts" / "replication_battery_results.json"
     out_path.parent.mkdir(parents=True, exist_ok=True)

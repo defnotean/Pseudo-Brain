@@ -252,9 +252,9 @@ class LatentLookaheadPlanner(nn.Module):
         config: ThoughtFieldConfig | None = None,
         horizon: int = 3,
         gamma: float = 0.95,
-        hazard_weight: float = 5.0,
-        hazard_prune_threshold: float = 0.5,
-        dead_end_threshold: float = -10.0,
+        hazard_weight: float = 8.0,
+        hazard_prune_threshold: float = 0.90,
+        dead_end_threshold: float = -15.0,
         prune_reversals: bool = True,
         cognitive_cycles_per_step: int = 1,
     ) -> None:
@@ -519,9 +519,14 @@ class LatentLookaheadPlanner(nn.Module):
                 disc_d_sum += discount * float(step_dangers[k][b_idx].item())
 
             v_term = float(terminal_values[b_idx].item())
+            # Calibrated progressive hazard penalty: linear base + quadratic penalty above safety buffer (0.25)
+            danger_penalty = self.hazard_weight * disc_d_sum
+            if disc_d_sum > 0.25:
+                danger_penalty += 4.0 * (disc_d_sum - 0.25) ** 2
+
             u_cumulative = (
                 disc_r_sum
-                - self.hazard_weight * disc_d_sum
+                - danger_penalty
                 + (self.gamma**H) * v_term
             )
 
@@ -545,6 +550,9 @@ class LatentLookaheadPlanner(nn.Module):
                     if cf_haz >= self.hazard_prune_threshold and not is_pruned:
                         is_pruned = True
                         prune_reason = "counterfactual_hazard_predicted"
+                    else:
+                        # Continuous hazard cost rather than hard prune for sub-threshold hazards
+                        u_cumulative -= self.hazard_weight * cf_haz
                     if cf_esc < 0.0:
                         u_cumulative += cf_esc * 2.0
 

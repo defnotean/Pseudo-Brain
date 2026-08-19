@@ -29,9 +29,9 @@ except ModuleNotFoundError:
 
 
 class AdaptiveThoughtUpdateGate(nn.Module):
-    """Computes dynamic, surprise-gated thought renewal conditioned on sensory discrepancies."""
+    """Computes dynamic, surprise-gated thought renewal conditioned on sensory discrepancies and prediction errors."""
 
-    def __init__(self, *, width: int, initial_bias: float = -2.0) -> None:
+    def __init__(self, *, width: int, initial_bias: float = 0.0) -> None:
         super().__init__()
         self.width = width
         # Project pooled sensory-belief context to match thought width
@@ -40,13 +40,13 @@ class AdaptiveThoughtUpdateGate(nn.Module):
             nn.LayerNorm(width),
             nn.SiLU(),
         )
-        # Gate network: inputs are [thought_summary, context_summary, discrepancy, danger_signal]
+        # Gate network: inputs are [thought_summary, context_summary, discrepancy, prediction_error]
         self.gate_mlp = nn.Sequential(
-            nn.Linear(width * 3, width),
+            nn.Linear(width * 4, width),
             nn.SiLU(),
             nn.Linear(width, 1),
         )
-        # Initialize bias so baseline update probability is small (~0.1) under quiet frames
+        # Initialize bias so baseline gate is neutrally poised (~0.5) to respond dynamically to surprise
         with torch.no_grad():
             if hasattr(self.gate_mlp[-1], "bias") and self.gate_mlp[-1].bias is not None:
                 self.gate_mlp[-1].bias.fill_(initial_bias)
@@ -58,6 +58,7 @@ class AdaptiveThoughtUpdateGate(nn.Module):
         seeds: Tensor,     # [B, T, R, W]
         sensors: Tensor,   # [B, S, W]
         belief: Tensor,    # [B, Bel, W]
+        prediction_error: Tensor | None = None,  # [B, T, W] or [B, W]
     ) -> tuple[Tensor, Tensor]:
         """Blend old thoughts and freshly seeded context using an adaptive surprise gate.
 
@@ -73,11 +74,22 @@ class AdaptiveThoughtUpdateGate(nn.Module):
         context_pooled = self.context_proj(combined_context.mean(dim=1))  # [B, W]
         context_expanded = context_pooled.unsqueeze(1).expand(B, T, W)  # [B, T, W]
 
-        # Explicit discrepancy / prediction error feature
+        # Explicit discrepancy feature
         discrepancy = torch.abs(thought_summary - context_expanded)  # [B, T, W]
 
-        # Combine into gate input: [B, T, 3*W]
-        gate_input = torch.cat((thought_summary, context_expanded, discrepancy), dim=-1)
+        # Explicit temporal prediction error feature
+        if prediction_error is not None:
+            if prediction_error.ndim == 2:
+                pred_err_feat = prediction_error.unsqueeze(1).expand(B, T, W)
+            elif prediction_error.ndim == 3:
+                pred_err_feat = prediction_error
+            else:
+                pred_err_feat = (thought_summary - context_expanded).square()
+        else:
+            pred_err_feat = (thought_summary - context_expanded).square()
+
+        # Combine into gate input: [B, T, 4*W]
+        gate_input = torch.cat((thought_summary, context_expanded, discrepancy, pred_err_feat), dim=-1)
         update_logits = self.gate_mlp(gate_input).squeeze(-1)  # [B, T]
         alpha = torch.sigmoid(update_logits)  # [B, T] in [0, 1]
 
