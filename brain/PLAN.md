@@ -30,11 +30,51 @@ not begin with Minecraft, a language model, or billions of parameters. If the
 mechanism does not produce a causal equal-compute advantage in the small
 experiment, scaling it would only hide the failure under more data and compute.
 
-The initial thesis model is expected to contain roughly 35–60 million
-parameters. A useful first result is not human-level intelligence. It is one
-checkpoint that continuously observes pixels, discovers unfamiliar controls,
-tracks several possible near futures, acts without pausing, and becomes
-measurably better during a lifetime while its weights remain frozen.
+The initial thesis model was conceived at roughly 35–60 million parameters
+with $K=32$ thoughtlets. As documented below in the Current Empirical State,
+the active research configuration has since progressed to a calibrated $\sim 29.7\text{M}$
+setup with $K=4$ thoughtlets and adaptive cognitive mechanisms. A useful first
+result is not human-level intelligence. It is one checkpoint that continuously
+observes pixels, discovers unfamiliar controls, tracks several possible near
+futures, acts without pausing, and becomes measurably better during a lifetime
+while its weights remain frozen.
+
+## Current Empirical State — 2026-08-19
+
+> **Distinction of Record:** This document remains the canonical long-term
+> architecture blueprint for Pseudo-Brain. The original thesis design specified
+> a $K=32$, core width $d=384$, 3-cycle model ($\sim 35\text{--}60\text{M}$ parameters).
+> The active experimental implementation has since progressed to a calibrated
+> $\sim 29.7\text{M}$ parameter research configuration that incorporates adaptive
+> gating, multi-horizon prediction, dynamic cognitive depth, counterfactual foresight,
+> and topological routing.
+
+### Current Research Model Configuration
+- **Parameter scale:** $\sim 29.7\text{M}$ parameters ($d=384$).
+- **Thoughtlet count:** $K=4$ active parallel thoughtlets.
+- **Adaptive update gating:** Situation-dependent surprise gate $\alpha_t \in [0, 1]$ regulating recurrent state overwrites.
+- **Multi-horizon prediction:** Action-conditioned rollouts predicting future rewards, hazards, and latent states $t+1 \dots t+H$.
+- **Adaptive cognitive depth:** Dynamic halting mechanism allocating compute cycles ($C \in [1, 6]$) based on hazard intensity and state uncertainty.
+- **Counterfactual action foresight:** Latent lookahead tree evaluation pruning branches with predicted collision hazards ($\hat{c}_{t+k} > 0.5$).
+- **Topological goal routing:** Directional unit vector alignment bonuses guiding branch selection toward global pellet clusters.
+
+### Best Balanced Verified Champion
+- **Variant E (Full Adaptive System: Gate + Multi-Horizon Prediction + Adaptive Halting):**
+  - **5.65 mean pellets collected** (+71.2% over baseline 3.30).
+  - **83 total ghost catches** (-88.6% vs baseline 727) across 20 held-out evaluation seeds (2,400 decision steps).
+  - **Dynamic compute allocation:** $\sim 1.35$ cycles in open corridors vs $\sim 3.80$ cycles in active ghost hazards.
+  - *Record:* [docs/runs/2026-08-18-five-way-cognitive-ablation.md](docs/runs/2026-08-18-five-way-cognitive-ablation.md).
+
+### Exploratory Candidates Characterized
+- **Variant F (Counterfactual Foresight):** High-reward but reckless (**7.80 pellets / 654 catches**).
+- **Variant G (Topological Goal Routing):** Ultra-safe but over-conservative (**4.90 pellets / 83 catches**).
+- *Champion classification rule:* Pellets $\uparrow$, then catches $\downarrow$. Variant $E$ strictly beats Variant $G$ on task reward while matching safety.
+
+### Current Active Open Questions
+1. **Statistical Multi-Seed Replication:** Quantifying $\text{mean} \pm \text{std}$ across 5 training seeds $\times$ 20 validation seeds (100 episodes per variant) for $E$, $F$, and $G$.
+2. **Wall Recovery Latency & Gate Dynamics:** Diagnosing why Gate-only ($B$) gives weak recovery latency improvement ($24.8$ ticks vs baseline $25.2$ ticks, $E$: $23.1$ ticks), tracing actuator momentum persistence across surprise events.
+3. **Calibrated Risk Utility (The F/G Sweet Spot):** Recovering $F$'s $\sim 7.8$-pellet goal-seeking drive while maintaining $E$'s $\sim 83$ ghost catch safety floor.
+4. **Decisive Matched-Baseline Suite:** Executing the make-or-break comparison of Pseudo-Brain against matched GRUs, recurrent Transformers, and conventional world-model actors under identical parameter, FLOP, latency, and experience budgets.
 
 ## 2. What success means
 
@@ -1657,27 +1697,15 @@ These choices require data rather than preference:
 
 Each will be settled by a registered ablation or systems benchmark.
 
-## 40. First implementation backlog
+## 40. Implementation progress & empirical milestones achieved
 
-The next coding slice, in order:
+The implementation has substantially advanced beyond the initial Phase 0 backlog:
 
-1. Add safe source-control ignores and establish a reviewable baseline.
-2. Scaffold the isolated package, lock file, test runner, and config loader.
-3. Define Observation, GenericControl, TimestampTrace, BrainState,
-   LifetimeRecord, StepRecord, and BranchRecord.
-4. Implement QPC clock wrappers and the deterministic moving-shapes world.
-5. Implement snapshot/restore, state hashing, branch generation, and replay.
-6. Implement the continuous wrapper that advances while inference is delayed.
-7. Implement a trivial no-model pixel-to-control loopback benchmark.
-8. Implement reactive CNN, CNN-GRU, and wider/deeper recurrent baselines.
-9. Implement the first K=8 thought field and tensor/mask tests.
-10. Scale to K=32, add direct actuator queries and anytime exits.
-11. Generate one million transitions and 10,000 branch groups.
-12. Run the first equal-compute prediction experiment.
-
-The first coding milestone is complete when items 1–7 pass locally. The first
-scientific milestone is complete only after items 8–12 produce a reproducible
-baseline-versus-thought-field result.
+1. **Phase 0A Deterministic Core:** Universal `ModelObservation`, `GenericControl`, `TimestampTrace`, snapshot/restore, state hashing, branch DAG generation, and resource guards — fully implemented and verified.
+2. **Phase 1 Model & Training Engine:** Single shared-weight `BrainCell` thought field ($d=384, K=4$), structured 307-channel action projection, anytime exits, DAgger on-policy distillation, and mixed-precision optimization — verified across 59 play-safe test modules.
+3. **Cognitive Gating & Dynamic Depth ($A\text{--}E$ Ablation):** Implemented adaptive thought-update gating ($\alpha$), multi-horizon world modeling, and situation-dependent dynamic compute halting ($C \in [1, 6]$). Verified on 20 held-out seeds (Variant $E$: 5.65 pellets / 83 catches vs baseline 3.30 pellets / 727 catches).
+4. **Counterfactual Foresight & Topological Routing ($F\text{--}G$ Variants):** Implemented `LatentLookaheadPlanner` and `TopologicalGoalFieldHead` for latent action-tree pruning and pellet cluster gradient routing.
+5. **Procedural Skill Ladder:** Implemented pursuit/evasion (`pursuit.py`), maze junction choice (`junction.py`), occlusion memory (`occlusion.py`), key/door sequencing (`keys_doors.py`), and a 13-world $\times$ 8-policy canonical diagnostic matrix.
 
 ## 41. Research foundations
 
@@ -1721,17 +1749,22 @@ specific target: one persistent, human-facing, deadline-bound model with a
 causally useful field of many incomplete latent thoughts that adapts across
 unfamiliar games.
 
-## 42. Definition of the next decision
+## 42. Definition of the active scientific gate: the decisive matched-baseline comparison
 
-Planning is complete enough to begin Phase 0. The next decision is not which
-large pretrained model to download. It is whether to authorize the first
-implementation slice:
+The early implementation and internal ablation phases have established an important engineering result:
 
-> Create the isolated brain package, deterministic branchable world, canonical
-> lifetime schema, continuous timing harness, and matched recurrent baselines.
+$$\text{Pseudo-Brain Version 2 (Full Adaptive System $E$)} \gg \text{Pseudo-Brain Version 1 (Baseline $A$)}$$
 
-That slice creates the instruments needed to find out whether the architecture
-is real.
+However, proving internal improvement across design iterations does not yet prove architectural superiority over standard paradigms. The decisive, make-or-break scientific gate for this project is:
+
+$$\mathbf{Pseudo\text{-}Brain} \quad \text{vs.} \quad \mathbf{GRU} \quad \text{vs.} \quad \mathbf{Recurrent\ Transformer} \quad \text{vs.} \quad \mathbf{World\text{-}Model\ Controller}$$
+
+strictly evaluated at **matched parameter counts, matched FLOP budgets, matched latency deadlines, and matched environment experience**.
+
+### Hard Stopping Rule & Scientific Integrity
+In accordance with §37 and [BASELINE_PROTOCOL.md](docs/BASELINE_PROTOCOL.md):
+- If multiple thought-field configurations across multiple random seeds fail to achieve a statistically significant improvement ($\ge 10\%$ relative multi-horizon prediction gain and $\ge 10\%$ IQM return gain) over the strongest matched conventional baseline at equal compute, the parallel microthought thesis will be formally retired rather than endlessly moving the goalposts.
+- The project proceeds to larger compute and wider domains (voxel worlds, language grounding, robotics) only if the persistent thoughtlet core demonstrates a causal, compute-matched advantage on this decisive benchmark.
 
 ## 43. Long-term research direction: general-purpose language, tool-use & long-horizon agent
 

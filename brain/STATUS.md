@@ -1,11 +1,21 @@
 # Implementation status
 
-Updated: 2026-08-18
+Updated: 2026-08-19
 
-## Current campaign: play-gated maze-chase distill v1
+## Active campaign: cognitive architecture ablation & statistical replication ($A\text{--}G$)
 
-Status: **play-gated maze-chase distill v1** is the live campaign
-(`play_gated_maze_chase_distill_v1`). Turn-weighted exclusive CE
+Status: **Variant E (Full Adaptive System: Gate + Multi-Horizon Prediction + Adaptive Halting)**
+is the verified champion (`full_adaptive_system_v1`). Evaluated on 20 held-out seeds (2,400 decision steps):
+- **5.65 mean pellets collected** (+71.2% over baseline 3.30).
+- **83 total ghost catches** (-88.6% vs baseline 727).
+- **Dynamic depth allocation:** ~1.35 cycles in open corridors vs ~3.80 cycles in ghost hazards.
+- Exploratory variants: **Variant F** (Counterfactual Foresight: 7.80 pellets / 654 catches, reckless) and **Variant G** (Topological Routing: 4.90 pellets / 83 catches, over-conservative). Variant E strictly beats Variant G on task reward at equal safety.
+- Active investigation: Multi-seed statistical replication battery (5 training seeds $\times$ 20 validation seeds = 100 episodes per variant) for $E$, $F$, and $G$.
+- Long-term roadmap: General-purpose language, tool-use & robotics agent ([PLAN.md §43](PLAN.md#43-long-term-research-direction-general-purpose-language-tool-use--long-horizon-agent)).
+
+## Historical campaign: play-gated maze-chase distill v1
+
+Status: **play-gated maze-chase distill v1** (`play_gated_maze_chase_distill_v1`). Turn-weighted exclusive CE
 (`dgx-play-maze-chase-distill-turn-weighted-v1`,
 `play-gate.json` SHA-256 `34af40b0…`, release
 `r20260818t195814z-872818a4fa68`, canonical config SHA-256
