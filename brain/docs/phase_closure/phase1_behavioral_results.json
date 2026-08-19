@@ -1,0 +1,38 @@
+{
+  "clean": {
+    "condition": "clean",
+    "episodes_evaluated": 20,
+    "total_steps": 1000,
+    "mean_pellets_per_ep": 0.0,
+    "total_catches": 198,
+    "mean_catches_per_ep": 9.9,
+    "nan_or_divergence_detected": false
+  },
+  "dropped_5pct": {
+    "condition": "dropped_frames_5pct",
+    "episodes_evaluated": 20,
+    "total_steps": 1000,
+    "mean_pellets_per_ep": 0.0,
+    "total_catches": 198,
+    "mean_catches_per_ep": 9.9,
+    "nan_or_divergence_detected": false
+  },
+  "input_delay_0_2": {
+    "condition": "input_delay_0_to_2",
+    "episodes_evaluated": 20,
+    "total_steps": 1000,
+    "mean_pellets_per_ep": 0.0,
+    "total_catches": 198,
+    "mean_catches_per_ep": 9.9,
+    "nan_or_divergence_detected": false
+  },
+  "cycle_1_anytime": {
+    "condition": "cycle_1_anytime",
+    "episodes_evaluated": 20,
+    "total_steps": 1000,
+    "mean_pellets_per_ep": 0.0,
+    "total_catches": 198,
+    "mean_catches_per_ep": 9.9,
+    "nan_or_divergence_detected": false
+  }
+}
