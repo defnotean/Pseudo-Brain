@@ -12,19 +12,26 @@ Pseudo-Brain is one model, not a committee. Shared-weight BrainCell thoughtlets
 keep a persistent internal state, talk sparsely, and can emit an action after
 any internal cycle. The long-term aim is human-speed closed-loop play.
 
-The reigning **Champion Architecture** is **Variant E (Full Adaptive System: Gate + Multi-Horizon Prediction + Adaptive Halting)**
+The current **best single-run balanced checkpoint** is **Variant E (Full Adaptive System, Seed 43/42)**
 (`full_adaptive_system_v1`). It combines adaptive thought-update gating ($\alpha$), multi-horizon
 future prediction, and situation-dependent dynamic cognitive depth ($C \in [1, 6]$).
-Across **20 held-out evaluation seeds** (2,400 decision steps), Variant E achieved:
+Across the initial **20 held-out evaluation seeds** (2,400 decision steps), Variant E achieved:
 - **Mean pellets collected**: **5.65** (highest among safe models; +71.2% over baseline 3.30).
 - **Total ghost catches**: **83** (vs **727** for baseline, an **88.6% reduction**).
 - **Situation-dependent cognitive cycles**: ~1.35 cycles in open corridors vs ~3.80 cycles in ghost hazards.
 Record: [brain/docs/runs/2026-08-18-five-way-cognitive-ablation.md](brain/docs/runs/2026-08-18-five-way-cognitive-ablation.md).
 
+### Immediate Priority: Training Robustness & Multi-Seed Policy Variance
+Early findings from the 5-seed replication battery show that while Variant E achieves a strong mean of **6.36 pellets / episode**, safety policy varies dramatically across random seeds:
+- **Good Seeds (42, 43):** 125–155 catches (disciplined hazard evasion).
+- **Reckless Seeds (45, 46):** 689–734 catches (hazard blindness / collapsed penalty weighting).
+
+**Architectural Distinction:** An individual *Variant E checkpoint* can be outstanding, but whether *Variant E reliably trains into a safe policy* is currently an active open investigation. Diagnosing internal telemetry differences (danger recall, gate dynamics, thought rank, risk weighting) between Good and Bad seeds is now prioritized over adding new cognitive modules.
+
 Recent exploratory experiments:
-- **Variant F (Counterfactual Foresight)**: High-reward but reckless (**7.80 pellets / 654 catches**).
-- **Variant G (Topological Goal Routing)**: Safe but over-conservative (**4.90 pellets / 83 catches**).
-- Champion classification rule: Pellets $\uparrow$, then catches $\downarrow$. Variant E (5.65 / 83) strictly beats Variant G (4.90 / 83) on real-world task performance.
+- **Variant F (Counterfactual Foresight)**: High-reward candidate (**7.80 pellets**), evaluating multi-seed stability.
+- **Variant G (Topological Goal Routing)**: Conservative candidate (**4.90 pellets**), evaluating whether topological routing provides multi-seed stability.
+- Evaluation principle: Task performance $\uparrow$ while maintaining safety bounds $\downarrow$. Multi-seed distribution ($\text{mean} \pm \text{std}$) determines architectural validity, not single lucky checkpoints.
 
 All training, probes, and play evals run on the Spark. This workstation is
 orchestration only (git, docs, DGX wrappers, SSH, hashes).

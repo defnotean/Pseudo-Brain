@@ -58,23 +58,28 @@ while its weights remain frozen.
 - **Counterfactual action foresight:** Latent lookahead tree evaluation pruning branches with predicted collision hazards ($\hat{c}_{t+k} > 0.5$).
 - **Topological goal routing:** Directional unit vector alignment bonuses guiding branch selection toward global pellet clusters.
 
-### Best Balanced Verified Champion
-- **Variant E (Full Adaptive System: Gate + Multi-Horizon Prediction + Adaptive Halting):**
+### Best Single-Run Balanced Checkpoint
+- **Variant E (Full Adaptive System, Seed 43/42):**
   - **5.65 mean pellets collected** (+71.2% over baseline 3.30).
   - **83 total ghost catches** (-88.6% vs baseline 727) across 20 held-out evaluation seeds (2,400 decision steps).
   - **Dynamic compute allocation:** $\sim 1.35$ cycles in open corridors vs $\sim 3.80$ cycles in active ghost hazards.
   - *Record:* [docs/runs/2026-08-18-five-way-cognitive-ablation.md](docs/runs/2026-08-18-five-way-cognitive-ablation.md).
 
+### Immediate Priority: Training Robustness & Seed Sensitivity
+Early results from the 5-seed statistical replication battery indicate that while Variant E achieves a strong mean of **6.36 pellets / episode**, safety behavior is highly sensitive to the initial random seed (Seeds 42/43 achieve 125–155 catches; Seeds 45/46 reach 689–734 catches).
+- **Core Distinction:** An individual *Variant E checkpoint* can be outstanding, but whether *Variant E reliably trains into a safe policy* across seeds is an active open investigation.
+- **Priority:** Diagnosing the internal telemetry differences between good and reckless seeds (danger recall, gate dynamics, thought rank, risk weighting) takes immediate precedence over adding new cognitive modules.
+
 ### Exploratory Candidates Characterized
-- **Variant F (Counterfactual Foresight):** High-reward but reckless (**7.80 pellets / 654 catches**).
-- **Variant G (Topological Goal Routing):** Ultra-safe but over-conservative (**4.90 pellets / 83 catches**).
-- *Champion classification rule:* Pellets $\uparrow$, then catches $\downarrow$. Variant $E$ strictly beats Variant $G$ on task reward while matching safety.
+- **Variant F (Counterfactual Foresight):** High-reward candidate (**7.80 pellets**), evaluating multi-seed stability.
+- **Variant G (Topological Goal Routing):** Ultra-safe candidate (**4.90 pellets**), evaluating whether topological routing provides multi-seed stability.
 
 ### Current Active Open Questions
-1. **Statistical Multi-Seed Replication:** Quantifying $\text{mean} \pm \text{std}$ across 5 training seeds $\times$ 20 validation seeds (100 episodes per variant) for $E$, $F$, and $G$.
-2. **Wall Recovery Latency & Gate Dynamics:** Diagnosing why Gate-only ($B$) gives weak recovery latency improvement ($24.8$ ticks vs baseline $25.2$ ticks, $E$: $23.1$ ticks), tracing actuator momentum persistence across surprise events.
-3. **Calibrated Risk Utility (The F/G Sweet Spot):** Recovering $F$'s $\sim 7.8$-pellet goal-seeking drive while maintaining $E$'s $\sim 83$ ghost catch safety floor.
-4. **Decisive Matched-Baseline Suite:** Executing the make-or-break comparison of Pseudo-Brain against matched GRUs, recurrent Transformers, and conventional world-model actors under identical parameter, FLOP, latency, and experience budgets.
+1. **Root Cause of Seed Divergence:** Why do Seeds 42/43 develop disciplined danger avoidance while Seeds 45/46 collapse into hazard blindness?
+2. **Replication Battery Resolution:** Does Topological Routing ($G$) or Counterfactual Foresight ($F$) offer superior training stability across 5 seeds compared to $E$?
+3. **Wall Recovery Latency & Gate Dynamics:** Diagnosing why Gate-only ($B$) gives weak recovery latency improvement ($24.8$ ticks vs baseline $25.2$ ticks, $E$: $23.1$ ticks), tracing actuator momentum persistence across surprise events.
+4. **Calibrated Risk Utility (The F/G Sweet Spot):** Recovering $F$'s $\sim 7.8$-pellet goal-seeking drive while maintaining $E$'s $\sim 83$ ghost catch safety floor.
+5. **Decisive Matched-Baseline Suite:** Executing the make-or-break comparison of Pseudo-Brain against matched GRUs, recurrent Transformers, and conventional world-model actors under identical parameter, FLOP, latency, and experience budgets.
 
 ## 2. What success means
 
