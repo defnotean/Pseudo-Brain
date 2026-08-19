@@ -229,11 +229,15 @@ def main() -> int:
         # Step B: Closed-Loop Play Evaluation (Testing with Latent Lookahead Policy)
         planner = LatentLookaheadPlanner(
             model=model,
-            horizon=2,
+            horizon=3,
             gamma=0.95,
             hazard_weight=4.0,
         )
-        policy = LatentLookaheadPolicy(model=model, planner=planner)
+        policy = LatentLookaheadPolicy(
+            model=model,
+            planner=planner,
+            policy_prior_weight=2.0,
+        )
 
         def env_factory() -> MazeChaseEnv:
             return MazeChaseEnv(max_ticks=args.eval_ticks, ghost_count=2)

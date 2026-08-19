@@ -7,12 +7,12 @@
 ## Telemetry & Metrics Summary
 - **DAgger Iterations Completed**: 2
 - **Sequences in Replay Buffer**: 52
-- **Mean Training Loss**: `1.1186`
-- **Mean Pellets Eaten**: `4.0` (Total: `12`)
-- **Total Collisions**: `89`
+- **Mean Training Loss**: `1.3931`
+- **Mean Pellets Eaten**: `3.3` (Total: `10`)
+- **Total Collisions**: `8`
 - **Opposite Key Conflicts**: `0` (Mathematically Guaranteed 0)
 - **Deadzone Violations**: `0` (Mathematically Guaranteed 0)
-- **Round Execution Time**: `7.55s`
+- **Round Execution Time**: `15.47s`
 
 ## Scientific Diagnosis
 ### Observation

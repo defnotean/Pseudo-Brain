@@ -546,6 +546,8 @@ class LatentLookaheadPlanner(nn.Module):
         state: BrainState,
         sensors: Tensor | None = None,
         candidate_sequences: Sequence[Sequence[DirectionalAction | int]] | None = None,
+        policy_logits: Tensor | None = None,
+        policy_prior_weight: float = 0.0,
         horizon: int | None = None,
         elapsed_seconds: float = 1.0 / 60.0,
     ) -> LookaheadPlanResult:
@@ -556,6 +558,8 @@ class LatentLookaheadPlanner(nn.Module):
             sensors: Current sensory tensor [batch, sensor_tokens, width].
                      If None, synthesized zero sensors are used.
             candidate_sequences: Optional explicit candidate sequences to evaluate.
+            policy_logits: Optional 5-way policy prior logits [None, W, A, S, D].
+            policy_prior_weight: Multiplier weight on policy prior logits.
             horizon: Lookahead depth (defaults to self.horizon).
             elapsed_seconds: Simulated decision interval.
 
@@ -590,7 +594,17 @@ class LatentLookaheadPlanner(nn.Module):
         )
 
         utilities = tuple(b.cumulative_utility for b in branch_results)
-        chosen_idx = int(torch.tensor(utilities).argmax().item())
+        effective_scores = []
+        for b in branch_results:
+            score = -1e6 if b.is_pruned else b.cumulative_utility
+            if policy_logits is not None and policy_prior_weight > 0.0:
+                first_act = b.action_sequence[0]
+                act_idx = int(first_act) if isinstance(first_act, (int, DirectionalAction)) else 0
+                if 0 <= act_idx < policy_logits.shape[-1]:
+                    score += policy_prior_weight * float(policy_logits[act_idx].item())
+            effective_scores.append(score)
+
+        chosen_idx = int(torch.tensor(effective_scores).argmax().item())
         best_branch = branch_results[chosen_idx]
 
         first_action = best_branch.action_sequence[0]

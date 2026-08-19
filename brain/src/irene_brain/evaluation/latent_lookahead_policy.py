@@ -65,12 +65,14 @@ class LatentLookaheadPolicy:
         hazard_weight: float = 5.0,
         hazard_prune_threshold: float = 0.5,
         dead_end_threshold: float = -10.0,
+        policy_prior_weight: float = 1.0,
         device: torch.device | str = "cpu",
         dtype: torch.dtype = torch.float32,
     ) -> None:
         self.model = model
         self.device = torch.device(device)
         self.dtype = dtype
+        self.policy_prior_weight = policy_prior_weight
         self.model.eval()
 
         if planner is not None:
@@ -154,21 +156,35 @@ class LatentLookaheadPolicy:
             # Ingest observation to produce latest sensory features
             sensors = self.model.pixel_encoder(pixels)
 
+            # Evaluate model forward step to get policy prior logits and next recurrent state
+            model_out = self.model(
+                pixels,
+                prev_vector,
+                elapsed_tensor,
+                self._state,
+                thought_noise=self._thought_noise,
+            )
+            button_logits = model_out.action.button_logits[0]
+            # DirectionalAction enum: NONE=0, W=1, A=2, S=3, D=4
+            policy_logits = torch.tensor(
+                [
+                    0.0,
+                    float(button_logits[_KEY_W].item()),
+                    float(button_logits[_KEY_A].item()),
+                    float(button_logits[_KEY_S].item()),
+                    float(button_logits[_KEY_D].item()),
+                ],
+                device=self.device,
+                dtype=self.dtype,
+            )
+
             # Evaluate lookahead planner across candidate latent trajectories
             plan_result = self.planner.plan(
                 state=self._state,
                 sensors=sensors,
+                policy_logits=policy_logits,
+                policy_prior_weight=self.policy_prior_weight,
                 elapsed_seconds=elapsed_seconds,
-            )
-
-            # Advance model state using the selected action
-            action_vector = plan_result.best_action_control.unsqueeze(0)
-            model_out = self.model(
-                pixels,
-                action_vector,
-                elapsed_tensor,
-                self._state,
-                thought_noise=self._thought_noise,
             )
             self._state = model_out.next_state.detach()
 
