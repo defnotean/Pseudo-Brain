@@ -1,0 +1,207 @@
+{
+  "42": {
+    "diagnostics": {
+      "choice_points_evaluated": 23,
+      "choice_point_safe_pick_rate": 91.3,
+      "horizon_breakdown": {
+        "H1": {
+          "pairwise_ranking_auroc": 71.3,
+          "discrimination_margin": 0.0409,
+          "mean_lethal": 0.3728,
+          "mean_safe": 0.3319,
+          "brier_score": 0.1296
+        },
+        "H2": {
+          "pairwise_ranking_auroc": 58.3,
+          "discrimination_margin": 0.0169,
+          "mean_lethal": 0.418,
+          "mean_safe": 0.4011,
+          "brier_score": 0.1886
+        },
+        "H3": {
+          "pairwise_ranking_auroc": 15.4,
+          "discrimination_margin": -0.1059,
+          "mean_lethal": 0.3919,
+          "mean_safe": 0.4977,
+          "brier_score": 0.1859
+        }
+      }
+    },
+    "direct_eval": {
+      "mean_pellets_per_ep": 0.0,
+      "total_catches": 35,
+      "mean_catches_per_ep": 1.75,
+      "mean_survival_steps": 50.0
+    },
+    "planner_eval": {
+      "mean_pellets_per_ep": 0.0,
+      "total_catches": 35,
+      "mean_catches_per_ep": 1.75,
+      "mean_survival_steps": 50.0
+    }
+  },
+  "43": {
+    "diagnostics": {
+      "choice_points_evaluated": 23,
+      "choice_point_safe_pick_rate": 91.3,
+      "horizon_breakdown": {
+        "H1": {
+          "pairwise_ranking_auroc": 71.3,
+          "discrimination_margin": 0.0455,
+          "mean_lethal": 0.4632,
+          "mean_safe": 0.4177,
+          "brier_score": 0.1926
+        },
+        "H2": {
+          "pairwise_ranking_auroc": 58.3,
+          "discrimination_margin": 0.0069,
+          "mean_lethal": 0.5245,
+          "mean_safe": 0.5177,
+          "brier_score": 0.2709
+        },
+        "H3": {
+          "pairwise_ranking_auroc": 46.2,
+          "discrimination_margin": -0.0001,
+          "mean_lethal": 0.5126,
+          "mean_safe": 0.5127,
+          "brier_score": 0.2615
+        }
+      }
+    },
+    "direct_eval": {
+      "mean_pellets_per_ep": 0.0,
+      "total_catches": 35,
+      "mean_catches_per_ep": 1.75,
+      "mean_survival_steps": 50.0
+    },
+    "planner_eval": {
+      "mean_pellets_per_ep": 0.0,
+      "total_catches": 35,
+      "mean_catches_per_ep": 1.75,
+      "mean_survival_steps": 50.0
+    }
+  },
+  "44": {
+    "diagnostics": {
+      "choice_points_evaluated": 21,
+      "choice_point_safe_pick_rate": 85.7,
+      "horizon_breakdown": {
+        "H1": {
+          "pairwise_ranking_auroc": 75.0,
+          "discrimination_margin": 0.1082,
+          "mean_lethal": 0.4605,
+          "mean_safe": 0.3524,
+          "brier_score": 0.1551
+        },
+        "H2": {
+          "pairwise_ranking_auroc": 68.0,
+          "discrimination_margin": 0.0369,
+          "mean_lethal": 0.4502,
+          "mean_safe": 0.4133,
+          "brier_score": 0.2131
+        },
+        "H3": {
+          "pairwise_ranking_auroc": 0.0,
+          "discrimination_margin": -0.1762,
+          "mean_lethal": 0.4924,
+          "mean_safe": 0.6686,
+          "brier_score": 0.2622
+        }
+      }
+    },
+    "direct_eval": {
+      "mean_pellets_per_ep": 0.0,
+      "total_catches": 37,
+      "mean_catches_per_ep": 1.85,
+      "mean_survival_steps": 50.0
+    },
+    "planner_eval": {
+      "mean_pellets_per_ep": 0.0,
+      "total_catches": 35,
+      "mean_catches_per_ep": 1.75,
+      "mean_survival_steps": 50.0
+    }
+  },
+  "45": {
+    "diagnostics": {
+      "choice_points_evaluated": 23,
+      "choice_point_safe_pick_rate": 78.3,
+      "horizon_breakdown": {
+        "H1": {
+          "pairwise_ranking_auroc": 68.1,
+          "discrimination_margin": 0.031,
+          "mean_lethal": 0.5176,
+          "mean_safe": 0.4866,
+          "brier_score": 0.2467
+        },
+        "H2": {
+          "pairwise_ranking_auroc": 56.7,
+          "discrimination_margin": 0.0112,
+          "mean_lethal": 0.5018,
+          "mean_safe": 0.4906,
+          "brier_score": 0.2546
+        },
+        "H3": {
+          "pairwise_ranking_auroc": 3.8,
+          "discrimination_margin": -0.102,
+          "mean_lethal": 0.5255,
+          "mean_safe": 0.6275,
+          "brier_score": 0.2816
+        }
+      }
+    },
+    "direct_eval": {
+      "mean_pellets_per_ep": 0.0,
+      "total_catches": 35,
+      "mean_catches_per_ep": 1.75,
+      "mean_survival_steps": 50.0
+    },
+    "planner_eval": {
+      "mean_pellets_per_ep": 0.0,
+      "total_catches": 191,
+      "mean_catches_per_ep": 9.55,
+      "mean_survival_steps": 50.0
+    }
+  },
+  "46": {
+    "diagnostics": {
+      "choice_points_evaluated": 23,
+      "choice_point_safe_pick_rate": 91.3,
+      "horizon_breakdown": {
+        "H1": {
+          "pairwise_ranking_auroc": 71.3,
+          "discrimination_margin": 0.0474,
+          "mean_lethal": 0.4742,
+          "mean_safe": 0.4268,
+          "brier_score": 0.2007
+        },
+        "H2": {
+          "pairwise_ranking_auroc": 58.3,
+          "discrimination_margin": 0.0215,
+          "mean_lethal": 0.4922,
+          "mean_safe": 0.4707,
+          "brier_score": 0.2553
+        },
+        "H3": {
+          "pairwise_ranking_auroc": 15.4,
+          "discrimination_margin": -0.1328,
+          "mean_lethal": 0.4957,
+          "mean_safe": 0.6285,
+          "brier_score": 0.2689
+        }
+      }
+    },
+    "direct_eval": {
+      "mean_pellets_per_ep": 0.0,
+      "total_catches": 35,
+      "mean_catches_per_ep": 1.75,
+      "mean_survival_steps": 50.0
+    },
+    "planner_eval": {
+      "mean_pellets_per_ep": 0.0,
+      "total_catches": 35,
+      "mean_catches_per_ep": 1.75,
+      "mean_survival_steps": 50.0
+    }
+  }
+}

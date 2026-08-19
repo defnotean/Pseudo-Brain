@@ -312,6 +312,8 @@ class LatentLookaheadPlanner(nn.Module):
                 nn.LayerNorm(width),
             )
             self.value_head = nn.Linear(width, 1)
+            self.counterfactual_foresight_head = None
+            self.topological_goal_head = None
 
         self.hazard_head = LatentHazardHead(width=width)
         self.reward_head = LatentRewardHead(width=width)
@@ -331,6 +333,7 @@ class LatentLookaheadPlanner(nn.Module):
         retrieved_memory: Tensor,
         action_vector: Tensor,
         elapsed_seconds: Tensor,
+        action_indices: Tensor | None = None,
     ) -> tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor]:
         """Execute one forward latent transition step.
 
@@ -366,7 +369,11 @@ class LatentLookaheadPlanner(nn.Module):
         action_feature = control_token.squeeze(1)
 
         reward_pred = self.reward_head(thought_summary, action_feature)
-        danger_pred = self.hazard_head(thought_summary, action_feature)
+        if self.counterfactual_foresight_head is not None and action_indices is not None:
+            cf_out = self.counterfactual_foresight_head.forward_single_action(thought_summary, action_indices)
+            danger_pred = cf_out.hazard_probability[:, 0, 0]
+        else:
+            danger_pred = self.hazard_head(thought_summary, action_feature)
 
         summaries = cur_thoughts.mean(dim=2)
         value_pred = self.value_head(summaries).mean(dim=1).squeeze(-1)
@@ -449,6 +456,11 @@ class LatentLookaheadPlanner(nn.Module):
                     ],
                     dim=0,
                 )
+                action_indices = torch.tensor(
+                    [int(act) for act in step_actions],
+                    dtype=torch.long,
+                    device=device,
+                )
 
                 (
                     belief,
@@ -467,6 +479,7 @@ class LatentLookaheadPlanner(nn.Module):
                     retrieved_memory=retrieved_memory,
                     action_vector=action_vectors,
                     elapsed_seconds=elapsed_tensor,
+                    action_indices=action_indices,
                 )
 
                 step_rewards.append(r_hat)
