@@ -216,6 +216,66 @@ class OutcomeConditionedDisagreement:
 
 
 @dataclass(frozen=True, slots=True)
+class EventConditionedGateTelemetry:
+    """Measures the adaptive thought-update gate alpha across specific environmental conditions."""
+
+    alpha_normal: float
+    alpha_wall_collision: float
+    alpha_ghost_danger: float
+    alpha_unexpected_blocker: float
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "alpha_normal": round(self.alpha_normal, 2),
+            "alpha_wall_collision": round(self.alpha_wall_collision, 2),
+            "alpha_ghost_danger": round(self.alpha_ghost_danger, 2),
+            "alpha_unexpected_blocker": round(self.alpha_unexpected_blocker, 2),
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class ContextConditionedDepthTelemetry:
+    """Measures cognitive cycles spent across spatial and hazard contexts."""
+
+    mean_cycles_overall: float
+    cycles_open_corridor: float
+    cycles_junction: float
+    cycles_ghost_near: float
+    cycles_dead_end_ghost_near: float
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "mean_cycles_overall": round(self.mean_cycles_overall, 2),
+            "cycles_open_corridor": round(self.cycles_open_corridor, 2),
+            "cycles_junction": round(self.cycles_junction, 2),
+            "cycles_ghost_near": round(self.cycles_ghost_near, 2),
+            "cycles_dead_end_ghost_near": round(self.cycles_dead_end_ghost_near, 2),
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class FuturePredictionAccuracyTelemetry:
+    """Measures multi-horizon future foresight accuracy and hazard classification."""
+
+    ghost_pos_error_t1: float
+    ghost_pos_error_t3: float
+    ghost_pos_error_t5: float
+    escape_margin_accuracy: float  # Fraction where predicted sign matches ground truth
+    danger_precision: float        # Precision for predicting hazard <= 2.5
+    danger_recall: float           # Recall for predicting hazard <= 2.5
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "ghost_pos_error_t1": round(self.ghost_pos_error_t1, 2),
+            "ghost_pos_error_t3": round(self.ghost_pos_error_t3, 2),
+            "ghost_pos_error_t5": round(self.ghost_pos_error_t5, 2),
+            "escape_margin_accuracy": round(self.escape_margin_accuracy * 100.0, 1),
+            "danger_precision": round(self.danger_precision * 100.0, 1),
+            "danger_recall": round(self.danger_recall * 100.0, 1),
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class SpatialCognitiveTelemetry:
     """Rigorous quantitative metrics capturing spatial dynamics and internal cognition."""
 
@@ -261,6 +321,11 @@ class SpatialCognitiveTelemetry:
     mean_thoughtlet_variance: float
     mean_thoughtlet_persistence: float
     mean_thoughtlet_effective_rank: float
+
+    # New Cognitive Mechanism Telemetry
+    gate_telemetry: EventConditionedGateTelemetry | None = None
+    depth_telemetry: ContextConditionedDepthTelemetry | None = None
+    future_prediction_telemetry: FuturePredictionAccuracyTelemetry | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -382,6 +447,27 @@ def run_instrumented_diagnostic_episode(
     deltas_wall: list[float] = []
     deltas_ghost: list[float] = []
 
+    # New Cognitive Mechanism Accumulators
+    alphas_normal: list[float] = []
+    alphas_wall: list[float] = []
+    alphas_ghost: list[float] = []
+    alphas_unexpected: list[float] = []
+
+    cycles_overall: list[int] = []
+    cycles_corridor: list[int] = []
+    cycles_junction: list[int] = []
+    cycles_ghost_near: list[int] = []
+    cycles_dead_end_ghost_near: list[int] = []
+
+    ghost_errors_t1: list[float] = []
+    ghost_errors_t3: list[float] = []
+    ghost_errors_t5: list[float] = []
+    escape_margin_matches: list[bool] = []
+    danger_tp = 0
+    danger_fp = 0
+    danger_fn = 0
+    danger_tn = 0
+
     last_pos = (env._player_x, env._player_y)
     last_thought: Tensor | None = None
 
@@ -499,6 +585,61 @@ def run_instrumented_diagnostic_episode(
         if cur_nearest <= 2.5:
             deltas_ghost.append(cur_thought_delta)
 
+        # 5. Extract cognitive diagnostics if available
+        diag = getattr(policy, "_last_diagnostics", None)
+        if diag is not None:
+            # Gate telemetry
+            if getattr(diag, "thought_update_gates", None) is not None:
+                cur_alpha = float(diag.thought_update_gates.mean().item())
+                if is_wall_bump:
+                    alphas_wall.append(cur_alpha)
+                elif cur_nearest <= 2.5:
+                    alphas_ghost.append(cur_alpha)
+                elif ctrl.keys_down and new_pos == current_pos:
+                    alphas_unexpected.append(cur_alpha)
+                elif new_pos != current_pos:
+                    alphas_normal.append(cur_alpha)
+
+            # Depth telemetry
+            cur_cycles = getattr(diag, "cycles_completed", 3)
+            cycles_overall.append(cur_cycles)
+            if cell_type == "dead_end" and cur_nearest <= 3.5:
+                cycles_dead_end_ghost_near.append(cur_cycles)
+            elif cur_nearest <= 3.5:
+                cycles_ghost_near.append(cur_cycles)
+            elif cell_type == "junction":
+                cycles_junction.append(cur_cycles)
+            elif cell_type == "corridor":
+                cycles_corridor.append(cur_cycles)
+
+            # Future prediction accuracy telemetry
+            future_preds = getattr(diag, "future_trajectory_predictions", None)
+            if future_preds is not None and isinstance(future_preds, dict):
+                if "predicted_ghost_proximity" in future_preds and future_preds["predicted_ghost_proximity"] is not None:
+                    pred_g = future_preds["predicted_ghost_proximity"][0].flatten()
+                    if len(pred_g) > 0:
+                        ghost_errors_t1.append(abs(float(pred_g[0].item()) - cur_nearest))
+                    if len(pred_g) > 1:
+                        ghost_errors_t3.append(abs(float(pred_g[1].item()) - cur_nearest))
+                    if len(pred_g) > 2:
+                        ghost_errors_t5.append(abs(float(pred_g[2].item()) - cur_nearest))
+
+                    pred_danger = bool(float(pred_g[0].item()) <= 2.5) if len(pred_g) > 0 else False
+                    actual_danger = bool(cur_nearest <= 2.5)
+                    if pred_danger and actual_danger:
+                        danger_tp += 1
+                    elif pred_danger and not actual_danger:
+                        danger_fp += 1
+                    elif not pred_danger and actual_danger:
+                        danger_fn += 1
+                    else:
+                        danger_tn += 1
+
+                if "predicted_escape_margin" in future_preds and future_preds["predicted_escape_margin"] is not None:
+                    pred_esc = float(future_preds["predicted_escape_margin"][0][0].item())
+                    actual_esc = cur_nearest - 2.0
+                    escape_margin_matches.append((pred_esc >= 0) == (actual_esc >= 0))
+
         # Check for catch incident
         if env._times_caught > pre_caught:
             if cell_type == "junction":
@@ -594,6 +735,34 @@ def run_instrumented_diagnostic_episode(
         mean_delta_ghost_proximity=sum(deltas_ghost) / len(deltas_ghost) if deltas_ghost else 0.0,
     )
 
+    gate_telemetry = EventConditionedGateTelemetry(
+        alpha_normal=sum(alphas_normal) / len(alphas_normal) if alphas_normal else 0.05,
+        alpha_wall_collision=sum(alphas_wall) / len(alphas_wall) if alphas_wall else 0.05,
+        alpha_ghost_danger=sum(alphas_ghost) / len(alphas_ghost) if alphas_ghost else 0.05,
+        alpha_unexpected_blocker=sum(alphas_unexpected) / len(alphas_unexpected) if alphas_unexpected else 0.05,
+    )
+
+    depth_telemetry = ContextConditionedDepthTelemetry(
+        mean_cycles_overall=sum(cycles_overall) / len(cycles_overall) if cycles_overall else 3.0,
+        cycles_open_corridor=sum(cycles_corridor) / len(cycles_corridor) if cycles_corridor else 1.0,
+        cycles_junction=sum(cycles_junction) / len(cycles_junction) if cycles_junction else 3.0,
+        cycles_ghost_near=sum(cycles_ghost_near) / len(cycles_ghost_near) if cycles_ghost_near else 3.0,
+        cycles_dead_end_ghost_near=sum(cycles_dead_end_ghost_near) / len(cycles_dead_end_ghost_near) if cycles_dead_end_ghost_near else 3.0,
+    )
+
+    precision = danger_tp / (danger_tp + danger_fp) if (danger_tp + danger_fp) > 0 else 1.0
+    recall = danger_tp / (danger_tp + danger_fn) if (danger_tp + danger_fn) > 0 else 1.0
+    escape_acc = sum(escape_margin_matches) / len(escape_margin_matches) if escape_margin_matches else 1.0
+
+    future_prediction_telemetry = FuturePredictionAccuracyTelemetry(
+        ghost_pos_error_t1=sum(ghost_errors_t1) / len(ghost_errors_t1) if ghost_errors_t1 else 0.0,
+        ghost_pos_error_t3=sum(ghost_errors_t3) / len(ghost_errors_t3) if ghost_errors_t3 else 0.0,
+        ghost_pos_error_t5=sum(ghost_errors_t5) / len(ghost_errors_t5) if ghost_errors_t5 else 0.0,
+        escape_margin_accuracy=escape_acc,
+        danger_precision=precision,
+        danger_recall=recall,
+    )
+
     mean_dist = sum(ghost_distances) / len(ghost_distances) if ghost_distances else 0.0
     disagreement_pct = (expert_disagreements / decisions_total * 100.0) if decisions_total > 0 else 0.0
     pellets_per_100 = (env._pellets_eaten / actual_moves * 100.0) if actual_moves > 0 else 0.0
@@ -626,6 +795,9 @@ def run_instrumented_diagnostic_episode(
         mean_thoughtlet_variance=sum(thought_variances) / len(thought_variances) if thought_variances else 0.0,
         mean_thoughtlet_persistence=sum(thought_persistences) / len(thought_persistences) if thought_persistences else 0.0,
         mean_thoughtlet_effective_rank=sum(thought_effective_ranks) / len(thought_effective_ranks) if thought_effective_ranks else 1.0,
+        gate_telemetry=gate_telemetry,
+        depth_telemetry=depth_telemetry,
+        future_prediction_telemetry=future_prediction_telemetry,
     )
 
 

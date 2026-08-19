@@ -291,6 +291,7 @@ class LatentLookaheadPlanner(nn.Module):
             self.control_encoder = model.control_encoder
             self.time_encoder = model.time_encoder
             self.value_head = model.value_per_thought
+            self.counterfactual_foresight_head = getattr(model, "counterfactual_foresight_head", None)
         else:
             self.brain_cell = BrainCell(
                 width=width,
@@ -496,6 +497,11 @@ class LatentLookaheadPlanner(nn.Module):
             # Terminal value estimate at z_{t+H}
             terminal_values = step_values[-1]
 
+        # Check counterfactual foresight if head is present
+        cf_preds = None
+        if getattr(self, "counterfactual_foresight_head", None) is not None:
+            cf_preds = self.counterfactual_foresight_head.forward_all_actions(state.thoughts)
+
         # Compute branch cumulative utilities
         results: list[LookaheadBranchResult] = []
         for b_idx in range(num_branches):
@@ -520,6 +526,20 @@ class LatentLookaheadPlanner(nn.Module):
             if not is_pruned and u_cumulative < self.dead_end_threshold:
                 is_pruned = True
                 prune_reason = "dead_end_utility_threshold"
+
+            # Apply Counterfactual Foresight branch safety assessment
+            if cf_preds is not None:
+                first_act = candidate_sequences[b_idx][0]
+                a_idx = int(first_act) if isinstance(first_act, (int, DirectionalAction)) else 0
+                if a_idx in cf_preds:
+                    cf_branch = cf_preds[a_idx]
+                    cf_haz = float(cf_branch.hazard_probability[0, 0, 0].item())
+                    cf_esc = float(cf_branch.predicted_escape_margin[0, min(1, cf_branch.predicted_escape_margin.shape[1] - 1), 0].item())
+                    if cf_haz >= self.hazard_prune_threshold and not is_pruned:
+                        is_pruned = True
+                        prune_reason = "counterfactual_hazard_predicted"
+                    if cf_esc < 0.0:
+                        u_cumulative += cf_esc * 2.0
 
             # Apply severe penalty if pruned
             if is_pruned:

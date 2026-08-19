@@ -702,8 +702,8 @@ class MatchedBaselineTests(unittest.TestCase):
         self.assertTrue(torch.isfinite(restricted.loss))
         for horizon in (1, 2, 4):
             self.assertGreaterEqual(
-                float(restricted.metrics[f"world_loss_h{horizon}"]),
-                float(flexible.metrics[f"world_loss_h{horizon}"]) - 1e-6,
+                float(restricted.metrics[f"world_loss_h{horizon}"].detach()),
+                float(flexible.metrics[f"world_loss_h{horizon}"].detach()) - 1e-6,
             )
 
 

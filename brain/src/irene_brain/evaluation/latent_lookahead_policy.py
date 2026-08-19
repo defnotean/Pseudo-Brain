@@ -187,6 +187,8 @@ class LatentLookaheadPolicy:
                 elapsed_seconds=elapsed_seconds,
             )
             self._state = model_out.next_state.detach()
+            self._last_diagnostics = model_out.diagnostics
+            self._last_model_output = model_out
 
         self._last_plan = plan_result
         self._plan_history.append(plan_result)

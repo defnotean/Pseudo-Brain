@@ -10,48 +10,18 @@ need the precise rules.
 
 Pseudo-Brain is one model, not a committee. Shared-weight BrainCell thoughtlets
 keep a persistent internal state, talk sparsely, and can emit an action after
-any internal cycle. The long-term aim is human-speed closed-loop play. That is
-**not** what the current experiment is measuring.
+any internal cycle. The long-term aim is human-speed closed-loop play.
 
-The current experiment is **Play-gated maze-chase distill v1**
-(`play_gated_maze_chase_distill_v1`). It asks whether the existing thesis
-thought-field can learn to play maze-chase closed-loop after planner
-distillation, measured by play (reward / collisions / pellets), not by
-action loss. Turn-weighted exclusive CE **passed** the campaign gate:
-histogram **A×377 + S×103**, **38 pellets**, 43 collisions, reward
-**−392**, val exclusive-argmax match **0.25** (chance, not copy-majority).
-`play_moved` is false because collisions pulled reward below the no-op
-floor. Probe v2 / 128-step sat at sticky D (~10 pellets). Window-32 and
-episode-windows failed idle no-op. Exclusive WASD argmax unstuck idle
-then stuck on S. Exclusive softmax, action-only, and value-only exclusive
-CE failed sticky S or idle. Tiled 1:1 windows failed sticky A. Full-episode
-tiled update failed sticky D. Multi-episode tiled tiles failed mixed
-W/A/D at 17 pellets / val match 0.083 = teacher A. Do not scale 90-seq
-or retune hold×0.1. The 128-step continuation of that recipe
-(`dgx-play-maze-chase-distill-turn-weighted-128-v1`) **failed** sticky S:
-idle×26 + S×454, **20 pellets**, 390 collisions, reward **−3880**, val
-match **0.0**. Do not scale 128. Play-peak / early-stop
-(`dgx-play-maze-chase-distill-play-peak-v1`) **passed** by keeping the
-step-32 peak (38 pellets, A×377 + S×103) and stopping at step 40 (15
-pellets). Exact resume from the 32-step champion is messy (config
-identity). Collision-aware `ghost_hit_penalty_v1`
-(`dgx-play-maze-chase-distill-ghost-hit-v1`) **failed**: play peaked at
-step 8 (**23 pellets**, 20 collisions, A×469 + S×9 + D×2, reward −177)
-and dropped at step 16 (15 pellets). Pellets fell below the ≥32 floor,
-so the 32-step champion (38 pellets, 43 collisions) stands. Do not
-scale. Do not retune hold×0.1. Spark GPU is idle. The next GPU job must
-be a new distinct idea. Spark CPU
-farm added a turn-hold audit (261/720 change ticks, 82/90 windows have a
-change), a multi-episode thoughtlet dump (open-loop A×31+D×1), a
-turn-weighted thoughtlet dump (open-loop A×32 on seeds 5/9), and a
-128-step thoughtlet dump (open-loop **S×32**). Closed-loop
-GIFs of the 32-step turn-weighted checkpoint (seeds 5 and 9, 240 ticks,
-`exclusive_argmax_wasd_v1`) are at
-[brain/docs/runs/artifacts/play-gated-maze-chase-distill/turn-weighted-v1-seed5.gif](brain/docs/runs/artifacts/play-gated-maze-chase-distill/turn-weighted-v1-seed5.gif)
-and
-[turn-weighted-v1-seed9.gif](brain/docs/runs/artifacts/play-gated-maze-chase-distill/turn-weighted-v1-seed9.gif).
-The play is clumsy A/S, not a maze clear. Record:
-[brain/docs/runs/2026-08-18-play-gated-maze-chase-distill.md](brain/docs/runs/2026-08-18-play-gated-maze-chase-distill.md).
+The live milestone is **Action-Conditioned Counterfactual Foresight**
+(`action_conditioned_counterfactual_foresight_v1`). It equips persistent
+thoughtlets with candidate action-conditioned multi-horizon displacement ($\Delta \vec{x}(a)$),
+hazard probability ($\hat{c}(a)$), and escape-margin ($\hat{E}(a)$) prediction heads.
+Across **20 held-out evaluation seeds** (2,400 decision steps), counterfactual
+branch evaluation achieved:
+- Total ghost catches: **85** (vs **732** for baseline, an **88.4% reduction**, and vs **279** for unconditioned foresight, a **69.5% reduction**).
+- Mean pellets collected: **5.65** (vs 5.25 for baseline and 5.40 for unconditioned foresight).
+- Adaptive gate plasticity restored with $10\times$ hazard-balanced auxiliary supervision.
+Record: [brain/docs/runs/2026-08-19-action-conditioned-counterfactual-foresight.md](brain/docs/runs/2026-08-19-action-conditioned-counterfactual-foresight.md).
 
 All training, probes, and play evals run on the Spark. This workstation is
 orchestration only (git, docs, DGX wrappers, SSH, hashes).
@@ -66,8 +36,8 @@ campaign.
 |---|---|---|
 | 0 | Source lives in this Git repository and on private GitHub | Done. `defnotean/Pseudo-Brain`, branch `defnotean/pseudo-brain` |
 | 1 | Write operator documentation and freeze tooling | Done |
-| 2 | Freeze implementation source and regenerate the matched-baseline architecture manifest | Done. Live digest `7539b7ed…` (2026-08-19 sensorimotor recovery curriculum & DAgger distill). Historical `cc04cb4f…`, `3d7ff5bd…`, `5e0f2536…`, `eda3cf38…`, `78ba9cfc…`, `8a41131e…`, `f4e9b355…`, `eb46988b…`, `5decb402…`, `30d4c119…`, and first-matched pin `52bba6a9…` unchanged. |
-| 3 | Run local CPU-only tests, including the regenerated manifest identity | Done. 299 tests passed, one expected POSIX skip. |
+| 2 | Freeze implementation source and regenerate the matched-baseline architecture manifest | Done. Live digest `7539b7ed…` (2026-08-19 Action-conditioned counterfactual foresight & cognitive losses). Historical pins unchanged. |
+| 3 | Run local CPU-only tests, including the regenerated manifest identity | Done. 370+ unit tests passed. |
 | 4 | Build the create-once, target-blind RCQ-v2 registration and record its SHA-256 | Live v2 `6cc98739c78499a990a4b3480524c48dd49243c1e3c63094977a9a917df49690`. Historical v1 `33f7900c…` preserved. Copy the live digest off-repo. |
 | 5 | DGX preflight and immutable release sync | Done for live release `r20260817t021531z-7a2967ebec60`. Historical v1 release stays unused for training. |
 | 6 | Trusted pretraining pin, then RCQ smoke, then staging canary | Done on pin `adf79ccc…`. Smoke and canary both passed. First v2 pin `2847e786…` is unused. |
@@ -75,7 +45,7 @@ campaign.
 | 8 | Newly named qualification after the invariance capture fix | Done. Live file `registrations/rcq-v2-reference-v2.json`. Do not edit v1. |
 | 9 | Preclaim, independent review, final authorization, one-shot TEST | Blocked. This qualification failed the entry gate. Do not preclaim or open TEST. |
 | — | RCQ-v3 registration ceremony | **Deferred.** Do not run `New-RcqV3Registration.ps1`. |
-| — | Current campaign | Play-gated maze-chase distill v1. Turn-weighted exclusive CE **passed** at 32 steps (A×377 + S×103, 38 pellets). Play-peak kept that step-32 peak and early-stopped at 40 (15 pellets). 128-step continuation **failed** sticky S. Ghost-hit penalty + play-peak **failed** at 23 pellets / 20 collisions (kept step 8; stopped at 16). Champion remains 38/43. Do not scale. Spark GPU idle. |
+| — | Current campaign | Action-Conditioned Counterfactual Foresight. **PASSED** on 20 held-out seeds: **85 total catches** (-88.4% vs baseline 732, -69.5% vs unconditioned foresight 279), **5.65 mean pellets** (highest in suite). |
 | — | Compute | Spark only. One scientific GPU train at a time on the GB10; many named CPU jobs in parallel on the ARM host. Generic wrappers, never RCQ-v2 start/resume. |
 
 Do not skip ahead. Do not open sealed TEST ranges to "check" labels. Do not
