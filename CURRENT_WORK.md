@@ -57,7 +57,7 @@ campaign.
 | — | RCQ-v3 registration ceremony | **Deferred.** Do not run `New-RcqV3Registration.ps1`. |
 | — | Current champion | **Variant E (Full Adaptive System)**: **5.65 pellets / 83 catches** (-88.6% catches vs baseline 727). |
 | — | Active investigation | 5-training-seed statistical replication battery (E vs F vs G) & calibrated counterfactual risk utility. |
-| — | Phase 2.5 Gate 6 | **INCOMPLETE / running.** Named CPU probe `dgx-gate6-matched-gru-v1`: K=32 W=60 (831,680 params) vs Proposal-GRU H=180 (787,314). GB10 occupied by sglang; no second GPU train. Record: [brain/docs/runs/2026-08-20-gate6-matched-proposal-gru.md](brain/docs/runs/2026-08-20-gate6-matched-proposal-gru.md). Do not claim architecture superiority if GRU ties or wins. |
+| — | Phase 2.5 Gate 6 | **FAIL.** CPU probe `dgx-gate6-matched-gru-v1` finished: thought-mediated IQM **−27.758** vs Proposal-GRU **−25.694** (−8.04%; GRU wins). Knockout sanity passed (mean degradation 1343%). Architecture superiority not claimed. Record: [brain/docs/runs/2026-08-20-gate6-matched-proposal-gru.md](brain/docs/runs/2026-08-20-gate6-matched-proposal-gru.md). |
 | — | Compute | Spark only. One scientific GPU train at a time on the GB10; many named CPU jobs in parallel on the ARM host. Generic wrappers, never RCQ-v2 start/resume. |
 
 Do not skip ahead. Do not open sealed TEST ranges to "check" labels. Do not
@@ -153,20 +153,6 @@ Retired, already-opened ranges must never be reused as evidence. See
 The project maintains a strict, non-derailing three-tiered hierarchy:
 
 1. **CURRENT WORK (Active Priority):**
-   - **Play competence (2026-08-20, Spark CPU):** thought-mediated campaign and
-     Variant E have **no persisted maze-chase checkpoints**. Re-eval of the
-     turn-weighted distill champion (`e58f323f…`) vs planner:
-     protocol `distill-direct-5-9-240` neural **38 pellets / 43 collisions / 0
-     clears** vs planner **284 / 1 / 2 clears**; protocol
-     `e-heldout-direct-2001-2020-120` neural **8.55 mean pellets / 265 collisions
-     / 0 clears** vs planner **84.5 / 21 / 0**. Still ≪ planner. GB10 left
-     alone. Record: [brain/docs/runs/2026-08-20-play-competence-closed-loop.md](brain/docs/runs/2026-08-20-play-competence-closed-loop.md).
-   - Phase 2.5 CPU diagnostics are in-tree: belief collapse / VoI, multi-horizon
-     ambiguity arena, sequential probe resolution, analytic WAIT-vs-commit VoI,
-     and a multiplicity-proof action aggregator. Play-safe tests cover them.
-     Record: [brain/docs/runs/2026-08-20-phase25-belief-collapse-diagnostics.md](brain/docs/runs/2026-08-20-phase25-belief-collapse-diagnostics.md).
-     Do not launch the full thought-mediated Spark campaign from this workstation;
-     use `--cpu-smoke` only. Another agent owns GPU jobs. Do not resume RCQ-v2.
    - 5-seed statistical replication battery ($E$ vs $F$ vs $G$) across 100 evaluation episodes per variant.
    - Calibrated counterfactual risk utility (targeting the sweet spot: $F$'s $\sim 7.8$ pellet drive with $E$'s $\sim 83$ safe catches).
    - Wall recovery latency reduction (reducing collision-recovery response from $23.1 \to \le 10$ ticks).

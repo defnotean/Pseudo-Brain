@@ -112,3 +112,7 @@ Proposal-GRU is the bounded probe
 - Proposal-GRU: `ProposalGRUBaseline(hidden_dim=180)`.
 - Equal experience: 300 AdamW steps, seeds `{42,43,44,45,46}`, all five Phase-2 families.
 - Pass remains the table above (≥10% IQM/return). GRU tie or win is **FAIL**.
+- **Measured 2026-08-20**: FAIL. Pooled IQM −27.758 (thought-mediated) vs
+  −25.694 (Proposal-GRU), advantage −8.04%. Knockout sanity passed.
+  `architecture_superiority_claimed` is false. Run record:
+  [`2026-08-20-gate6-matched-proposal-gru.md`](../runs/2026-08-20-gate6-matched-proposal-gru.md).

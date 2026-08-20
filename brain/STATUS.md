@@ -4,21 +4,17 @@ Updated: 2026-08-20
 
 ## Active campaign: Phase 2.5 Gate 6 (thought-mediated vs matched Proposal-GRU)
 
-Status: **INCOMPLETE**. Gate 6 (≥10% IQM/return over matched Proposal-GRU) is
-**not** measured in `docs/phase_closure/thought_mediated_campaign_results.json`
-(2026-08-20 06:35:40 UTC). That file has a stochastic expected-utility row
-(Proposal-GRU **-37.74**, K=32 **-38.71**) and a Family-B knockout (IQM **-32.0**
-vs **-486.0**), not the preregistered closed-loop IQM comparison.
-
-Named probe `dgx-gate6-matched-gru-v1` is **running** on Spark ARM CPU
-(`CUDA_VISIBLE_DEVICES=-1`, docker `dgx-gate6-matched-gru-v1`). Source snapshot is
-committed `97ffe62579c90744595960fc7d342b21e3e490ef` (not later dirty/working-tree
-model diffs). Runtime pair: **K=32 W=60 = 831,680 params** vs **Proposal-GRU H=180
-= 787,314 params** (+5.64%). 300 steps, seeds 42–46. GB10 remains on Irene sglang
-Qwen; this probe did not start a second GPU train. Record:
+Status: **FAIL**. Named CPU probe `dgx-gate6-matched-gru-v1` wrote
+`gate6_results.json` at 2026-08-20 20:41:10 UTC (`device=cpu`,
+`cuda_available: false`). Pooled IQM thought-mediated **−27.758** vs
+Proposal-GRU **−25.694** (relative advantage **−8.04%**). Mean return
+**−106.504** vs **−99.280**. Gate 6 needs ≥10% IQM advantage and GRU must not
+tie or win. **GRU won IQM.** Family-B knockout sanity passed (mean degradation
+13.43). `architecture_superiority_claimed` is false. Container auto-removed.
+GB10 stayed on Irene sglang Qwen; no second GPU train. Artifact SHA-256
+`a3dc94dc…`. Record:
 [docs/runs/2026-08-20-gate6-matched-proposal-gru.md](./docs/runs/2026-08-20-gate6-matched-proposal-gru.md).
-Do not claim architecture superiority if GRU ties or wins. RCQ-v2 stays
-terminal. TEST stays sealed.
+RCQ-v2 stays terminal. TEST stays sealed.
 
 ## Historical campaign: cognitive architecture ablation & statistical replication ($A\text{--}G$)
 
@@ -30,18 +26,6 @@ is the verified champion (`full_adaptive_system_v1`). Evaluated on 20 held-out s
 - Exploratory variants: **Variant F** (Counterfactual Foresight: 7.80 pellets / 654 catches, reckless) and **Variant G** (Topological Routing: 4.90 pellets / 83 catches, over-conservative). Variant E strictly beats Variant G on task reward at equal safety.
 - Active investigation: Multi-seed statistical replication battery (5 training seeds $\times$ 20 validation seeds = 100 episodes per variant) for $E$, $F$, and $G$.
 - Long-term roadmap: General-purpose language, tool-use & robotics agent ([PLAN.md §43](PLAN.md#43-long-term-research-direction-general-purpose-language-tool-use--long-horizon-agent)).
-
-## Play competence (2026-08-20 re-eval)
-
-Spark CPU closed-loop (`CUDA_VISIBLE_DEVICES=-1`, run
-`play-competence-cpu-20260820-v1`). No thought-mediated or Variant E maze-chase
-weights on disk. The play champion is still turn-weighted
-`step-00000032.pt` (`e58f323f…`). Protocol `distill-direct-5-9-240`: neural
-**38 pellets / 43 collisions / 0 clears** vs planner **284 / 1 / 2 clears**.
-Protocol `e-heldout-direct-2001-2020-120` (direct decode, not E's lookahead wrap):
-neural **8.55 mean pellets / 265 collisions / 0 clears** vs planner **84.5 / 21 /
-0**. Neural still ≪ planner. GB10 was not used. Record:
-[docs/runs/2026-08-20-play-competence-closed-loop.md](./docs/runs/2026-08-20-play-competence-closed-loop.md).
 
 ## Historical campaign: play-gated maze-chase distill v1
 

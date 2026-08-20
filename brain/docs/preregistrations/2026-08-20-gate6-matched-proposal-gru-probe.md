@@ -5,7 +5,7 @@
 **Parent registration**: `PREREG-PHASE2-REVISED-THOUGHT-MEDIATED-V1`  
 **Source pin**: git `97ffe62579c90744595960fc7d342b21e3e490ef` (`defnotean/pseudo-brain`)  
 **Harness**: `brain/scripts/dgx_run_gate6_matched_gru_probe.py`  
-**Status**: MEASUREMENT QUEUED (GB10 occupied; ARM CPU probe)
+**Status**: **FAIL** (GRU won pooled IQM; measured 2026-08-20 20:41:10 UTC)
 
 This is a bounded named campaign probe. It is not an RCQ round, not a 2,048-update
 reference train, and not a new architecture registration.
@@ -21,7 +21,11 @@ The 2026-08-20 `thought_mediated_campaign_results.json` (device `cuda:0`,
   (`A_normal` IQM **-32.0**, `H_zero_knockout` IQM **-486.0**). Thoughts matter
   on that knockout, but there is no matched Proposal-GRU IQM row.
 
-Gate 6 remains unmeasured until this probe writes `gate6_results.json`.
+Gate 6 is now measured. Official JSON:
+[`docs/runs/artifacts/gate6-matched-proposal-gru/gate6_results.json`](../runs/artifacts/gate6-matched-proposal-gru/gate6_results.json).
+Pooled IQM thought-mediated **−27.758** vs Proposal-GRU **−25.694**
+(advantage **−8.04%**). **FAIL.** Knockout sanity passed. Architecture
+superiority is not claimed.
 
 ## Exact resource-matched pair (committed HEAD, not dirty working tree)
 

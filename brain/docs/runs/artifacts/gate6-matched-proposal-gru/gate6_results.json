@@ -1,0 +1,608 @@
+{
+  "probe_id": "dgx-gate6-matched-gru-v1",
+  "registration_id": "PREREG-PHASE2-REVISED-THOUGHT-MEDIATED-V1",
+  "gate_id": "Gate 6",
+  "timestamp": "2026-08-20 20:41:10 UTC",
+  "device": "cpu",
+  "cuda_available": false,
+  "seeds": [
+    42,
+    43,
+    44,
+    45,
+    46
+  ],
+  "train_steps": 300,
+  "episodes_per_world": 5,
+  "lr": 0.0005,
+  "pair": {
+    "thought_mediated": {
+      "k": 32,
+      "core_width": 60,
+      "cognitive_cycles": 3,
+      "routed_neighbors": 2,
+      "parameters": 831680
+    },
+    "proposal_gru": {
+      "hidden_dim": 180,
+      "num_proposals": 1,
+      "parameters": 787314
+    },
+    "parameter_delta_pct": 5.635108736793706
+  },
+  "pb_iqm_return": -27.758064516129032,
+  "gru_iqm_return": -25.693548387096776,
+  "pb_mean_return": -106.504,
+  "gru_mean_return": -99.28,
+  "relative_iqm_advantage": -0.08035153797865655,
+  "relative_mean_advantage": -0.07276390008058022,
+  "gate6_margin": 0.1,
+  "knockout_sanity_margin": 0.3,
+  "mean_knockout_degradation": 13.43462655005338,
+  "knockout_sanity_passed": true,
+  "gru_wins_or_ties": true,
+  "gate6_status": "FAIL",
+  "architecture_superiority_claimed": false,
+  "reason": "Proposal-GRU ties or wins IQM; do not claim thought-mediated architecture superiority",
+  "pb_by_seed": {
+    "42": {
+      "per_family": {
+        "FAMILY_A_MULTI_OBJECT": {
+          "iqm_return": 0.0,
+          "mean_return": 0.0
+        },
+        "FAMILY_B_PURSUIT_EVASION": {
+          "iqm_return": -32.0,
+          "mean_return": -27.6
+        },
+        "FAMILY_C_JUNCTIONS": {
+          "iqm_return": -35.5,
+          "mean_return": -31.6
+        },
+        "FAMILY_D_PARTIAL_OBSERVABILITY": {
+          "iqm_return": -35.5,
+          "mean_return": -31.6
+        },
+        "FAMILY_E_CHANGED_DYNAMICS": {
+          "iqm_return": -506.0,
+          "mean_return": -416.4
+        }
+      },
+      "pooled_iqm_return": -31.0,
+      "pooled_mean_return": -101.44,
+      "pooled_returns": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -28.0,
+        -36.0,
+        -9.0,
+        -37.0,
+        -28.0,
+        -38.0,
+        -28.0,
+        -19.0,
+        -33.0,
+        -40.0,
+        -38.0,
+        -28.0,
+        -19.0,
+        -33.0,
+        -40.0,
+        -536.0,
+        -398.0,
+        -26.0,
+        -476.0,
+        -646.0
+      ]
+    },
+    "43": {
+      "per_family": {
+        "FAMILY_A_MULTI_OBJECT": {
+          "iqm_return": 0.0,
+          "mean_return": 0.0
+        },
+        "FAMILY_B_PURSUIT_EVASION": {
+          "iqm_return": -20.5,
+          "mean_return": -23.6
+        },
+        "FAMILY_C_JUNCTIONS": {
+          "iqm_return": -39.5,
+          "mean_return": -39.4
+        },
+        "FAMILY_D_PARTIAL_OBSERVABILITY": {
+          "iqm_return": -39.5,
+          "mean_return": -39.4
+        },
+        "FAMILY_E_CHANGED_DYNAMICS": {
+          "iqm_return": -46.5,
+          "mean_return": -139.0
+        }
+      },
+      "pooled_iqm_return": -28.416666666666668,
+      "pooled_mean_return": -48.28,
+      "pooled_returns": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -19.0,
+        -12.0,
+        -49.0,
+        -16.0,
+        -22.0,
+        -23.0,
+        -19.0,
+        -32.0,
+        -47.0,
+        -76.0,
+        -23.0,
+        -19.0,
+        -32.0,
+        -47.0,
+        -76.0,
+        -24.0,
+        -47.0,
+        -35.0,
+        -543.0,
+        -46.0
+      ]
+    },
+    "44": {
+      "per_family": {
+        "FAMILY_A_MULTI_OBJECT": {
+          "iqm_return": 0.0,
+          "mean_return": 0.0
+        },
+        "FAMILY_B_PURSUIT_EVASION": {
+          "iqm_return": -27.5,
+          "mean_return": -25.6
+        },
+        "FAMILY_C_JUNCTIONS": {
+          "iqm_return": -31.5,
+          "mean_return": -29.4
+        },
+        "FAMILY_D_PARTIAL_OBSERVABILITY": {
+          "iqm_return": -31.5,
+          "mean_return": -29.4
+        },
+        "FAMILY_E_CHANGED_DYNAMICS": {
+          "iqm_return": -685.0,
+          "mean_return": -528.8
+        }
+      },
+      "pooled_iqm_return": -27.5,
+      "pooled_mean_return": -122.64,
+      "pooled_returns": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -25.0,
+        -7.0,
+        -47.0,
+        -30.0,
+        -19.0,
+        -35.0,
+        -28.0,
+        -28.0,
+        -18.0,
+        -38.0,
+        -35.0,
+        -28.0,
+        -28.0,
+        -18.0,
+        -38.0,
+        -656.0,
+        -754.0,
+        -508.0,
+        -12.0,
+        -714.0
+      ]
+    },
+    "45": {
+      "per_family": {
+        "FAMILY_A_MULTI_OBJECT": {
+          "iqm_return": 0.0,
+          "mean_return": 0.0
+        },
+        "FAMILY_B_PURSUIT_EVASION": {
+          "iqm_return": -21.0,
+          "mean_return": -18.4
+        },
+        "FAMILY_C_JUNCTIONS": {
+          "iqm_return": -34.0,
+          "mean_return": -29.4
+        },
+        "FAMILY_D_PARTIAL_OBSERVABILITY": {
+          "iqm_return": -34.0,
+          "mean_return": -29.4
+        },
+        "FAMILY_E_CHANGED_DYNAMICS": {
+          "iqm_return": -796.0,
+          "mean_return": -741.6
+        }
+      },
+      "pooled_iqm_return": -26.916666666666668,
+      "pooled_mean_return": -163.76,
+      "pooled_returns": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -28.0,
+        -17.0,
+        -23.0,
+        -5.0,
+        -19.0,
+        -41.0,
+        -19.0,
+        -29.0,
+        -19.0,
+        -39.0,
+        -41.0,
+        -19.0,
+        -29.0,
+        -19.0,
+        -39.0,
+        -786.0,
+        -806.0,
+        -814.0,
+        -606.0,
+        -696.0
+      ]
+    },
+    "46": {
+      "per_family": {
+        "FAMILY_A_MULTI_OBJECT": {
+          "iqm_return": 0.0,
+          "mean_return": 0.0
+        },
+        "FAMILY_B_PURSUIT_EVASION": {
+          "iqm_return": -27.0,
+          "mean_return": -23.8
+        },
+        "FAMILY_C_JUNCTIONS": {
+          "iqm_return": -46.0,
+          "mean_return": -46.0
+        },
+        "FAMILY_D_PARTIAL_OBSERVABILITY": {
+          "iqm_return": -46.0,
+          "mean_return": -46.0
+        },
+        "FAMILY_E_CHANGED_DYNAMICS": {
+          "iqm_return": -535.0,
+          "mean_return": -366.2
+        }
+      },
+      "pooled_iqm_return": -30.833333333333332,
+      "pooled_mean_return": -96.4,
+      "pooled_returns": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -27.0,
+        -19.0,
+        -27.0,
+        -18.0,
+        -28.0,
+        -45.0,
+        -89.0,
+        -27.0,
+        -22.0,
+        -47.0,
+        -45.0,
+        -89.0,
+        -27.0,
+        -22.0,
+        -47.0,
+        -622.0,
+        -708.0,
+        -27.0,
+        -26.0,
+        -448.0
+      ]
+    }
+  },
+  "gru_by_seed": {
+    "42": {
+      "per_family": {
+        "FAMILY_A_MULTI_OBJECT": {
+          "iqm_return": 0.0,
+          "mean_return": 0.0
+        },
+        "FAMILY_B_PURSUIT_EVASION": {
+          "iqm_return": -32.0,
+          "mean_return": -27.6
+        },
+        "FAMILY_C_JUNCTIONS": {
+          "iqm_return": -35.5,
+          "mean_return": -31.6
+        },
+        "FAMILY_D_PARTIAL_OBSERVABILITY": {
+          "iqm_return": -35.5,
+          "mean_return": -31.6
+        },
+        "FAMILY_E_CHANGED_DYNAMICS": {
+          "iqm_return": -536.0,
+          "mean_return": -426.0
+        }
+      },
+      "pooled_iqm_return": -30.416666666666668,
+      "pooled_mean_return": -103.36,
+      "pooled_returns": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -28.0,
+        -36.0,
+        -9.0,
+        -37.0,
+        -28.0,
+        -38.0,
+        -28.0,
+        -19.0,
+        -33.0,
+        -40.0,
+        -38.0,
+        -28.0,
+        -19.0,
+        -33.0,
+        -40.0,
+        -576.0,
+        -398.0,
+        -14.0,
+        -496.0,
+        -646.0
+      ]
+    },
+    "43": {
+      "per_family": {
+        "FAMILY_A_MULTI_OBJECT": {
+          "iqm_return": 0.0,
+          "mean_return": 0.0
+        },
+        "FAMILY_B_PURSUIT_EVASION": {
+          "iqm_return": -22.0,
+          "mean_return": -25.4
+        },
+        "FAMILY_C_JUNCTIONS": {
+          "iqm_return": -40.0,
+          "mean_return": -34.0
+        },
+        "FAMILY_D_PARTIAL_OBSERVABILITY": {
+          "iqm_return": -40.0,
+          "mean_return": -34.0
+        },
+        "FAMILY_E_CHANGED_DYNAMICS": {
+          "iqm_return": -562.0,
+          "mean_return": -578.8
+        }
+      },
+      "pooled_iqm_return": -31.416666666666668,
+      "pooled_mean_return": -134.44,
+      "pooled_returns": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -19.0,
+        -19.0,
+        -45.0,
+        -19.0,
+        -25.0,
+        -19.0,
+        -19.0,
+        -33.0,
+        -52.0,
+        -47.0,
+        -19.0,
+        -19.0,
+        -33.0,
+        -52.0,
+        -47.0,
+        -386.0,
+        -706.0,
+        -1026.0,
+        -358.0,
+        -418.0
+      ]
+    },
+    "44": {
+      "per_family": {
+        "FAMILY_A_MULTI_OBJECT": {
+          "iqm_return": 0.0,
+          "mean_return": 0.0
+        },
+        "FAMILY_B_PURSUIT_EVASION": {
+          "iqm_return": -27.5,
+          "mean_return": -25.6
+        },
+        "FAMILY_C_JUNCTIONS": {
+          "iqm_return": -31.5,
+          "mean_return": -29.4
+        },
+        "FAMILY_D_PARTIAL_OBSERVABILITY": {
+          "iqm_return": -31.5,
+          "mean_return": -29.4
+        },
+        "FAMILY_E_CHANGED_DYNAMICS": {
+          "iqm_return": -685.0,
+          "mean_return": -528.8
+        }
+      },
+      "pooled_iqm_return": -27.5,
+      "pooled_mean_return": -122.64,
+      "pooled_returns": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -25.0,
+        -7.0,
+        -47.0,
+        -30.0,
+        -19.0,
+        -35.0,
+        -28.0,
+        -28.0,
+        -18.0,
+        -38.0,
+        -35.0,
+        -28.0,
+        -28.0,
+        -18.0,
+        -38.0,
+        -656.0,
+        -754.0,
+        -508.0,
+        -12.0,
+        -714.0
+      ]
+    },
+    "45": {
+      "per_family": {
+        "FAMILY_A_MULTI_OBJECT": {
+          "iqm_return": 0.0,
+          "mean_return": 0.0
+        },
+        "FAMILY_B_PURSUIT_EVASION": {
+          "iqm_return": -19.5,
+          "mean_return": -20.6
+        },
+        "FAMILY_C_JUNCTIONS": {
+          "iqm_return": -23.5,
+          "mean_return": -22.2
+        },
+        "FAMILY_D_PARTIAL_OBSERVABILITY": {
+          "iqm_return": -23.5,
+          "mean_return": -22.2
+        },
+        "FAMILY_E_CHANGED_DYNAMICS": {
+          "iqm_return": -41.5,
+          "mean_return": -132.8
+        }
+      },
+      "pooled_iqm_return": -19.333333333333332,
+      "pooled_mean_return": -39.56,
+      "pooled_returns": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -20.0,
+        -19.0,
+        -26.0,
+        -19.0,
+        -19.0,
+        -28.0,
+        -19.0,
+        -28.0,
+        -18.0,
+        -18.0,
+        -28.0,
+        -19.0,
+        -28.0,
+        -18.0,
+        -18.0,
+        -10.0,
+        -19.0,
+        -562.0,
+        -9.0,
+        -64.0
+      ]
+    },
+    "46": {
+      "per_family": {
+        "FAMILY_A_MULTI_OBJECT": {
+          "iqm_return": 0.0,
+          "mean_return": 0.0
+        },
+        "FAMILY_B_PURSUIT_EVASION": {
+          "iqm_return": -27.0,
+          "mean_return": -23.8
+        },
+        "FAMILY_C_JUNCTIONS": {
+          "iqm_return": -46.0,
+          "mean_return": -46.0
+        },
+        "FAMILY_D_PARTIAL_OBSERVABILITY": {
+          "iqm_return": -46.0,
+          "mean_return": -46.0
+        },
+        "FAMILY_E_CHANGED_DYNAMICS": {
+          "iqm_return": -535.0,
+          "mean_return": -366.2
+        }
+      },
+      "pooled_iqm_return": -30.833333333333332,
+      "pooled_mean_return": -96.4,
+      "pooled_returns": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -27.0,
+        -19.0,
+        -27.0,
+        -18.0,
+        -28.0,
+        -45.0,
+        -89.0,
+        -27.0,
+        -22.0,
+        -47.0,
+        -45.0,
+        -89.0,
+        -27.0,
+        -22.0,
+        -47.0,
+        -622.0,
+        -708.0,
+        -27.0,
+        -26.0,
+        -448.0
+      ]
+    }
+  },
+  "knockout_by_seed": {
+    "42": {
+      "family_b_normal_iqm": -32.0,
+      "family_b_knockout_iqm": -526.0,
+      "knockout_degradation": 15.4375
+    },
+    "43": {
+      "family_b_normal_iqm": -20.5,
+      "family_b_knockout_iqm": -477.0,
+      "knockout_degradation": 22.26829268292683
+    },
+    "44": {
+      "family_b_normal_iqm": -27.5,
+      "family_b_knockout_iqm": -681.0,
+      "knockout_degradation": 23.763636363636362
+    },
+    "45": {
+      "family_b_normal_iqm": -21.0,
+      "family_b_knockout_iqm": -21.0,
+      "knockout_degradation": 0.0
+    },
+    "46": {
+      "family_b_normal_iqm": -27.0,
+      "family_b_knockout_iqm": -181.0,
+      "knockout_degradation": 5.703703703703703
+    }
+  }
+}
