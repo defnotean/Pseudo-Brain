@@ -119,6 +119,72 @@ def generate_comprehensive_branch_bundle(
     )
 
 
+def generate_multi_step_trajectory_tree(
+    env: Phase2TaskEnvironment,
+    current_obs: Any,
+    horizon: int = 2,
+    device: torch.device = torch.device("cpu"),
+) -> ComprehensiveBranchBundle:
+    """Generate multi-step trajectory tree of candidate futures (1-step and 2-step paths)."""
+    # Base 5 immediate branches
+    base_bundle = generate_comprehensive_branch_bundle(env, current_obs, device=device)
+    if horizon <= 1:
+        return base_bundle
+
+    underlying = env._underlying_env
+    px = getattr(underlying, "_player_x", 8)
+    py = getattr(underlying, "_player_y", 8)
+    ghosts = getattr(underlying, "_ghosts", [(4, 4), (12, 12)])
+
+    act_indices = list(base_bundle.action_indices.cpu().numpy())
+    disps = list(base_bundle.displacements.cpu().numpy())
+    hazards = list(base_bundle.hazard_probs.cpu().numpy())
+    rewards = list(base_bundle.rewards.cpu().numpy())
+    utilities = list(base_bundle.utilities.cpu().numpy())
+
+    # 4 directional 2-step extensions: (Up-Up, Up-Right, Left-Left, etc.)
+    step1_actions = [(1, 0.0, -1.0), (2, -1.0, 0.0), (3, 0.0, 1.0), (4, 1.0, 0.0)]
+    step2_actions = [(1, 0.0, -1.0), (2, -1.0, 0.0), (3, 0.0, 1.0), (4, 1.0, 0.0)]
+
+    for a1_idx, dx1, dy1 in step1_actions:
+        p1_x = max(1, min(14, px + int(dx1)))
+        p1_y = max(1, min(14, py + int(dy1)))
+        for a2_idx, dx2, dy2 in step2_actions:
+            # Avoid immediate reversal
+            if (a1_idx == 1 and a2_idx == 3) or (a1_idx == 3 and a2_idx == 1):
+                continue
+            if (a1_idx == 2 and a2_idx == 4) or (a1_idx == 4 and a2_idx == 2):
+                continue
+
+            p2_x = max(1, min(14, p1_x + int(dx2)))
+            p2_y = max(1, min(14, p1_y + int(dy2)))
+
+            cum_dx = dx1 + dx2
+            cum_dy = dy1 + dy2
+
+            min_g_dist = min(math.sqrt((p2_x - gx) ** 2 + (p2_y - gy) ** 2) for gx, gy in ghosts)
+            haz = 1.0 if min_g_dist <= 1.5 else (0.5 if min_g_dist <= 3.0 else 0.0)
+            rew = 1.5 if (p2_x, p2_y) in getattr(underlying, "_pellet_positions", set()) else 0.2
+            if haz >= 0.8:
+                rew = -15.0
+
+            util = rew - 3.0 * haz
+
+            act_indices.append(a1_idx)  # Root action of this trajectory
+            disps.append([cum_dx, cum_dy])
+            hazards.append([haz])
+            rewards.append([rew])
+            utilities.append([util])
+
+    return ComprehensiveBranchBundle(
+        action_indices=torch.tensor(act_indices, dtype=torch.long, device=device),
+        displacements=torch.tensor(disps, dtype=torch.float32, device=device),
+        hazard_probs=torch.tensor(hazards, dtype=torch.float32, device=device),
+        rewards=torch.tensor(rewards, dtype=torch.float32, device=device),
+        utilities=torch.tensor(utilities, dtype=torch.float32, device=device),
+    )
+
+
 class MultiHypothesisBranchLoss(nn.Module):
     """Loss module supervising K thoughtlets on sets of M alternative futures via Hungarian matching."""
 

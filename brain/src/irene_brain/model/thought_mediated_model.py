@@ -149,12 +149,13 @@ def build_resource_matched_thought_model(k_slots: int) -> ThoughtMediatedBrainMo
     width_map = {
         1: 180,
         4: 92,
+        5: 80,
         8: 64,
         16: 48,
         32: 32,
     }
     width = width_map.get(k_slots, 32)
-    routed_neighbors = 0 if k_slots == 1 else (1 if k_slots == 4 else 2)
+    routed_neighbors = 0 if k_slots == 1 else (1 if k_slots in (4, 5) else 2)
     config = ThoughtFieldConfig(
         thoughtlets=k_slots,
         core_width=width,

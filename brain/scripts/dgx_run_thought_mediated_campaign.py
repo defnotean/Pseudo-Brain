@@ -47,6 +47,7 @@ from irene_brain.training.staged_branch_curriculum import (
     ComprehensiveBranchBundle,
     MultiHypothesisBranchLoss,
     generate_comprehensive_branch_bundle,
+    generate_multi_step_trajectory_tree,
 )
 from irene_brain.types import GenericControl, HidKey
 
@@ -120,7 +121,7 @@ def train_thought_mediated_model(
 
         out = model(rgb_tensor, ctrl_tensor, dt_tensor, state=state, max_cycles=model.config.cognitive_cycles)
 
-        bundle = generate_comprehensive_branch_bundle(env, obs, device=device)
+        bundle = generate_multi_step_trajectory_tree(env, obs, horizon=2, device=device)
         total_loss, _metrics = loss_fn(out.action.proposals, [bundle])
 
         optimizer.zero_grad()
@@ -158,7 +159,7 @@ def train_proposal_gru_baseline(
 
         out = model(rgb_tensor, ctrl_tensor, dt_tensor, state=state)
 
-        bundle = generate_comprehensive_branch_bundle(env, obs, device=device)
+        bundle = generate_multi_step_trajectory_tree(env, obs, horizon=2, device=device)
         total_loss, _metrics = loss_fn(out.action.proposals, [bundle])
 
         optimizer.zero_grad()
@@ -330,10 +331,10 @@ def main() -> None:
     }
     print(f"Proposal-GRU Baseline IQM Return: {results['proposal_gru_baseline']['iqm_return']:.2f}")
 
-    # 3. Resource-Matched Capacity Scaling Curve: K in {0, 1, 4, 8, 16, 32}
+    # 3. Resource-Matched Capacity Scaling Curve: K in {0, 1, 4, 5, 8, 16, 32}
     print("\n--- Evaluating Resource-Matched Capacity Scaling Curve & Future Coverage ---")
     test_env = Phase2TaskEnvironment(make_family_suite(TaskFamily.FAMILY_B_PURSUIT_EVASION)[0])
-    k_points = [0, 1, 4, 8, 16, 32]
+    k_points = [0, 1, 4, 5, 8, 16, 32]
     capacity_curve: dict[int, float] = {}
     coverage_curve: dict[int, dict[str, float]] = {}
 

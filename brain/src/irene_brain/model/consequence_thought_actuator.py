@@ -161,13 +161,13 @@ class ConsequenceProposalAggregator(nn.Module):
         # Aggregate 5-way action distributions: [B, K, 1] * [B, K, 5] -> [B, 5]
         action_dist = (final_weights.unsqueeze(-1) * proposals.action_probs).sum(dim=1)  # [B, 5]
 
-        # Project 5-way actions to 296-channel HID button wire layout
+        # Project 5-way actions to 296-channel HID button wire layout with calibrated logit contrast
         # 0: Wait, 1: W, 2: A, 3: S, 4: D
         main_intent = torch.zeros((batch_size, self.num_buttons), device=device)
-        main_intent[:, int(HidKey.W)] = action_dist[:, 1] * 5.0
-        main_intent[:, int(HidKey.A)] = action_dist[:, 2] * 5.0
-        main_intent[:, int(HidKey.S)] = action_dist[:, 3] * 5.0
-        main_intent[:, int(HidKey.D)] = action_dist[:, 4] * 5.0
+        for act_idx, key in [(1, HidKey.W), (2, HidKey.A), (3, HidKey.S), (4, HidKey.D)]:
+            prob = action_dist[:, act_idx].clamp(1e-3, 1.0 - 1e-3)
+            # Center at 0.20 (random baseline for 5 actions)
+            main_intent[:, int(key)] = torch.logit(prob) - math.log(0.20 / 0.80)
 
         main_intent = main_intent * has_active
 
