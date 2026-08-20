@@ -27,6 +27,18 @@ is the verified champion (`full_adaptive_system_v1`). Evaluated on 20 held-out s
 - Active investigation: Multi-seed statistical replication battery (5 training seeds $\times$ 20 validation seeds = 100 episodes per variant) for $E$, $F$, and $G$.
 - Long-term roadmap: General-purpose language, tool-use & robotics agent ([PLAN.md §43](PLAN.md#43-long-term-research-direction-general-purpose-language-tool-use--long-horizon-agent)).
 
+## Play competence (2026-08-20 re-eval)
+
+Spark CPU closed-loop (`CUDA_VISIBLE_DEVICES=-1`, run
+`play-competence-cpu-20260820-v1`). No thought-mediated or Variant E maze-chase
+weights on disk. The play champion is still turn-weighted
+`step-00000032.pt` (`e58f323f…`). Protocol `distill-direct-5-9-240`: neural
+**38 pellets / 43 collisions / 0 clears** vs planner **284 / 1 / 2 clears**.
+Protocol `e-heldout-direct-2001-2020-120` (direct decode, not E's lookahead wrap):
+neural **8.55 mean pellets / 265 collisions / 0 clears** vs planner **84.5 / 21 /
+0**. Neural still ≪ planner. GB10 was not used. Record:
+[docs/runs/2026-08-20-play-competence-closed-loop.md](./docs/runs/2026-08-20-play-competence-closed-loop.md).
+
 ## Historical campaign: play-gated maze-chase distill v1
 
 Status: **play-gated maze-chase distill v1** (`play_gated_maze_chase_distill_v1`). Turn-weighted exclusive CE

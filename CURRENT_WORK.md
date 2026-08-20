@@ -153,6 +153,23 @@ Retired, already-opened ranges must never be reused as evidence. See
 The project maintains a strict, non-derailing three-tiered hierarchy:
 
 1. **CURRENT WORK (Active Priority):**
+   - **Phase 2.5 Gate 6 (2026-08-20):** **FAIL.** Thought-mediated IQM −27.758 vs
+     Proposal-GRU −25.694 (−8.04%; GRU wins). Knockout sanity passed.
+     Architecture superiority not claimed.
+   - **Play competence (2026-08-20, Spark CPU):** thought-mediated campaign and
+     Variant E have **no persisted maze-chase checkpoints**. Re-eval of the
+     turn-weighted distill champion (`e58f323f…`) vs planner:
+     protocol `distill-direct-5-9-240` neural **38 pellets / 43 collisions / 0
+     clears** vs planner **284 / 1 / 2 clears**; protocol
+     `e-heldout-direct-2001-2020-120` neural **8.55 mean pellets / 265 collisions
+     / 0 clears** vs planner **84.5 / 21 / 0**. Still ≪ planner. GB10 left
+     alone. Record: [brain/docs/runs/2026-08-20-play-competence-closed-loop.md](brain/docs/runs/2026-08-20-play-competence-closed-loop.md).
+   - Phase 2.5 CPU diagnostics are in-tree: belief collapse / VoI, multi-horizon
+     ambiguity arena, sequential probe resolution, analytic WAIT-vs-commit VoI,
+     and a multiplicity-proof action aggregator. Play-safe tests cover them.
+     Record: [brain/docs/runs/2026-08-20-phase25-belief-collapse-diagnostics.md](brain/docs/runs/2026-08-20-phase25-belief-collapse-diagnostics.md).
+     Do not launch the full thought-mediated Spark campaign from this workstation;
+     use `--cpu-smoke` only. Do not resume RCQ-v2.
    - 5-seed statistical replication battery ($E$ vs $F$ vs $G$) across 100 evaluation episodes per variant.
    - Calibrated counterfactual risk utility (targeting the sweet spot: $F$'s $\sim 7.8$ pellet drive with $E$'s $\sim 83$ safe catches).
    - Wall recovery latency reduction (reducing collision-recovery response from $23.1 \to \le 10$ ticks).
