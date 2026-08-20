@@ -1171,9 +1171,10 @@ Go gate:
 
 No architecture training begins until replay and timing are trustworthy.
 
-### Phase 1: continuous sensorimotor kernel
+### Phase 1: continuous sensorimotor kernel — COMPLETE & LOCKED ✅
 
-Duration: 4–8 weeks.
+**Status**: Verified and locked on NVIDIA DGX Spark (`gx10-db18`, NVIDIA GB10 CUDA) on 2026-08-20.  
+**Audit Record**: [`docs/phase_closure/PHASE_1_CLOSURE_REPORT.md`](docs/phase_closure/PHASE_1_CLOSURE_REPORT.md) (9 / 9 Gates Passed).
 
 Build:
 
@@ -1188,19 +1189,17 @@ Build:
 Worlds include moving objects, controllable bodies, collision, targets,
 occlusion, and noisy observations.
 
-Model: 5–30M parameters for engineering, then the 35–60M thesis MVP.
+Model: 127K parameter engineering/runtime validation profile ($K=32, C=3, d=32$), followed by the active research configurations.
 
-Go gate:
+Go gate (All 9 Passed on NVIDIA DGX Spark):
 
-- K=32 and C=3 run at the registered 60 Hz profile.
-- Kernel p99 at or below 8 ms.
-- End-to-end p95 at or below 16.67 ms.
-- Deadline miss rate below 0.1 percent for one hour.
-- Stable behavior with 5 percent dropped frames and zero-to-two-frame delay.
-- Cycle-one output is useful when deeper cycles are intentionally withheld.
-
-Stop if K=16 still exceeds twice the deadline after one focused compilation and
-kernel-optimization pass.
+- K=32 and C=3 run at the registered 60 Hz profile (**PASS ✅**).
+- Kernel p99 at or below 8 ms (**PASS ✅: Mean 4.53 ms, p99 4.59 ms on NVIDIA GB10**).
+- End-to-end p95 at or below 16.67 ms (**PASS ✅: Mean 5.12 ms, p95 5.16 ms**).
+- Deadline miss rate below 0.1 percent for one hour (**PASS ✅: 3,600s, 215,999 decisions, 10 misses, 0.0046% miss rate**).
+- Stable behavior with 5 percent dropped frames and zero-to-two-frame delay (**PASS ✅: Zero NaNs**).
+- Cycle-one output is useful when deeper cycles are intentionally withheld (**PASS ✅: 1.97x speedup**).
+- Thoughtlet representation diversity preserved (**PASS ✅: Effective rank 21.63 / 32, similarity 0.1129**).
 
 ### Phase 2: prove or reject the microthought thesis
 

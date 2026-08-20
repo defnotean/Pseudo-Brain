@@ -314,13 +314,24 @@ class LatentLookaheadPlanner(nn.Module):
             self.value_head = nn.Linear(width, 1)
             self.counterfactual_foresight_head = None
             self.topological_goal_head = None
-
         self.hazard_head = LatentHazardHead(width=width)
         self.reward_head = LatentRewardHead(width=width)
         self.sensory_transition = LatentSensoryTransition(
             width=width,
             sensor_tokens=self.config.sensor_tokens,
         )
+        if model is not None:
+            try:
+                device = next(model.parameters()).device
+                self.to(device)
+            except (StopIteration, RuntimeError):
+                pass
+
+    def to(self, device: torch.device | str) -> LatentLookaheadPlanner:
+        self.hazard_head.to(device)
+        self.reward_head.to(device)
+        self.sensory_transition.to(device)
+        return self
 
     def unroll_latent_step(
         self,

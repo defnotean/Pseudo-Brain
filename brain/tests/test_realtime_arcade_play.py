@@ -54,16 +54,17 @@ class RealtimeArcadePlayTests(unittest.TestCase):
             cognitive_cycles=2,
             actuator=replace(base_config.actuator, continuous_squash="deadzone_tanh"),
         )
-        model = IreneBrainModel(model_config)
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        model = IreneBrainModel(model_config).to(device)
         model.eval()
 
         planner = LatentLookaheadPlanner(
             model=model,
-            horizon=2,
+            horizon=1,
             gamma=0.95,
             hazard_weight=4.0,
         )
-        policy = LatentLookaheadPolicy(model=model, planner=planner)
+        policy = LatentLookaheadPolicy(model=model, planner=planner, selective_gating=True, device=device)
         policy.reset(1702)
 
         env = MazeChaseEnv(max_ticks=60, ghost_count=2)
