@@ -244,6 +244,7 @@ def evaluate_closed_loop_model(
     device: torch.device = torch.device("cuda:0"),
     active_slots: int | None = None,
     intervention_mode: str = "none",
+    donor_thoughts: Tensor | None = None,
 ) -> dict[str, Any]:
     model.eval()
     returns: list[float] = []
@@ -268,11 +269,6 @@ def evaluate_closed_loop_model(
                 perm_noise = model.base_brain._thought_identity_codes[perm_tensor].unsqueeze(0)
 
         while ticks < env.config.max_ticks:
-            if intervention_mode == "scramble" and hasattr(state, "thoughts"):
-                state = scramble_cognitive_bindings(state)
-            elif intervention_mode == "permute" and hasattr(state, "thoughts") and perm is not None:
-                state = permute_whole_slots(state, permutation=perm)
-
             raw_rgb = np.frombuffer(obs.rgb.pixels, dtype=np.uint8).reshape((16, 16, 3))
             rgb_tensor = torch.from_numpy(raw_rgb).permute(2, 0, 1).unsqueeze(0).float().to(device) / 255.0
             if rgb_tensor.shape[-1] != 32:
@@ -287,6 +283,10 @@ def evaluate_closed_loop_model(
                     kwargs["active_slots"] = active_slots
                 if perm_noise is not None:
                     kwargs["thought_noise"] = perm_noise
+                if intervention_mode != "none":
+                    kwargs["thought_intervention"] = intervention_mode
+                    kwargs["slot_permutation"] = perm
+                    kwargs["donor_thoughts"] = donor_thoughts
                 out = model(rgb_tensor, ctrl_tensor, dt_tensor, state=state, **kwargs)
 
             state = out.next_state
@@ -358,7 +358,7 @@ def main() -> None:
         "proposal_gru_baseline": {},
         "resource_matched_capacity_curve": {},
         "future_coverage_diagnostics": {},
-        "causal_diagnostics": {},
+        "progressive_causal_interventions": {},
     }
 
     # 1. Checkpointed Interactive On-Policy DAgger for K=32 Pseudo-Brain
@@ -383,12 +383,14 @@ def main() -> None:
             "mean_hazard_on_danger": cov_res.mean_hazard_on_danger,
             "mean_hazard_on_safe": cov_res.mean_hazard_on_safe,
             "ranking_correlation_rho": cov_res.ranking_correlation_rho,
+            "optimal_action_top1_acc_pct": cov_res.optimal_action_top1_acc_pct,
+            "reflex_action_flip_rate_pct": cov_res.reflex_action_flip_rate_pct,
             "stage1_imagined_pct": cov_res.stage1_imagined_pct,
             "stage2_accurate_pct": cov_res.stage2_accurate_pct,
             "stage3_correctly_ranked_pct": cov_res.stage3_correctly_ranked_pct,
             "stage4_selected_pct": cov_res.stage4_selected_pct,
         }
-        print(f"  [PB K=32 @ {ckpt:4d} Steps] IQM = {eval_res['iqm_return']:6.2f} | H2 MSE = {cov_res.displacement_mse:.3f} | Rank ρ = {cov_res.ranking_correlation_rho:+.3f} | Haz AUROC = {cov_res.hazard_auroc:.3f} | S1-S4 = ({cov_res.stage1_imagined_pct:.0f}%, {cov_res.stage2_accurate_pct:.0f}%, {cov_res.stage3_correctly_ranked_pct:.0f}%, {cov_res.stage4_selected_pct:.0f}%)")
+        print(f"  [PB K=32 @ {ckpt:4d} Steps] IQM = {eval_res['iqm_return']:6.2f} | Top1 Acc = {cov_res.optimal_action_top1_acc_pct:5.1f}% | Rank ρ = {cov_res.ranking_correlation_rho:+.3f} | Haz AUROC = {cov_res.hazard_auroc:.3f} | Reflex Flips = {cov_res.reflex_action_flip_rate_pct:.1f}%")
 
     # 2. Checkpointed Interactive On-Policy DAgger for Matched Proposal-GRU Baseline
     print("\n--- Checkpointed On-Policy DAgger Training: Proposal-GRU Baseline ---")
@@ -466,41 +468,61 @@ def main() -> None:
             "mean_hazard_on_danger": cov_res.mean_hazard_on_danger,
             "mean_hazard_on_safe": cov_res.mean_hazard_on_safe,
             "ranking_correlation_rho": cov_res.ranking_correlation_rho,
+            "optimal_action_top1_acc_pct": cov_res.optimal_action_top1_acc_pct,
+            "reflex_action_flip_rate_pct": cov_res.reflex_action_flip_rate_pct,
             "stage1_imagined_pct": cov_res.stage1_imagined_pct,
             "stage2_accurate_pct": cov_res.stage2_accurate_pct,
             "stage3_correctly_ranked_pct": cov_res.stage3_correctly_ranked_pct,
             "stage4_selected_pct": cov_res.stage4_selected_pct,
         }
-        print(f"  Resource-Matched K = {k:2d} | IQM = {eval_res['iqm_return']:6.2f} | Futures = {cov_res.distinct_future_coverage:.2f}/5 | H2 MSE = {cov_res.displacement_mse:.3f} | Haz AUROC = {cov_res.hazard_auroc:.3f} | S1-S4 = ({cov_res.stage1_imagined_pct:.0f}%, {cov_res.stage2_accurate_pct:.0f}%, {cov_res.stage3_correctly_ranked_pct:.0f}%, {cov_res.stage4_selected_pct:.0f}%)")
+        print(f"  Resource-Matched K = {k:2d} | IQM = {eval_res['iqm_return']:6.2f} | Top1 Acc = {cov_res.optimal_action_top1_acc_pct:5.1f}% | Futures = {cov_res.distinct_future_coverage:.2f}/5 | Haz AUROC = {cov_res.hazard_auroc:.3f}")
 
     results["resource_matched_capacity_curve"] = capacity_curve
     results["future_coverage_diagnostics"] = coverage_curve
 
-    # 4. Causal Diagnostics: Permutation, Scrambling, and Thought Knockout
-    print("\n--- Diagnostic Causal Interventions ---")
-    base_eval = evaluate_closed_loop_model(pb_model, test_env, seed=42, episodes=args.episodes_per_world, device=device)
-    perm_eval = evaluate_closed_loop_model(pb_model, test_env, seed=42, episodes=args.episodes_per_world, device=device, intervention_mode="permute")
-    scramble_eval = evaluate_closed_loop_model(pb_model, test_env, seed=42, episodes=args.episodes_per_world, device=device, intervention_mode="scramble")
-    zero_eval = evaluate_closed_loop_model(pb_model, test_env, seed=42, episodes=args.episodes_per_world, device=device, active_slots=0)
+    # 4. The 7-Stage Progressive Causal Intervention Spectrum
+    print("\n--- 7-Stage Progressive Causal Intervention Spectrum ---")
+    donor_env = Phase2TaskEnvironment(make_family_suite(TaskFamily.FAMILY_A_MULTI_OBJECT)[0])
+    donor_obs = donor_env.reset(9999)
+    raw_donor = np.frombuffer(donor_obs.rgb.pixels, dtype=np.uint8).reshape((16, 16, 3))
+    donor_rgb = F.interpolate(torch.from_numpy(raw_donor).permute(2, 0, 1).unsqueeze(0).float().to(device) / 255.0, size=(32, 32))
+    with torch.no_grad():
+        donor_out = pb_model.base_brain(donor_rgb, torch.zeros((1, 307), device=device), torch.tensor([0.016], device=device))
+        donor_thoughts = donor_out.next_state.thoughts
 
-    base_ret = base_eval["iqm_return"]
-    perm_drop = max(0.0, (base_ret - perm_eval["iqm_return"]) / (abs(base_ret) + 1e-4) * 100)
-    scramble_drop = max(0.0, (base_ret - scramble_eval["iqm_return"]) / (abs(base_ret) + 1e-4) * 100)
-    zero_drop = max(0.0, (base_ret - zero_eval["iqm_return"]) / (abs(base_ret) + 1e-4) * 100)
+    interventions = [
+        ("A_normal", "none", {}),
+        ("B_permute", "permute", {}),
+        ("C_register_swap", "register_swap", {}),
+        ("D_stale_thoughts", "stale", {"donor_thoughts": donor_thoughts}),
+        ("E_donor_thoughts", "donor", {"donor_thoughts": donor_thoughts}),
+        ("F_gaussian_noise", "gaussian", {}),
+        ("G_zero_knockout", "zero", {}),
+    ]
 
-    results["causal_diagnostics"] = {
-        "base_iqm": base_ret,
-        "permuted_iqm": perm_eval["iqm_return"],
-        "permutation_drop_pct": float(perm_drop),
-        "scrambled_iqm": scramble_eval["iqm_return"],
-        "scrambling_drop_pct": float(scramble_drop),
-        "zero_thoughts_iqm": zero_eval["iqm_return"],
-        "zero_thoughts_drop_pct": float(zero_drop),
-    }
+    causal_results: dict[str, Any] = {}
+    base_res = evaluate_closed_loop_model(pb_model, test_env, seed=42, episodes=args.episodes_per_world, device=device)
+    base_iqm = base_res["iqm_return"]
 
-    print(f"  Whole-Slot Permutation Degradation : {perm_drop:.2f}%")
-    print(f"  Cognitive Scrambling Degradation   : {scramble_drop:.2f}%")
-    print(f"  Complete Thought Knockout Degradation: {zero_drop:.2f}%")
+    for name, mode, extra in interventions:
+        eval_out = evaluate_closed_loop_model(
+            pb_model,
+            test_env,
+            seed=42,
+            episodes=args.episodes_per_world,
+            device=device,
+            intervention_mode=mode,
+            **extra,
+        )
+        iqm = eval_out["iqm_return"]
+        drop_pct = max(0.0, (base_iqm - iqm) / (abs(base_iqm) + 1e-4) * 100.0) if mode != "none" else 0.0
+        causal_results[name] = {
+            "iqm_return": iqm,
+            "degradation_drop_pct": float(drop_pct),
+        }
+        print(f"  [{name:18s}] IQM Return = {iqm:6.2f} | Degradation = {drop_pct:5.2f}%")
+
+    results["progressive_causal_interventions"] = causal_results
 
     os.makedirs(os.path.dirname(args.output_json), exist_ok=True)
     with open(args.output_json, "w") as f:

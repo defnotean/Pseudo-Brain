@@ -43,7 +43,7 @@ class ThoughtMediatedBrainModel(nn.Module):
         self.actuator = ConsequenceThoughtActuator(
             core_width=config.core_width,
             num_buttons=config.actuator.keyboard_keys + config.actuator.mouse_buttons,
-            max_reflex_delta=0.10,
+            max_reflex_delta=0.02,
         )
 
     def initial_state(self, batch_size: int = 1) -> BrainState:
@@ -59,6 +59,9 @@ class ThoughtMediatedBrainModel(nn.Module):
         max_cycles: int | None = None,
         active_slots: int | None = None,
         thought_noise: Tensor | None = None,
+        thought_intervention: str | None = None,
+        donor_thoughts: Tensor | None = None,
+        slot_permutation: Sequence[int] | None = None,
     ) -> ThoughtMediatedModelOutput:
         batch = rgb.shape[0]
         if state is None:
@@ -83,6 +86,24 @@ class ThoughtMediatedBrainModel(nn.Module):
             if active_slots > 0:
                 active_mask[:, :min(active_slots, self.config.thoughtlets)] = 1.0
             thoughts = thoughts * active_mask.unsqueeze(-1).unsqueeze(-1)
+
+        # Progressive Causal Thought Interventions (applied directly before actuator decoding)
+        if thought_intervention == "permute" and slot_permutation is not None:
+            thoughts = thoughts[:, slot_permutation]
+        elif thought_intervention == "register_swap":
+            if thoughts.ndim == 4 and thoughts.shape[2] >= 2:
+                thoughts = thoughts.clone()
+                thoughts[:, :, 0], thoughts[:, :, 1] = thoughts[:, :, 1].clone(), thoughts[:, :, 0].clone()
+        elif thought_intervention == "stale" and donor_thoughts is not None:
+            thoughts = donor_thoughts.to(thoughts.device)
+        elif thought_intervention == "donor" and donor_thoughts is not None:
+            thoughts = donor_thoughts.to(thoughts.device)
+        elif thought_intervention == "gaussian":
+            noise_scale = thoughts.std().clamp_min(1e-2).item()
+            thoughts = torch.randn_like(thoughts) * noise_scale
+        elif thought_intervention == "zero" or active_slots == 0:
+            thoughts = torch.zeros_like(thoughts)
+            active_mask = torch.zeros((batch, self.config.thoughtlets), device=rgb.device)
 
         # Decode action EXCLUSIVELY through consequence proposals + bounded sensory reflex
         sensors = next_state.belief  # [B, S, Width]

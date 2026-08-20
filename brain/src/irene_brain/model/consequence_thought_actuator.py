@@ -64,11 +64,13 @@ class ConsequenceActionOutput:
 class SharedConsequenceProposalHead(nn.Module):
     """Shared neural projection mapping each thoughtlet to an action-conditioned consequence hypothesis."""
 
-    def __init__(self, *, core_width: int, num_actions: int = 5) -> None:
+    def __init__(self, *, core_width: int, num_actions: int = 5, num_registers: int = 3) -> None:
         super().__init__()
         self.core_width = core_width
         self.num_actions = num_actions
+        self.num_registers = num_registers
 
+        self.register_projection = nn.Linear(num_registers * core_width, core_width)
         self.trunk = nn.Sequential(
             nn.Linear(core_width, core_width),
             nn.SiLU(),
@@ -88,11 +90,13 @@ class SharedConsequenceProposalHead(nn.Module):
         active_mask: [B, K] in {0, 1}
         """
         if thoughts.ndim == 4:
-            slot_tokens = thoughts.mean(dim=2)  # [B, K, Width]
+            b, k, r, w = thoughts.shape
+            if self.register_projection.in_features != r * w:
+                self.register_projection = nn.Linear(r * w, self.core_width).to(thoughts.device)
+            slot_tokens = self.register_projection(thoughts.reshape(b, k, r * w))  # [B, K, Width]
         else:
             slot_tokens = thoughts
-
-        b, k, w = slot_tokens.shape
+            b, k, w = slot_tokens.shape
 
         if active_mask is None:
             thought_norms = torch.norm(slot_tokens, dim=-1)  # [B, K]
@@ -182,7 +186,7 @@ class ConsequenceThoughtActuator(nn.Module):
         *,
         core_width: int,
         num_buttons: int = 296,
-        max_reflex_delta: float = 0.10,
+        max_reflex_delta: float = 0.02,
         temperature: float = 1.0,
     ) -> None:
         super().__init__()

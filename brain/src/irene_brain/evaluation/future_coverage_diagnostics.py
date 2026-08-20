@@ -28,6 +28,7 @@ from ..environments.phase2_suite import Phase2TaskEnvironment
 from ..training.staged_branch_curriculum import (
     ComprehensiveBranchBundle,
     generate_comprehensive_branch_bundle,
+    generate_multi_step_trajectory_tree,
 )
 
 
@@ -68,6 +69,8 @@ class FutureCoverageReport:
     mean_hazard_on_danger: float
     mean_hazard_on_safe: float
     ranking_correlation_rho: float        # in [-1.0, +1.0]
+    optimal_action_top1_acc_pct: float    # % states where predicted argmax utility == optimal action
+    reflex_action_flip_rate_pct: float    # % states where reflex changes the discrete action choice
     stage1_imagined_pct: float            # % optimal action represented in slots
     stage2_accurate_pct: float            # % predictions accurate within epsilon
     stage3_correctly_ranked_pct: float    # % optimal consequence ranked #1
@@ -95,6 +98,8 @@ def evaluate_future_coverage(
     danger_haz_preds = []
     safe_haz_preds = []
 
+    top1_ranked_list = []
+    reflex_flips = []
     s1_imagined = []
     s2_accurate = []
     s3_ranked = []
@@ -120,7 +125,7 @@ def evaluate_future_coverage(
             out = model(rgb_tensor, ctrl_tensor, dt_tensor, state=state, active_slots=active_slots)
             proposals = out.action.proposals
 
-            bundle = generate_comprehensive_branch_bundle(env, obs, device=device)
+            bundle = generate_multi_step_trajectory_tree(env, obs, horizon=2, device=device)
 
             # 1. Measure distinct action conditions covered
             pred_action_probs = proposals.action_probs[0]  # [K, 5]
@@ -167,6 +172,8 @@ def evaluate_future_coverage(
                 min_disp_err = dists.min(dim=0).values.mean().item()
             else:
                 min_disp_err = 0.80
+            disp_errors.append(min_disp_err)
+
             # 4. Action-Aligned Ranking Correlation
             action_aligned_utils = []
             for act_i in range(5):
@@ -181,9 +188,11 @@ def evaluate_future_coverage(
             rho = _compute_spearman_rho(np.array(action_aligned_utils), gt_utils_np)
             correlations.append(rho)
 
-            # 5. 4-Stage Decision Failure Decomposition
+            # 5. Optimal Action Top-1 Accuracy & Decision Decomposition
             gt_utils = bundle.utilities[:5].squeeze(-1)
             opt_action_idx = int(torch.argmax(gt_utils).item())
+            pred_top1_action = int(np.argmax(action_aligned_utils))
+            top1_ranked_list.append(1.0 if pred_top1_action == opt_action_idx else 0.0)
 
             # Stage 1: Did any active slot represent the optimal action?
             if len(predicted_action_choices) > 0 and (predicted_action_choices == opt_action_idx).any():
@@ -198,7 +207,7 @@ def evaluate_future_coverage(
                 s2_accurate.append(1.0 if accurate else 0.0)
 
                 # Stage 3: Was it ranked highest among active slots?
-                ranked_top = (torch.argmax(active_utils).item() == best_slot.item())
+                ranked_top = (pred_top1_action == opt_action_idx)
                 s3_ranked.append(1.0 if ranked_top else 0.0)
             else:
                 s1_imagined.append(0.0)
@@ -212,6 +221,12 @@ def evaluate_future_coverage(
             selected_act = int(np.argmax(dir_scores))
             s4_selected.append(1.0 if selected_act == opt_action_idx else 0.0)
 
+            # Reflex Flip Rate Check
+            main_logits = out.action.main_action_intent[0].cpu().numpy()
+            main_dir_scores = [0.0 if idx == 0 else float(main_logits[key]) for idx, key in enumerate(dir_keys)]
+            main_act = int(np.argmax(main_dir_scores))
+            reflex_flips.append(1.0 if main_act != selected_act else 0.0)
+
     auroc = _compute_auroc(np.array(all_gt_hazards), np.array(all_pred_hazards))
 
     return FutureCoverageReport(
@@ -223,6 +238,8 @@ def evaluate_future_coverage(
         mean_hazard_on_danger=float(np.mean(danger_haz_preds)) if danger_haz_preds else 0.0,
         mean_hazard_on_safe=float(np.mean(safe_haz_preds)) if safe_haz_preds else 0.0,
         ranking_correlation_rho=float(np.mean(correlations)) if correlations else 0.0,
+        optimal_action_top1_acc_pct=float(np.mean(top1_ranked_list) * 100.0),
+        reflex_action_flip_rate_pct=float(np.mean(reflex_flips) * 100.0),
         stage1_imagined_pct=float(np.mean(s1_imagined) * 100.0),
         stage2_accurate_pct=float(np.mean(s2_accurate) * 100.0),
         stage3_correctly_ranked_pct=float(np.mean(s3_ranked) * 100.0),
