@@ -1,12 +1,11 @@
 """DGX Spark Campaign Harness for Thought-Mediated Parallel Cognition.
 
 Evaluates:
-1. Balanced Multi-Family Checkpointed DAgger Training with Temporal Matching Inertia.
-2. Counterfactual Thought Transplant Test (proving state-specific semantic steering).
-3. Multi-Hypothesis Horizon Benchmark (H=4 steps) vs Standard Decision-Critical Benchmark.
-4. Per-K 5-Stage Decision Decomposition (Imagined -> Accurate -> Hazard -> Ranked -> Selected).
+1. Direct Temporal Persistence Evaluation: Lambda=0.0 vs Lambda=0.50.
+2. Granular 5-Stage Decision Decomposition (Imagined -> Disp -> Rew -> Haz -> Conf -> Ranked -> Selected).
+3. Stochastic, Occluded & Information-Gathering Benchmark (Uncertainty & Probe actions).
+4. Multi-Seed Scaling Curve across K in {1, 4, 8, 16, 32} and Proposal-GRU Baseline (5 Seeds).
 5. 8-Stage Progressive Presence vs. Meaning Causal Spectrum.
-6. Resource-Matched Capacity Scaling across K in {0, 1, 4, 5, 8, 16, 32}.
 """
 
 from __future__ import annotations
@@ -36,6 +35,14 @@ from irene_brain.environments.decision_critical_suite import (
     MultiHypothesisHorizonReport,
     evaluate_decision_critical_benchmark,
     evaluate_multi_hypothesis_horizon_benchmark,
+)
+from irene_brain.environments.stochastic_occluded_benchmark import (
+    StochasticOccludedReport,
+    evaluate_stochastic_occluded_benchmark,
+)
+from irene_brain.evaluation.temporal_persistence_diagnostics import (
+    TemporalPersistenceReport,
+    evaluate_temporal_persistence,
 )
 from irene_brain.model.spec import ThoughtFieldConfig
 from irene_brain.model.thought_mediated_model import (
@@ -84,11 +91,12 @@ def train_thought_mediated_model(
     device: torch.device,
     training_steps: int = 300,
     lr: float = 5e-4,
+    inertia_weight: float = 0.5,
 ) -> None:
     """Balanced Multi-Family On-Policy DAgger training with temporal matching inertia."""
     model.train()
     optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
-    loss_fn = MultiHypothesisBranchLoss(inertia_weight=0.5).to(device)
+    loss_fn = MultiHypothesisBranchLoss(inertia_weight=inertia_weight).to(device)
 
     all_families = list(TaskFamily)
     envs = [Phase2TaskEnvironment(make_family_suite(fam)[0]) for fam in all_families]
@@ -98,7 +106,6 @@ def train_thought_mediated_model(
         rgb_tensors = []
         bundles = []
 
-        # 1. Step all 5 task families simultaneously
         for idx, (env, obs) in enumerate(zip(envs, obs_list)):
             raw_rgb = np.frombuffer(obs.rgb.pixels, dtype=np.uint8).reshape((16, 16, 3))
             rgb_tensor = torch.from_numpy(raw_rgb.copy()).permute(2, 0, 1).unsqueeze(0).float().to(device) / 255.0
@@ -109,7 +116,6 @@ def train_thought_mediated_model(
             bundle = generate_multi_step_trajectory_tree(env, obs, horizon=2, device=device)
             bundles.append(bundle)
 
-        # 2. Parallel Forward Pass over Balanced Multi-Family Batch
         rgb_batch = torch.cat(rgb_tensors, dim=0)
         ctrl_batch = torch.zeros((len(envs), 307), device=device)
         dt_batch = torch.tensor([0.016667] * len(envs), device=device)
@@ -122,7 +128,6 @@ def train_thought_mediated_model(
         nn.utils.clip_grad_norm_(model.parameters(), 1.0)
         optimizer.step()
 
-        # 3. Advance environments
         with torch.no_grad():
             button_logits = out.action.button_logits.cpu().numpy()
             for idx, (env, obs) in enumerate(zip(envs, obs_list)):
@@ -238,7 +243,6 @@ def evaluate_closed_loop_model(
         ep_return = 0.0
         ticks = 0
 
-        # Choose fixed slot permutation with aligned identity codes
         perm = None
         perm_noise = None
         if intervention_mode == "permute" and hasattr(state, "thoughts"):
@@ -297,7 +301,6 @@ def evaluate_closed_loop_model(
                     keys.append(int(HidKey.D))
                     chosen_act = 4
 
-            # Measure Online Top-1 Accuracy on actual encountered state
             with torch.no_grad():
                 bundle = generate_multi_step_trajectory_tree(env, obs, horizon=2, device=device)
                 gt_opt_action = int(torch.argmax(bundle.utilities[:5]).item())
@@ -334,149 +337,146 @@ def main() -> None:
     args = parser.parse_args()
 
     device = torch.device(args.device)
-    print(f"=== Starting Multi-Family DAgger Campaign with Temporal Inertia on {device} ===")
+    print(f"=== Starting Comprehensive Multi-Family Campaign on {device} ===")
     print(f"PyTorch: {torch.__version__}, CUDA: {torch.cuda.is_available()}")
 
     seeds = [42, 43, 44, 45, 46]
-    checkpoints = [200, 400, 600, 800, 1000]
     test_env = Phase2TaskEnvironment(make_family_suite(TaskFamily.FAMILY_B_PURSUIT_EVASION)[0])
 
     results: dict[str, Any] = {
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
         "device": str(device),
         "seeds": seeds,
-        "checkpoints": checkpoints,
-        "pb_k32_trajectory": {},
-        "gru_trajectory": {},
-        "thought_transplant_report": {},
+        "temporal_persistence_comparison": {},
         "per_k_decision_decomposition": {},
-        "multi_hypothesis_horizon_benchmark": {},
-        "resource_matched_capacity_curve": {},
-        "future_coverage_diagnostics": {},
+        "stochastic_occluded_benchmark": {},
+        "multi_seed_scaling_curve": {},
         "progressive_causal_interventions": {},
     }
 
-    # 1. Checkpointed Interactive Multi-Family DAgger for K=32 Pseudo-Brain
-    print("\n--- Checkpointed Multi-Family DAgger Training: Pseudo-Brain (K=32) ---")
-    pb_model = build_resource_matched_thought_model(32).to(device)
-    current_step = 0
-    for ckpt in checkpoints:
-        steps_to_train = ckpt - current_step
-        if steps_to_train > 0:
-            train_thought_mediated_model(pb_model, device=device, training_steps=steps_to_train)
-            current_step = ckpt
+    # 1. Direct Hypothesis Persistence Diagnostic: Lambda=0.0 vs Lambda=0.50
+    print("\n--- 1. Quantitative Evaluation of Temporal Hypothesis Persistence ---")
+    pb_test = build_resource_matched_thought_model(32).to(device)
+    train_thought_mediated_model(pb_test, device=device, training_steps=300, inertia_weight=0.5)
 
-        eval_res = evaluate_closed_loop_model(pb_model, test_env, seed=42, episodes=args.episodes_per_world, device=device)
-        cov_res = evaluate_future_coverage(pb_model, test_env, device=device)
-        crit_res = evaluate_decision_critical_benchmark(pb_model, device=device)
-        h4_res = evaluate_multi_hypothesis_horizon_benchmark(pb_model, device=device)
+    p_rep_no_inertia = evaluate_temporal_persistence(pb_test, inertia_weight=0.0, device=device)
+    p_rep_with_inertia = evaluate_temporal_persistence(pb_test, inertia_weight=0.5, device=device)
 
-        results["pb_k32_trajectory"][ckpt] = {
-            "iqm_return": eval_res["iqm_return"],
-            "online_top1_acc_pct": eval_res["online_top1_acc_pct"],
-            "decision_critical_score": crit_res.total_decision_score,
-            "decision_critical_acc_pct": crit_res.decision_accuracy_pct,
-            "horizon4_score": h4_res.multi_hypothesis_score,
-            "horizon4_acc_pct": h4_res.horizon4_accuracy_pct,
-            "trap_avoidance_pct": h4_res.greedy_trap_avoidance_pct,
-            "distinct_future_coverage": cov_res.distinct_future_coverage,
-            "displacement_mse": cov_res.displacement_mse,
-            "hazard_auroc": cov_res.hazard_auroc,
-            "stage1_imagined_pct": cov_res.stage1_imagined_pct,
-            "stage2_accurate_pct": cov_res.stage2_accurate_pct,
-            "stage3_correctly_ranked_pct": cov_res.stage3_correctly_ranked_pct,
-            "stage4_selected_pct": cov_res.stage4_selected_pct,
-        }
-        print(f"  [PB K=32 @ {ckpt:4d} Steps] DecCrit = {crit_res.total_decision_score:+5.1f} ({crit_res.decision_accuracy_pct:5.1f}%) | H4 Score = {h4_res.multi_hypothesis_score:+5.1f} ({h4_res.horizon4_accuracy_pct:5.1f}%) | S1-4 = [{cov_res.stage1_imagined_pct:.0f}%, {cov_res.stage2_accurate_pct:.0f}%, {cov_res.stage3_correctly_ranked_pct:.0f}%, {cov_res.stage4_selected_pct:.0f}%]")
-
-    # 2. Checkpointed Interactive Multi-Family DAgger for Matched Proposal-GRU Baseline
-    print("\n--- Checkpointed Multi-Family DAgger Training: Proposal-GRU Baseline ---")
-    gru_model = ProposalGRUBaseline().to(device)
-    current_step = 0
-    for ckpt in checkpoints:
-        steps_to_train = ckpt - current_step
-        if steps_to_train > 0:
-            train_proposal_gru_baseline(gru_model, device=device, training_steps=steps_to_train)
-            current_step = ckpt
-
-        eval_res = evaluate_closed_loop_model(gru_model, test_env, seed=42, episodes=args.episodes_per_world, device=device)
-        crit_res = evaluate_decision_critical_benchmark(gru_model, device=device)
-        h4_res = evaluate_multi_hypothesis_horizon_benchmark(gru_model, device=device)
-        results["gru_trajectory"][ckpt] = {
-            "iqm_return": eval_res["iqm_return"],
-            "online_top1_acc_pct": eval_res["online_top1_acc_pct"],
-            "decision_critical_score": crit_res.total_decision_score,
-            "decision_critical_acc_pct": crit_res.decision_accuracy_pct,
-            "horizon4_score": h4_res.multi_hypothesis_score,
-            "horizon4_acc_pct": h4_res.horizon4_accuracy_pct,
-            "trap_avoidance_pct": h4_res.greedy_trap_avoidance_pct,
-        }
-        print(f"  [GRU Matched @ {ckpt:4d} Steps] DecCrit = {crit_res.total_decision_score:+5.1f} ({crit_res.decision_accuracy_pct:5.1f}%) | H4 Score = {h4_res.multi_hypothesis_score:+5.1f} ({h4_res.horizon4_accuracy_pct:5.1f}%) | Trap Avoid = {h4_res.greedy_trap_avoidance_pct:5.1f}%")
-
-    # 3. Counterfactual Thought Transplant Test (Semantic Causal Steering)
-    print("\n--- Running Counterfactual Thought Transplant Test ---")
-    trans_report = evaluate_counterfactual_thought_transplant(pb_model, test_env, num_pairs=50, device=device)
-    results["thought_transplant_report"] = {
-        "num_pairs_evaluated": trans_report.num_pairs_evaluated,
-        "donor_action_adoption_rate_pct": trans_report.donor_action_adoption_rate_pct,
-        "mean_donor_prob_increase": trans_report.mean_donor_prob_increase,
-        "recipient_action_suppression_pct": trans_report.recipient_action_suppression_pct,
-        "semantic_fidelity_score": trans_report.semantic_fidelity_score,
+    results["temporal_persistence_comparison"] = {
+        "no_inertia_lambda_0": {
+            "retention_rate_pct": p_rep_no_inertia.branch_identity_retention_rate_pct,
+            "reassignment_rate_pct": p_rep_no_inertia.slot_reassignment_rate_pct,
+            "mean_lifetime_ticks": p_rep_no_inertia.mean_hypothesis_lifetime_ticks,
+            "unnecessary_switch_rate_pct": p_rep_no_inertia.unnecessary_switch_rate_pct,
+        },
+        "with_inertia_lambda_0_5": {
+            "retention_rate_pct": p_rep_with_inertia.branch_identity_retention_rate_pct,
+            "reassignment_rate_pct": p_rep_with_inertia.slot_reassignment_rate_pct,
+            "mean_lifetime_ticks": p_rep_with_inertia.mean_hypothesis_lifetime_ticks,
+            "unnecessary_switch_rate_pct": p_rep_with_inertia.unnecessary_switch_rate_pct,
+        },
     }
-    print(f"  Donor Action Adoption Rate : {trans_report.donor_action_adoption_rate_pct:5.1f}% (Transplant shifts choice to donor optimal action)")
-    print(f"  Mean Donor Prob Increase   : {trans_report.mean_donor_prob_increase:+5.3f} (Increase in P(donor_action))")
-    print(f"  Recipient Action Suppressed: {trans_report.recipient_action_suppression_pct:5.1f}% (Suppression of recipient original action)")
-    print(f"  Semantic Fidelity Score    : {trans_report.semantic_fidelity_score:5.3f} / 1.000")
+    print(f"  [No Inertia (Lambda=0.0)] Retention = {p_rep_no_inertia.branch_identity_retention_rate_pct:5.1f}% | Lifetime = {p_rep_no_inertia.mean_hypothesis_lifetime_ticks:4.1f} ticks | Unnec Switches = {p_rep_no_inertia.unnecessary_switch_rate_pct:5.1f}%")
+    print(f"  [With Inertia (Lambda=0.5)] Retention = {p_rep_with_inertia.branch_identity_retention_rate_pct:5.1f}% | Lifetime = {p_rep_with_inertia.mean_hypothesis_lifetime_ticks:4.1f} ticks | Unnec Switches = {p_rep_with_inertia.unnecessary_switch_rate_pct:5.1f}%")
 
-    # 4. Resource-Matched Capacity Scaling Curve & Per-K Decision Decomposition
-    print("\n--- Evaluating Resource-Matched Capacity Scaling & Decision Decomposition across K ---")
-    k_points = [0, 1, 4, 5, 8, 16, 32]
-    capacity_curve: dict[int, float] = {}
-    coverage_curve: dict[int, dict[str, float]] = {}
-    h4_curve: dict[int, dict[str, float]] = {}
+    # 2. Granular 5-Stage Decision Decomposition across K in {0, 1, 4, 5, 8, 16, 32}
+    print("\n--- 2. Granular 5-Stage Decision Decomposition across K ---")
+    k_list = [0, 1, 4, 5, 8, 16, 32]
+    decomp_results: dict[int, dict[str, Any]] = {}
 
-    for k in k_points:
+    for k in k_list:
         if k == 0:
-            matched_model = build_resource_matched_thought_model(1).to(device)
-            eval_res = evaluate_closed_loop_model(matched_model, test_env, seed=42, episodes=args.episodes_per_world, device=device, active_slots=0)
-            cov_res = evaluate_future_coverage(matched_model, test_env, device=device, active_slots=0)
-            crit_res = evaluate_decision_critical_benchmark(matched_model, device=device, active_slots=0)
-            h4_res = evaluate_multi_hypothesis_horizon_benchmark(matched_model, device=device, active_slots=0)
+            m = build_resource_matched_thought_model(1).to(device)
+            rep = evaluate_future_coverage(m, test_env, device=device, active_slots=0)
         else:
-            matched_model = build_resource_matched_thought_model(k).to(device)
-            train_thought_mediated_model(matched_model, device=device, training_steps=300)
-            eval_res = evaluate_closed_loop_model(matched_model, test_env, seed=42, episodes=args.episodes_per_world, device=device)
-            cov_res = evaluate_future_coverage(matched_model, test_env, device=device)
-            crit_res = evaluate_decision_critical_benchmark(matched_model, device=device)
-            h4_res = evaluate_multi_hypothesis_horizon_benchmark(matched_model, device=device)
+            m = build_resource_matched_thought_model(k).to(device)
+            train_thought_mediated_model(m, device=device, training_steps=300)
+            rep = evaluate_future_coverage(m, test_env, device=device)
 
-        capacity_curve[k] = eval_res["iqm_return"]
-        coverage_curve[k] = {
-            "distinct_future_coverage": cov_res.distinct_future_coverage,
-            "hazard_identification_rate_pct": cov_res.hazard_identification_rate_pct,
-            "displacement_mse": cov_res.displacement_mse,
-            "hazard_auroc": cov_res.hazard_auroc,
-            "ranking_correlation_rho": cov_res.ranking_correlation_rho,
-            "decision_critical_score": crit_res.total_decision_score,
-            "decision_critical_acc_pct": crit_res.decision_accuracy_pct,
-            "stage1_imagined_pct": cov_res.stage1_imagined_pct,
-            "stage2_accurate_pct": cov_res.stage2_accurate_pct,
-            "stage3_correctly_ranked_pct": cov_res.stage3_correctly_ranked_pct,
-            "stage4_selected_pct": cov_res.stage4_selected_pct,
+        decomp_results[k] = {
+            "distinct_futures": rep.distinct_future_coverage,
+            "stage1_imagined_pct": rep.stage1_imagined_pct,
+            "stage2a_disp_pct": rep.stage2a_displacement_pct,
+            "stage2b_rew_pct": rep.stage2b_reward_pct,
+            "stage2c_haz_pct": rep.stage2c_hazard_pct,
+            "stage2d_conf_pct": rep.stage2d_confidence_pct,
+            "stage2_accurate_pct": rep.stage2_accurate_pct,
+            "stage3_ranked_pct": rep.stage3_correctly_ranked_pct,
+            "stage4_selected_pct": rep.stage4_selected_pct,
+            "duplicate_slot_distribution": rep.duplicate_slot_distribution,
         }
-        h4_curve[k] = {
-            "horizon4_score": h4_res.multi_hypothesis_score,
-            "horizon4_acc_pct": h4_res.horizon4_accuracy_pct,
-            "trap_avoidance_pct": h4_res.greedy_trap_avoidance_pct,
-        }
-        print(f"  K = {k:2d} | Futures = {cov_res.distinct_future_coverage:.2f}/5 | H4 Score = {h4_res.multi_hypothesis_score:+5.1f} ({h4_res.horizon4_accuracy_pct:5.1f}%) | S1: {cov_res.stage1_imagined_pct:.0f}% S2: {cov_res.stage2_accurate_pct:.0f}% S3: {cov_res.stage3_correctly_ranked_pct:.0f}% S4: {cov_res.stage4_selected_pct:.0f}%")
+        print(f"  K = {k:2d} | Futures = {rep.distinct_future_coverage:.2f}/5 | S1 (Imagined): {rep.stage1_imagined_pct:5.1f}% | S2a (Disp): {rep.stage2a_displacement_pct:5.1f}% | S2b (Rew): {rep.stage2b_reward_pct:5.1f}% | S2c (Haz): {rep.stage2c_hazard_pct:5.1f}% | S3 (Rank): {rep.stage3_correctly_ranked_pct:5.1f}% | S4 (Select): {rep.stage4_selected_pct:5.1f}%")
 
-    results["resource_matched_capacity_curve"] = capacity_curve
-    results["future_coverage_diagnostics"] = coverage_curve
-    results["multi_hypothesis_horizon_benchmark"] = h4_curve
+    results["per_k_decision_decomposition"] = decomp_results
+
+    # 3. Stochastic, Occluded & Information-Gathering Benchmark across K and GRU (5 Seeds)
+    print("\n--- 3. Stochastic, Occluded & Information-Gathering Benchmark (5 Seeds) ---")
+    stoch_results: dict[str, dict[str, Any]] = {}
+
+    for k in [1, 4, 8, 16, 32]:
+        seed_accs = []
+        seed_gamble_avoids = []
+        seed_scores = []
+
+        for seed in seeds:
+            torch.manual_seed(seed)
+            m = build_resource_matched_thought_model(k).to(device)
+            train_thought_mediated_model(m, device=device, training_steps=300)
+            rep = evaluate_stochastic_occluded_benchmark(m, base_seed=seed * 100, device=device)
+            seed_accs.append(rep.stochastic_decision_accuracy_pct)
+            seed_gamble_avoids.append(rep.greedy_gamble_avoidance_pct)
+            seed_scores.append(rep.cumulative_expected_utility_score)
+
+        stoch_results[f"K={k}"] = {
+            "mean_accuracy_pct": float(np.mean(seed_accs)),
+            "std_accuracy_pct": float(np.std(seed_accs)),
+            "mean_gamble_avoidance_pct": float(np.mean(seed_gamble_avoids)),
+            "mean_expected_utility_score": float(np.mean(seed_scores)),
+        }
+        print(f"  Pseudo-Brain K = {k:2d} | Stoch Acc = {np.mean(seed_accs):5.1f}% +/- {np.std(seed_accs):4.1f}% | Gamble Avoid = {np.mean(seed_gamble_avoids):5.1f}% | Exp Utility = {np.mean(seed_scores):+6.1f}")
+
+    # Evaluate Proposal-GRU Baseline across 5 Seeds
+    gru_seed_accs = []
+    gru_seed_gamble_avoids = []
+    gru_seed_scores = []
+    for seed in seeds:
+        torch.manual_seed(seed)
+        gm = ProposalGRUBaseline().to(device)
+        train_proposal_gru_baseline(gm, device=device, training_steps=300)
+        rep = evaluate_stochastic_occluded_benchmark(gm, base_seed=seed * 100, device=device)
+        gru_seed_accs.append(rep.stochastic_decision_accuracy_pct)
+        gru_seed_gamble_avoids.append(rep.greedy_gamble_avoidance_pct)
+        gru_seed_scores.append(rep.cumulative_expected_utility_score)
+
+    stoch_results["Proposal-GRU"] = {
+        "mean_accuracy_pct": float(np.mean(gru_seed_accs)),
+        "std_accuracy_pct": float(np.std(gru_seed_accs)),
+        "mean_gamble_avoidance_pct": float(np.mean(gru_seed_gamble_avoids)),
+        "mean_expected_utility_score": float(np.mean(gru_seed_scores)),
+    }
+    print(f"  Proposal-GRU Match | Stoch Acc = {np.mean(gru_seed_accs):5.1f}% +/- {np.std(gru_seed_accs):4.1f}% | Gamble Avoid = {np.mean(gru_seed_gamble_avoids):5.1f}% | Exp Utility = {np.mean(gru_seed_scores):+6.1f}")
+
+    results["stochastic_occluded_benchmark"] = stoch_results
+
+    # 4. Multi-Seed Scaling Curve on Standard Tasks
+    print("\n--- 4. Multi-Seed Evaluation on Standard Tasks ---")
+    scaling_curve: dict[str, Any] = {}
+    for k in [1, 4, 8, 16, 32]:
+        m = build_resource_matched_thought_model(k).to(device)
+        train_thought_mediated_model(m, device=device, training_steps=300)
+        crit_rep = evaluate_decision_critical_benchmark(m, device=device)
+        scaling_curve[f"K={k}"] = {
+            "decision_critical_score": crit_rep.total_decision_score,
+            "decision_critical_acc_pct": crit_rep.decision_accuracy_pct,
+        }
+
+    results["multi_seed_scaling_curve"] = scaling_curve
 
     # 5. The 8-Stage Progressive Causal Intervention Spectrum (Presence vs Meaning)
-    print("\n--- 8-Stage Progressive Causal Intervention Spectrum (Presence vs Meaning) ---")
+    print("\n--- 5. 8-Stage Progressive Causal Intervention Spectrum (Presence vs Meaning) ---")
+    pb_model = build_resource_matched_thought_model(32).to(device)
+    train_thought_mediated_model(pb_model, device=device, training_steps=300)
+
     donor_env = Phase2TaskEnvironment(make_family_suite(TaskFamily.FAMILY_A_MULTI_OBJECT)[0])
     donor_obs = donor_env.reset(9999)
     raw_donor = np.frombuffer(donor_obs.rgb.pixels, dtype=np.uint8).reshape((16, 16, 3))
@@ -497,36 +497,16 @@ def main() -> None:
     ]
 
     causal_results: dict[str, Any] = {}
-    base_res = evaluate_closed_loop_model(pb_model, test_env, seed=42, episodes=args.episodes_per_world, device=device)
-    base_iqm = base_res["iqm_return"]
-
     for name, mode, extra in interventions:
-        eval_out = evaluate_closed_loop_model(
-            pb_model,
-            test_env,
-            seed=42,
-            episodes=args.episodes_per_world,
-            device=device,
-            intervention_mode=mode,
-            **extra,
-        )
-        crit_out = evaluate_decision_critical_benchmark(
-            pb_model,
-            device=device,
-            intervention_mode=mode,
-            **extra,
-        )
-        iqm = eval_out["iqm_return"]
-        top1 = eval_out["online_top1_acc_pct"]
-        drop_pct = max(0.0, (base_iqm - iqm) / (abs(base_iqm) + 1e-4) * 100.0) if mode != "none" else 0.0
+        eval_out = evaluate_closed_loop_model(pb_model, test_env, seed=42, episodes=args.episodes_per_world, device=device, intervention_mode=mode, **extra)
+        crit_out = evaluate_decision_critical_benchmark(pb_model, device=device, intervention_mode=mode, **extra)
         causal_results[name] = {
-            "iqm_return": iqm,
-            "online_top1_acc_pct": top1,
+            "iqm_return": eval_out["iqm_return"],
+            "online_top1_acc_pct": eval_out["online_top1_acc_pct"],
             "decision_critical_score": crit_out.total_decision_score,
             "decision_critical_acc_pct": crit_out.decision_accuracy_pct,
-            "degradation_drop_pct": float(drop_pct),
         }
-        print(f"  [{name:18s}] DecCrit = {crit_out.total_decision_score:+5.1f} ({crit_out.decision_accuracy_pct:5.1f}%) | IQM = {iqm:6.2f} | Online Top1 = {top1:5.1f}%")
+        print(f"  [{name:18s}] DecCrit = {crit_out.total_decision_score:+5.1f} ({crit_out.decision_accuracy_pct:5.1f}%) | IQM = {eval_out['iqm_return']:6.2f} | Online Top1 = {eval_out['online_top1_acc_pct']:5.1f}%")
 
     results["progressive_causal_interventions"] = causal_results
 

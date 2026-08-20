@@ -1,0 +1,223 @@
+{
+  "timestamp": "2026-08-20 01:30:32 UTC",
+  "device": "cpu",
+  "seeds": [
+    42,
+    43,
+    44,
+    45,
+    46
+  ],
+  "variants": {
+    "pseudo_brain_reference": {
+      "mean_return": -120.32,
+      "iqm_return": -30.5,
+      "std_return": 247.67716406645164,
+      "median_return": -28.0,
+      "ci_95": [
+        -216.76899999999998,
+        -28.958000000000002
+      ],
+      "mean_prediction_error": 0.32020652591685456,
+      "p95_latency_ms": 12.73369259976971,
+      "family_scores": {
+        "family_a_multi_object_tracking": 3.8,
+        "family_b_pursuit_and_evasion": -204.0,
+        "family_c_junction_and_route_choice": -189.4,
+        "family_d_partial_observability_and_memory": -181.2,
+        "family_e_changed_dynamics_and_rules": -30.8
+      }
+    },
+    "baseline_1_reactive": {
+      "mean_return": -137.32,
+      "iqm_return": -30.916666666666668,
+      "std_return": 253.67738882289058,
+      "median_return": -29.0,
+      "ci_95": [
+        -241.446,
+        -46.279
+      ],
+      "mean_prediction_error": 0.1813288619965315,
+      "p95_latency_ms": 12.986854200040398,
+      "family_scores": {
+        "family_a_multi_object_tracking": 3.6,
+        "family_b_pursuit_and_evasion": -239.0,
+        "family_c_junction_and_route_choice": -238.8,
+        "family_d_partial_observability_and_memory": -180.8,
+        "family_e_changed_dynamics_and_rules": -31.6
+      }
+    },
+    "baseline_2_gru_recurrent": {
+      "mean_return": -90.08,
+      "iqm_return": -25.5,
+      "std_return": 167.0151897283597,
+      "median_return": -27.0,
+      "ci_95": [
+        -159.837,
+        -33.114000000000004
+      ],
+      "mean_prediction_error": 0.23407799394180376,
+      "p95_latency_ms": 9.175702999964415,
+      "family_scores": {
+        "family_a_multi_object_tracking": 1.6,
+        "family_b_pursuit_and_evasion": -75.8,
+        "family_c_junction_and_route_choice": -73.0,
+        "family_d_partial_observability_and_memory": -148.2,
+        "family_e_changed_dynamics_and_rules": -155.0
+      }
+    },
+    "baseline_3_recurrent_transformer": {
+      "mean_return": -89.84,
+      "iqm_return": -33.0,
+      "std_return": 192.10511289395708,
+      "median_return": -32.0,
+      "ci_95": [
+        -175.283,
+        -28.391000000000005
+      ],
+      "mean_prediction_error": 0.3183088004787763,
+      "p95_latency_ms": 8.353963800287602,
+      "family_scores": {
+        "family_a_multi_object_tracking": 1.2,
+        "family_b_pursuit_and_evasion": -30.6,
+        "family_c_junction_and_route_choice": -34.0,
+        "family_d_partial_observability_and_memory": -162.8,
+        "family_e_changed_dynamics_and_rules": -223.0
+      }
+    },
+    "baseline_4_state_space_ssm": {
+      "mean_return": -70.92,
+      "iqm_return": -29.166666666666668,
+      "std_return": 133.11947115279565,
+      "median_return": -28.0,
+      "ci_95": [
+        -129.191,
+        -25.18800000000001
+      ],
+      "mean_prediction_error": 0.19961389623830716,
+      "p95_latency_ms": 9.50286600005711,
+      "family_scores": {
+        "family_a_multi_object_tracking": 0.2,
+        "family_b_pursuit_and_evasion": -27.4,
+        "family_c_junction_and_route_choice": -33.0,
+        "family_d_partial_observability_and_memory": -133.2,
+        "family_e_changed_dynamics_and_rules": -161.2
+      }
+    },
+    "baseline_5_wider_monolith": {
+      "mean_return": -91.2,
+      "iqm_return": -31.833333333333332,
+      "std_return": 176.47708066488406,
+      "median_return": -35.0,
+      "ci_95": [
+        -174.76999999999998,
+        -29.98900000000001
+      ],
+      "mean_prediction_error": 0.24676758870979149,
+      "p95_latency_ms": 9.276356000042142,
+      "family_scores": {
+        "family_a_multi_object_tracking": 3.6,
+        "family_b_pursuit_and_evasion": -161.2,
+        "family_c_junction_and_route_choice": -173.0,
+        "family_d_partial_observability_and_memory": -92.0,
+        "family_e_changed_dynamics_and_rules": -33.4
+      }
+    },
+    "baseline_6_serial_depth": {
+      "mean_return": -125.04,
+      "iqm_return": -30.25,
+      "std_return": 248.03539747382834,
+      "median_return": -28.0,
+      "ci_95": [
+        -224.52700000000002,
+        -35.472
+      ],
+      "mean_prediction_error": 0.3202072941909234,
+      "p95_latency_ms": 12.648774799905368,
+      "family_scores": {
+        "family_a_multi_object_tracking": 3.8,
+        "family_b_pursuit_and_evasion": -206.0,
+        "family_c_junction_and_route_choice": -211.6,
+        "family_d_partial_observability_and_memory": -181.2,
+        "family_e_changed_dynamics_and_rules": -30.2
+      }
+    },
+    "baseline_7_fixed_multi_horizon": {
+      "mean_return": -121.68,
+      "iqm_return": -30.75,
+      "std_return": 248.6051841776434,
+      "median_return": -29.0,
+      "ci_95": [
+        -219.818,
+        -28.59200000000001
+      ],
+      "mean_prediction_error": 0.3298691561023394,
+      "p95_latency_ms": 12.599717200042505,
+      "family_scores": {
+        "family_a_multi_object_tracking": 3.4,
+        "family_b_pursuit_and_evasion": -216.8,
+        "family_c_junction_and_route_choice": -181.8,
+        "family_d_partial_observability_and_memory": -182.6,
+        "family_e_changed_dynamics_and_rules": -30.6
+      }
+    },
+    "baseline_8_world_model_actor": {
+      "mean_return": -90.08,
+      "iqm_return": -25.5,
+      "std_return": 167.0151897283597,
+      "median_return": -27.0,
+      "ci_95": [
+        -159.837,
+        -33.114000000000004
+      ],
+      "mean_prediction_error": 0.23407799394180376,
+      "p95_latency_ms": 9.335433599968383,
+      "family_scores": {
+        "family_a_multi_object_tracking": 1.6,
+        "family_b_pursuit_and_evasion": -75.8,
+        "family_c_junction_and_route_choice": -73.0,
+        "family_d_partial_observability_and_memory": -148.2,
+        "family_e_changed_dynamics_and_rules": -155.0
+      }
+    }
+  },
+  "causal_ablations": {
+    "useful_slots": 0,
+    "slot_effects": {
+      "0": 0.0,
+      "1": 0.0,
+      "2": 0.0,
+      "3": 0.0,
+      "4": 0.0,
+      "5": 0.0,
+      "6": 0.0,
+      "7": 0.0,
+      "8": 0.0,
+      "9": 0.0,
+      "10": 0.0,
+      "11": 0.0,
+      "12": 0.0,
+      "13": 0.0,
+      "14": 0.0,
+      "15": 0.0,
+      "16": 0.0,
+      "17": 0.0,
+      "18": 0.0,
+      "19": 0.0,
+      "20": 0.0,
+      "21": 0.0,
+      "22": 0.0,
+      "23": 0.0,
+      "24": 0.0,
+      "25": 0.0,
+      "26": 0.0,
+      "27": 0.0,
+      "28": 0.0,
+      "29": 0.0,
+      "30": 0.0,
+      "31": 0.0
+    },
+    "mean_slot_degradation_pct": 0.0
+  },
+  "family_breakdowns": {}
+}
