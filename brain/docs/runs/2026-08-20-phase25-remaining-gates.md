@@ -106,16 +106,13 @@ Family B is huge (1418.75% campaign / 1343% Gate 6). Next work is a
 IQM while zeroing thoughts collapses Family B*, not another
 `dgx-gate6-matched-gru-v1` 300-step CPU probe.
 
-Suggested name: `why-gru-wins-despite-knockout-v1`. Cheap CPU questions
-that do not need GB10:
-
-1. Why seed 45 Gate 6 knockout was 0% (−21.0 = −21.0) while other seeds
-   collapsed.
-2. Why `C_register_swap`, `D_stale_thoughts`, and `E_donor_thoughts`
-   left IQM at -32.0 if thoughts are on the path (`H_zero_knockout`
-   -486.0).
-3. Gate 3 still needs a per-slot knockout count; that wants a named
-   trained checkpoint, not an untrained 32-slot sweep.
+Named diagnosis: [`2026-08-20-gate6-fail-diagnosis.md`](2026-08-20-gate6-fail-diagnosis.md)
+(`why-gru-wins-despite-knockout-v1`). Leave-one-out without seed 45: PB IQM
+**−28.040** vs GRU **−28.480** (**+1.54%**). Extra K anti-scales. Scramble is
+unused. Follow-up named design **`ranked-k8-unmatched-suppress-v1`**
+(prereg: [`2026-08-20-ranked-k8-unmatched-suppress.md`](../preregistrations/2026-08-20-ranked-k8-unmatched-suppress.md)):
+cap K=8, unmatched-slot suppression, multiplicity Q(a), collapse guard.
+Smoke (seeds 43+45, 60 steps) before a full Gate 6 envelope.
 
 Do not start a GB10 train from this document. Do not resume RCQ-v2.
 

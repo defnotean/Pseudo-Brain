@@ -204,6 +204,11 @@ class MultiHypothesisBranchLoss(nn.Module):
         utility_weight: float = 1.5,
         action_weight: float = 2.0,
         inertia_weight: float = 0.5,
+        unmatched_prob_weight: float = 1.0,
+        unmatched_util_weight: float = 1.0,
+        collapse_weight: float = 2.0,
+        diversity_weight: float = 0.5,
+        register_collapse_weight: float = 1.0,
     ) -> None:
         super().__init__()
         self.displacement_weight = displacement_weight
@@ -213,6 +218,11 @@ class MultiHypothesisBranchLoss(nn.Module):
         self.utility_weight = utility_weight
         self.action_weight = action_weight
         self.inertia_weight = inertia_weight
+        self.unmatched_prob_weight = unmatched_prob_weight
+        self.unmatched_util_weight = unmatched_util_weight
+        self.collapse_weight = collapse_weight
+        self.diversity_weight = diversity_weight
+        self.register_collapse_weight = register_collapse_weight
         self._prev_assignments: dict[int, np.ndarray] = {}
 
     def forward(
@@ -220,6 +230,7 @@ class MultiHypothesisBranchLoss(nn.Module):
         proposals: Any,
         bundles: Sequence[ComprehensiveBranchBundle],
         prev_actions: Sequence[np.ndarray | Tensor] | None = None,
+        thoughts: Tensor | None = None,
     ) -> tuple[Tensor, dict[str, float]]:
         batch_size = proposals.displacement.shape[0]
         k_slots = proposals.displacement.shape[1]
@@ -230,6 +241,8 @@ class MultiHypothesisBranchLoss(nn.Module):
         matched_haz_err = 0.0
         matched_rew_err = 0.0
         matched_prob_err = 0.0
+        unmatched_suppress_acc = 0.0
+        collapse_acc = 0.0
 
         for b in range(batch_size):
             bundle = bundles[b]
@@ -330,14 +343,50 @@ class MultiHypothesisBranchLoss(nn.Module):
                     hinge = F.relu(margin - diff_pred) * pair_mask
                     rank_loss = hinge.sum() / pair_mask.sum().clamp_min(1.0)
 
+            unmatched_mask = torch.ones(k_slots, device=device)
+            unmatched_mask[row_ind] = 0.0
+            unmatched_count = unmatched_mask.sum().clamp_min(1.0)
+            suppress_prob_loss = torch.tensor(0.0, device=device)
+            suppress_util_loss = torch.tensor(0.0, device=device)
+            if unmatched_mask.sum() > 0:
+                if pred_prob_b is not None:
+                    unmatched_p = pred_prob_b.squeeze(-1) * unmatched_mask
+                    suppress_prob_loss = unmatched_p.square().sum() / unmatched_count
+                if pred_util is not None and len(row_ind) > 0:
+                    matched_u = pred_util[row_ind].squeeze(-1)
+                    util_floor = matched_u.min().detach() - 1.0
+                    unmatched_u = pred_util.squeeze(-1)
+                    suppress_util_loss = (F.relu(unmatched_u - util_floor) * unmatched_mask).sum() / unmatched_count
+
+            active_mask_b = getattr(proposals, "active_mask", None)
+            if active_mask_b is None:
+                active_frac = torch.tensor(1.0, device=device)
+            else:
+                active_frac = active_mask_b[b].float().mean()
+            collapse_loss = F.relu(0.25 - active_frac)
+
+            diversity_loss = torch.tensor(0.0, device=device)
+            if len(row_ind) >= 2:
+                acts = F.softmax(pred_act[row_ind], dim=-1)
+                sim = acts @ acts.transpose(0, 1)
+                n_matched = acts.shape[0]
+                off_diag = (sim.sum() - sim.diag().sum()) / max(n_matched * (n_matched - 1), 1)
+                diversity_loss = F.relu(off_diag - 0.55)
+
             sample_loss = (
                 matched_pred_loss
                 + self.action_weight * matched_act_loss
                 + self.probability_weight * prob_loss
                 + 0.5 * conf_loss
                 + self.utility_weight * rank_loss
+                + self.unmatched_prob_weight * suppress_prob_loss
+                + self.unmatched_util_weight * suppress_util_loss
+                + self.collapse_weight * collapse_loss
+                + self.diversity_weight * diversity_loss
             )
             total_loss = total_loss + sample_loss
+            unmatched_suppress_acc += float((suppress_prob_loss + suppress_util_loss).item())
+            collapse_acc += float(collapse_loss.item())
 
             with torch.no_grad():
                 matched_disp_err += float(disp_cost[row_ind, col_ind].mean().item())
@@ -346,6 +395,14 @@ class MultiHypothesisBranchLoss(nn.Module):
                 if pred_prob_b is not None:
                     matched_prob_err += float(prob_loss.item())
 
+        register_collapse_loss = torch.tensor(0.0, device=device)
+        if thoughts is not None and thoughts.ndim == 4 and thoughts.shape[2] >= 2:
+            flat_r0 = thoughts[:, :, 0].reshape(-1, thoughts.shape[-1])
+            flat_r1 = thoughts[:, :, 1].reshape(-1, thoughts.shape[-1])
+            register_cos = F.cosine_similarity(flat_r0, flat_r1, dim=-1).abs().mean()
+            register_collapse_loss = F.relu(register_cos - 0.35)
+            total_loss = total_loss + self.register_collapse_weight * register_collapse_loss * max(1, batch_size)
+
         total_loss = total_loss / max(1, batch_size)
         metrics = {
             "branch_total_loss": float(total_loss.item()),
@@ -353,5 +410,8 @@ class MultiHypothesisBranchLoss(nn.Module):
             "matched_haz_err": matched_haz_err / max(1, batch_size),
             "matched_rew_err": matched_rew_err / max(1, batch_size),
             "matched_prob_err": matched_prob_err / max(1, batch_size),
+            "unmatched_suppress": unmatched_suppress_acc / max(1, batch_size),
+            "collapse_guard": collapse_acc / max(1, batch_size),
+            "register_collapse": float(register_collapse_loss.item()),
         }
         return total_loss, metrics

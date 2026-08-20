@@ -20,6 +20,12 @@ on Irene sglang Qwen; no second GPU train. Artifact SHA-256 `a3dc94dc…`.
 Record:
 [docs/runs/2026-08-20-gate6-matched-proposal-gru.md](./docs/runs/2026-08-20-gate6-matched-proposal-gru.md).
 
+Diagnosis `why-gru-wins-despite-knockout-v1`: seed 45 knockout 0% plus Family E
+−796 vs −41.5; extra K anti-scales; scramble unused. Next named design
+`ranked-k8-unmatched-suppress-v1` (K=8, unmatched-slot suppression,
+multiplicity Q(a), collapse guard). Smoke before full. Record:
+[docs/runs/2026-08-20-gate6-fail-diagnosis.md](./docs/runs/2026-08-20-gate6-fail-diagnosis.md).
+
 Play competence vs planner remains **38 vs 284 pellets, 0 neural clears**.
 RCQ-v2 stays terminal. RCQ-v3 registration stays deferred. TEST stays sealed.
 

@@ -27,6 +27,15 @@ beat the matched GRU. Architecture superiority is **not** claimed. Do not
 retry the same probe as if it passed. Record:
 [brain/docs/runs/2026-08-20-gate6-matched-proposal-gru.md](brain/docs/runs/2026-08-20-gate6-matched-proposal-gru.md).
 
+Diagnosis `why-gru-wins-despite-knockout-v1` (not a rerun): seed 45 knockout
+**0%** and Family E **−796 vs −41.5** likely decide the mean; extra K
+anti-scales (98/98/32/−98/−98); scramble/stale/donor are 0% because slots are
+interchangeable. Next named design is **`ranked-k8-unmatched-suppress-v1`**
+(cap K=8, unmatched-slot suppression, multiplicity Q(a), collapse/register
+guard). Smoke first (seeds 43+45, 60 steps); full 5×300 only if smoke PB is
+ahead. Record:
+[brain/docs/runs/2026-08-20-gate6-fail-diagnosis.md](brain/docs/runs/2026-08-20-gate6-fail-diagnosis.md).
+
 Closed-loop play is still the Aug 18 **38-pellet** turn-weighted distill
 champion versus the planner's **284** pellets (0 neural clears). Variant E
 (5.65 pellets / 83 catches) is historical and has no persisted maze-chase
@@ -67,7 +76,7 @@ scale 128. Do not retune hold ×0.1.
 | — | Phase 0 / Phase 1 | **Locked.** Phase 0 7/7; Phase 1 9/9 on DGX Spark. |
 | — | Phase 2 original thesis | **Falsified.** Unmediated designs tied or lost to matched GRU. |
 | — | Live campaign | **Phase 2.5** thought-mediated parallel cognition. |
-| — | Phase 2.5 Gate 6 | **FAIL.** CPU probe `dgx-gate6-matched-gru-v1`: thought-mediated IQM **−27.758** vs Proposal-GRU **−25.694** (−8.04%; GRU wins). Knockout sanity passed (1343%). Thoughts remain causal; not better than matched GRU. Architecture superiority not claimed. Do not retry the same probe. Record: [brain/docs/runs/2026-08-20-gate6-matched-proposal-gru.md](brain/docs/runs/2026-08-20-gate6-matched-proposal-gru.md). |
+| — | Phase 2.5 Gate 6 | **FAIL.** CPU probe `dgx-gate6-matched-gru-v1`: thought-mediated IQM **−27.758** vs Proposal-GRU **−25.694** (−8.04%; GRU wins). Knockout sanity passed (1343%). Thoughts remain causal; not better than matched GRU. Architecture superiority not claimed. Do not retry the same probe. Record: [brain/docs/runs/2026-08-20-gate6-matched-proposal-gru.md](brain/docs/runs/2026-08-20-gate6-matched-proposal-gru.md). Diagnosis: [brain/docs/runs/2026-08-20-gate6-fail-diagnosis.md](brain/docs/runs/2026-08-20-gate6-fail-diagnosis.md). Next named design `ranked-k8-unmatched-suppress-v1`. |
 | — | Play competence | Neural **38 pellets / 0 clears** vs planner **284 / 2 clears**. Record: [brain/docs/runs/2026-08-20-play-competence-closed-loop.md](brain/docs/runs/2026-08-20-play-competence-closed-loop.md). |
 | — | Historical champion | Variant E: **5.65 pellets / 83 catches**. Distill play champion: 38 pellets. |
 | — | Compute | Spark only. One scientific GPU train at a time on the GB10; many named CPU jobs in parallel on the ARM host. Generic wrappers, never RCQ-v2 start/resume. |
@@ -191,7 +200,7 @@ The project maintains a strict, non-derailing three-tiered hierarchy:
    - Real-time $60\text{ Hz}$ closed-loop arcade benchmark (Pac-Man family, frame skip 1, latency $\text{p99} < 16.67\text{ ms}$).
    - Hardware capture-to-control latency harness (RTX 5070 non-gaming window).
    - Procedural skill ladder data scaling (junctions, occlusion memory, key/door sequencing).
-   - Newly preregistered comparisons after Gate 6 FAIL; do not rerun the same matched-GRU probe.
+   - Named follow-up `ranked-k8-unmatched-suppress-v1` after Gate 6 FAIL diagnosis; do not rerun `dgx-gate6-matched-gru-v1`.
 
 3. **LONG-TERM GENERAL AGENT GOAL:**
    - Single general-purpose cognitive agent with persistent task belief, dynamic subgoals, and multi-thoughtlet decomposition ([PLAN.md §43](brain/PLAN.md)).

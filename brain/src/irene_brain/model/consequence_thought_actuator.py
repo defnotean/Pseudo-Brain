@@ -73,6 +73,10 @@ class SharedConsequenceProposalHead(nn.Module):
         self.num_registers = num_registers
 
         self.register_projection = nn.Linear(num_registers * core_width, core_width)
+        identity = torch.zeros(num_registers, core_width)
+        for index in range(num_registers):
+            identity[index, index % core_width] = 1.0
+        self.register_buffer("register_identity", identity)
         self.trunk = nn.Sequential(
             nn.Linear(core_width, core_width),
             nn.SiLU(),
@@ -96,7 +100,13 @@ class SharedConsequenceProposalHead(nn.Module):
             b, k, r, w = thoughts.shape
             if self.register_projection.in_features != r * w:
                 self.register_projection = nn.Linear(r * w, self.core_width).to(thoughts.device)
-            slot_tokens = self.register_projection(thoughts.reshape(b, k, r * w))  # [B, K, Width]
+            identity = self.register_identity
+            if identity.shape[0] != r or identity.shape[1] != w:
+                identity = torch.zeros(r, w, device=thoughts.device, dtype=thoughts.dtype)
+                for index in range(r):
+                    identity[index, index % w] = 1.0
+            ordered = thoughts + identity.view(1, 1, r, w)
+            slot_tokens = self.register_projection(ordered.reshape(b, k, r * w))  # [B, K, Width]
         else:
             slot_tokens = thoughts
             b, k, w = slot_tokens.shape
@@ -164,24 +174,35 @@ class ConsequenceProposalAggregator(nn.Module):
         device = active_mask.device
         batch_size, k_slots = active_mask.shape
 
-        # Softmax over active consequence utilities
+        # Slot utilities and branch probabilities. Scramble permutes them against
+        # action_probs so a register/binding break actually changes Q(a).
         raw_util = proposals.consequence_utility.squeeze(-1)
         p = getattr(proposals, "branch_probability", torch.ones_like(proposals.consequence_utility)).squeeze(-1)
+        action_probs = proposals.action_probs
         if (scramble_prob or scramble_binding) and raw_util.shape[-1] > 1:
             perm = torch.randperm(raw_util.shape[-1], device=raw_util.device)
             raw_util = raw_util[:, perm]
             p = p[:, perm]
 
-        raw_weights = F.softmax(raw_util / self.temperature, dim=-1)  # [B, K]
-        active_weights = raw_weights * active_mask * p.clamp_min(0.01)
-        weight_sum = active_weights.sum(dim=-1, keepdim=True).clamp_min(1e-9)
-        normalized_weights = active_weights / weight_sum  # [B, K]
-
+        # Unmatched-slot suppression at decode: low branch_prob (trained toward 0
+        # for unmatched Hungarian leftovers) cannot dominate by vote count.
+        slot_mass = active_mask * p.clamp(0.0, 1.0)
         has_active = (num_active > 0).float()
-        final_weights = normalized_weights * has_active  # [B, K]
 
-        # Aggregate 5-way action distributions: [B, K, 1] * [B, K, 5] -> [B, 5]
-        action_dist = (final_weights.unsqueeze(-1) * proposals.action_probs).sum(dim=1)  # [B, 5]
+        # Multiplicity-proof Q(a): probability-weighted mean utility among slots
+        # that propose action a. Duplicate RIGHT slots cannot outvote one LEFT.
+        util_for_mean = raw_util.masked_fill(slot_mass < 1e-8, 0.0)
+        action_mass = action_probs * slot_mass.unsqueeze(-1)
+        q_numer = (action_mass * util_for_mean.unsqueeze(-1)).sum(dim=1)
+        q_denom = action_mass.sum(dim=1).clamp_min(1e-6)
+        action_value = q_numer / q_denom
+        action_dist = F.softmax(action_value / self.temperature, dim=-1) * has_active
+
+        raw_weights = F.softmax(raw_util / self.temperature, dim=-1)
+        active_weights = raw_weights * slot_mass
+        weight_sum = active_weights.sum(dim=-1, keepdim=True).clamp_min(1e-9)
+        normalized_weights = active_weights / weight_sum
+        final_weights = normalized_weights * has_active
 
         # Project 5-way actions to 296-channel HID button wire layout with calibrated logit contrast
         # 0: Wait, 1: W, 2: A, 3: S, 4: D

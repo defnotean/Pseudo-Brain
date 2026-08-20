@@ -6,7 +6,15 @@ value identities, and legal stopping rules are in
 [DGX_SPARK_TRAINING.md](DGX_SPARK_TRAINING.md). The campaign checklist is
 [CURRENT_WORK.md](../../CURRENT_WORK.md).
 
-The live campaign is **play-gated maze-chase distill v1**, not RCQ.
+The live campaign is **Phase 2.5 thought-mediated parallel cognition**. Gate 6
+is **FAIL** (`dgx-gate6-matched-gru-v1`, IQM −27.758 vs −25.694). Do not rerun
+that K=32 probe. Diagnosis:
+[runs/2026-08-20-gate6-fail-diagnosis.md](runs/2026-08-20-gate6-fail-diagnosis.md).
+Next named CPU probe: `ranked-k8-unmatched-suppress-v1` (`--smoke` first).
+Do not kill Irene sglang on GB10. Play-gated maze-chase distill is
+**historical** (38-pellet champion), not the Gate 6 metric.
+
+Historical note: play-gated maze-chase distill v1 is not RCQ.
 Spark-only compute. Turn-weighted exclusive CE **passed** the campaign
 gate at 32 steps (A×377 + S×103, 38 pellets, 43 collisions, reward −392,
 val match 0.25). The 128-step continuation **failed** sticky S (idle×26
