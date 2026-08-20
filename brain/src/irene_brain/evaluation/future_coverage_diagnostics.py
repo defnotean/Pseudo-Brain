@@ -167,15 +167,19 @@ def evaluate_future_coverage(
                 min_disp_err = dists.min(dim=0).values.mean().item()
             else:
                 min_disp_err = 0.80
-            disp_errors.append(min_disp_err)
+            # 4. Action-Aligned Ranking Correlation
+            action_aligned_utils = []
+            for act_i in range(5):
+                matching_slots = (predicted_action_choices == act_i).nonzero(as_tuple=True)[0]
+                if len(matching_slots) > 0:
+                    act_u = float(active_utils[matching_slots].max().item())
+                else:
+                    act_u = -10.0
+                action_aligned_utils.append(act_u)
 
-            # 4. Action Ranking Correlation
-            if len(active_utils) >= 5:
-                rho = _compute_spearman_rho(
-                    active_utils[:5].cpu().numpy(),
-                    bundle.utilities[:5].squeeze(-1).cpu().numpy(),
-                )
-                correlations.append(rho)
+            gt_utils_np = bundle.utilities[:5].squeeze(-1).cpu().numpy()
+            rho = _compute_spearman_rho(np.array(action_aligned_utils), gt_utils_np)
+            correlations.append(rho)
 
             # 5. 4-Stage Decision Failure Decomposition
             gt_utils = bundle.utilities[:5].squeeze(-1)

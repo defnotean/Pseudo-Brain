@@ -286,13 +286,36 @@ class MultiHypothesisBranchLoss(nn.Module):
                         target_buttons[idx, int(HidKey.D)] = 1.0
                 matched_act_loss = F.binary_cross_entropy_with_logits(pred_act[row_ind], target_buttons)
 
-            # Confidence loss: active matched slots should predict high confidence
+            # Confidence loss: active matched slots -> 1.0, unmatched slots -> 0.05
             if hasattr(proposals, "confidence"):
-                conf_loss = F.binary_cross_entropy(proposals.confidence[b, row_ind], torch.ones_like(proposals.confidence[b, row_ind]))
+                conf_pred = proposals.confidence[b].squeeze(-1)  # [K]
+                conf_target = torch.full_like(conf_pred, 0.05)
+                conf_target[row_ind] = 0.95
+                conf_loss = F.binary_cross_entropy(conf_pred, conf_target)
             else:
                 conf_loss = torch.tensor(0.0, device=device)
 
-            sample_loss = matched_pred_loss + self.action_weight * matched_act_loss + 0.5 * conf_loss
+            # Direct Pairwise Ranking Loss
+            rank_loss = torch.tensor(0.0, device=device)
+            if len(row_ind) >= 2 and pred_util is not None:
+                gt_u = bundle.utilities[col_ind].squeeze(-1)     # [num_matched]
+                pred_u = pred_util[row_ind].squeeze(-1)          # [num_matched]
+                # Compare all pairs (i, j)
+                diff_gt = gt_u.unsqueeze(1) - gt_u.unsqueeze(0)   # [N, N]
+                diff_pred = pred_u.unsqueeze(1) - pred_u.unsqueeze(0) # [N, N]
+                margin = 0.2
+                # Target: if gt_i > gt_j + margin, pred_i should be > pred_j + margin
+                pair_mask = (diff_gt > margin).float()
+                if pair_mask.sum() > 0:
+                    hinge = F.relu(margin - diff_pred) * pair_mask
+                    rank_loss = hinge.sum() / pair_mask.sum().clamp_min(1.0)
+
+            sample_loss = (
+                matched_pred_loss
+                + self.action_weight * matched_act_loss
+                + 0.5 * conf_loss
+                + self.utility_weight * rank_loss
+            )
             total_loss = total_loss + sample_loss
 
             with torch.no_grad():
