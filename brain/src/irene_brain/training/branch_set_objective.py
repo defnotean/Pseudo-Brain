@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import math
+import random
 from typing import Mapping, Sequence
 
 import numpy as np
@@ -186,3 +187,27 @@ class MultiFutureBranchObjective(nn.Module):
             }
 
         return total_loss, metrics
+
+    def apply_belief_dropout(self, belief: Tensor, p: float = 0.3, training: bool = True) -> Tensor:
+        """Randomly mask out belief state to force actuator cross-attention to rely on thoughts."""
+        if not training or p <= 0.0 or random.random() >= p:
+            return belief
+        return torch.zeros_like(belief)
+
+    def compute_marginal_utility_loss(
+        self,
+        action_logits_with_thoughts: Tensor,
+        action_logits_without_thoughts: Tensor,
+        target_buttons: Tensor,
+        margin: float = 0.2,
+    ) -> Tensor:
+        """Compute causal marginal utility loss.
+
+        Penalizes representations where removing thoughtlet tokens causes no degradation
+        to action classification accuracy.
+        """
+        loss_with = F.binary_cross_entropy_with_logits(action_logits_with_thoughts, target_buttons)
+        loss_without = F.binary_cross_entropy_with_logits(action_logits_without_thoughts, target_buttons)
+        # We want loss_with + margin <= loss_without
+        marginal_penalty = F.relu(loss_with - loss_without + margin)
+        return marginal_penalty

@@ -66,18 +66,19 @@ class ThoughtMediatedBrainModel(nn.Module):
         # Run sensory, memory, and cognitive cycle transitions through base brain
         base_out = self.base_brain(rgb, control, delta_time, state=state, max_cycles=max_cycles)
         next_state = base_out.next_state
-
-        thoughts = next_state.thoughts  # [B, K, Registers, Width]
+        thoughts = next_state.thoughts
 
         # Capacity masking if active_slots is constrained
-        if active_slots is not None and active_slots < self.config.thoughtlets:
-            mask = torch.zeros_like(thoughts)
-            mask[:, :active_slots] = 1.0
-            thoughts = thoughts * mask
+        active_mask = None
+        if active_slots is not None:
+            active_mask = torch.zeros((batch, self.config.thoughtlets), device=rgb.device)
+            if active_slots > 0:
+                active_mask[:, :min(active_slots, self.config.thoughtlets)] = 1.0
+            thoughts = thoughts * active_mask.unsqueeze(-1).unsqueeze(-1)
 
         # Decode action EXCLUSIVELY through thought proposals + bounded sensory reflex
         sensors = next_state.belief  # [B, S, Width]
-        action_out = self.actuator(sensors=sensors, thoughts=thoughts)
+        action_out = self.actuator(sensors=sensors, thoughts=thoughts, active_mask=active_mask)
 
         return ThoughtMediatedModelOutput(
             action=action_out,

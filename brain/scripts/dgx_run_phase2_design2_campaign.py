@@ -121,11 +121,11 @@ def generate_counterfactual_branches(
 def train_design2_model(
     model: IreneBrainModel,
     device: torch.device,
-    training_steps: int = 250,
+    training_steps: int = 300,
     lr: float = 1e-3,
     slot_dropout_prob: float = 0.20,
 ) -> None:
-    """Train Pseudo-Brain with multi-family balanced curriculum + Hungarian branch matching + slot dropout + permutation augmentation."""
+    """Train Pseudo-Brain with multi-family balanced curriculum + Hungarian branch matching + slot dropout + marginal utility."""
     model.train()
     optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
     branch_obj = MultiFutureBranchObjective(
@@ -153,40 +153,121 @@ def train_design2_model(
         ctrl_tensor = torch.zeros((1, model.config.actuator.total_queries), device=device)
         dt_tensor = torch.tensor([0.016667], device=device)
 
-        # Slot Permutation Augmentation: randomly permute slots during training to enforce permutation equivariance
+        # Slot Permutation Augmentation
         if random.random() < 0.5:
             state = permute_whole_slots(state)
 
-        # Apply slot dropout to state.thoughts during forward pass
+        # Apply slot dropout & belief dropout
         masked_thoughts, _ = branch_obj.apply_slot_dropout(state.thoughts, training=True)
-        train_state = replace(state, thoughts=masked_thoughts)
+        masked_belief = branch_obj.apply_belief_dropout(state.belief, p=0.35, training=True)
+        train_state = replace(state, thoughts=masked_thoughts, belief=masked_belief)
 
         out = model(rgb_tensor, ctrl_tensor, dt_tensor, state=train_state, max_cycles=model.config.cognitive_cycles)
+
+        # Forward without thoughts to compute marginal utility
+        state_no_thoughts = replace(state, thoughts=torch.zeros_like(state.thoughts), belief=masked_belief)
+        with torch.no_grad():
+            out_no_thoughts = model(rgb_tensor, ctrl_tensor, dt_tensor, state=state_no_thoughts, max_cycles=model.config.cognitive_cycles)
 
         # Multi-future branch loss
         branches = [generate_counterfactual_branches(env, obs)]
         branch_loss, _metrics = branch_obj.compute_branch_loss(out.next_state.thoughts, branches)
 
-        # Expert Action Supervision (DAgger Imitation)
+        # Expert Action Supervision (DAgger Imitation with Family E adaptation)
         target_buttons = torch.zeros((1, out.action.button_logits.shape[-1]), device=device)
-        # Select best branch action from ground truth branches
         if branches[0]:
             best_br = max(branches[0], key=lambda b: b.reward - 2.0 * b.hazard_prob)
-            if best_br.action_index == 1:
+            act_idx = best_br.action_index
+
+            # Handle control remapping adaptation for Family E
+            if env.config.control_remapping == "inverted":
+                inv_map = {1: 3, 3: 1, 2: 4, 4: 2, 0: 0}
+                act_idx = inv_map.get(act_idx, act_idx)
+            elif env.config.control_remapping == "rotate_90":
+                rot_map = {1: 4, 4: 3, 3: 2, 2: 1, 0: 0}
+                act_idx = rot_map.get(act_idx, act_idx)
+
+            if act_idx == 1:
                 target_buttons[0, int(HidKey.W)] = 1.0
-            elif best_br.action_index == 2:
+            elif act_idx == 2:
                 target_buttons[0, int(HidKey.A)] = 1.0
-            elif best_br.action_index == 3:
+            elif act_idx == 3:
                 target_buttons[0, int(HidKey.S)] = 1.0
-            elif best_br.action_index == 4:
+            elif act_idx == 4:
                 target_buttons[0, int(HidKey.D)] = 1.0
 
         action_loss = F.binary_cross_entropy_with_logits(out.action.button_logits, target_buttons)
 
-        total_loss = branch_loss + 2.0 * action_loss
+        # Causal Marginal Utility Loss: penalize states where thought knockout does not degrade action
+        marginal_loss = branch_obj.compute_marginal_utility_loss(
+            out.action.button_logits,
+            out_no_thoughts.action.button_logits,
+            target_buttons,
+            margin=0.15,
+        )
+
+        total_loss = branch_loss + 2.0 * action_loss + 1.0 * marginal_loss
 
         optimizer.zero_grad()
         total_loss.backward()
+        nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+        optimizer.step()
+
+
+def train_matched_baseline(
+    model: nn.Module,
+    device: torch.device,
+    training_steps: int = 300,
+    lr: float = 1e-3,
+) -> None:
+    """Train matched baseline (e.g. GRU) on the exact same multi-family training transitions."""
+    model.train()
+    optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
+    all_families = list(TaskFamily)
+
+    for step in range(training_steps):
+        family = all_families[step % len(all_families)]
+        configs = make_family_suite(family)
+        env = Phase2TaskEnvironment(configs[step % len(configs)])
+
+        obs = env.reset(step + 1000)
+        state = model.initial_state(1)
+
+        raw_rgb = np.frombuffer(obs.rgb.pixels, dtype=np.uint8).reshape((16, 16, 3))
+        rgb_tensor = torch.from_numpy(raw_rgb).permute(2, 0, 1).unsqueeze(0).float().to(device) / 255.0
+        if rgb_tensor.shape[-1] != 32:
+            rgb_tensor = F.interpolate(rgb_tensor, size=(32, 32), mode="nearest")
+
+        ctrl_tensor = torch.zeros((1, model.config.actuator.total_queries), device=device)
+        dt_tensor = torch.tensor([0.016667], device=device)
+
+        out = model(rgb_tensor, ctrl_tensor, dt_tensor, state=state, max_cycles=model.config.cognitive_cycles)
+
+        branches = [generate_counterfactual_branches(env, obs)]
+        target_buttons = torch.zeros((1, out.action.button_logits.shape[-1]), device=device)
+        if branches[0]:
+            best_br = max(branches[0], key=lambda b: b.reward - 2.0 * b.hazard_prob)
+            act_idx = best_br.action_index
+            if env.config.control_remapping == "inverted":
+                inv_map = {1: 3, 3: 1, 2: 4, 4: 2, 0: 0}
+                act_idx = inv_map.get(act_idx, act_idx)
+            elif env.config.control_remapping == "rotate_90":
+                rot_map = {1: 4, 4: 3, 3: 2, 2: 1, 0: 0}
+                act_idx = rot_map.get(act_idx, act_idx)
+
+            if act_idx == 1:
+                target_buttons[0, int(HidKey.W)] = 1.0
+            elif act_idx == 2:
+                target_buttons[0, int(HidKey.A)] = 1.0
+            elif act_idx == 3:
+                target_buttons[0, int(HidKey.S)] = 1.0
+            elif act_idx == 4:
+                target_buttons[0, int(HidKey.D)] = 1.0
+
+        action_loss = F.binary_cross_entropy_with_logits(out.action.button_logits, target_buttons)
+
+        optimizer.zero_grad()
+        action_loss.backward()
         nn.utils.clip_grad_norm_(model.parameters(), 1.0)
         optimizer.step()
 
@@ -324,6 +405,34 @@ def main() -> None:
         "family_scores": {k: float(np.mean(v)) for k, v in pb_family_scores.items()},
     }
     print(f"Pseudo-Brain Design 2 IQM Return: {results['pseudo_brain_design2']['iqm_return']:.2f}")
+
+    # Matched GRU Baseline under Equal Experience
+    print("\n--- Training and Evaluating Matched GRU Baseline ---")
+    gru_returns = []
+    gru_family_scores: dict[str, list[float]] = {}
+    for seed in seeds:
+        torch.manual_seed(seed)
+        np.random.seed(seed)
+        random.seed(seed)
+
+        gru_model = build_phase2_model(BaselineVariant.B2_GRU).to(device)
+        train_matched_baseline(gru_model, device=device, training_steps=args.train_steps)
+
+        for family in TaskFamily:
+            configs = make_family_suite(family)
+            eval_env = Phase2TaskEnvironment(configs[0])
+            eval_res = evaluate_closed_loop(gru_model, eval_env, seed=seed, episodes=args.episodes_per_world, device=device)
+            gru_returns.append(eval_res["mean_return"])
+            gru_family_scores.setdefault(family.value, []).append(eval_res["mean_return"])
+
+    gru_ci_low, gru_ci_high = compute_bootstrap_ci(gru_returns)
+    results["gru_baseline"] = {
+        "mean_return": float(np.mean(gru_returns)),
+        "iqm_return": compute_iqm(gru_returns),
+        "ci_95": [gru_ci_low, gru_ci_high],
+        "family_scores": {k: float(np.mean(v)) for k, v in gru_family_scores.items()},
+    }
+    print(f"Matched GRU Baseline IQM Return: {results['gru_baseline']['iqm_return']:.2f}")
 
     # 2. Capacity Scaling Curve: K in {32, 24, 16, 8, 4, 1}
     print("\n--- Evaluating Thoughtlet Capacity Scaling Curve ---")

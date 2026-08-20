@@ -374,16 +374,21 @@ def main() -> None:
     }
     print(f"Proposal-GRU Baseline IQM Return: {results['proposal_gru_baseline']['iqm_return']:.2f}")
 
-    # 3. Resource-Matched Capacity Scaling Curve: K in {1, 4, 8, 16, 32}
+    # 3. Resource-Matched Capacity Scaling Curve: K in {0, 1, 4, 8, 16, 32}
     print("\n--- Evaluating Resource-Matched Capacity Scaling Curve ---")
     test_env = Phase2TaskEnvironment(make_family_suite(TaskFamily.FAMILY_B_PURSUIT_EVASION)[0])
-    k_points = [1, 4, 8, 16, 32]
+    k_points = [0, 1, 4, 8, 16, 32]
     capacity_curve: dict[int, float] = {}
 
     for k in k_points:
-        matched_model = build_resource_matched_thought_model(k).to(device)
-        train_thought_mediated_model(matched_model, device=device, training_steps=args.train_steps)
-        eval_res = evaluate_closed_loop_model(matched_model, test_env, seed=42, episodes=args.episodes_per_world, device=device)
+        if k == 0:
+            # Complete thought knockout (Reflex only)
+            matched_model = build_resource_matched_thought_model(1).to(device)
+            eval_res = evaluate_closed_loop_model(matched_model, test_env, seed=42, episodes=args.episodes_per_world, device=device, active_slots=0)
+        else:
+            matched_model = build_resource_matched_thought_model(k).to(device)
+            train_thought_mediated_model(matched_model, device=device, training_steps=args.train_steps)
+            eval_res = evaluate_closed_loop_model(matched_model, test_env, seed=42, episodes=args.episodes_per_world, device=device)
         capacity_curve[k] = eval_res["iqm_return"]
         print(f"  Resource-Matched K = {k:2d} (Core Width compensated) -> IQM Return = {eval_res['iqm_return']:.2f}")
 
