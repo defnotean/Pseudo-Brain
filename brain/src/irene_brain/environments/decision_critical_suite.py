@@ -80,7 +80,7 @@ def evaluate_decision_critical_benchmark(
 
             # Compute lookahead optimal action
             bundle = generate_multi_step_trajectory_tree(env, obs, horizon=2, device=device)
-            gt_opt_act = int(torch.argmax(bundle.utilities[:5]).item())
+            gt_opt_act = int(torch.argmax(bundle.expected_action_utilities).item())
 
             raw_rgb = np.frombuffer(obs.rgb.pixels, dtype=np.uint8).reshape((16, 16, 3))
             rgb_tensor = torch.from_numpy(raw_rgb.copy()).permute(2, 0, 1).unsqueeze(0).float().to(device) / 255.0

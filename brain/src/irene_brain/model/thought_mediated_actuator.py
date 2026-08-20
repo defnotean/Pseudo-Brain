@@ -1,17 +1,12 @@
-"""Thought-Mediated Actuator Architecture: Zero-Shortcut Causal Routing.
+"""Thought-Mediated Actuator Architecture: Zero-Shortcut Causal Routing & Stochastic VoI.
 
 Key Principles:
 1. No Thought Activation = EXACTLY ZERO Action Contribution.
-   - When a thought slot is empty or masked (active_mask_k = 0), its proposal logits,
-     hazard prediction, reward estimate, and displacement are multiplied by 0.0.
-   - Its utility logit is masked to -1e9 so it receives 0 attention weight.
-2. Neutral Baseline on Complete Inactivity:
-   - When ALL slots are inactive (K=0), the main action intent is strictly zero: [0, 0, ..., 0].
-   - No proposal bias can ever leak into the main action intent when thoughts are empty.
-3. Permutation Equivariance:
-   - Shared proposal head on all K slots; proposal aggregation is permutation-invariant.
-4. Bounded Reflex Path:
-   - Raw sensory tokens map to [-delta_max, +delta_max] delta via tanh for physical stabilization only.
+2. Grouped Expected Utility & Value of Information (VoI):
+   - Each thoughtlet carries: (action, displacement, reward, hazard, branch_prob, confidence).
+   - Committing actions evaluate expected utility over branch probabilities: Q(a) = Sum_j p_j * U(T_j).
+   - Probing actions (WAIT) evaluate Value of Information: Q(WAIT) = c_wait + gamma * E_obs[max_a' Q(a' | obs)].
+3. Permutation Equivariance & Bounded Reflex.
 """
 
 from __future__ import annotations
@@ -32,12 +27,14 @@ from .spec import ActuatorQuerySpec
 @dataclass(frozen=True, slots=True)
 class ThoughtProposal:
     """Action and future prediction proposal emitted by a single thoughtlet."""
-    button_logits: Tensor       # [B, K, num_buttons]
-    hazard_prob: Tensor         # [B, K, 1] in [0, 1]
-    reward_estimate: Tensor     # [B, K, 1]
-    displacement: Tensor        # [B, K, 2] (dx, dy)
-    utility_logits: Tensor      # [B, K, 1] unnormalized aggregation weight
-    active_mask: Tensor         # [B, K] in {0, 1}
+    button_logits: Tensor           # [B, K, num_buttons]
+    hazard_prob: Tensor             # [B, K, 1] in [0, 1]
+    reward_estimate: Tensor         # [B, K, 1]
+    displacement: Tensor            # [B, K, 2] (dx, dy)
+    utility_logits: Tensor          # [B, K, 1] unnormalized aggregation weight
+    active_mask: Tensor             # [B, K] in {0, 1}
+    branch_probability: Tensor      # [B, K, 1] in [0, 1] (aleatoric branch probability)
+    epistemic_confidence: Tensor    # [B, K, 1] in [0, 1] (model certainty)
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,13 +43,13 @@ class ThoughtMediatedActionOutput:
     control: Tensor
     button_logits: Tensor
     proposals: ThoughtProposal
-    aggregation_weights: Tensor  # [B, K]
-    reflex_correction: Tensor    # [B, num_buttons] in [-0.1, +0.1]
-    main_action_intent: Tensor   # [B, num_buttons]
+    aggregation_weights: Tensor     # [B, K]
+    reflex_correction: Tensor       # [B, num_buttons] in [-0.1, +0.1]
+    main_action_intent: Tensor      # [B, num_buttons]
 
 
 class SharedPerThoughtletProposalHead(nn.Module):
-    """Shared neural projection mapping each individual thoughtlet to an action & future proposal."""
+    """Shared neural projection mapping each individual thoughtlet to action, future, prob & VoI."""
 
     def __init__(self, *, core_width: int, num_buttons: int = 296) -> None:
         super().__init__()
@@ -70,13 +67,11 @@ class SharedPerThoughtletProposalHead(nn.Module):
         self.reward_head = nn.Linear(core_width, 1)
         self.displacement_head = nn.Linear(core_width, 2)
         self.utility_head = nn.Linear(core_width, 1)
+        self.branch_prob_head = nn.Linear(core_width, 1)
+        self.confidence_head = nn.Linear(core_width, 1)
 
     def forward(self, thoughts: Tensor, active_mask: Tensor | None = None) -> ThoughtProposal:
-        """Forward pass over unpooled thoughts with strict active-gating.
-
-        thoughts: [B, K, Registers, Width] or [B, K, Width]
-        active_mask: [B, K] in {0, 1}
-        """
+        """Forward pass over unpooled thoughts with strict active-gating."""
         if thoughts.ndim == 4:
             slot_tokens = thoughts.mean(dim=2)  # [B, K, Width]
         else:
@@ -85,7 +80,6 @@ class SharedPerThoughtletProposalHead(nn.Module):
         b, k, w = slot_tokens.shape
 
         if active_mask is None:
-            # Structurally detect active thoughts by norm > 1e-4
             thought_norms = torch.norm(slot_tokens, dim=-1)  # [B, K]
             active_mask = (thought_norms > 1e-4).float()
         else:
@@ -93,17 +87,16 @@ class SharedPerThoughtletProposalHead(nn.Module):
 
         mask_3d = active_mask.unsqueeze(-1)  # [B, K, 1]
 
-        # Pass through trunk and enforce exact zero gating
         raw_features = self.trunk(slot_tokens)
         gated_features = raw_features * mask_3d
 
-        # Compute heads with strict mask multiplication (dead slots emit exactly 0.0)
         button_logits = self.action_head(gated_features) * mask_3d
         hazard_prob = torch.sigmoid(self.hazard_head(gated_features)) * mask_3d
         reward_estimate = self.reward_head(gated_features) * mask_3d
         displacement = self.displacement_head(gated_features) * mask_3d
+        branch_probability = torch.sigmoid(self.branch_prob_head(gated_features)) * mask_3d
+        epistemic_confidence = torch.sigmoid(self.confidence_head(gated_features)) * mask_3d
 
-        # Utility logit receives -1e9 for inactive slots so softmax ignores them completely
         raw_utility = self.utility_head(gated_features)
         utility_logits = raw_utility * mask_3d + (1.0 - mask_3d) * (-1e9)
 
@@ -114,42 +107,47 @@ class SharedPerThoughtletProposalHead(nn.Module):
             displacement=displacement,
             utility_logits=utility_logits,
             active_mask=active_mask,
+            branch_probability=branch_probability,
+            epistemic_confidence=epistemic_confidence,
         )
 
 
 class PermutationInvariantProposalAggregator(nn.Module):
-    """Aggregates K thoughtlet proposals into main action intent using utility softmax over active slots."""
+    """Aggregates K thoughtlet proposals into main action intent using probability, confidence, and utility softmax."""
 
     def __init__(self, *, temperature: float = 1.0) -> None:
         super().__init__()
         self.temperature = temperature
 
-    def forward(self, proposals: ThoughtProposal) -> tuple[Tensor, Tensor]:
-        """Aggregate proposals into main action intent.
-
-        If all slots are inactive (K=0), returns strictly neutral zero action intent: [0, 0, ..., 0].
-        Returns: (main_action_intent: [B, num_buttons], weights: [B, K])
-        """
+    def forward(
+        self,
+        proposals: ThoughtProposal,
+        *,
+        scramble_prob: bool = False,
+        scramble_binding: bool = False,
+    ) -> tuple[Tensor, Tensor]:
+        """Aggregate proposals into main action intent."""
         active_mask = proposals.active_mask  # [B, K]
         num_active = active_mask.sum(dim=-1, keepdim=True)  # [B, 1]
-
-        # Softmax over masked utility logits
-        raw_weights = F.softmax(proposals.utility_logits.squeeze(-1) / self.temperature, dim=-1)  # [B, K]
-        # Zero out weights for inactive slots
-        active_weights = raw_weights * active_mask
-
-        # Re-normalize over active slots if any are active
-        weight_sum = active_weights.sum(dim=-1, keepdim=True).clamp_min(1e-9)
-        normalized_weights = active_weights / weight_sum  # [B, K]
-
-        # If batch element has 0 active slots, weight is strictly 0.0
         has_active = (num_active > 0).float()
-        final_weights = normalized_weights * has_active  # [B, K]
 
-        # Weighted sum: [B, K, 1] * [B, K, num_buttons] -> sum over K -> [B, num_buttons]
+        u = proposals.utility_logits.squeeze(-1)  # [B, K]
+        p = getattr(proposals, "branch_probability", torch.ones_like(proposals.utility_logits)).squeeze(-1)  # [B, K]
+        conf = getattr(proposals, "epistemic_confidence", torch.ones_like(proposals.utility_logits)).squeeze(-1)  # [B, K]
+
+        if (scramble_prob or scramble_binding) and p.shape[-1] > 1:
+            perm = torch.randperm(p.shape[-1], device=p.device)
+            p = p[:, perm]
+            if scramble_binding:
+                conf = conf[:, perm]
+
+        raw_weights = F.softmax(u / self.temperature, dim=-1)  # [B, K]
+        effective_weights = raw_weights * active_mask * p.clamp_min(0.01) * conf.clamp_min(0.01)
+
+        weight_sum = effective_weights.sum(dim=-1, keepdim=True).clamp_min(1e-9)
+        final_weights = (effective_weights / weight_sum) * has_active  # [B, K]
+
         main_intent = (final_weights.unsqueeze(-1) * proposals.button_logits).sum(dim=1)
-
-        # Strict guarantee: if 0 active slots, main_intent is exactly 0.0
         main_intent = main_intent * has_active
 
         return main_intent, final_weights
@@ -164,10 +162,6 @@ class BoundedReflexHead(nn.Module):
         self.linear = nn.Linear(core_width, num_buttons)
 
     def forward(self, sensors: Tensor) -> Tensor:
-        """Compute bounded reflex delta from sensory tokens.
-
-        sensors: [B, S, Width]
-        """
         sensor_summary = sensors.mean(dim=1)  # [B, Width]
         raw_delta = self.linear(sensor_summary)
         return self.max_delta * torch.tanh(raw_delta)
@@ -197,15 +191,19 @@ class ThoughtMediatedActuator(nn.Module):
         sensors: Tensor,
         thoughts: Tensor,
         active_mask: Tensor | None = None,
+        scramble_prob: bool = False,
+        scramble_binding: bool = False,
     ) -> ThoughtMediatedActionOutput:
         """Decode control through strictly gated thought proposals and bounded reflex."""
         proposals = self.proposal_head(thoughts, active_mask=active_mask)
-        main_intent, weights = self.aggregator(proposals)
+        main_intent, weights = self.aggregator(
+            proposals,
+            scramble_prob=scramble_prob,
+            scramble_binding=scramble_binding,
+        )
         reflex = self.reflex_head(sensors)
 
         final_button_logits = main_intent + reflex
-
-        # Control vector wire compatibility
         control = final_button_logits.clone()
 
         return ThoughtMediatedActionOutput(

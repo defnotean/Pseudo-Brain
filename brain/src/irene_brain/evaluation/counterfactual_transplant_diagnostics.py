@@ -77,7 +77,7 @@ def collect_conflicting_state_pairs(
             obs = step_out.observation
 
         bundle = generate_multi_step_trajectory_tree(fam_env, obs, horizon=2, device=device)
-        gt_opt_action = int(torch.argmax(bundle.utilities[:5]).item())
+        gt_opt_action = int(torch.argmax(bundle.expected_action_utilities).item())
 
         raw_rgb = np.frombuffer(obs.rgb.pixels, dtype=np.uint8).reshape((16, 16, 3))
         rgb_tensor = torch.from_numpy(raw_rgb.copy()).permute(2, 0, 1).unsqueeze(0).float().to(device) / 255.0
@@ -92,7 +92,7 @@ def collect_conflicting_state_pairs(
         rec_seed, rec_act, rec_rgb = state_pool[i]
         for j in range(i + 1, len(state_pool)):
             don_seed, don_act, don_rgb = state_pool[j]
-            if rec_act != don_act and rec_act > 0 and don_act > 0:  # non-trivial directional conflicts
+            if rec_act != don_act:  # conflicting actions
                 pairs.append(ThoughtTransplantPair(
                     recipient_seed=rec_seed,
                     donor_seed=don_seed,

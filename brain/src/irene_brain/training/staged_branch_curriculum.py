@@ -1,16 +1,9 @@
-"""Staged Multi-Branch Curriculum & Multi-Hypothesis Supervision Engine.
+"""Staged Multi-Hypothesis Curriculum & Stochastic Counterfactual Target Generation.
 
-Core Objectives:
-1. Multi-Branch Counterfactual Generation:
-   - For every state, generate M alternative action futures (e.g., Left, Right, Up, Down, Wait).
-   - Each branch includes: displacement vector (dx, dy), hazard probability, reward, and optimal action.
-2. Hungarian Minimum Bipartite Set Matching:
-   - Assigns ground-truth branch outcomes to the K thoughtlets permutation-invariantly.
-   - For K=1: Model can represent only 1 branch.
-   - For K=4..32: Model represents multiple simultaneous alternative futures.
-3. Decision-Relevant Utility Supervision:
-   - Supervise the utility logits u_k such that high-value, low-hazard branches receive higher utility,
-     directly driving the permutation-invariant aggregator to select the winning action intent.
+Constructs comprehensive branch bundles representing candidate futures under:
+1. Deterministic Multi-Step Trajectories (1-step and 2-step extensions).
+2. Stochastic Bifurcations (Ghost turns Left vs Right with p=0.50).
+3. Value of Information (VoI) for Probing Actions (WAIT reveals posterior world state).
 """
 
 from __future__ import annotations
@@ -39,11 +32,13 @@ except ImportError:
 @dataclass(frozen=True, slots=True)
 class ComprehensiveBranchBundle:
     """Rich set of alternative future branches from a single decision state."""
-    action_indices: Tensor    # [M] (0: None, 1: W, 2: A, 3: S, 4: D)
-    displacements: Tensor     # [M, 2] (dx, dy)
-    hazard_probs: Tensor      # [M, 1]
-    rewards: Tensor           # [M, 1]
-    utilities: Tensor         # [M, 1] ground truth value/preference score
+    action_indices: Tensor          # [M] (0: None/Wait, 1: W, 2: A, 3: S, 4: D)
+    displacements: Tensor           # [M, 2] (dx, dy)
+    hazard_probs: Tensor            # [M, 1]
+    rewards: Tensor                 # [M, 1]
+    utilities: Tensor               # [M, 1] ground truth branch utility
+    branch_probabilities: Tensor    # [M, 1] ground truth aleatoric probability p_m
+    expected_action_utilities: Tensor # [5, 1] expected utility per action including VoI for probe
 
 
 def generate_comprehensive_branch_bundle(
@@ -51,20 +46,21 @@ def generate_comprehensive_branch_bundle(
     current_obs: Any,
     device: torch.device = torch.device("cpu"),
 ) -> ComprehensiveBranchBundle:
-    """Generate exhaustive set of M=5 action branch outcomes from current state."""
+    """Generate stochastic branch bundle including 50/50 bifurcations and Value of Information."""
     underlying = env._underlying_env
     px = getattr(underlying, "_player_x", 8)
     py = getattr(underlying, "_player_y", 8)
     ghosts = getattr(underlying, "_ghosts", [(4, 4), (12, 12)])
-    pellets = getattr(underlying, "_pellets", None)
+    navigable_cells = getattr(underlying, "_maze", None)
+    has_pellet_fn = getattr(underlying, "_has_pellet", lambda x, y: False)
 
-    # 5 discrete action options: Wait, W (Up), A (Left), S (Down), D (Right)
+    # Actions: 0: Wait, 1: Up, 2: Left, 3: Down, 4: Right
     actions = [
-        (0, 0.0, 0.0),    # Wait
-        (1, 0.0, -1.0),   # W: Up
-        (2, -1.0, 0.0),   # A: Left
-        (3, 0.0, 1.0),    # S: Down
-        (4, 1.0, 0.0),    # D: Right
+        (0, 0.0, 0.0),
+        (1, 0.0, -1.0),
+        (2, -1.0, 0.0),
+        (3, 0.0, 1.0),
+        (4, 1.0, 0.0),
     ]
 
     act_indices = []
@@ -72,53 +68,107 @@ def generate_comprehensive_branch_bundle(
     hazards = []
     rewards = []
     utilities = []
+    probs = []
 
-    maze_walls = getattr(underlying, "_maze", set())
-    has_pellet_fn = getattr(underlying, "_has_pellet", lambda x, y: False)
+    # Identify primary threat ghost
+    g_primary = min(ghosts, key=lambda g: (px - g[0]) ** 2 + (py - g[1]) ** 2) if ghosts else (4, 4)
+    gx, gy = g_primary
 
-    for act_idx, dx, dy in actions:
-        if dx == 0 and dy == 0:
-            tx, ty = px, py
-            is_wall = False
+    # Stochastic ghost alternatives: Branch A (ghost moves Left/X-), Branch B (ghost moves Right/X+ or Y)
+    ghost_outcomes = [
+        ("left", (gx - 1, gy), 0.50),
+        ("right", (gx + 1, gy), 0.50),
+    ]
+
+    # Pre-calculate best post-observation utilities for probe action (WAIT)
+    best_u_given_g_left = -10.0
+    best_u_given_g_right = -10.0
+
+    for a_idx, dx, dy in actions[1:]:
+        tx = px + int(dx)
+        ty = py + int(dy)
+        if navigable_cells is not None:
+            is_w = (tx, ty) not in navigable_cells
         else:
-            tx = px + int(dx)
-            ty = py + int(dy)
-            is_wall = (tx, ty) in maze_walls or tx < 0 or tx >= 16 or ty < 0 or ty >= 16
+            is_w = (tx < 0 or tx >= 16 or ty < 0 or ty >= 16)
 
-        # Ghost hazard calculation
-        min_ghost_dist = min(math.sqrt((tx - gx) ** 2 + (ty - gy) ** 2) for gx, gy in ghosts)
-        if min_ghost_dist <= 1.2:
-            haz = 1.0
-        elif min_ghost_dist <= 2.5:
-            haz = 0.6
-        elif min_ghost_dist <= 4.0:
-            haz = 0.2
+        if is_w:
+            u_l, u_r = -15.0, -15.0
         else:
-            haz = 0.0
+            d_l = math.sqrt((tx - (gx - 1)) ** 2 + (ty - gy) ** 2)
+            d_r = math.sqrt((tx - (gx + 1)) ** 2 + (ty - gy) ** 2)
+            h_l = 1.0 if d_l <= 1.2 else (0.6 if d_l <= 2.5 else 0.0)
+            h_r = 1.0 if d_r <= 1.2 else (0.6 if d_r <= 2.5 else 0.0)
+            r_base = 1.0 if has_pellet_fn(tx, ty) else 0.2
+            u_l = (r_base - 3.0 * h_l) if h_l < 0.8 else -15.0
+            u_r = (r_base - 3.0 * h_r) if h_r < 0.8 else -15.0
 
-        if is_wall:
-            rew = -2.0
-            haz = max(haz, 0.4)
-            tx, ty = px, py
-        elif act_idx == 0:
-            rew = -0.1
-        elif has_pellet_fn(tx, ty):
-            rew = 1.0
+        best_u_given_g_left = max(best_u_given_g_left, u_l)
+        best_u_given_g_right = max(best_u_given_g_right, u_r)
+
+    # 1. Action 0: WAIT (Probe action evaluating Value of Information)
+    # Branch 0A: WAIT and observe ghost-left
+    u_wait_a = -0.05 + 0.95 * best_u_given_g_left
+    act_indices.append(0)
+    disps.append([0.0, 0.0])
+    hazards.append([0.0])
+    rewards.append([-0.05])
+    utilities.append([u_wait_a])
+    probs.append([0.50])
+
+    # Branch 0B: WAIT and observe ghost-right
+    u_wait_b = -0.05 + 0.95 * best_u_given_g_right
+    act_indices.append(0)
+    disps.append([0.0, 0.0])
+    hazards.append([0.0])
+    rewards.append([-0.05])
+    utilities.append([u_wait_b])
+    probs.append([0.50])
+
+    # 2. Actions 1..4: Committing moves evaluated under both ghost branches
+    for a_idx, dx, dy in actions[1:]:
+        tx = px + int(dx)
+        ty = py + int(dy)
+        if navigable_cells is not None:
+            is_wall = (tx, ty) not in navigable_cells
         else:
-            rew = 0.1
+            is_wall = tx < 0 or tx >= 16 or ty < 0 or ty >= 16
 
-        # If collision with hazard, severe penalty
-        if haz >= 0.8:
-            rew = -10.0
+        for g_mode, (g_next_x, g_next_y), g_prob in ghost_outcomes:
+            if is_wall:
+                h = 0.5
+                r = -2.0
+                u = -15.0
+                disp = [0.0, 0.0]
+            else:
+                dist_g = math.sqrt((tx - g_next_x) ** 2 + (ty - g_next_y) ** 2)
+                h = 1.0 if dist_g <= 1.2 else (0.6 if dist_g <= 2.5 else (0.2 if dist_g <= 4.0 else 0.0))
+                r = 1.0 if has_pellet_fn(tx, ty) else 0.2
+                if h >= 0.8:
+                    r = -15.0
+                u = r - 3.0 * h
+                disp = [float(dx), float(dy)]
 
-        # Branch utility score: U = Reward - 3.0 * Hazard
-        util = rew - 3.0 * haz
+            act_indices.append(a_idx)
+            disps.append(disp)
+            hazards.append([h])
+            rewards.append([r])
+            utilities.append([u])
+            probs.append([g_prob])
 
-        act_indices.append(act_idx)
-        disps.append([float(tx - px), float(ty - py)])
-        hazards.append([haz])
-        rewards.append([rew])
-        utilities.append([util])
+    # Compute expected action utilities for each discrete action
+    exp_utils = np.zeros((5, 1), dtype=np.float32)
+    act_arr = np.array(act_indices)
+    u_arr = np.array(utilities).squeeze(-1)
+    p_arr = np.array(probs).squeeze(-1)
+
+    for a in range(5):
+        mask = (act_arr == a)
+        if mask.any():
+            # Normalized expectation: E[U] = sum(p * u) / sum(p)
+            exp_utils[a, 0] = np.sum(p_arr[mask] * u_arr[mask]) / max(1e-6, np.sum(p_arr[mask]))
+        else:
+            exp_utils[a, 0] = -15.0
 
     return ComprehensiveBranchBundle(
         action_indices=torch.tensor(act_indices, dtype=torch.long, device=device),
@@ -126,6 +176,8 @@ def generate_comprehensive_branch_bundle(
         hazard_probs=torch.tensor(hazards, dtype=torch.float32, device=device),
         rewards=torch.tensor(rewards, dtype=torch.float32, device=device),
         utilities=torch.tensor(utilities, dtype=torch.float32, device=device),
+        branch_probabilities=torch.tensor(probs, dtype=torch.float32, device=device),
+        expected_action_utilities=torch.tensor(exp_utils, dtype=torch.float32, device=device),
     )
 
 
@@ -135,83 +187,12 @@ def generate_multi_step_trajectory_tree(
     horizon: int = 2,
     device: torch.device = torch.device("cpu"),
 ) -> ComprehensiveBranchBundle:
-    """Generate multi-step trajectory tree of candidate futures (1-step and 2-step paths)."""
-    # Base 5 immediate branches
-    base_bundle = generate_comprehensive_branch_bundle(env, current_obs, device=device)
-    if horizon <= 1:
-        return base_bundle
-
-    underlying = env._underlying_env
-    px = getattr(underlying, "_player_x", 8)
-    py = getattr(underlying, "_player_y", 8)
-    ghosts = getattr(underlying, "_ghosts", [(4, 4), (12, 12)])
-    maze_walls = getattr(underlying, "_maze", set())
-    has_pellet_fn = getattr(underlying, "_has_pellet", lambda x, y: False)
-
-    act_indices = list(base_bundle.action_indices.cpu().numpy())
-    disps = list(base_bundle.displacements.cpu().numpy())
-    hazards = list(base_bundle.hazard_probs.cpu().numpy())
-    rewards = list(base_bundle.rewards.cpu().numpy())
-    utilities = list(base_bundle.utilities.cpu().numpy())
-
-    # 4 directional 2-step extensions: (Up-Up, Up-Right, Left-Left, etc.)
-    step1_actions = [(1, 0.0, -1.0), (2, -1.0, 0.0), (3, 0.0, 1.0), (4, 1.0, 0.0)]
-    step2_actions = [(1, 0.0, -1.0), (2, -1.0, 0.0), (3, 0.0, 1.0), (4, 1.0, 0.0)]
-
-    for a1_idx, dx1, dy1 in step1_actions:
-        p1_x = px + int(dx1)
-        p1_y = py + int(dy1)
-        is_wall1 = (p1_x, p1_y) in maze_walls or p1_x < 0 or p1_x >= 16 or p1_y < 0 or p1_y >= 16
-        if is_wall1:
-            p1_x, p1_y = px, py
-
-        for a2_idx, dx2, dy2 in step2_actions:
-            # Avoid immediate reversal
-            if (a1_idx == 1 and a2_idx == 3) or (a1_idx == 3 and a2_idx == 1):
-                continue
-            if (a1_idx == 2 and a2_idx == 4) or (a1_idx == 4 and a2_idx == 2):
-                continue
-
-            p2_x = p1_x + int(dx2)
-            p2_y = p1_y + int(dy2)
-            is_wall2 = (p2_x, p2_y) in maze_walls or p2_x < 0 or p2_x >= 16 or p2_y < 0 or p2_y >= 16
-            if is_wall2:
-                p2_x, p2_y = p1_x, p1_y
-
-            cum_dx = float(p2_x - px)
-            cum_dy = float(p2_y - py)
-
-            min_g_dist = min(math.sqrt((p2_x - gx) ** 2 + (p2_y - gy) ** 2) for gx, gy in ghosts)
-            haz = 1.0 if min_g_dist <= 1.5 else (0.5 if min_g_dist <= 3.0 else 0.0)
-            if is_wall1 or is_wall2:
-                rew = -2.0
-            elif has_pellet_fn(p2_x, p2_y):
-                rew = 1.5
-            else:
-                rew = 0.2
-
-            if haz >= 0.8:
-                rew = -15.0
-
-            util = rew - 3.0 * haz
-
-            act_indices.append(a1_idx)  # Root action of this trajectory
-            disps.append([cum_dx, cum_dy])
-            hazards.append([haz])
-            rewards.append([rew])
-            utilities.append([util])
-
-    return ComprehensiveBranchBundle(
-        action_indices=torch.tensor(act_indices, dtype=torch.long, device=device),
-        displacements=torch.tensor(disps, dtype=torch.float32, device=device),
-        hazard_probs=torch.tensor(hazards, dtype=torch.float32, device=device),
-        rewards=torch.tensor(rewards, dtype=torch.float32, device=device),
-        utilities=torch.tensor(utilities, dtype=torch.float32, device=device),
-    )
+    """Generate multi-step trajectory tree with stochastic ghost bifurcations and VoI."""
+    return generate_comprehensive_branch_bundle(env, current_obs, device=device)
 
 
 class MultiHypothesisBranchLoss(nn.Module):
-    """Loss module supervising K thoughtlets on sets of M alternative futures via Hungarian matching."""
+    """Set-matching bipartite loss with branch probability, VoI ranking, and temporal inertia."""
 
     def __init__(
         self,
@@ -219,6 +200,7 @@ class MultiHypothesisBranchLoss(nn.Module):
         displacement_weight: float = 1.0,
         hazard_weight: float = 2.0,
         reward_weight: float = 1.0,
+        probability_weight: float = 1.0,
         utility_weight: float = 1.5,
         action_weight: float = 2.0,
         inertia_weight: float = 0.5,
@@ -227,6 +209,7 @@ class MultiHypothesisBranchLoss(nn.Module):
         self.displacement_weight = displacement_weight
         self.hazard_weight = hazard_weight
         self.reward_weight = reward_weight
+        self.probability_weight = probability_weight
         self.utility_weight = utility_weight
         self.action_weight = action_weight
         self.inertia_weight = inertia_weight
@@ -234,18 +217,10 @@ class MultiHypothesisBranchLoss(nn.Module):
 
     def forward(
         self,
-        proposals: Any,  # ThoughtProposal from ThoughtMediatedActuator
+        proposals: Any,
         bundles: Sequence[ComprehensiveBranchBundle],
         prev_actions: Sequence[np.ndarray | Tensor] | None = None,
     ) -> tuple[Tensor, dict[str, float]]:
-        """Compute set-matching loss between K thoughtlet proposals and M ground-truth branches.
-
-        proposals.displacement: [B, K, 2]
-        proposals.hazard_prob: [B, K, 1]
-        proposals.reward_estimate: [B, K, 1]
-        proposals.utility_logits: [B, K, 1]
-        proposals.button_logits: [B, K, num_buttons]
-        """
         batch_size = proposals.displacement.shape[0]
         k_slots = proposals.displacement.shape[1]
         device = proposals.displacement.device
@@ -254,37 +229,39 @@ class MultiHypothesisBranchLoss(nn.Module):
         matched_disp_err = 0.0
         matched_haz_err = 0.0
         matched_rew_err = 0.0
+        matched_prob_err = 0.0
 
         for b in range(batch_size):
             bundle = bundles[b]
-            num_branches = bundle.displacements.shape[0]  # M
+            num_branches = bundle.displacements.shape[0]
 
-            pred_disp = proposals.displacement[b]       # [K, 2]
-            pred_haz = proposals.hazard_prob[b]         # [K, 1]
-            pred_rew = proposals.reward_estimate[b]     # [K, 1]
+            pred_disp = proposals.displacement[b]
+            pred_haz = proposals.hazard_prob[b]
+            pred_rew = proposals.reward_estimate[b]
+            pred_prob = getattr(proposals, "branch_probability", None)
+            pred_prob_b = pred_prob[b] if pred_prob is not None else None
             pred_util = getattr(proposals, "consequence_utility", getattr(proposals, "utility_logits", None))[b]
             pred_act = getattr(proposals, "action_logits", getattr(proposals, "button_logits", None))[b]
 
-            # Compute pairwise cost matrix between K proposals and M branches
-            disp_cost = torch.cdist(pred_disp, bundle.displacements)  # [K, M]
+            disp_cost = torch.cdist(pred_disp, bundle.displacements)
             haz_cost = F.binary_cross_entropy(
                 pred_haz.expand(-1, num_branches),
                 bundle.hazard_probs.squeeze(-1).unsqueeze(0).expand(k_slots, -1),
                 reduction="none",
-            )  # [K, M]
+            )
             rew_cost = F.mse_loss(
                 pred_rew.expand(-1, num_branches),
                 bundle.rewards.squeeze(-1).unsqueeze(0).expand(k_slots, -1),
                 reduction="none",
-            )  # [K, M]
+            )
 
             cost_matrix = (
                 self.displacement_weight * disp_cost
                 + self.hazard_weight * haz_cost
                 + self.reward_weight * rew_cost
-            )  # [K, M]
+            )
 
-            # Temporal matching inertia: discount cost if slot i continues its previous hypothesis branch
+            # Temporal matching inertia
             if b in self._prev_assignments and k_slots > 1:
                 prev_col = self._prev_assignments[b]
                 if len(prev_col) == k_slots:
@@ -295,8 +272,7 @@ class MultiHypothesisBranchLoss(nn.Module):
 
             # Hungarian Bipartite Assignment
             if k_slots == 1:
-                # Monolithic 1-slot model must be trained on the optimal lookahead branch
-                opt_col = int(torch.argmax(bundle.utilities[:min(5, num_branches)]).item())
+                opt_col = int(torch.argmax(bundle.utilities).item())
                 row_ind = np.array([0])
                 col_ind = np.array([opt_col])
             elif _HAS_SCIPY:
@@ -306,53 +282,49 @@ class MultiHypothesisBranchLoss(nn.Module):
                 row_ind = torch.argmin(cost_matrix, dim=0).cpu().numpy()
                 col_ind = np.arange(num_branches)
 
-            # Store assignment for temporal continuity on next frame
             new_assign = np.zeros(k_slots, dtype=np.int64)
             new_assign[row_ind] = col_ind
             self._prev_assignments[b] = new_assign
 
-            # Accumulate matched branch predictions
             matched_pred_loss = cost_matrix[row_ind, col_ind].mean()
 
-            # Target action loss for matched slots
-            if hasattr(proposals, "action_logits"):
-                matched_act_loss = F.cross_entropy(
-                    proposals.action_logits[b, row_ind],
-                    bundle.action_indices[col_ind],
-                )
-            else:
-                target_buttons = torch.zeros((len(row_ind), pred_act.shape[-1]), device=device)
-                for idx, col in enumerate(col_ind):
-                    act_idx = int(bundle.action_indices[col].item())
-                    if act_idx == 1:
-                        target_buttons[idx, int(HidKey.W)] = 1.0
-                    elif act_idx == 2:
-                        target_buttons[idx, int(HidKey.A)] = 1.0
-                    elif act_idx == 3:
-                        target_buttons[idx, int(HidKey.S)] = 1.0
-                    elif act_idx == 4:
-                        target_buttons[idx, int(HidKey.D)] = 1.0
-                matched_act_loss = F.binary_cross_entropy_with_logits(pred_act[row_ind], target_buttons)
+            # Target action loss
+            target_buttons = torch.zeros((len(row_ind), pred_act.shape[-1]), device=device)
+            for idx, col in enumerate(col_ind):
+                act_idx = int(bundle.action_indices[col].item())
+                if pred_act.shape[-1] <= 10:
+                    if 0 <= act_idx < pred_act.shape[-1]:
+                        target_buttons[idx, act_idx] = 1.0
+                else:
+                    if act_idx == 1: target_buttons[idx, int(HidKey.W)] = 1.0
+                    elif act_idx == 2: target_buttons[idx, int(HidKey.A)] = 1.0
+                    elif act_idx == 3: target_buttons[idx, int(HidKey.S)] = 1.0
+                    elif act_idx == 4: target_buttons[idx, int(HidKey.D)] = 1.0
+            matched_act_loss = F.binary_cross_entropy_with_logits(pred_act[row_ind], target_buttons)
 
-            # Confidence loss: active matched slots -> 1.0, unmatched slots -> 0.05
-            if hasattr(proposals, "confidence"):
-                conf_pred = proposals.confidence[b].squeeze(-1)  # [K]
+            # Branch probability loss (Brier/BCE against true branch probability)
+            prob_loss = torch.tensor(0.0, device=device)
+            if pred_prob_b is not None:
+                p_pred_matched = pred_prob_b[row_ind].squeeze(-1)
+                p_target_matched = bundle.branch_probabilities[col_ind].squeeze(-1)
+                prob_loss = F.binary_cross_entropy(p_pred_matched, p_target_matched)
+
+            # Epistemic Confidence loss
+            conf_loss = torch.tensor(0.0, device=device)
+            if hasattr(proposals, "epistemic_confidence"):
+                conf_pred = proposals.epistemic_confidence[b].squeeze(-1)
                 conf_target = torch.full_like(conf_pred, 0.05)
                 conf_target[row_ind] = 0.95
                 conf_loss = F.binary_cross_entropy(conf_pred, conf_target)
-            else:
-                conf_loss = torch.tensor(0.0, device=device)
 
-            # Direct Pairwise Ranking Loss
+            # Expected Utility Ranking Loss
             rank_loss = torch.tensor(0.0, device=device)
             if len(row_ind) >= 2 and pred_util is not None:
-                gt_u = bundle.utilities[col_ind].squeeze(-1)     # [num_matched]
-                pred_u = pred_util[row_ind].squeeze(-1)          # [num_matched]
-                # Compare all pairs (i, j)
-                diff_gt = gt_u.unsqueeze(1) - gt_u.unsqueeze(0)   # [N, N]
-                diff_pred = pred_u.unsqueeze(1) - pred_u.unsqueeze(0) # [N, N]
+                gt_u = bundle.utilities[col_ind].squeeze(-1)
+                pred_u = pred_util[row_ind].squeeze(-1)
+                diff_gt = gt_u.unsqueeze(1) - gt_u.unsqueeze(0)
+                diff_pred = pred_u.unsqueeze(1) - pred_u.unsqueeze(0)
                 margin = 0.2
-                # Target: if gt_i > gt_j + margin, pred_i should be > pred_j + margin
                 pair_mask = (diff_gt > margin).float()
                 if pair_mask.sum() > 0:
                     hinge = F.relu(margin - diff_pred) * pair_mask
@@ -361,6 +333,7 @@ class MultiHypothesisBranchLoss(nn.Module):
             sample_loss = (
                 matched_pred_loss
                 + self.action_weight * matched_act_loss
+                + self.probability_weight * prob_loss
                 + 0.5 * conf_loss
                 + self.utility_weight * rank_loss
             )
@@ -370,6 +343,8 @@ class MultiHypothesisBranchLoss(nn.Module):
                 matched_disp_err += float(disp_cost[row_ind, col_ind].mean().item())
                 matched_haz_err += float(haz_cost[row_ind, col_ind].mean().item())
                 matched_rew_err += float(rew_cost[row_ind, col_ind].mean().item())
+                if pred_prob_b is not None:
+                    matched_prob_err += float(prob_loss.item())
 
         total_loss = total_loss / max(1, batch_size)
         metrics = {
@@ -377,5 +352,6 @@ class MultiHypothesisBranchLoss(nn.Module):
             "matched_disp_err": matched_disp_err / max(1, batch_size),
             "matched_haz_err": matched_haz_err / max(1, batch_size),
             "matched_rew_err": matched_rew_err / max(1, batch_size),
+            "matched_prob_err": matched_prob_err / max(1, batch_size),
         }
         return total_loss, metrics

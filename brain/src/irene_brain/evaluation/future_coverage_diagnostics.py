@@ -11,6 +11,7 @@ from typing import Any, Sequence
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch import Tensor
 
 from ..environments.phase2_suite import Phase2TaskEnvironment
@@ -173,9 +174,18 @@ def evaluate_future_coverage(
             unique_actions = set(predicted_action_choices.cpu().numpy().tolist()) if len(predicted_action_choices) > 0 else set()
             covered_actions_list.append(len(unique_actions))
 
-            gt_hazards = bundle.hazard_probs[:5].squeeze(-1)
-            gt_rewards = bundle.rewards[:5].squeeze(-1)
-            gt_disps = bundle.displacements[:5]
+            gt_hazards = torch.stack([
+                bundle.hazard_probs[bundle.action_indices == a].max() if (bundle.action_indices == a).any() else torch.tensor(0.0, device=device)
+                for a in range(5)
+            ])
+            gt_rewards = torch.stack([
+                bundle.rewards[bundle.action_indices == a].mean() if (bundle.action_indices == a).any() else torch.tensor(-10.0, device=device)
+                for a in range(5)
+            ])
+            gt_disps = torch.stack([
+                bundle.displacements[bundle.action_indices == a][0] if (bundle.action_indices == a).any() else torch.zeros(2, device=device)
+                for a in range(5)
+            ])
 
             has_danger = (gt_hazards > 0.5).any()
             if has_danger and len(active_hazards) > 0:
@@ -198,22 +208,25 @@ def evaluate_future_coverage(
             else:
                 disp_errors.append(2.0)
 
-            # Align utilities to 5 discrete actions
+            # Align utilities to 5 discrete actions via confidence-weighted expectation
             action_aligned_utils = []
             for act_i in range(5):
                 matching_slots = (predicted_action_choices == act_i).nonzero(as_tuple=True)[0]
                 if len(matching_slots) > 0:
-                    act_u = float(active_utils[matching_slots].max().item())
+                    slot_confs = active_confs[matching_slots]
+                    slot_u = active_utils[matching_slots].squeeze(-1)
+                    w = F.softmax(slot_confs.clamp_min(0.01), dim=-1)
+                    act_u = float((w * slot_u).sum().item())
                 else:
                     act_u = -10.0
                 action_aligned_utils.append(act_u)
 
-            gt_utils_np = bundle.utilities[:5].squeeze(-1).cpu().numpy()
+            gt_utils_np = bundle.expected_action_utilities.squeeze(-1).cpu().numpy()
             rho = _compute_spearman_rho(np.array(action_aligned_utils), gt_utils_np)
             correlations.append(rho)
 
             # 5. Optimal Action Top-1 Accuracy & Granular Decision Decomposition
-            gt_utils = bundle.utilities[:5].squeeze(-1)
+            gt_utils = bundle.expected_action_utilities.squeeze(-1)
             opt_action_idx = int(torch.argmax(gt_utils).item())
             pred_top1_action = int(np.argmax(action_aligned_utils))
             top1_ranked_list.append(1.0 if pred_top1_action == opt_action_idx else 0.0)
@@ -259,10 +272,13 @@ def evaluate_future_coverage(
                 s3_ranked.append(0.0)
 
             # Stage 4: Did actuator select optimal action?
-            button_logits = out.action.button_logits[0].cpu().numpy()
             dir_keys = [0, int(HidKey.W), int(HidKey.A), int(HidKey.S), int(HidKey.D)]
-            dir_scores = [0.0 if idx == 0 else float(button_logits[key]) for idx, key in enumerate(dir_keys)]
-            selected_act = int(np.argmax(dir_scores))
+            if hasattr(out.action, "action_dist") and out.action.action_dist is not None:
+                selected_act = int(torch.argmax(out.action.action_dist[0]).item())
+            else:
+                button_logits = out.action.button_logits[0].cpu().numpy()
+                dir_scores = [0.0 if idx == 0 else float(button_logits[key]) for idx, key in enumerate(dir_keys)]
+                selected_act = int(np.argmax(dir_scores))
             s4_selected.append(1.0 if selected_act == opt_action_idx else 0.0)
 
             # Reflex Flip Rate Check

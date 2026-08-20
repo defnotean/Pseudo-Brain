@@ -40,14 +40,15 @@ from ..types import HidKey
 @dataclass(frozen=True, slots=True)
 class ConsequenceProposal:
     """Action-conditioned future prediction emitted by a single thoughtlet."""
-    action_logits: Tensor      # [B, K, 5] (0: Wait, 1: Up/W, 2: Left/A, 3: Down/S, 4: Right/D)
-    action_probs: Tensor       # [B, K, 5]
-    displacement: Tensor       # [B, K, 2] (dx, dy)
-    hazard_prob: Tensor        # [B, K, 1] in [0, 1]
-    reward_estimate: Tensor    # [B, K, 1]
-    confidence: Tensor         # [B, K, 1] in [0, 1]
+    action_logits: Tensor       # [B, K, 5] (0: Wait, 1: Up/W, 2: Left/A, 3: Down/S, 4: Right/D)
+    action_probs: Tensor        # [B, K, 5]
+    displacement: Tensor        # [B, K, 2] (dx, dy)
+    hazard_prob: Tensor         # [B, K, 1] in [0, 1]
+    reward_estimate: Tensor     # [B, K, 1]
+    confidence: Tensor          # [B, K, 1] in [0, 1]
     consequence_utility: Tensor # [B, K, 1] derived utility score
-    active_mask: Tensor        # [B, K] in {0, 1}
+    active_mask: Tensor         # [B, K] in {0, 1}
+    branch_probability: Tensor  # [B, K, 1] in [0, 1]
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,6 +60,7 @@ class ConsequenceActionOutput:
     aggregation_weights: Tensor  # [B, K]
     reflex_correction: Tensor    # [B, num_buttons] in [-0.10, +0.10]
     main_action_intent: Tensor   # [B, num_buttons]
+    action_dist: Tensor          # [B, 5] (0: Wait, 1: Up, 2: Left, 3: Down, 4: Right)
 
 
 class SharedConsequenceProposalHead(nn.Module):
@@ -82,6 +84,7 @@ class SharedConsequenceProposalHead(nn.Module):
         self.hazard_head = nn.Linear(core_width, 1)
         self.reward_head = nn.Linear(core_width, 1)
         self.confidence_head = nn.Linear(core_width, 1)
+        self.branch_prob_head = nn.Linear(core_width, 1)
 
     def forward(self, thoughts: Tensor, active_mask: Tensor | None = None) -> ConsequenceProposal:
         """Forward pass over unpooled thoughts.
@@ -118,6 +121,7 @@ class SharedConsequenceProposalHead(nn.Module):
         hazard_prob = torch.sigmoid(self.hazard_head(gated_features)) * mask_3d
         reward_estimate = self.reward_head(gated_features) * mask_3d
         confidence = torch.sigmoid(self.confidence_head(gated_features)) * mask_3d
+        branch_probability = torch.sigmoid(self.branch_prob_head(gated_features)) * mask_3d
 
         # Derive consequence utility: U = Reward - 3.0 * Hazard + 0.5 * log(conf + 1e-4)
         raw_util = reward_estimate - 3.0 * hazard_prob + 0.5 * torch.log(confidence.clamp_min(1e-4))
@@ -132,6 +136,7 @@ class SharedConsequenceProposalHead(nn.Module):
             confidence=confidence,
             consequence_utility=consequence_utility,
             active_mask=active_mask,
+            branch_probability=branch_probability,
         )
 
 
@@ -143,10 +148,16 @@ class ConsequenceProposalAggregator(nn.Module):
         self.temperature = temperature
         self.num_buttons = num_buttons
 
-    def forward(self, proposals: ConsequenceProposal) -> tuple[Tensor, Tensor]:
+    def forward(
+        self,
+        proposals: ConsequenceProposal,
+        *,
+        scramble_prob: bool = False,
+        scramble_binding: bool = False,
+    ) -> tuple[Tensor, Tensor, Tensor]:
         """Aggregate action conditions weighted by consequence utilities into 296-channel button logits.
 
-        Returns: (main_action_intent: [B, num_buttons], aggregation_weights: [B, K])
+        Returns: (main_action_intent: [B, num_buttons], aggregation_weights: [B, K], action_dist: [B, 5])
         """
         active_mask = proposals.active_mask  # [B, K]
         num_active = active_mask.sum(dim=-1, keepdim=True)  # [B, 1]
@@ -154,8 +165,15 @@ class ConsequenceProposalAggregator(nn.Module):
         batch_size, k_slots = active_mask.shape
 
         # Softmax over active consequence utilities
-        raw_weights = F.softmax(proposals.consequence_utility.squeeze(-1) / self.temperature, dim=-1)  # [B, K]
-        active_weights = raw_weights * active_mask
+        raw_util = proposals.consequence_utility.squeeze(-1)
+        p = getattr(proposals, "branch_probability", torch.ones_like(proposals.consequence_utility)).squeeze(-1)
+        if (scramble_prob or scramble_binding) and raw_util.shape[-1] > 1:
+            perm = torch.randperm(raw_util.shape[-1], device=raw_util.device)
+            raw_util = raw_util[:, perm]
+            p = p[:, perm]
+
+        raw_weights = F.softmax(raw_util / self.temperature, dim=-1)  # [B, K]
+        active_weights = raw_weights * active_mask * p.clamp_min(0.01)
         weight_sum = active_weights.sum(dim=-1, keepdim=True).clamp_min(1e-9)
         normalized_weights = active_weights / weight_sum  # [B, K]
 
@@ -175,7 +193,7 @@ class ConsequenceProposalAggregator(nn.Module):
 
         main_intent = main_intent * has_active
 
-        return main_intent, final_weights
+        return main_intent, final_weights, action_dist
 
 
 class ConsequenceThoughtActuator(nn.Module):
@@ -203,9 +221,15 @@ class ConsequenceThoughtActuator(nn.Module):
         sensors: Tensor,
         thoughts: Tensor,
         active_mask: Tensor | None = None,
+        scramble_prob: bool = False,
+        scramble_binding: bool = False,
     ) -> ConsequenceActionOutput:
         proposals = self.proposal_head(thoughts, active_mask=active_mask)
-        main_intent, weights = self.aggregator(proposals)
+        main_intent, weights, action_dist = self.aggregator(
+            proposals,
+            scramble_prob=scramble_prob,
+            scramble_binding=scramble_binding,
+        )
 
         # Bounded reflex
         sensor_summary = sensors.mean(dim=1)
@@ -221,4 +245,5 @@ class ConsequenceThoughtActuator(nn.Module):
             aggregation_weights=weights,
             reflex_correction=reflex,
             main_action_intent=main_intent,
+            action_dist=action_dist,
         )

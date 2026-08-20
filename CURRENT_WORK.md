@@ -152,6 +152,12 @@ Retired, already-opened ranges must never be reused as evidence. See
 The project maintains a strict, non-derailing three-tiered hierarchy:
 
 1. **CURRENT WORK (Active Priority):**
+   - Phase 2.5 CPU diagnostics are in-tree: belief collapse / VoI, multi-horizon
+     ambiguity arena, sequential probe resolution, analytic WAIT-vs-commit VoI,
+     and a multiplicity-proof action aggregator. Play-safe tests cover them.
+     Record: [brain/docs/runs/2026-08-20-phase25-belief-collapse-diagnostics.md](brain/docs/runs/2026-08-20-phase25-belief-collapse-diagnostics.md).
+     Do not launch the full thought-mediated Spark campaign from this workstation;
+     use `--cpu-smoke` only. Another agent owns GPU jobs. Do not resume RCQ-v2.
    - 5-seed statistical replication battery ($E$ vs $F$ vs $G$) across 100 evaluation episodes per variant.
    - Calibrated counterfactual risk utility (targeting the sweet spot: $F$'s $\sim 7.8$ pellet drive with $E$'s $\sim 83$ safe catches).
    - Wall recovery latency reduction (reducing collision-recovery response from $23.1 \to \le 10$ ticks).

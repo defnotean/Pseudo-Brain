@@ -12,9 +12,9 @@ Implements:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
-import math
-from typing import Any
+from dataclasses import dataclass
+from functools import lru_cache
+from typing import Any, Sequence
 
 import torch
 import torch.nn as nn
@@ -62,6 +62,9 @@ class ThoughtMediatedBrainModel(nn.Module):
         thought_intervention: str | None = None,
         donor_thoughts: Tensor | None = None,
         slot_permutation: Sequence[int] | None = None,
+        scramble_prob: bool = False,
+        scramble_binding: bool = False,
+        **kwargs: Any,
     ) -> ThoughtMediatedModelOutput:
         batch = rgb.shape[0]
         if state is None:
@@ -115,7 +118,15 @@ class ThoughtMediatedBrainModel(nn.Module):
 
         # Decode action EXCLUSIVELY through consequence proposals + bounded sensory reflex
         sensors = next_state.belief  # [B, S, Width]
-        action_out = self.actuator(sensors=sensors, thoughts=thoughts, active_mask=active_mask)
+        final_scramble_prob = scramble_prob or (thought_intervention == "scramble_prob")
+        final_scramble_binding = scramble_binding or (thought_intervention == "scramble_binding")
+        action_out = self.actuator(
+            sensors=sensors,
+            thoughts=thoughts,
+            active_mask=active_mask,
+            scramble_prob=final_scramble_prob,
+            scramble_binding=final_scramble_binding,
+        )
 
         return ThoughtMediatedModelOutput(
             action=action_out,
@@ -141,6 +152,7 @@ class ProposalGRUBaseline(nn.Module):
         )
         self.encoder = nn.Linear(32 * 8 * 8, hidden_dim)
         self.gru = nn.GRUCell(hidden_dim, hidden_dim)
+        self.proposal_expander = nn.Linear(hidden_dim, num_proposals * hidden_dim)
         self.actuator = ConsequenceThoughtActuator(
             core_width=hidden_dim,
             num_buttons=num_buttons,
@@ -168,11 +180,18 @@ class ProposalGRUBaseline(nn.Module):
         enc_feats = self.encoder(conv_feats)
         next_h = self.gru(enc_feats, state)
 
-        # Reshape monolithic hidden state as proposal slots: [B, 1, 1, HiddenDim]
-        pseudo_thoughts = next_h.unsqueeze(1).unsqueeze(1)
+        # Monolithic GRU decodes full M=21 branch hypotheses from its single compressed vector
+        expanded_slots = self.proposal_expander(next_h).view(batch, self.num_proposals, 1, self.hidden_dim)
         pseudo_sensors = enc_feats.unsqueeze(1)
 
-        action_out = self.actuator(sensors=pseudo_sensors, thoughts=pseudo_thoughts)
+        scramble_prob = kwargs.get("scramble_prob", False)
+        scramble_binding = kwargs.get("scramble_binding", False)
+        action_out = self.actuator(
+            sensors=pseudo_sensors,
+            thoughts=expanded_slots,
+            scramble_prob=scramble_prob,
+            scramble_binding=scramble_binding,
+        )
 
         @dataclass(frozen=True, slots=True)
         class GRUOutput:
@@ -182,17 +201,55 @@ class ProposalGRUBaseline(nn.Module):
         return GRUOutput(action=action_out, next_state=next_h)
 
 
-def build_resource_matched_thought_model(k_slots: int) -> ThoughtMediatedBrainModel:
-    """Build resource-matched thought model with compensating width and valid topology constraints."""
-    width_map = {
-        1: 180,
-        4: 92,
-        5: 80,
-        8: 64,
-        16: 48,
-        32: 32,
-    }
-    width = width_map.get(k_slots, 32)
+# Historical compensating widths for the default 819,894-parameter envelope.
+# Search is reserved for non-default envelopes so CPU tests stay cheap.
+_RESOURCE_MATCHED_WIDTH_SEED: dict[int, int] = {
+    1: 180,
+    4: 92,
+    5: 80,
+    8: 64,
+    16: 48,
+    32: 32,
+}
+
+
+@lru_cache(maxsize=32)
+def find_resource_matched_width(k_slots: int, target_params: int = 819_894, tolerance: float = 0.05) -> int:
+    """Find core_width W (divisible by 4) matching the target parameter envelope."""
+    seed = _RESOURCE_MATCHED_WIDTH_SEED.get(k_slots, 60)
+    if target_params == 819_894 and k_slots in _RESOURCE_MATCHED_WIDTH_SEED:
+        return seed
+
+    best_w = seed
+    best_diff = float("inf")
+    routed_neighbors = 0 if k_slots == 1 else (1 if k_slots in (4, 5) else 2)
+    lo = max(16, seed - 48)
+    hi = min(256, seed + 48)
+    for w in range(lo, hi + 1, 4):
+        cfg = ThoughtFieldConfig(
+            thoughtlets=k_slots,
+            core_width=w,
+            attention_heads=4,
+            routed_neighbors=routed_neighbors,
+            cognitive_cycles=3,
+        )
+        try:
+            m = ThoughtMediatedBrainModel(cfg)
+            p = sum(param.numel() for param in m.parameters())
+            diff = abs(p - target_params)
+            if diff < best_diff:
+                best_diff = diff
+                best_w = w
+            if diff <= tolerance * target_params:
+                return w
+        except Exception:
+            continue
+    return best_w
+
+
+def build_resource_matched_thought_model(k_slots: int, target_params: int = 819_894) -> ThoughtMediatedBrainModel:
+    """Build resource-matched thought model with compensating width for K."""
+    width = find_resource_matched_width(k_slots, target_params=target_params)
     routed_neighbors = 0 if k_slots == 1 else (1 if k_slots in (4, 5) else 2)
     config = ThoughtFieldConfig(
         thoughtlets=k_slots,
@@ -202,3 +259,4 @@ def build_resource_matched_thought_model(k_slots: int) -> ThoughtMediatedBrainMo
         cognitive_cycles=3,
     )
     return ThoughtMediatedBrainModel(config)
+
