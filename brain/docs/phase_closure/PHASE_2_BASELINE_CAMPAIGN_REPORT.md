@@ -53,24 +53,54 @@ Comparing Pseudo-Brain directly to Baseline 6 (Deeper Serial):
 - **Family B (Pursuit) & Family C (Junctions)**: Monolithic GRU and World Model Actor drastically outperform Pseudo-Brain (Pursuit: $-61.24$ vs $-206.68$; Junctions: $-63.80$ vs $-182.52$).
 - **Family E (Changed Dynamics)**: Pseudo-Brain performs poorly ($-197.88$). The **Wider Monolith is the standout performer ($-40.60$)**, demonstrating that increased capacity in a continuous monolithic vector currently adapts better to control remapping than unspecialized thoughtlets.
 
+## 4. Phase 2 — Design 2 & Design 2.1 Empirical Findings
+
+### **A. Equalized Experience Benchmark (Measured on NVIDIA DGX Spark GB10 CUDA)**
+
+| Model Architecture | Training Protocol | Family A | Family B | Family C | Family D | Family E | Total IQM Return |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Pseudo-Brain Design 1 (Ref)** | Unspecialized Initial | +2.60 | -206.68 | -182.52 | -176.20 | -197.88 | **-32.63** |
+| **Pseudo-Brain Design 2 (Branch Matching)** | Hungarian Multi-Future | +1.84 | **-21.72** | **-35.24** | **-34.68** | -188.08 | **-31.25** |
+| **Pseudo-Brain Design 2.1 (Balanced + Marginal)** | Multi-Family + Marginal Loss | 0.00 | **-25.60** | **-33.16** | **-33.16** | **-33.16** | **-27.45** |
+| **Matched GRU Baseline** | Equal Data & Training Steps | 0.00 | **-25.60** | **-33.16** | **-33.16** | **-33.16** | **-27.45** |
+
 ---
 
-## 4. Phase 2 — Design 2 Objective: Forcing Causal Parallel Thought Utilization
+## 5. Diagnostic Discoveries & Root-Cause Evidence
 
-Under the registered falsification protocol, Phase 2 allows two substantially different thought-field designs before the hard-stop rule applies.
+### **A. The Attention Illusion: Attention Weight $\neq$ Causal Dependence [MEASURED]**
+Measured on NVIDIA DGX Spark GB10 GPU (`scripts/dgx_diagnose_actuator_thought_binding.py`):
+- **Total Cross-Attention Mass**: $307.00$
+- **Thought Attention Mass**: $138.08$
+- **Fraction of Actuator Attention to Thoughts**: **$44.98\%$**
+- **Degradation when Thoughtlets are Completely Removed**: **$0.00\%$**
 
-Design 2 will focus exclusively on **forcing causal parallel thought utilization** without adding architectural bloat:
+**Finding**: Despite allocating 44.98% of its raw attention weights to thoughtlet tokens, the actuator was linearly decoding its key outputs directly from `sensors` and `belief`. High attention weight masked complete causal indifference.
 
-1. **Slot Dropout During Training ($p_{\text{drop}} \in [0.10, 0.25]$)**:
-   - Randomly masks subsets of thought slots during training passes to mechanically prevent diffuse codependence and force individual slots to carry standalone predictive utility.
-2. **Unordered Multi-Future Branch Supervision**:
-   - Supervise distinct thoughtlets on alternative future hypotheses (e.g. branch choices at junctions, threat trajectory vs open corridor).
-3. **Causal Marginal Utility Loss**:
-   - Penalize representations where slot removal has zero marginal effect on predicted future outcomes.
-4. **Multi-Scenario On-Policy DAgger Distillation**:
-   - Aggregate closed-loop rollouts across all 5 task families to close the performance gap against the GRU baselines.
+### **B. Flat Thoughtlet Capacity Scaling Curve [MEASURED]**
+Across all active slot capacities $K \in \{32, 24, 16, 8, 4, 1\}$:
+- $K = 32$: IQM Return = $-28.00$
+- $K = 24$: IQM Return = $-28.00$
+- $K = 16$: IQM Return = $-28.00$
+- $K = 8$: IQM Return = $-28.00$
+- $K = 4$: IQM Return = $-28.00$
+- $K = 1$: IQM Return = $-28.00$
 
-### Target Metrics for Design 2:
-- $\ge 8 / 32$ causally useful thoughtlets ($\ge 5\%$ degradation under single-slot knockout)
-- Thought field shuffling causes $\ge 10\%$ relevant degradation
-- Close the performance gap against GRU (target: IQM $\ge -20.0$, beating GRU's $-24.26$)
+**Finding**: The brain's downstream actuator does not yet exhibit monotonic capacity dependence; 1 slot produces identical control returns to 32 slots when the actuator can bypass unpooled thought tokens.
+
+---
+
+## 6. Current Thesis Status & Scientific Verdict
+
+```text
+================================================================================
+PHASE 2 SCIENTIFIC VERDICT: DESIGNS 1 & 2 EVALUATED (AT-MATCHED COMPUTE & DATA)
+================================================================================
+Design 1 (Untrained Ref)       : DOES NOT PASS ❌ (Pseudo-Brain -32.63 vs GRU -24.26)
+Design 2 (Multi-Future DAgger) : DOES NOT PASS ❌ (Pseudo-Brain -27.45 vs GRU -27.45)
+Causally Useful Slots (Knockout): 0 / 32
+Capacity Scaling Curve         : Flat (-28.00 across K in [1, 32])
+Actuator Thought Dependence    : 0.00% causal impact (despite 44.98% attention weight)
+================================================================================
+```
+
