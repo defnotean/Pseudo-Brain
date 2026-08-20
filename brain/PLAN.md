@@ -1201,7 +1201,10 @@ Go gate (All 9 Passed on NVIDIA DGX Spark):
 - Cycle-one output is useful when deeper cycles are intentionally withheld (**PASS ✅: 1.97x speedup**).
 - Thoughtlet representation diversity preserved (**PASS ✅: Effective rank 21.63 / 32, similarity 0.1129**).
 
-### Phase 2: prove or reject the microthought thesis
+### Phase 2: prove or reject the microthought thesis — ACTIVE 🧠
+
+**Design 1 Status**: DOES NOT PASS ❌ (Evaluated on DGX Spark GB10 CUDA across 5 seeds and 5 task families; Pseudo-Brain IQM: -32.63 vs GRU: -24.26, causally useful slots: 0 / 32). Audit record: [`docs/phase_closure/PHASE_2_BASELINE_CAMPAIGN_REPORT.md`](docs/phase_closure/PHASE_2_BASELINE_CAMPAIGN_REPORT.md).  
+**Design 2 Focus**: Forcing Causal Parallel Thought Utilization (slot dropout $p \in [0.1, 0.25]$, unordered multi-future branch supervision, causal marginal utility loss, and multi-scenario DAgger distillation). Attempt 2 of 2 before the registered falsification hard stop.
 
 Duration: 8–12 weeks, with the first gate review targeted at day 90.
 
