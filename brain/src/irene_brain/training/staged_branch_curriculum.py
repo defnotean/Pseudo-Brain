@@ -73,9 +73,17 @@ def generate_comprehensive_branch_bundle(
     rewards = []
     utilities = []
 
+    maze_walls = getattr(underlying, "_maze", set())
+    has_pellet_fn = getattr(underlying, "_has_pellet", lambda x, y: False)
+
     for act_idx, dx, dy in actions:
-        tx = max(1, min(14, px + int(dx)))
-        ty = max(1, min(14, py + int(dy)))
+        if dx == 0 and dy == 0:
+            tx, ty = px, py
+            is_wall = False
+        else:
+            tx = px + int(dx)
+            ty = py + int(dy)
+            is_wall = (tx, ty) in maze_walls or tx < 0 or tx >= 16 or ty < 0 or ty >= 16
 
         # Ghost hazard calculation
         min_ghost_dist = min(math.sqrt((tx - gx) ** 2 + (ty - gy) ** 2) for gx, gy in ghosts)
@@ -88,14 +96,16 @@ def generate_comprehensive_branch_bundle(
         else:
             haz = 0.0
 
-        # Pellet reward
-        rew = 0.0
-        if min_ghost_dist > 1.2:
-            # If target has pellet or moves closer to pellet
-            if (tx, ty) in getattr(underlying, "_pellet_positions", set()):
-                rew = 1.0
-            else:
-                rew = 0.1 if (dx != 0 or dy != 0) else -0.05
+        if is_wall:
+            rew = -2.0
+            haz = max(haz, 0.4)
+            tx, ty = px, py
+        elif act_idx == 0:
+            rew = -0.1
+        elif has_pellet_fn(tx, ty):
+            rew = 1.0
+        else:
+            rew = 0.1
 
         # If collision with hazard, severe penalty
         if haz >= 0.8:
@@ -105,7 +115,7 @@ def generate_comprehensive_branch_bundle(
         util = rew - 3.0 * haz
 
         act_indices.append(act_idx)
-        disps.append([dx, dy])
+        disps.append([float(tx - px), float(ty - py)])
         hazards.append([haz])
         rewards.append([rew])
         utilities.append([util])
@@ -135,6 +145,8 @@ def generate_multi_step_trajectory_tree(
     px = getattr(underlying, "_player_x", 8)
     py = getattr(underlying, "_player_y", 8)
     ghosts = getattr(underlying, "_ghosts", [(4, 4), (12, 12)])
+    maze_walls = getattr(underlying, "_maze", set())
+    has_pellet_fn = getattr(underlying, "_has_pellet", lambda x, y: False)
 
     act_indices = list(base_bundle.action_indices.cpu().numpy())
     disps = list(base_bundle.displacements.cpu().numpy())
@@ -147,8 +159,12 @@ def generate_multi_step_trajectory_tree(
     step2_actions = [(1, 0.0, -1.0), (2, -1.0, 0.0), (3, 0.0, 1.0), (4, 1.0, 0.0)]
 
     for a1_idx, dx1, dy1 in step1_actions:
-        p1_x = max(1, min(14, px + int(dx1)))
-        p1_y = max(1, min(14, py + int(dy1)))
+        p1_x = px + int(dx1)
+        p1_y = py + int(dy1)
+        is_wall1 = (p1_x, p1_y) in maze_walls or p1_x < 0 or p1_x >= 16 or p1_y < 0 or p1_y >= 16
+        if is_wall1:
+            p1_x, p1_y = px, py
+
         for a2_idx, dx2, dy2 in step2_actions:
             # Avoid immediate reversal
             if (a1_idx == 1 and a2_idx == 3) or (a1_idx == 3 and a2_idx == 1):
@@ -156,15 +172,24 @@ def generate_multi_step_trajectory_tree(
             if (a1_idx == 2 and a2_idx == 4) or (a1_idx == 4 and a2_idx == 2):
                 continue
 
-            p2_x = max(1, min(14, p1_x + int(dx2)))
-            p2_y = max(1, min(14, p1_y + int(dy2)))
+            p2_x = p1_x + int(dx2)
+            p2_y = p1_y + int(dy2)
+            is_wall2 = (p2_x, p2_y) in maze_walls or p2_x < 0 or p2_x >= 16 or p2_y < 0 or p2_y >= 16
+            if is_wall2:
+                p2_x, p2_y = p1_x, p1_y
 
-            cum_dx = dx1 + dx2
-            cum_dy = dy1 + dy2
+            cum_dx = float(p2_x - px)
+            cum_dy = float(p2_y - py)
 
             min_g_dist = min(math.sqrt((p2_x - gx) ** 2 + (p2_y - gy) ** 2) for gx, gy in ghosts)
             haz = 1.0 if min_g_dist <= 1.5 else (0.5 if min_g_dist <= 3.0 else 0.0)
-            rew = 1.5 if (p2_x, p2_y) in getattr(underlying, "_pellet_positions", set()) else 0.2
+            if is_wall1 or is_wall2:
+                rew = -2.0
+            elif has_pellet_fn(p2_x, p2_y):
+                rew = 1.5
+            else:
+                rew = 0.2
+
             if haz >= 0.8:
                 rew = -15.0
 
