@@ -1,0 +1,41 @@
+{
+  "timestamp": "2026-08-20 02:04:44 UTC",
+  "device": "cuda:0",
+  "seeds": [
+    42,
+    43,
+    44,
+    45,
+    46
+  ],
+  "pseudo_brain_design2": {
+    "mean_return": -78.256,
+    "iqm_return": -32.71666666666667,
+    "ci_95": [
+      -130.4502,
+      -34.02020000000002
+    ],
+    "family_scores": {
+      "family_a_multi_object_tracking": 1.28,
+      "family_b_pursuit_and_evasion": -25.439999999999998,
+      "family_c_junction_and_route_choice": -35.64,
+      "family_d_partial_observability_and_memory": -34.71999999999999,
+      "family_e_changed_dynamics_and_rules": -296.76000000000005
+    }
+  },
+  "gru_baseline": {},
+  "capacity_scaling_curve": {
+    "32": -39.5,
+    "24": -40.5,
+    "16": -31.5,
+    "8": -31.5,
+    "4": -31.5,
+    "1": -31.5
+  },
+  "causal_diagnostics": {
+    "useful_slots_count": 0,
+    "mean_slot_drop_pct": 0.37933416377409207,
+    "permutation_drop_pct": -4.624264091722282,
+    "scrambling_drop_pct": 3.468198068791696
+  }
+}
