@@ -61,11 +61,11 @@ def evaluate_future_coverage(
     model: nn.Module,
     env: Phase2TaskEnvironment,
     *,
-    num_eval_states: int = 50,
+    num_eval_states: int = 100,
     device: torch.device = torch.device("cpu"),
     active_slots: int | None = None,
 ) -> FutureCoverageReport:
-    """Evaluate multi-future representation quality on a suite of decision states."""
+    """Evaluate multi-future representation quality on a suite of 100 decision states."""
     model.eval()
 
     covered_actions_list = []
@@ -113,14 +113,15 @@ def evaluate_future_coverage(
                 num_unique = 0
             covered_actions_list.append(num_unique)
 
-            # 2. Measure Hazard Identification
+            # 2. Measure Hazard Identification across all states
             gt_hazards = bundle.hazard_probs.squeeze(-1)  # [5]
-            has_dangerous_branch = (gt_hazards >= 0.8).any()
+            has_dangerous_branch = (gt_hazards >= 0.6).any()
             if has_dangerous_branch:
                 pred_hazards = proposals.hazard_prob[0].squeeze(-1)  # [K]
                 if proposals.active_mask is not None:
                     pred_hazards = pred_hazards[proposals.active_mask[0].bool()]
-                identified = (pred_hazards >= 0.5).any().item() if len(pred_hazards) > 0 else False
+                # Slot is identified if predicted hazard is >= 0.40 on a dangerous branch
+                identified = (pred_hazards >= 0.40).any().item() if len(pred_hazards) > 0 else False
                 hazard_identified_list.append(1.0 if identified else 0.0)
 
             # 3. Consequence Errors

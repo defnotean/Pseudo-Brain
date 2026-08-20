@@ -97,37 +97,72 @@ def train_thought_mediated_model(
     training_steps: int = 300,
     lr: float = 1e-3,
 ) -> None:
+    """Interactive On-Policy DAgger training with multi-step consequence tree supervision."""
     model.train()
     optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
     loss_fn = MultiHypothesisBranchLoss().to(device)
 
     all_families = list(TaskFamily)
+    step = 0
 
-    for step in range(training_steps):
+    while step < training_steps:
         family = all_families[step % len(all_families)]
         configs = make_family_suite(family)
         env = Phase2TaskEnvironment(configs[step % len(configs)])
 
         obs = env.reset(step + 1000)
         state = model.initial_state(1)
+        ticks = 0
 
-        raw_rgb = np.frombuffer(obs.rgb.pixels, dtype=np.uint8).reshape((16, 16, 3))
-        rgb_tensor = torch.from_numpy(raw_rgb).permute(2, 0, 1).unsqueeze(0).float().to(device) / 255.0
-        if rgb_tensor.shape[-1] != 32:
-            rgb_tensor = F.interpolate(rgb_tensor, size=(32, 32), mode="nearest")
+        # Interactive closed-loop rollout with online consequence supervision
+        while ticks < min(30, env.config.max_ticks) and step < training_steps:
+            raw_rgb = np.frombuffer(obs.rgb.pixels, dtype=np.uint8).reshape((16, 16, 3))
+            rgb_tensor = torch.from_numpy(raw_rgb).permute(2, 0, 1).unsqueeze(0).float().to(device) / 255.0
+            if rgb_tensor.shape[-1] != 32:
+                rgb_tensor = F.interpolate(rgb_tensor, size=(32, 32), mode="nearest")
 
-        ctrl_tensor = torch.zeros((1, 307), device=device)
-        dt_tensor = torch.tensor([0.016667], device=device)
+            ctrl_tensor = torch.zeros((1, 307), device=device)
+            dt_tensor = torch.tensor([0.016667], device=device)
 
-        out = model(rgb_tensor, ctrl_tensor, dt_tensor, state=state, max_cycles=model.config.cognitive_cycles)
+            out = model(rgb_tensor, ctrl_tensor, dt_tensor, state=state, max_cycles=model.config.cognitive_cycles)
 
-        bundle = generate_multi_step_trajectory_tree(env, obs, horizon=2, device=device)
-        total_loss, _metrics = loss_fn(out.action.proposals, [bundle])
+            bundle = generate_multi_step_trajectory_tree(env, obs, horizon=2, device=device)
+            total_loss, _metrics = loss_fn(out.action.proposals, [bundle])
 
-        optimizer.zero_grad()
-        total_loss.backward()
-        nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-        optimizer.step()
+            optimizer.zero_grad()
+            total_loss.backward()
+            nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+            optimizer.step()
+
+            # Advance closed-loop environment using student's predicted action
+            with torch.no_grad():
+                button_logits = out.action.button_logits[0].cpu().numpy()
+                w_logit = float(button_logits[int(HidKey.W)])
+                s_logit = float(button_logits[int(HidKey.S)])
+                a_logit = float(button_logits[int(HidKey.A)])
+                d_logit = float(button_logits[int(HidKey.D)])
+
+                keys = []
+                dir_scores = {"W": w_logit, "S": s_logit, "A": a_logit, "D": d_logit}
+                best_dir, best_score = max(dir_scores.items(), key=lambda x: x[1])
+                if best_score > 0.0:
+                    if best_dir == "W":
+                        keys.append(int(HidKey.W))
+                    elif best_dir == "S":
+                        keys.append(int(HidKey.S))
+                    elif best_dir == "A":
+                        keys.append(int(HidKey.A))
+                    elif best_dir == "D":
+                        keys.append(int(HidKey.D))
+
+                action_ctrl = GenericControl(mouse_dx=0.0, mouse_dy=0.0, keys_down=tuple(keys))
+                outcome = env.step(action_ctrl)
+                state = out.next_state.detach()
+                obs = outcome.observation
+                ticks += 1
+                step += 1
+                if outcome.terminated or outcome.truncated:
+                    break
 
 
 def train_proposal_gru_baseline(
@@ -136,36 +171,69 @@ def train_proposal_gru_baseline(
     training_steps: int = 300,
     lr: float = 1e-3,
 ) -> None:
+    """Interactive On-Policy DAgger training for matched Proposal-GRU baseline."""
     model.train()
     optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
     loss_fn = MultiHypothesisBranchLoss().to(device)
     all_families = list(TaskFamily)
+    step = 0
 
-    for step in range(training_steps):
+    while step < training_steps:
         family = all_families[step % len(all_families)]
         configs = make_family_suite(family)
         env = Phase2TaskEnvironment(configs[step % len(configs)])
 
         obs = env.reset(step + 1000)
         state = model.initial_state(1).to(device)
+        ticks = 0
 
-        raw_rgb = np.frombuffer(obs.rgb.pixels, dtype=np.uint8).reshape((16, 16, 3))
-        rgb_tensor = torch.from_numpy(raw_rgb).permute(2, 0, 1).unsqueeze(0).float().to(device) / 255.0
-        if rgb_tensor.shape[-1] != 32:
-            rgb_tensor = F.interpolate(rgb_tensor, size=(32, 32), mode="nearest")
+        while ticks < min(30, env.config.max_ticks) and step < training_steps:
+            raw_rgb = np.frombuffer(obs.rgb.pixels, dtype=np.uint8).reshape((16, 16, 3))
+            rgb_tensor = torch.from_numpy(raw_rgb).permute(2, 0, 1).unsqueeze(0).float().to(device) / 255.0
+            if rgb_tensor.shape[-1] != 32:
+                rgb_tensor = F.interpolate(rgb_tensor, size=(32, 32), mode="nearest")
 
-        ctrl_tensor = torch.zeros((1, 307), device=device)
-        dt_tensor = torch.tensor([0.016667], device=device)
+            ctrl_tensor = torch.zeros((1, 307), device=device)
+            dt_tensor = torch.tensor([0.016667], device=device)
 
-        out = model(rgb_tensor, ctrl_tensor, dt_tensor, state=state)
+            out = model(rgb_tensor, ctrl_tensor, dt_tensor, state=state)
 
-        bundle = generate_multi_step_trajectory_tree(env, obs, horizon=2, device=device)
-        total_loss, _metrics = loss_fn(out.action.proposals, [bundle])
+            bundle = generate_multi_step_trajectory_tree(env, obs, horizon=2, device=device)
+            total_loss, _metrics = loss_fn(out.action.proposals, [bundle])
 
-        optimizer.zero_grad()
-        total_loss.backward()
-        nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-        optimizer.step()
+            optimizer.zero_grad()
+            total_loss.backward()
+            nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+            optimizer.step()
+
+            with torch.no_grad():
+                button_logits = out.action.button_logits[0].cpu().numpy()
+                w_logit = float(button_logits[int(HidKey.W)])
+                s_logit = float(button_logits[int(HidKey.S)])
+                a_logit = float(button_logits[int(HidKey.A)])
+                d_logit = float(button_logits[int(HidKey.D)])
+
+                keys = []
+                dir_scores = {"W": w_logit, "S": s_logit, "A": a_logit, "D": d_logit}
+                best_dir, best_score = max(dir_scores.items(), key=lambda x: x[1])
+                if best_score > 0.0:
+                    if best_dir == "W":
+                        keys.append(int(HidKey.W))
+                    elif best_dir == "S":
+                        keys.append(int(HidKey.S))
+                    elif best_dir == "A":
+                        keys.append(int(HidKey.A))
+                    elif best_dir == "D":
+                        keys.append(int(HidKey.D))
+
+                action_ctrl = GenericControl(mouse_dx=0.0, mouse_dy=0.0, keys_down=tuple(keys))
+                outcome = env.step(action_ctrl)
+                state = out.next_state.detach()
+                obs = outcome.observation
+                ticks += 1
+                step += 1
+                if outcome.terminated or outcome.truncated:
+                    break
 
 
 def evaluate_closed_loop_model(
@@ -188,11 +256,18 @@ def evaluate_closed_loop_model(
         ep_return = 0.0
         ticks = 0
 
+        # Choose fixed slot permutation for the whole episode if testing permutation invariance
+        perm = None
+        if intervention_mode == "permute" and hasattr(state, "thoughts"):
+            k = state.thoughts.shape[1]
+            perm = list(range(k))
+            random.shuffle(perm)
+
         while ticks < env.config.max_ticks:
             if intervention_mode == "scramble" and hasattr(state, "thoughts"):
                 state = scramble_cognitive_bindings(state)
-            elif intervention_mode == "permute" and hasattr(state, "thoughts"):
-                state = permute_whole_slots(state)
+            elif intervention_mode == "permute" and hasattr(state, "thoughts") and perm is not None:
+                state = permute_whole_slots(state, permutation=perm)
 
             raw_rgb = np.frombuffer(obs.rgb.pixels, dtype=np.uint8).reshape((16, 16, 3))
             rgb_tensor = torch.from_numpy(raw_rgb).permute(2, 0, 1).unsqueeze(0).float().to(device) / 255.0
