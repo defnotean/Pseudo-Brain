@@ -1,0 +1,57 @@
+{
+  "timestamp": "2026-08-20 02:48:19 UTC",
+  "device": "cuda:0",
+  "seeds": [
+    42,
+    43,
+    44,
+    45,
+    46
+  ],
+  "thought_mediated_pb_k32": {
+    "mean_return": -25.016000000000005,
+    "iqm_return": -27.449999999999992,
+    "ci_95": [
+      -30.537799999999997,
+      -19.5022
+    ],
+    "family_scores": {
+      "family_a_multi_object_tracking": 0.0,
+      "family_b_pursuit_and_evasion": -25.6,
+      "family_c_junction_and_route_choice": -33.160000000000004,
+      "family_d_partial_observability_and_memory": -33.160000000000004,
+      "family_e_changed_dynamics_and_rules": -33.160000000000004
+    }
+  },
+  "proposal_gru_baseline": {
+    "mean_return": -25.016000000000005,
+    "iqm_return": -27.449999999999992,
+    "ci_95": [
+      -30.537799999999997,
+      -19.5022
+    ],
+    "family_scores": {
+      "family_a_multi_object_tracking": 0.0,
+      "family_b_pursuit_and_evasion": -25.6,
+      "family_c_junction_and_route_choice": -33.160000000000004,
+      "family_d_partial_observability_and_memory": -33.160000000000004,
+      "family_e_changed_dynamics_and_rules": -33.160000000000004
+    }
+  },
+  "resource_matched_capacity_curve": {
+    "1": -28.0,
+    "4": -28.0,
+    "8": -28.0,
+    "16": -28.0,
+    "32": -28.0
+  },
+  "causal_diagnostics": {
+    "base_iqm": -28.0,
+    "permuted_iqm": -28.0,
+    "permutation_drop_pct": 0.0,
+    "scrambled_iqm": -28.0,
+    "scrambling_drop_pct": 0.0,
+    "zero_thoughts_iqm": -28.0,
+    "zero_thoughts_drop_pct": 0.0
+  }
+}

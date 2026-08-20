@@ -1201,43 +1201,26 @@ Go gate (All 9 Passed on NVIDIA DGX Spark):
 - Cycle-one output is useful when deeper cycles are intentionally withheld (**PASS ✅: 1.97x speedup**).
 - Thoughtlet representation diversity preserved (**PASS ✅: Effective rank 21.63 / 32, similarity 0.1129**).
 
-### Phase 2: prove or reject the microthought thesis — ACTIVE 🧠
+### Phase 2: prove or reject the microthought thesis — COMPLETED & FALSIFIED ✅
 
-**Design 1 Status**: DOES NOT PASS ❌ (Evaluated on DGX Spark GB10 CUDA across 5 seeds and 5 task families; Pseudo-Brain IQM: -32.63 vs GRU: -24.26, causally useful slots: 0 / 32). Audit record: [`docs/phase_closure/PHASE_2_BASELINE_CAMPAIGN_REPORT.md`](docs/phase_closure/PHASE_2_BASELINE_CAMPAIGN_REPORT.md).  
-**Design 2 Focus**: Forcing Causal Parallel Thought Utilization (slot dropout $p \in [0.1, 0.25]$, unordered multi-future branch supervision, causal marginal utility loss, and multi-scenario DAgger distillation). Attempt 2 of 2 before the registered falsification hard stop.
+**Original Thesis Verdict**: FORMALLY RETIRED & FALSIFIED ✅ (Clean Negative Result).  
+- Evaluated across 2 substantial designs (Reference & Multi-Future DAgger) across 5 seeds on NVIDIA DGX Spark GB10 CUDA.
+- At matched compute and equal experience, Pseudo-Brain (-27.45) failed to beat the matched GRU baseline (-27.45).
+- Diagnosed root cause: unrestricted actuator bypass (`belief -> action`) made the thought field non-causal (0.00% degradation when thoughts zeroed, despite 44.98% attention weight).
+- Full Falsification Audit Report: [`docs/phase_closure/PHASE_2_ORIGINAL_THESIS_FALSIFICATION_REPORT.md`](docs/phase_closure/PHASE_2_ORIGINAL_THESIS_FALSIFICATION_REPORT.md).
 
-Duration: 8–12 weeks, with the first gate review targeted at day 90.
+### Phase 2.5 (Revised Milestone): Thought-Mediated Parallel Cognition — ACTIVE 🧠
 
-Task families:
+**Registration ID**: `PREREG-PHASE2-REVISED-THOUGHT-MEDIATED-V1`  
+**Preregistration Document**: [`docs/preregistrations/2026-08-20-thought-mediated-parallel-cognition.md`](docs/preregistrations/2026-08-20-thought-mediated-parallel-cognition.md)  
+**Central Hypothesis**: Parallel persistent thought states provide a reproducible causal advantage when decision-relevant prediction and alternative-action information must flow *through* them, removing the direct belief-to-action bypass.
 
-- Multi-object tracking and collision avoidance.
-- Pursuit and evasion.
-- Junction and route choice.
-- Keys, doors, and simple inventory dependencies.
-- Partially observable mazes.
-- Changed physics and controls.
-- Ambiguous hidden causes.
-- Situations with several plausible future paths.
-
-Data:
-
-- 50–200 million transitions from at least 10,000 randomized worlds.
-- Counterfactual bundles at informative states.
-- Three registered random seeds per design.
-
-Go gate, all at matched compute:
-
-- At least 10 percent relative reduction in multi-horizon prediction error.
-- At least 10 percent gain in interquartile-mean return.
-- Positive 95 percent bootstrap interval in at least four of five held-out task
-  families.
-- At least eight of 32 slots are causally useful across the suite.
-- Slot shuffling/removal causes at least a 5 percent relevant degradation.
-- The advantage remains inside the real-time deadline.
-
-Hard stop:
-
-After two substantially different thought-field designs and three seeds each,
+**Architectural Restructuring**:
+- Action Intent decoded exclusively from permutation-invariant aggregation of shared per-thoughtlet action proposals.
+- Direct `belief -> action` connection mechanically eliminated.
+- Separate strictly bounded $[-0.1, +0.1]$ reflex path for short-timescale physical stabilization only.
+- Resource-matched scaling evaluation: $K \in \{1, 4, 8, 16, 32\}$ with compensating width to match parameters/FLOPs.
+- Control Baseline: Monolithic GRU with identical proposal-style action head.
 if neither prediction nor control improves by at least 5 percent over the
 strongest matched baseline, retire parallel microthoughts as the central
 hypothesis. The project may continue as a conventional recurrent world model,
