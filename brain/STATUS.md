@@ -2,19 +2,26 @@
 
 Updated: 2026-08-20
 
-## Active campaign: Phase 2.5 Gate 6 (thought-mediated vs matched Proposal-GRU)
+## Active campaign: Phase 2.5 thought-mediated parallel cognition
 
-Status: **FAIL**. Named CPU probe `dgx-gate6-matched-gru-v1` wrote
+Phase 0 locked (7/7). Phase 1 locked (9/9 on DGX Spark). Original Phase 2
+microthought thesis **falsified**.
+
+**Gate 6 FAIL.** Named CPU probe `dgx-gate6-matched-gru-v1` wrote
 `gate6_results.json` at 2026-08-20 20:41:10 UTC (`device=cpu`,
 `cuda_available: false`). Pooled IQM thought-mediated **−27.758** vs
 Proposal-GRU **−25.694** (relative advantage **−8.04%**). Mean return
 **−106.504** vs **−99.280**. Gate 6 needs ≥10% IQM advantage and GRU must not
 tie or win. **GRU won IQM.** Family-B knockout sanity passed (mean degradation
-13.43). `architecture_superiority_claimed` is false. Container auto-removed.
-GB10 stayed on Irene sglang Qwen; no second GPU train. Artifact SHA-256
-`a3dc94dc…`. Record:
+13.43 / 1343%): thoughts remain causal on the action path. They are **not**
+better than the matched GRU. `architecture_superiority_claimed` is false. Do
+not retry the same probe as if it passed. Container auto-removed. GB10 stayed
+on Irene sglang Qwen; no second GPU train. Artifact SHA-256 `a3dc94dc…`.
+Record:
 [docs/runs/2026-08-20-gate6-matched-proposal-gru.md](./docs/runs/2026-08-20-gate6-matched-proposal-gru.md).
-RCQ-v2 stays terminal. TEST stays sealed.
+
+Play competence vs planner remains **38 vs 284 pellets, 0 neural clears**.
+RCQ-v2 stays terminal. RCQ-v3 registration stays deferred. TEST stays sealed.
 
 ## Historical campaign: cognitive architecture ablation & statistical replication ($A\text{--}G$)
 
@@ -24,7 +31,7 @@ is the verified champion (`full_adaptive_system_v1`). Evaluated on 20 held-out s
 - **83 total ghost catches** (-88.6% vs baseline 727).
 - **Dynamic depth allocation:** ~1.35 cycles in open corridors vs ~3.80 cycles in ghost hazards.
 - Exploratory variants: **Variant F** (Counterfactual Foresight: 7.80 pellets / 654 catches, reckless) and **Variant G** (Topological Routing: 4.90 pellets / 83 catches, over-conservative). Variant E strictly beats Variant G on task reward at equal safety.
-- Active investigation: Multi-seed statistical replication battery (5 training seeds $\times$ 20 validation seeds = 100 episodes per variant) for $E$, $F$, and $G$.
+- Historical follow-up (not the live campaign): multi-seed replication battery for $E$, $F$, and $G$.
 - Long-term roadmap: General-purpose language, tool-use & robotics agent ([PLAN.md §43](PLAN.md#43-long-term-research-direction-general-purpose-language-tool-use--long-horizon-agent)).
 
 ## Play competence (2026-08-20 re-eval)
