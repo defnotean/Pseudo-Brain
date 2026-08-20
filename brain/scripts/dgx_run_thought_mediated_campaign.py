@@ -39,9 +39,10 @@ from irene_brain.model.thought_scrambler import (
     permute_whole_slots,
     scramble_cognitive_bindings,
 )
-from irene_brain.training.branch_set_objective import (
-    BranchOutcome,
-    MultiFutureBranchObjective,
+from irene_brain.training.staged_branch_curriculum import (
+    ComprehensiveBranchBundle,
+    MultiHypothesisBranchLoss,
+    generate_comprehensive_branch_bundle,
 )
 from irene_brain.types import GenericControl, HidKey
 
@@ -93,11 +94,7 @@ def train_thought_mediated_model(
 ) -> None:
     model.train()
     optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
-    branch_obj = MultiFutureBranchObjective(
-        thoughtlets=model.config.thoughtlets,
-        core_width=model.config.core_width,
-        slot_dropout_prob=0.20,
-    ).to(device)
+    loss_fn = MultiHypothesisBranchLoss().to(device)
 
     all_families = list(TaskFamily)
 
@@ -119,34 +116,8 @@ def train_thought_mediated_model(
 
         out = model(rgb_tensor, ctrl_tensor, dt_tensor, state=state, max_cycles=model.config.cognitive_cycles)
 
-        # Multi-future branch loss
-        branches = [generate_counterfactual_branches(env, obs)]
-        branch_loss, _metrics = branch_obj.compute_branch_loss(out.next_state.thoughts, branches)
-
-        # Expert target action
-        target_buttons = torch.zeros((1, out.action.button_logits.shape[-1]), device=device)
-        if branches[0]:
-            best_br = max(branches[0], key=lambda b: b.reward - 2.0 * b.hazard_prob)
-            act_idx = best_br.action_index
-            if env.config.control_remapping == "inverted":
-                inv_map = {1: 3, 3: 1, 2: 4, 4: 2, 0: 0}
-                act_idx = inv_map.get(act_idx, act_idx)
-            elif env.config.control_remapping == "rotate_90":
-                rot_map = {1: 4, 4: 3, 3: 2, 2: 1, 0: 0}
-                act_idx = rot_map.get(act_idx, act_idx)
-
-            if act_idx == 1:
-                target_buttons[0, int(HidKey.W)] = 1.0
-            elif act_idx == 2:
-                target_buttons[0, int(HidKey.A)] = 1.0
-            elif act_idx == 3:
-                target_buttons[0, int(HidKey.S)] = 1.0
-            elif act_idx == 4:
-                target_buttons[0, int(HidKey.D)] = 1.0
-
-        action_loss = F.binary_cross_entropy_with_logits(out.action.button_logits, target_buttons)
-
-        total_loss = branch_loss + 2.0 * action_loss
+        bundle = generate_comprehensive_branch_bundle(env, obs, device=device)
+        total_loss, _metrics = loss_fn(out.action.proposals, [bundle])
 
         optimizer.zero_grad()
         total_loss.backward()
@@ -162,6 +133,7 @@ def train_proposal_gru_baseline(
 ) -> None:
     model.train()
     optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
+    loss_fn = MultiHypothesisBranchLoss().to(device)
     all_families = list(TaskFamily)
 
     for step in range(training_steps):
@@ -182,31 +154,11 @@ def train_proposal_gru_baseline(
 
         out = model(rgb_tensor, ctrl_tensor, dt_tensor, state=state)
 
-        branches = [generate_counterfactual_branches(env, obs)]
-        target_buttons = torch.zeros((1, out.action.button_logits.shape[-1]), device=device)
-        if branches[0]:
-            best_br = max(branches[0], key=lambda b: b.reward - 2.0 * b.hazard_prob)
-            act_idx = best_br.action_index
-            if env.config.control_remapping == "inverted":
-                inv_map = {1: 3, 3: 1, 2: 4, 4: 2, 0: 0}
-                act_idx = inv_map.get(act_idx, act_idx)
-            elif env.config.control_remapping == "rotate_90":
-                rot_map = {1: 4, 4: 3, 3: 2, 2: 1, 0: 0}
-                act_idx = rot_map.get(act_idx, act_idx)
-
-            if act_idx == 1:
-                target_buttons[0, int(HidKey.W)] = 1.0
-            elif act_idx == 2:
-                target_buttons[0, int(HidKey.A)] = 1.0
-            elif act_idx == 3:
-                target_buttons[0, int(HidKey.S)] = 1.0
-            elif act_idx == 4:
-                target_buttons[0, int(HidKey.D)] = 1.0
-
-        action_loss = F.binary_cross_entropy_with_logits(out.action.button_logits, target_buttons)
+        bundle = generate_comprehensive_branch_bundle(env, obs, device=device)
+        total_loss, _metrics = loss_fn(out.action.proposals, [bundle])
 
         optimizer.zero_grad()
-        action_loss.backward()
+        total_loss.backward()
         nn.utils.clip_grad_norm_(model.parameters(), 1.0)
         optimizer.step()
 
