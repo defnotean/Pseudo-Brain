@@ -1,0 +1,1179 @@
+{
+  "agent_id": "turn-weighted-v1-champion",
+  "checkpoint": "/workspace/ckpt/checkpoints/step-00000032.pt",
+  "checkpoint_sha256": "e58f323fb90893c4953b04211002753dd3162f398d1b3b4152390203ba8131cf",
+  "config_path": "/workspace/repo/brain/configs/training/dgx-play-maze-chase-distill-turn-weighted.toml",
+  "cuda_visible_devices": "-1",
+  "date_utc": "2026-08-20T20:12:17Z",
+  "device": "cpu",
+  "job": "play-competence",
+  "notes": {
+    "e_protocol_is_direct_not_lookahead": true,
+    "evaluated": "play-gated distill 32-step turn-weighted champion",
+    "thought_mediated_campaign_weights": "none persisted on Spark",
+    "variant_e_checkpoint": "none persisted on Spark"
+  },
+  "play_decode_kind": "exclusive_argmax_wasd_v1",
+  "tables": [
+    {
+      "agent": "neural",
+      "decode_kind": "exclusive_argmax_wasd_v1",
+      "elapsed_sec": 60.82,
+      "episodes": [
+        {
+          "cleared": false,
+          "collisions": 12,
+          "movement_mask_histogram": [
+            [
+              2,
+              188
+            ],
+            [
+              4,
+              52
+            ]
+          ],
+          "pellets_eaten": 21,
+          "reward_sum": -99.0,
+          "seed": 5,
+          "ticks_advanced": 240
+        },
+        {
+          "cleared": false,
+          "collisions": 31,
+          "movement_mask_histogram": [
+            [
+              2,
+              189
+            ],
+            [
+              4,
+              51
+            ]
+          ],
+          "pellets_eaten": 17,
+          "reward_sum": -293.0,
+          "seed": 9,
+          "ticks_advanced": 240
+        }
+      ],
+      "max_ticks": 240,
+      "protocol": "distill-direct-5-9-240",
+      "seeds": [
+        5,
+        9
+      ],
+      "summary": {
+        "clears": 0,
+        "collisions_mean": 21.5,
+        "collisions_total": 43,
+        "episodes": 2,
+        "pellets_mean": 19.0,
+        "pellets_total": 38,
+        "reward_sum": -392.0,
+        "ticks_advanced": 480
+      }
+    },
+    {
+      "agent": "planner",
+      "elapsed_sec": 0.15,
+      "episodes": [
+        {
+          "cleared": true,
+          "collisions": 0,
+          "movement_mask_histogram": [
+            [
+              0,
+              1
+            ],
+            [
+              1,
+              51
+            ],
+            [
+              2,
+              43
+            ],
+            [
+              4,
+              67
+            ],
+            [
+              8,
+              47
+            ]
+          ],
+          "pellets_eaten": 142,
+          "reward_sum": 152.0,
+          "seed": 5,
+          "ticks_advanced": 208
+        },
+        {
+          "cleared": true,
+          "collisions": 1,
+          "movement_mask_histogram": [
+            [
+              0,
+              2
+            ],
+            [
+              1,
+              40
+            ],
+            [
+              2,
+              64
+            ],
+            [
+              4,
+              67
+            ],
+            [
+              8,
+              65
+            ]
+          ],
+          "pellets_eaten": 142,
+          "reward_sum": 142.0,
+          "seed": 9,
+          "ticks_advanced": 237
+        }
+      ],
+      "max_ticks": 240,
+      "policy": "diagnostic.scripted_maze_chase_planner.v1",
+      "protocol": "distill-direct-5-9-240",
+      "seeds": [
+        5,
+        9
+      ],
+      "summary": {
+        "clears": 2,
+        "collisions_mean": 0.5,
+        "collisions_total": 1,
+        "episodes": 2,
+        "pellets_mean": 142.0,
+        "pellets_total": 284,
+        "reward_sum": 294.0,
+        "ticks_advanced": 445
+      }
+    },
+    {
+      "agent": "neural",
+      "decode_kind": "exclusive_argmax_wasd_v1",
+      "elapsed_sec": 303.32,
+      "episodes": [
+        {
+          "cleared": false,
+          "collisions": 15,
+          "movement_mask_histogram": [
+            [
+              2,
+              68
+            ],
+            [
+              4,
+              52
+            ]
+          ],
+          "pellets_eaten": 9,
+          "reward_sum": -141.0,
+          "seed": 2001,
+          "ticks_advanced": 120
+        },
+        {
+          "cleared": false,
+          "collisions": 3,
+          "movement_mask_histogram": [
+            [
+              2,
+              69
+            ],
+            [
+              4,
+              51
+            ]
+          ],
+          "pellets_eaten": 6,
+          "reward_sum": -24.0,
+          "seed": 2002,
+          "ticks_advanced": 120
+        },
+        {
+          "cleared": false,
+          "collisions": 5,
+          "movement_mask_histogram": [
+            [
+              2,
+              69
+            ],
+            [
+              4,
+              51
+            ]
+          ],
+          "pellets_eaten": 5,
+          "reward_sum": -45.0,
+          "seed": 2003,
+          "ticks_advanced": 120
+        },
+        {
+          "cleared": false,
+          "collisions": 8,
+          "movement_mask_histogram": [
+            [
+              2,
+              69
+            ],
+            [
+              4,
+              51
+            ]
+          ],
+          "pellets_eaten": 5,
+          "reward_sum": -75.0,
+          "seed": 2004,
+          "ticks_advanced": 120
+        },
+        {
+          "cleared": false,
+          "collisions": 3,
+          "movement_mask_histogram": [
+            [
+              2,
+              69
+            ],
+            [
+              4,
+              51
+            ]
+          ],
+          "pellets_eaten": 5,
+          "reward_sum": -25.0,
+          "seed": 2005,
+          "ticks_advanced": 120
+        },
+        {
+          "cleared": false,
+          "collisions": 3,
+          "movement_mask_histogram": [
+            [
+              2,
+              69
+            ],
+            [
+              4,
+              51
+            ]
+          ],
+          "pellets_eaten": 2,
+          "reward_sum": -28.0,
+          "seed": 2006,
+          "ticks_advanced": 120
+        },
+        {
+          "cleared": false,
+          "collisions": 9,
+          "movement_mask_histogram": [
+            [
+              2,
+              69
+            ],
+            [
+              4,
+              51
+            ]
+          ],
+          "pellets_eaten": 3,
+          "reward_sum": -87.0,
+          "seed": 2007,
+          "ticks_advanced": 120
+        },
+        {
+          "cleared": false,
+          "collisions": 14,
+          "movement_mask_histogram": [
+            [
+              2,
+              69
+            ],
+            [
+              4,
+              51
+            ]
+          ],
+          "pellets_eaten": 13,
+          "reward_sum": -127.0,
+          "seed": 2008,
+          "ticks_advanced": 120
+        },
+        {
+          "cleared": false,
+          "collisions": 4,
+          "movement_mask_histogram": [
+            [
+              2,
+              69
+            ],
+            [
+              4,
+              51
+            ]
+          ],
+          "pellets_eaten": 6,
+          "reward_sum": -34.0,
+          "seed": 2009,
+          "ticks_advanced": 120
+        },
+        {
+          "cleared": false,
+          "collisions": 14,
+          "movement_mask_histogram": [
+            [
+              2,
+              68
+            ],
+            [
+              4,
+              52
+            ]
+          ],
+          "pellets_eaten": 16,
+          "reward_sum": -124.0,
+          "seed": 2010,
+          "ticks_advanced": 120
+        },
+        {
+          "cleared": false,
+          "collisions": 20,
+          "movement_mask_histogram": [
+            [
+              2,
+              69
+            ],
+            [
+              4,
+              51
+            ]
+          ],
+          "pellets_eaten": 7,
+          "reward_sum": -193.0,
+          "seed": 2011,
+          "ticks_advanced": 120
+        },
+        {
+          "cleared": false,
+          "collisions": 10,
+          "movement_mask_histogram": [
+            [
+              2,
+              68
+            ],
+            [
+              4,
+              52
+            ]
+          ],
+          "pellets_eaten": 3,
+          "reward_sum": -97.0,
+          "seed": 2012,
+          "ticks_advanced": 120
+        },
+        {
+          "cleared": false,
+          "collisions": 39,
+          "movement_mask_histogram": [
+            [
+              2,
+              69
+            ],
+            [
+              4,
+              51
+            ]
+          ],
+          "pellets_eaten": 19,
+          "reward_sum": -371.0,
+          "seed": 2013,
+          "ticks_advanced": 120
+        },
+        {
+          "cleared": false,
+          "collisions": 6,
+          "movement_mask_histogram": [
+            [
+              2,
+              69
+            ],
+            [
+              4,
+              51
+            ]
+          ],
+          "pellets_eaten": 9,
+          "reward_sum": -51.0,
+          "seed": 2014,
+          "ticks_advanced": 120
+        },
+        {
+          "cleared": false,
+          "collisions": 18,
+          "movement_mask_histogram": [
+            [
+              2,
+              68
+            ],
+            [
+              4,
+              52
+            ]
+          ],
+          "pellets_eaten": 18,
+          "reward_sum": -162.0,
+          "seed": 2015,
+          "ticks_advanced": 120
+        },
+        {
+          "cleared": false,
+          "collisions": 6,
+          "movement_mask_histogram": [
+            [
+              2,
+              69
+            ],
+            [
+              4,
+              51
+            ]
+          ],
+          "pellets_eaten": 3,
+          "reward_sum": -57.0,
+          "seed": 2016,
+          "ticks_advanced": 120
+        },
+        {
+          "cleared": false,
+          "collisions": 35,
+          "movement_mask_histogram": [
+            [
+              2,
+              69
+            ],
+            [
+              4,
+              51
+            ]
+          ],
+          "pellets_eaten": 10,
+          "reward_sum": -340.0,
+          "seed": 2017,
+          "ticks_advanced": 120
+        },
+        {
+          "cleared": false,
+          "collisions": 4,
+          "movement_mask_histogram": [
+            [
+              2,
+              69
+            ],
+            [
+              4,
+              51
+            ]
+          ],
+          "pellets_eaten": 9,
+          "reward_sum": -31.0,
+          "seed": 2018,
+          "ticks_advanced": 120
+        },
+        {
+          "cleared": false,
+          "collisions": 9,
+          "movement_mask_histogram": [
+            [
+              2,
+              68
+            ],
+            [
+              4,
+              52
+            ]
+          ],
+          "pellets_eaten": 18,
+          "reward_sum": -72.0,
+          "seed": 2019,
+          "ticks_advanced": 120
+        },
+        {
+          "cleared": false,
+          "collisions": 40,
+          "movement_mask_histogram": [
+            [
+              2,
+              68
+            ],
+            [
+              4,
+              52
+            ]
+          ],
+          "pellets_eaten": 5,
+          "reward_sum": -395.0,
+          "seed": 2020,
+          "ticks_advanced": 120
+        }
+      ],
+      "max_ticks": 120,
+      "protocol": "e-heldout-direct-2001-2020-120",
+      "seeds": [
+        2001,
+        2002,
+        2003,
+        2004,
+        2005,
+        2006,
+        2007,
+        2008,
+        2009,
+        2010,
+        2011,
+        2012,
+        2013,
+        2014,
+        2015,
+        2016,
+        2017,
+        2018,
+        2019,
+        2020
+      ],
+      "summary": {
+        "clears": 0,
+        "collisions_mean": 13.25,
+        "collisions_total": 265,
+        "episodes": 20,
+        "pellets_mean": 8.55,
+        "pellets_total": 171,
+        "reward_sum": -2479.0,
+        "ticks_advanced": 2400
+      }
+    },
+    {
+      "agent": "planner",
+      "elapsed_sec": 0.91,
+      "episodes": [
+        {
+          "cleared": false,
+          "collisions": 3,
+          "movement_mask_histogram": [
+            [
+              0,
+              3
+            ],
+            [
+              1,
+              26
+            ],
+            [
+              2,
+              34
+            ],
+            [
+              4,
+              33
+            ],
+            [
+              8,
+              24
+            ]
+          ],
+          "pellets_eaten": 59,
+          "reward_sum": 29.0,
+          "seed": 2001,
+          "ticks_advanced": 120
+        },
+        {
+          "cleared": false,
+          "collisions": 1,
+          "movement_mask_histogram": [
+            [
+              0,
+              1
+            ],
+            [
+              1,
+              48
+            ],
+            [
+              2,
+              17
+            ],
+            [
+              4,
+              28
+            ],
+            [
+              8,
+              26
+            ]
+          ],
+          "pellets_eaten": 83,
+          "reward_sum": 73.0,
+          "seed": 2002,
+          "ticks_advanced": 120
+        },
+        {
+          "cleared": false,
+          "collisions": 0,
+          "movement_mask_histogram": [
+            [
+              1,
+              26
+            ],
+            [
+              2,
+              28
+            ],
+            [
+              4,
+              38
+            ],
+            [
+              8,
+              28
+            ]
+          ],
+          "pellets_eaten": 97,
+          "reward_sum": 97.0,
+          "seed": 2003,
+          "ticks_advanced": 120
+        },
+        {
+          "cleared": false,
+          "collisions": 1,
+          "movement_mask_histogram": [
+            [
+              0,
+              1
+            ],
+            [
+              1,
+              24
+            ],
+            [
+              2,
+              28
+            ],
+            [
+              4,
+              28
+            ],
+            [
+              8,
+              39
+            ]
+          ],
+          "pellets_eaten": 83,
+          "reward_sum": 73.0,
+          "seed": 2004,
+          "ticks_advanced": 120
+        },
+        {
+          "cleared": false,
+          "collisions": 1,
+          "movement_mask_histogram": [
+            [
+              0,
+              1
+            ],
+            [
+              1,
+              25
+            ],
+            [
+              2,
+              19
+            ],
+            [
+              4,
+              33
+            ],
+            [
+              8,
+              42
+            ]
+          ],
+          "pellets_eaten": 100,
+          "reward_sum": 90.0,
+          "seed": 2005,
+          "ticks_advanced": 120
+        },
+        {
+          "cleared": false,
+          "collisions": 0,
+          "movement_mask_histogram": [
+            [
+              1,
+              24
+            ],
+            [
+              2,
+              24
+            ],
+            [
+              4,
+              34
+            ],
+            [
+              8,
+              38
+            ]
+          ],
+          "pellets_eaten": 103,
+          "reward_sum": 103.0,
+          "seed": 2006,
+          "ticks_advanced": 120
+        },
+        {
+          "cleared": false,
+          "collisions": 0,
+          "movement_mask_histogram": [
+            [
+              1,
+              24
+            ],
+            [
+              2,
+              28
+            ],
+            [
+              4,
+              32
+            ],
+            [
+              8,
+              36
+            ]
+          ],
+          "pellets_eaten": 107,
+          "reward_sum": 107.0,
+          "seed": 2007,
+          "ticks_advanced": 120
+        },
+        {
+          "cleared": false,
+          "collisions": 1,
+          "movement_mask_histogram": [
+            [
+              0,
+              1
+            ],
+            [
+              1,
+              17
+            ],
+            [
+              2,
+              31
+            ],
+            [
+              4,
+              40
+            ],
+            [
+              8,
+              31
+            ]
+          ],
+          "pellets_eaten": 85,
+          "reward_sum": 75.0,
+          "seed": 2008,
+          "ticks_advanced": 120
+        },
+        {
+          "cleared": false,
+          "collisions": 1,
+          "movement_mask_histogram": [
+            [
+              0,
+              1
+            ],
+            [
+              1,
+              27
+            ],
+            [
+              2,
+              25
+            ],
+            [
+              4,
+              36
+            ],
+            [
+              8,
+              31
+            ]
+          ],
+          "pellets_eaten": 94,
+          "reward_sum": 84.0,
+          "seed": 2009,
+          "ticks_advanced": 120
+        },
+        {
+          "cleared": false,
+          "collisions": 0,
+          "movement_mask_histogram": [
+            [
+              1,
+              30
+            ],
+            [
+              2,
+              23
+            ],
+            [
+              4,
+              32
+            ],
+            [
+              8,
+              35
+            ]
+          ],
+          "pellets_eaten": 94,
+          "reward_sum": 94.0,
+          "seed": 2010,
+          "ticks_advanced": 120
+        },
+        {
+          "cleared": false,
+          "collisions": 2,
+          "movement_mask_histogram": [
+            [
+              0,
+              2
+            ],
+            [
+              1,
+              22
+            ],
+            [
+              2,
+              29
+            ],
+            [
+              4,
+              29
+            ],
+            [
+              8,
+              38
+            ]
+          ],
+          "pellets_eaten": 65,
+          "reward_sum": 45.0,
+          "seed": 2011,
+          "ticks_advanced": 120
+        },
+        {
+          "cleared": false,
+          "collisions": 1,
+          "movement_mask_histogram": [
+            [
+              0,
+              1
+            ],
+            [
+              1,
+              26
+            ],
+            [
+              2,
+              22
+            ],
+            [
+              4,
+              32
+            ],
+            [
+              8,
+              39
+            ]
+          ],
+          "pellets_eaten": 68,
+          "reward_sum": 58.0,
+          "seed": 2012,
+          "ticks_advanced": 120
+        },
+        {
+          "cleared": false,
+          "collisions": 2,
+          "movement_mask_histogram": [
+            [
+              0,
+              2
+            ],
+            [
+              1,
+              45
+            ],
+            [
+              2,
+              22
+            ],
+            [
+              4,
+              27
+            ],
+            [
+              8,
+              24
+            ]
+          ],
+          "pellets_eaten": 88,
+          "reward_sum": 68.0,
+          "seed": 2013,
+          "ticks_advanced": 120
+        },
+        {
+          "cleared": false,
+          "collisions": 2,
+          "movement_mask_histogram": [
+            [
+              0,
+              2
+            ],
+            [
+              1,
+              23
+            ],
+            [
+              2,
+              9
+            ],
+            [
+              4,
+              45
+            ],
+            [
+              8,
+              41
+            ]
+          ],
+          "pellets_eaten": 75,
+          "reward_sum": 55.0,
+          "seed": 2014,
+          "ticks_advanced": 120
+        },
+        {
+          "cleared": false,
+          "collisions": 0,
+          "movement_mask_histogram": [
+            [
+              1,
+              24
+            ],
+            [
+              2,
+              27
+            ],
+            [
+              4,
+              31
+            ],
+            [
+              8,
+              38
+            ]
+          ],
+          "pellets_eaten": 95,
+          "reward_sum": 95.0,
+          "seed": 2015,
+          "ticks_advanced": 120
+        },
+        {
+          "cleared": false,
+          "collisions": 2,
+          "movement_mask_histogram": [
+            [
+              0,
+              2
+            ],
+            [
+              1,
+              31
+            ],
+            [
+              2,
+              17
+            ],
+            [
+              4,
+              30
+            ],
+            [
+              8,
+              40
+            ]
+          ],
+          "pellets_eaten": 64,
+          "reward_sum": 44.0,
+          "seed": 2016,
+          "ticks_advanced": 120
+        },
+        {
+          "cleared": false,
+          "collisions": 2,
+          "movement_mask_histogram": [
+            [
+              0,
+              2
+            ],
+            [
+              1,
+              45
+            ],
+            [
+              2,
+              15
+            ],
+            [
+              4,
+              32
+            ],
+            [
+              8,
+              26
+            ]
+          ],
+          "pellets_eaten": 77,
+          "reward_sum": 57.0,
+          "seed": 2017,
+          "ticks_advanced": 120
+        },
+        {
+          "cleared": false,
+          "collisions": 0,
+          "movement_mask_histogram": [
+            [
+              1,
+              26
+            ],
+            [
+              2,
+              27
+            ],
+            [
+              4,
+              32
+            ],
+            [
+              8,
+              35
+            ]
+          ],
+          "pellets_eaten": 102,
+          "reward_sum": 102.0,
+          "seed": 2018,
+          "ticks_advanced": 120
+        },
+        {
+          "cleared": false,
+          "collisions": 1,
+          "movement_mask_histogram": [
+            [
+              0,
+              1
+            ],
+            [
+              1,
+              17
+            ],
+            [
+              2,
+              43
+            ],
+            [
+              4,
+              27
+            ],
+            [
+              8,
+              32
+            ]
+          ],
+          "pellets_eaten": 84,
+          "reward_sum": 74.0,
+          "seed": 2019,
+          "ticks_advanced": 120
+        },
+        {
+          "cleared": false,
+          "collisions": 1,
+          "movement_mask_histogram": [
+            [
+              0,
+              1
+            ],
+            [
+              1,
+              40
+            ],
+            [
+              2,
+              17
+            ],
+            [
+              4,
+              26
+            ],
+            [
+              8,
+              36
+            ]
+          ],
+          "pellets_eaten": 67,
+          "reward_sum": 57.0,
+          "seed": 2020,
+          "ticks_advanced": 120
+        }
+      ],
+      "max_ticks": 120,
+      "policy": "diagnostic.scripted_maze_chase_planner.v1",
+      "protocol": "e-heldout-direct-2001-2020-120",
+      "seeds": [
+        2001,
+        2002,
+        2003,
+        2004,
+        2005,
+        2006,
+        2007,
+        2008,
+        2009,
+        2010,
+        2011,
+        2012,
+        2013,
+        2014,
+        2015,
+        2016,
+        2017,
+        2018,
+        2019,
+        2020
+      ],
+      "summary": {
+        "clears": 0,
+        "collisions_mean": 1.05,
+        "collisions_total": 21,
+        "episodes": 20,
+        "pellets_mean": 84.5,
+        "pellets_total": 1690,
+        "reward_sum": 1480.0,
+        "ticks_advanced": 2400
+      }
+    }
+  ]
+}

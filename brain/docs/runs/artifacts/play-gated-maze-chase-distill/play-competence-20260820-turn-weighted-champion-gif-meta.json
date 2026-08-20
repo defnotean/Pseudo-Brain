@@ -1,0 +1,49 @@
+{
+  "checkpoint": "/workspace/ckpt/checkpoints/step-00000032.pt",
+  "checkpoint_sha256": "e58f323fb90893c4953b04211002753dd3162f398d1b3b4152390203ba8131cf",
+  "episodes": [
+    {
+      "bytes": 175501,
+      "collisions": 12,
+      "frames": 241,
+      "gif": "/workspace/run/play-competence-20260820-turn-weighted-champion-seed5.gif",
+      "movement_mask_histogram": [
+        [
+          2,
+          188
+        ],
+        [
+          4,
+          52
+        ]
+      ],
+      "pellets_eaten": 21,
+      "play_decode_kind": "exclusive_argmax_wasd_v1",
+      "reward_sum": -99.0,
+      "seed": 5,
+      "ticks": 240
+    },
+    {
+      "bytes": 168573,
+      "collisions": 31,
+      "frames": 241,
+      "gif": "/workspace/run/play-competence-20260820-turn-weighted-champion-seed9.gif",
+      "movement_mask_histogram": [
+        [
+          2,
+          189
+        ],
+        [
+          4,
+          51
+        ]
+      ],
+      "pellets_eaten": 17,
+      "play_decode_kind": "exclusive_argmax_wasd_v1",
+      "reward_sum": -293.0,
+      "seed": 9,
+      "ticks": 240
+    }
+  ],
+  "play_decode_kind": "exclusive_argmax_wasd_v1"
+}
