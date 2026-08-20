@@ -25,6 +25,7 @@ import torch.nn as nn
 from torch import Tensor
 
 from ..environments.phase2_suite import Phase2TaskEnvironment
+from ..types import HidKey
 from ..training.staged_branch_curriculum import (
     ComprehensiveBranchBundle,
     generate_comprehensive_branch_bundle,
@@ -216,7 +217,7 @@ def evaluate_future_coverage(
 
             # Stage 4: Did actuator select optimal action?
             button_logits = out.action.button_logits[0].cpu().numpy()
-            dir_keys = [0, 119, 97, 115, 100]  # Wait, W (119), A (97), S (115), D (100)
+            dir_keys = [0, int(HidKey.W), int(HidKey.A), int(HidKey.S), int(HidKey.D)]  # 0: Wait, 1: W (26), 2: A (4), 3: S (22), 4: D (7)
             dir_scores = [0.0 if idx == 0 else float(button_logits[key]) for idx, key in enumerate(dir_keys)]
             selected_act = int(np.argmax(dir_scores))
             s4_selected.append(1.0 if selected_act == opt_action_idx else 0.0)

@@ -256,7 +256,12 @@ class MultiHypothesisBranchLoss(nn.Module):
             )  # [K, M]
 
             # Hungarian Bipartite Assignment
-            if _HAS_SCIPY:
+            if k_slots == 1:
+                # Monolithic 1-slot model must be trained on the optimal lookahead branch
+                opt_col = int(torch.argmax(bundle.utilities[:min(5, num_branches)]).item())
+                row_ind = np.array([0])
+                col_ind = np.array([opt_col])
+            elif _HAS_SCIPY:
                 cost_np = cost_matrix.detach().cpu().numpy()
                 row_ind, col_ind = linear_sum_assignment(cost_np)
             else:

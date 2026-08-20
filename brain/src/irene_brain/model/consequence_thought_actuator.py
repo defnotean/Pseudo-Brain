@@ -187,7 +187,7 @@ class ConsequenceThoughtActuator(nn.Module):
         core_width: int,
         num_buttons: int = 296,
         max_reflex_delta: float = 0.02,
-        temperature: float = 1.0,
+        temperature: float = 0.10,
     ) -> None:
         super().__init__()
         self.core_width = core_width

@@ -248,6 +248,7 @@ def evaluate_closed_loop_model(
 ) -> dict[str, Any]:
     model.eval()
     returns: list[float] = []
+    online_top1_matches: list[float] = []
 
     for ep in range(episodes):
         obs = env.reset(seed * 1000 + ep)
@@ -285,7 +286,8 @@ def evaluate_closed_loop_model(
                     kwargs["thought_noise"] = perm_noise
                 if intervention_mode != "none":
                     kwargs["thought_intervention"] = intervention_mode
-                    kwargs["slot_permutation"] = perm
+                    if intervention_mode != "permute":
+                        kwargs["slot_permutation"] = perm
                     kwargs["donor_thoughts"] = donor_thoughts
                 out = model(rgb_tensor, ctrl_tensor, dt_tensor, state=state, **kwargs)
 
@@ -300,15 +302,26 @@ def evaluate_closed_loop_model(
             keys = []
             dir_scores = {"W": w_logit, "S": s_logit, "A": a_logit, "D": d_logit}
             best_dir, best_score = max(dir_scores.items(), key=lambda x: x[1])
+            chosen_act = 0
             if best_score > 0.0:
                 if best_dir == "W":
                     keys.append(int(HidKey.W))
-                elif best_dir == "S":
-                    keys.append(int(HidKey.S))
+                    chosen_act = 1
                 elif best_dir == "A":
                     keys.append(int(HidKey.A))
+                    chosen_act = 2
+                elif best_dir == "S":
+                    keys.append(int(HidKey.S))
+                    chosen_act = 3
                 elif best_dir == "D":
                     keys.append(int(HidKey.D))
+                    chosen_act = 4
+
+            # Measure Online Closed-Loop Top-1 Accuracy on actual encountered state
+            with torch.no_grad():
+                bundle = generate_multi_step_trajectory_tree(env, obs, horizon=2, device=device)
+                gt_opt_action = int(torch.argmax(bundle.utilities[:5]).item())
+                online_top1_matches.append(1.0 if chosen_act == gt_opt_action else 0.0)
 
             action_ctrl = GenericControl(
                 mouse_dx=0.0,
@@ -328,6 +341,7 @@ def evaluate_closed_loop_model(
     return {
         "mean_return": float(np.mean(returns)),
         "iqm_return": compute_iqm(returns),
+        "online_top1_acc_pct": float(np.mean(online_top1_matches) * 100.0) if online_top1_matches else 0.0,
     }
 
 
@@ -376,6 +390,7 @@ def main() -> None:
 
         results["pb_k32_trajectory"][ckpt] = {
             "iqm_return": eval_res["iqm_return"],
+            "online_top1_acc_pct": eval_res["online_top1_acc_pct"],
             "distinct_future_coverage": cov_res.distinct_future_coverage,
             "hazard_identification_rate_pct": cov_res.hazard_identification_rate_pct,
             "displacement_mse": cov_res.displacement_mse,
@@ -383,14 +398,14 @@ def main() -> None:
             "mean_hazard_on_danger": cov_res.mean_hazard_on_danger,
             "mean_hazard_on_safe": cov_res.mean_hazard_on_safe,
             "ranking_correlation_rho": cov_res.ranking_correlation_rho,
-            "optimal_action_top1_acc_pct": cov_res.optimal_action_top1_acc_pct,
+            "offline_top1_acc_pct": cov_res.optimal_action_top1_acc_pct,
             "reflex_action_flip_rate_pct": cov_res.reflex_action_flip_rate_pct,
             "stage1_imagined_pct": cov_res.stage1_imagined_pct,
             "stage2_accurate_pct": cov_res.stage2_accurate_pct,
             "stage3_correctly_ranked_pct": cov_res.stage3_correctly_ranked_pct,
             "stage4_selected_pct": cov_res.stage4_selected_pct,
         }
-        print(f"  [PB K=32 @ {ckpt:4d} Steps] IQM = {eval_res['iqm_return']:6.2f} | Top1 Acc = {cov_res.optimal_action_top1_acc_pct:5.1f}% | Rank ρ = {cov_res.ranking_correlation_rho:+.3f} | Haz AUROC = {cov_res.hazard_auroc:.3f} | Reflex Flips = {cov_res.reflex_action_flip_rate_pct:.1f}%")
+        print(f"  [PB K=32 @ {ckpt:4d} Steps] IQM = {eval_res['iqm_return']:6.2f} | Online Top1 = {eval_res['online_top1_acc_pct']:5.1f}% | Offline Top1 = {cov_res.optimal_action_top1_acc_pct:5.1f}% | Rank ρ = {cov_res.ranking_correlation_rho:+.3f} | Reflex Flips = {cov_res.reflex_action_flip_rate_pct:.1f}%")
 
     # 2. Checkpointed Interactive On-Policy DAgger for Matched Proposal-GRU Baseline
     print("\n--- Checkpointed On-Policy DAgger Training: Proposal-GRU Baseline ---")
@@ -405,8 +420,9 @@ def main() -> None:
         eval_res = evaluate_closed_loop_model(gru_model, test_env, seed=42, episodes=args.episodes_per_world, device=device)
         results["gru_trajectory"][ckpt] = {
             "iqm_return": eval_res["iqm_return"],
+            "online_top1_acc_pct": eval_res["online_top1_acc_pct"],
         }
-        print(f"  [GRU Matched @ {ckpt:4d} Steps] IQM = {eval_res['iqm_return']:6.2f}")
+        print(f"  [GRU Matched @ {ckpt:4d} Steps] IQM = {eval_res['iqm_return']:6.2f} | Online Top1 = {eval_res['online_top1_acc_pct']:5.1f}%")
 
     # Full 5-family evaluation at final 1,000 steps
     print("\n--- Full 5-Seed Evaluation on 5 Task Families at 1000 Steps ---")
@@ -468,20 +484,21 @@ def main() -> None:
             "mean_hazard_on_danger": cov_res.mean_hazard_on_danger,
             "mean_hazard_on_safe": cov_res.mean_hazard_on_safe,
             "ranking_correlation_rho": cov_res.ranking_correlation_rho,
-            "optimal_action_top1_acc_pct": cov_res.optimal_action_top1_acc_pct,
+            "offline_top1_acc_pct": cov_res.optimal_action_top1_acc_pct,
+            "online_top1_acc_pct": eval_res["online_top1_acc_pct"],
             "reflex_action_flip_rate_pct": cov_res.reflex_action_flip_rate_pct,
             "stage1_imagined_pct": cov_res.stage1_imagined_pct,
             "stage2_accurate_pct": cov_res.stage2_accurate_pct,
             "stage3_correctly_ranked_pct": cov_res.stage3_correctly_ranked_pct,
             "stage4_selected_pct": cov_res.stage4_selected_pct,
         }
-        print(f"  Resource-Matched K = {k:2d} | IQM = {eval_res['iqm_return']:6.2f} | Top1 Acc = {cov_res.optimal_action_top1_acc_pct:5.1f}% | Futures = {cov_res.distinct_future_coverage:.2f}/5 | Haz AUROC = {cov_res.hazard_auroc:.3f}")
+        print(f"  Resource-Matched K = {k:2d} | IQM = {eval_res['iqm_return']:6.2f} | Online Top1 = {eval_res['online_top1_acc_pct']:5.1f}% | Offline Top1 = {cov_res.optimal_action_top1_acc_pct:5.1f}% | Futures = {cov_res.distinct_future_coverage:.2f}/5")
 
     results["resource_matched_capacity_curve"] = capacity_curve
     results["future_coverage_diagnostics"] = coverage_curve
 
-    # 4. The 7-Stage Progressive Causal Intervention Spectrum
-    print("\n--- 7-Stage Progressive Causal Intervention Spectrum ---")
+    # 4. The 8-Stage Progressive Causal Intervention Spectrum (Distinguishing Presence from Meaning)
+    print("\n--- 8-Stage Progressive Causal Intervention Spectrum (Presence vs Meaning) ---")
     donor_env = Phase2TaskEnvironment(make_family_suite(TaskFamily.FAMILY_A_MULTI_OBJECT)[0])
     donor_obs = donor_env.reset(9999)
     raw_donor = np.frombuffer(donor_obs.rgb.pixels, dtype=np.uint8).reshape((16, 16, 3))
@@ -497,7 +514,8 @@ def main() -> None:
         ("D_stale_thoughts", "stale", {"donor_thoughts": donor_thoughts}),
         ("E_donor_thoughts", "donor", {"donor_thoughts": donor_thoughts}),
         ("F_gaussian_noise", "gaussian", {}),
-        ("G_zero_knockout", "zero", {}),
+        ("G_zero_active", "zero_active", {}),
+        ("H_zero_knockout", "zero_knockout", {}),
     ]
 
     causal_results: dict[str, Any] = {}
@@ -515,12 +533,14 @@ def main() -> None:
             **extra,
         )
         iqm = eval_out["iqm_return"]
+        top1 = eval_out["online_top1_acc_pct"]
         drop_pct = max(0.0, (base_iqm - iqm) / (abs(base_iqm) + 1e-4) * 100.0) if mode != "none" else 0.0
         causal_results[name] = {
             "iqm_return": iqm,
+            "online_top1_acc_pct": top1,
             "degradation_drop_pct": float(drop_pct),
         }
-        print(f"  [{name:18s}] IQM Return = {iqm:6.2f} | Degradation = {drop_pct:5.2f}%")
+        print(f"  [{name:18s}] IQM Return = {iqm:6.2f} | Online Top1 = {top1:5.1f}% | Degradation = {drop_pct:5.2f}%")
 
     results["progressive_causal_interventions"] = causal_results
 

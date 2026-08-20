@@ -96,12 +96,20 @@ class ThoughtMediatedBrainModel(nn.Module):
                 thoughts[:, :, 0], thoughts[:, :, 1] = thoughts[:, :, 1].clone(), thoughts[:, :, 0].clone()
         elif thought_intervention == "stale" and donor_thoughts is not None:
             thoughts = donor_thoughts.to(thoughts.device)
+            active_mask = torch.ones((batch, self.config.thoughtlets), device=rgb.device)
         elif thought_intervention == "donor" and donor_thoughts is not None:
             thoughts = donor_thoughts.to(thoughts.device)
+            active_mask = torch.ones((batch, self.config.thoughtlets), device=rgb.device)
         elif thought_intervention == "gaussian":
             noise_scale = thoughts.std().clamp_min(1e-2).item()
             thoughts = torch.randn_like(thoughts) * noise_scale
-        elif thought_intervention == "zero" or active_slots == 0:
+            active_mask = torch.ones((batch, self.config.thoughtlets), device=rgb.device)
+        elif thought_intervention == "zero_active":
+            # Semantic Zero Content BUT Active Pathway Forced ON
+            thoughts = torch.zeros_like(thoughts)
+            active_mask = torch.ones((batch, self.config.thoughtlets), device=rgb.device)
+        elif thought_intervention in ("zero", "zero_knockout") or active_slots == 0:
+            # Complete Pathway Knockout
             thoughts = torch.zeros_like(thoughts)
             active_mask = torch.zeros((batch, self.config.thoughtlets), device=rgb.device)
 
@@ -136,7 +144,8 @@ class ProposalGRUBaseline(nn.Module):
         self.actuator = ConsequenceThoughtActuator(
             core_width=hidden_dim,
             num_buttons=num_buttons,
-            max_reflex_delta=0.10,
+            max_reflex_delta=0.02,
+            temperature=0.10,
         )
 
     def initial_state(self, batch_size: int = 1) -> Tensor:
