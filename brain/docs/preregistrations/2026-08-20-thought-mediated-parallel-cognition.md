@@ -101,3 +101,14 @@ All baselines receive the **identical training transition budget, multi-family c
 | **Gate 6** | **Baseline Superiority** | $\ge 10\%$ normalized return / IQM advantage over matched Proposal-GRU baseline. |
 | **Gate 7** | **Breadth** | Positive 95% bootstrap CI across $\ge 4 / 5$ procedural task families. |
 | **Gate 8** | **DGX Spark Real-Time Deadline** | Kernel p99 $\le 8.00\text{ ms}$, end-to-end loop p95 $\le 16.67\text{ ms}$ on NVIDIA GB10 GPU. |
+
+## 6. Gate 6 measurement pair (named probe)
+
+The first closed-loop IQM comparison of the **mediated** (no bypass) model against
+Proposal-GRU is the bounded probe
+[`2026-08-20-gate6-matched-proposal-gru-probe.md`](2026-08-20-gate6-matched-proposal-gru-probe.md):
+
+- Thought-mediated: K=32 with core width **searched** so parameter count matches Proposal-GRU ±5% (HEAD W=32 map is not matched: 270k vs 787k).
+- Proposal-GRU: `ProposalGRUBaseline(hidden_dim=180)`.
+- Equal experience: 300 AdamW steps, seeds `{42,43,44,45,46}`, all five Phase-2 families.
+- Pass remains the table above (≥10% IQM/return). GRU tie or win is **FAIL**.
