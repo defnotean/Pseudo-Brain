@@ -1,0 +1,223 @@
+{
+  "timestamp": "2026-08-20 01:38:02 UTC",
+  "device": "cuda:0",
+  "seeds": [
+    42,
+    43,
+    44,
+    45,
+    46
+  ],
+  "variants": {
+    "pseudo_brain_reference": {
+      "mean_return": -152.136,
+      "iqm_return": -32.62903225806452,
+      "std_return": 267.8847317485638,
+      "median_return": -28.0,
+      "ci_95": [
+        -200.14339999999999,
+        -109.11900000000003
+      ],
+      "mean_prediction_error": 0.3202482999761899,
+      "p95_latency_ms": 4.787546669365838,
+      "family_scores": {
+        "family_a_multi_object_tracking": 2.6,
+        "family_b_pursuit_and_evasion": -206.68,
+        "family_c_junction_and_route_choice": -182.52,
+        "family_d_partial_observability_and_memory": -176.2,
+        "family_e_changed_dynamics_and_rules": -197.88
+      }
+    },
+    "baseline_1_reactive": {
+      "mean_return": -168.904,
+      "iqm_return": -29.338709677419356,
+      "std_return": 284.8530687635294,
+      "median_return": -28.0,
+      "ci_95": [
+        -219.9272,
+        -125.35580000000002
+      ],
+      "mean_prediction_error": 0.18075664633313815,
+      "p95_latency_ms": 4.834085451206192,
+      "family_scores": {
+        "family_a_multi_object_tracking": 2.6,
+        "family_b_pursuit_and_evasion": -256.84,
+        "family_c_junction_and_route_choice": -263.8,
+        "family_d_partial_observability_and_memory": -208.6,
+        "family_e_changed_dynamics_and_rules": -117.88
+      }
+    },
+    "baseline_2_gru_recurrent": {
+      "mean_return": -68.528,
+      "iqm_return": -24.258064516129032,
+      "std_return": 134.58758195316537,
+      "median_return": -25.0,
+      "ci_95": [
+        -92.7036,
+        -46.65400000000001
+      ],
+      "mean_prediction_error": 0.23319921874155602,
+      "p95_latency_ms": 3.7641746897716075,
+      "family_scores": {
+        "family_a_multi_object_tracking": 1.08,
+        "family_b_pursuit_and_evasion": -61.24,
+        "family_c_junction_and_route_choice": -63.8,
+        "family_d_partial_observability_and_memory": -96.16,
+        "family_e_changed_dynamics_and_rules": -122.52
+      }
+    },
+    "baseline_3_recurrent_transformer": {
+      "mean_return": -100.032,
+      "iqm_return": -28.93548387096774,
+      "std_return": 196.91021044120595,
+      "median_return": -28.0,
+      "ci_95": [
+        -137.465,
+        -68.75520000000002
+      ],
+      "mean_prediction_error": 0.3210261541182796,
+      "p95_latency_ms": 3.046332868980244,
+      "family_scores": {
+        "family_a_multi_object_tracking": 1.6,
+        "family_b_pursuit_and_evasion": -38.48,
+        "family_c_junction_and_route_choice": -57.2,
+        "family_d_partial_observability_and_memory": -137.44,
+        "family_e_changed_dynamics_and_rules": -268.64
+      }
+    },
+    "baseline_4_state_space_ssm": {
+      "mean_return": -91.32,
+      "iqm_return": -26.661290322580644,
+      "std_return": 181.21212321475625,
+      "median_return": -27.0,
+      "ci_95": [
+        -124.84979999999999,
+        -62.19480000000001
+      ],
+      "mean_prediction_error": 0.19755126450483998,
+      "p95_latency_ms": 3.9575362720061094,
+      "family_scores": {
+        "family_a_multi_object_tracking": 0.68,
+        "family_b_pursuit_and_evasion": -39.84,
+        "family_c_junction_and_route_choice": -43.96,
+        "family_d_partial_observability_and_memory": -181.16,
+        "family_e_changed_dynamics_and_rules": -192.32
+      }
+    },
+    "baseline_5_wider_monolith": {
+      "mean_return": -86.536,
+      "iqm_return": -27.70967741935484,
+      "std_return": 184.55887056438115,
+      "median_return": -28.0,
+      "ci_95": [
+        -121.0256,
+        -57.15260000000001
+      ],
+      "mean_prediction_error": 0.24604976579447588,
+      "p95_latency_ms": 3.8416542881168425,
+      "family_scores": {
+        "family_a_multi_object_tracking": 3.6,
+        "family_b_pursuit_and_evasion": -129.68,
+        "family_c_junction_and_route_choice": -138.16,
+        "family_d_partial_observability_and_memory": -127.84,
+        "family_e_changed_dynamics_and_rules": -40.6
+      }
+    },
+    "baseline_6_serial_depth": {
+      "mean_return": -152.6,
+      "iqm_return": -32.38709677419355,
+      "std_return": 267.2722656767814,
+      "median_return": -28.0,
+      "ci_95": [
+        -200.98579999999998,
+        -108.69879999999999
+      ],
+      "mean_prediction_error": 0.32023097012142343,
+      "p95_latency_ms": 4.9148208785336465,
+      "family_scores": {
+        "family_a_multi_object_tracking": 2.6,
+        "family_b_pursuit_and_evasion": -207.08,
+        "family_c_junction_and_route_choice": -186.88,
+        "family_d_partial_observability_and_memory": -176.16,
+        "family_e_changed_dynamics_and_rules": -195.48
+      }
+    },
+    "baseline_7_fixed_multi_horizon": {
+      "mean_return": -155.88,
+      "iqm_return": -31.35483870967742,
+      "std_return": 266.95889121735576,
+      "median_return": -28.0,
+      "ci_95": [
+        -202.94559999999998,
+        -112.8354
+      ],
+      "mean_prediction_error": 0.32963467229803406,
+      "p95_latency_ms": 4.728500004392117,
+      "family_scores": {
+        "family_a_multi_object_tracking": 2.56,
+        "family_b_pursuit_and_evasion": -191.2,
+        "family_c_junction_and_route_choice": -223.24,
+        "family_d_partial_observability_and_memory": -176.88,
+        "family_e_changed_dynamics_and_rules": -190.64
+      }
+    },
+    "baseline_8_world_model_actor": {
+      "mean_return": -68.528,
+      "iqm_return": -24.258064516129032,
+      "std_return": 134.58758195316537,
+      "median_return": -25.0,
+      "ci_95": [
+        -92.7036,
+        -46.65400000000001
+      ],
+      "mean_prediction_error": 0.23319921874155602,
+      "p95_latency_ms": 3.7762656316626817,
+      "family_scores": {
+        "family_a_multi_object_tracking": 1.08,
+        "family_b_pursuit_and_evasion": -61.24,
+        "family_c_junction_and_route_choice": -63.8,
+        "family_d_partial_observability_and_memory": -96.16,
+        "family_e_changed_dynamics_and_rules": -122.52
+      }
+    }
+  },
+  "causal_ablations": {
+    "useful_slots": 0,
+    "slot_effects": {
+      "0": 0.0,
+      "1": 0.0,
+      "2": 0.0,
+      "3": 0.0,
+      "4": 0.0,
+      "5": 0.0,
+      "6": 0.0,
+      "7": 0.0,
+      "8": 0.0,
+      "9": 0.0,
+      "10": 0.0,
+      "11": 0.0,
+      "12": 0.0,
+      "13": 0.0,
+      "14": 0.0,
+      "15": 0.0,
+      "16": 0.0,
+      "17": 0.0,
+      "18": 0.0,
+      "19": 0.0,
+      "20": 0.0,
+      "21": 0.0,
+      "22": 0.0,
+      "23": 0.0,
+      "24": 0.0,
+      "25": 0.0,
+      "26": 0.0,
+      "27": 0.0,
+      "28": 0.0,
+      "29": 0.0,
+      "30": 0.0,
+      "31": 0.0
+    },
+    "mean_slot_degradation_pct": 0.0
+  },
+  "family_breakdowns": {}
+}
