@@ -58,13 +58,21 @@ class ThoughtMediatedBrainModel(nn.Module):
         state: BrainState | None = None,
         max_cycles: int | None = None,
         active_slots: int | None = None,
+        thought_noise: Tensor | None = None,
     ) -> ThoughtMediatedModelOutput:
         batch = rgb.shape[0]
         if state is None:
             state = self.initial_state(batch)
 
         # Run sensory, memory, and cognitive cycle transitions through base brain
-        base_out = self.base_brain(rgb, control, delta_time, state=state, max_cycles=max_cycles)
+        base_out = self.base_brain(
+            rgb,
+            control,
+            delta_time,
+            state=state,
+            max_cycles=max_cycles,
+            thought_noise=thought_noise,
+        )
         next_state = base_out.next_state
         thoughts = next_state.thoughts
 

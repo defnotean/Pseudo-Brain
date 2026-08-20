@@ -256,12 +256,16 @@ def evaluate_closed_loop_model(
         ep_return = 0.0
         ticks = 0
 
-        # Choose fixed slot permutation for the whole episode if testing permutation invariance
+        # Choose fixed slot permutation for the whole episode with aligned identity codes
         perm = None
+        perm_noise = None
         if intervention_mode == "permute" and hasattr(state, "thoughts"):
             k = state.thoughts.shape[1]
             perm = list(range(k))
             random.shuffle(perm)
+            if hasattr(model, "base_brain"):
+                perm_tensor = torch.tensor(perm, device=device)
+                perm_noise = model.base_brain._thought_identity_codes[perm_tensor].unsqueeze(0)
 
         while ticks < env.config.max_ticks:
             if intervention_mode == "scramble" and hasattr(state, "thoughts"):
@@ -281,6 +285,8 @@ def evaluate_closed_loop_model(
                 kwargs = {}
                 if active_slots is not None:
                     kwargs["active_slots"] = active_slots
+                if perm_noise is not None:
+                    kwargs["thought_noise"] = perm_noise
                 out = model(rgb_tensor, ctrl_tensor, dt_tensor, state=state, **kwargs)
 
             state = out.next_state
@@ -329,44 +335,95 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Thought-Mediated Parallel Cognition Campaign")
     parser.add_argument("--device", type=str, default="cuda:0" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--episodes-per-world", type=int, default=5)
-    parser.add_argument("--train-steps", type=int, default=250)
+    parser.add_argument("--train-steps", type=int, default=1000)
     parser.add_argument("--output-json", type=str, default="docs/phase_closure/thought_mediated_campaign_results.json")
     args = parser.parse_args()
 
     device = torch.device(args.device)
-    print(f"=== Starting Thought-Mediated Campaign on {device} ===")
+    print(f"=== Starting Checkpointed On-Policy DAgger Campaign on {device} ===")
     print(f"PyTorch: {torch.__version__}, CUDA: {torch.cuda.is_available()}")
 
     seeds = [42, 43, 44, 45, 46]
+    checkpoints = [200, 400, 600, 800, 1000]
+    test_env = Phase2TaskEnvironment(make_family_suite(TaskFamily.FAMILY_B_PURSUIT_EVASION)[0])
+
     results: dict[str, Any] = {
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
         "device": str(device),
         "seeds": seeds,
+        "checkpoints": checkpoints,
+        "pb_k32_trajectory": {},
+        "gru_trajectory": {},
         "thought_mediated_pb_k32": {},
         "proposal_gru_baseline": {},
         "resource_matched_capacity_curve": {},
+        "future_coverage_diagnostics": {},
         "causal_diagnostics": {},
     }
 
-    # 1. Train and Evaluate Thought-Mediated Pseudo-Brain (K=32)
-    print("\n--- Training and Evaluating Thought-Mediated Pseudo-Brain (K=32) ---")
+    # 1. Checkpointed Interactive On-Policy DAgger for K=32 Pseudo-Brain
+    print("\n--- Checkpointed On-Policy DAgger Training: Pseudo-Brain (K=32) ---")
+    pb_model = build_resource_matched_thought_model(32).to(device)
+    current_step = 0
+    for ckpt in checkpoints:
+        steps_to_train = ckpt - current_step
+        if steps_to_train > 0:
+            train_thought_mediated_model(pb_model, device=device, training_steps=steps_to_train)
+            current_step = ckpt
+
+        eval_res = evaluate_closed_loop_model(pb_model, test_env, seed=42, episodes=args.episodes_per_world, device=device)
+        cov_res = evaluate_future_coverage(pb_model, test_env, device=device)
+
+        results["pb_k32_trajectory"][ckpt] = {
+            "iqm_return": eval_res["iqm_return"],
+            "distinct_future_coverage": cov_res.distinct_future_coverage,
+            "hazard_identification_rate_pct": cov_res.hazard_identification_rate_pct,
+            "displacement_mse": cov_res.displacement_mse,
+            "hazard_auroc": cov_res.hazard_auroc,
+            "mean_hazard_on_danger": cov_res.mean_hazard_on_danger,
+            "mean_hazard_on_safe": cov_res.mean_hazard_on_safe,
+            "ranking_correlation_rho": cov_res.ranking_correlation_rho,
+            "stage1_imagined_pct": cov_res.stage1_imagined_pct,
+            "stage2_accurate_pct": cov_res.stage2_accurate_pct,
+            "stage3_correctly_ranked_pct": cov_res.stage3_correctly_ranked_pct,
+            "stage4_selected_pct": cov_res.stage4_selected_pct,
+        }
+        print(f"  [PB K=32 @ {ckpt:4d} Steps] IQM = {eval_res['iqm_return']:6.2f} | H2 MSE = {cov_res.displacement_mse:.3f} | Rank ρ = {cov_res.ranking_correlation_rho:+.3f} | Haz AUROC = {cov_res.hazard_auroc:.3f} | S1-S4 = ({cov_res.stage1_imagined_pct:.0f}%, {cov_res.stage2_accurate_pct:.0f}%, {cov_res.stage3_correctly_ranked_pct:.0f}%, {cov_res.stage4_selected_pct:.0f}%)")
+
+    # 2. Checkpointed Interactive On-Policy DAgger for Matched Proposal-GRU Baseline
+    print("\n--- Checkpointed On-Policy DAgger Training: Proposal-GRU Baseline ---")
+    gru_model = ProposalGRUBaseline().to(device)
+    current_step = 0
+    for ckpt in checkpoints:
+        steps_to_train = ckpt - current_step
+        if steps_to_train > 0:
+            train_proposal_gru_baseline(gru_model, device=device, training_steps=steps_to_train)
+            current_step = ckpt
+
+        eval_res = evaluate_closed_loop_model(gru_model, test_env, seed=42, episodes=args.episodes_per_world, device=device)
+        results["gru_trajectory"][ckpt] = {
+            "iqm_return": eval_res["iqm_return"],
+        }
+        print(f"  [GRU Matched @ {ckpt:4d} Steps] IQM = {eval_res['iqm_return']:6.2f}")
+
+    # Full 5-family evaluation at final 1,000 steps
+    print("\n--- Full 5-Seed Evaluation on 5 Task Families at 1000 Steps ---")
     pb_returns = []
     pb_family_scores: dict[str, list[float]] = {}
+    gru_returns = []
+    gru_family_scores: dict[str, list[float]] = {}
 
     for seed in seeds:
-        torch.manual_seed(seed)
-        np.random.seed(seed)
-        random.seed(seed)
-
-        pb_model = build_resource_matched_thought_model(32).to(device)
-        train_thought_mediated_model(pb_model, device=device, training_steps=args.train_steps)
-
         for family in TaskFamily:
             configs = make_family_suite(family)
             eval_env = Phase2TaskEnvironment(configs[0])
-            eval_res = evaluate_closed_loop_model(pb_model, eval_env, seed=seed, episodes=args.episodes_per_world, device=device)
-            pb_returns.append(eval_res["mean_return"])
-            pb_family_scores.setdefault(family.value, []).append(eval_res["mean_return"])
+            pb_res = evaluate_closed_loop_model(pb_model, eval_env, seed=seed, episodes=args.episodes_per_world, device=device)
+            pb_returns.append(pb_res["mean_return"])
+            pb_family_scores.setdefault(family.value, []).append(pb_res["mean_return"])
+
+            gru_res = evaluate_closed_loop_model(gru_model, eval_env, seed=seed, episodes=args.episodes_per_world, device=device)
+            gru_returns.append(gru_res["mean_return"])
+            gru_family_scores.setdefault(family.value, []).append(gru_res["mean_return"])
 
     ci_low, ci_high = compute_bootstrap_ci(pb_returns)
     results["thought_mediated_pb_k32"] = {
@@ -375,28 +432,6 @@ def main() -> None:
         "ci_95": [ci_low, ci_high],
         "family_scores": {k: float(np.mean(v)) for k, v in pb_family_scores.items()},
     }
-    print(f"Thought-Mediated Pseudo-Brain (K=32) IQM Return: {results['thought_mediated_pb_k32']['iqm_return']:.2f}")
-
-    # 2. Train and Evaluate Proposal-GRU Baseline
-    print("\n--- Training and Evaluating Proposal-GRU Baseline ---")
-    gru_returns = []
-    gru_family_scores: dict[str, list[float]] = {}
-
-    for seed in seeds:
-        torch.manual_seed(seed)
-        np.random.seed(seed)
-        random.seed(seed)
-
-        gru_model = ProposalGRUBaseline().to(device)
-        train_proposal_gru_baseline(gru_model, device=device, training_steps=args.train_steps)
-
-        for family in TaskFamily:
-            configs = make_family_suite(family)
-            eval_env = Phase2TaskEnvironment(configs[0])
-            eval_res = evaluate_closed_loop_model(gru_model, eval_env, seed=seed, episodes=args.episodes_per_world, device=device)
-            gru_returns.append(eval_res["mean_return"])
-            gru_family_scores.setdefault(family.value, []).append(eval_res["mean_return"])
-
     gru_ci_low, gru_ci_high = compute_bootstrap_ci(gru_returns)
     results["proposal_gru_baseline"] = {
         "mean_return": float(np.mean(gru_returns)),
@@ -404,24 +439,21 @@ def main() -> None:
         "ci_95": [gru_ci_low, gru_ci_high],
         "family_scores": {k: float(np.mean(v)) for k, v in gru_family_scores.items()},
     }
-    print(f"Proposal-GRU Baseline IQM Return: {results['proposal_gru_baseline']['iqm_return']:.2f}")
 
     # 3. Resource-Matched Capacity Scaling Curve: K in {0, 1, 4, 5, 8, 16, 32}
-    print("\n--- Evaluating Resource-Matched Capacity Scaling Curve & Future Coverage ---")
-    test_env = Phase2TaskEnvironment(make_family_suite(TaskFamily.FAMILY_B_PURSUIT_EVASION)[0])
+    print("\n--- Evaluating Resource-Matched Capacity Scaling Curve across K ---")
     k_points = [0, 1, 4, 5, 8, 16, 32]
     capacity_curve: dict[int, float] = {}
     coverage_curve: dict[int, dict[str, float]] = {}
 
     for k in k_points:
         if k == 0:
-            # Complete thought knockout (Reflex only)
             matched_model = build_resource_matched_thought_model(1).to(device)
             eval_res = evaluate_closed_loop_model(matched_model, test_env, seed=42, episodes=args.episodes_per_world, device=device, active_slots=0)
             cov_res = evaluate_future_coverage(matched_model, test_env, device=device, active_slots=0)
         else:
             matched_model = build_resource_matched_thought_model(k).to(device)
-            train_thought_mediated_model(matched_model, device=device, training_steps=args.train_steps)
+            train_thought_mediated_model(matched_model, device=device, training_steps=300)
             eval_res = evaluate_closed_loop_model(matched_model, test_env, seed=42, episodes=args.episodes_per_world, device=device)
             cov_res = evaluate_future_coverage(matched_model, test_env, device=device)
 
@@ -430,22 +462,26 @@ def main() -> None:
             "distinct_future_coverage": cov_res.distinct_future_coverage,
             "hazard_identification_rate_pct": cov_res.hazard_identification_rate_pct,
             "displacement_mse": cov_res.displacement_mse,
+            "hazard_auroc": cov_res.hazard_auroc,
+            "mean_hazard_on_danger": cov_res.mean_hazard_on_danger,
+            "mean_hazard_on_safe": cov_res.mean_hazard_on_safe,
             "ranking_correlation_rho": cov_res.ranking_correlation_rho,
+            "stage1_imagined_pct": cov_res.stage1_imagined_pct,
+            "stage2_accurate_pct": cov_res.stage2_accurate_pct,
+            "stage3_correctly_ranked_pct": cov_res.stage3_correctly_ranked_pct,
+            "stage4_selected_pct": cov_res.stage4_selected_pct,
         }
-        print(f"  Resource-Matched K = {k:2d} | IQM = {eval_res['iqm_return']:6.2f} | Unique Futures = {cov_res.distinct_future_coverage:.2f}/5 | Hazard ID = {cov_res.hazard_identification_rate_pct:5.1f}%")
+        print(f"  Resource-Matched K = {k:2d} | IQM = {eval_res['iqm_return']:6.2f} | Futures = {cov_res.distinct_future_coverage:.2f}/5 | H2 MSE = {cov_res.displacement_mse:.3f} | Haz AUROC = {cov_res.hazard_auroc:.3f} | S1-S4 = ({cov_res.stage1_imagined_pct:.0f}%, {cov_res.stage2_accurate_pct:.0f}%, {cov_res.stage3_correctly_ranked_pct:.0f}%, {cov_res.stage4_selected_pct:.0f}%)")
 
     results["resource_matched_capacity_curve"] = capacity_curve
     results["future_coverage_diagnostics"] = coverage_curve
 
     # 4. Causal Diagnostics: Permutation, Scrambling, and Thought Knockout
     print("\n--- Diagnostic Causal Interventions ---")
-    pb_diag = build_resource_matched_thought_model(32).to(device)
-    train_thought_mediated_model(pb_diag, device=device, training_steps=args.train_steps)
-
-    base_eval = evaluate_closed_loop_model(pb_diag, test_env, seed=42, episodes=args.episodes_per_world, device=device)
-    perm_eval = evaluate_closed_loop_model(pb_diag, test_env, seed=42, episodes=args.episodes_per_world, device=device, intervention_mode="permute")
-    scramble_eval = evaluate_closed_loop_model(pb_diag, test_env, seed=42, episodes=args.episodes_per_world, device=device, intervention_mode="scramble")
-    zero_eval = evaluate_closed_loop_model(pb_diag, test_env, seed=42, episodes=args.episodes_per_world, device=device, active_slots=0)
+    base_eval = evaluate_closed_loop_model(pb_model, test_env, seed=42, episodes=args.episodes_per_world, device=device)
+    perm_eval = evaluate_closed_loop_model(pb_model, test_env, seed=42, episodes=args.episodes_per_world, device=device, intervention_mode="permute")
+    scramble_eval = evaluate_closed_loop_model(pb_model, test_env, seed=42, episodes=args.episodes_per_world, device=device, intervention_mode="scramble")
+    zero_eval = evaluate_closed_loop_model(pb_model, test_env, seed=42, episodes=args.episodes_per_world, device=device, active_slots=0)
 
     base_ret = base_eval["iqm_return"]
     perm_drop = max(0.0, (base_ret - perm_eval["iqm_return"]) / (abs(base_ret) + 1e-4) * 100)
@@ -469,6 +505,7 @@ def main() -> None:
     os.makedirs(os.path.dirname(args.output_json), exist_ok=True)
     with open(args.output_json, "w") as f:
         json.dump(results, f, indent=2)
+
     print(f"\n[OK] Thought-Mediated Campaign results saved to {args.output_json}")
 
 
