@@ -221,6 +221,7 @@ class MultiHypothesisBranchLoss(nn.Module):
         reward_weight: float = 1.0,
         utility_weight: float = 1.5,
         action_weight: float = 2.0,
+        inertia_weight: float = 0.5,
     ) -> None:
         super().__init__()
         self.displacement_weight = displacement_weight
@@ -228,11 +229,14 @@ class MultiHypothesisBranchLoss(nn.Module):
         self.reward_weight = reward_weight
         self.utility_weight = utility_weight
         self.action_weight = action_weight
+        self.inertia_weight = inertia_weight
+        self._prev_assignments: dict[int, np.ndarray] = {}
 
     def forward(
         self,
         proposals: Any,  # ThoughtProposal from ThoughtMediatedActuator
         bundles: Sequence[ComprehensiveBranchBundle],
+        prev_actions: Sequence[np.ndarray | Tensor] | None = None,
     ) -> tuple[Tensor, dict[str, float]]:
         """Compute set-matching loss between K thoughtlet proposals and M ground-truth branches.
 
@@ -280,6 +284,15 @@ class MultiHypothesisBranchLoss(nn.Module):
                 + self.reward_weight * rew_cost
             )  # [K, M]
 
+            # Temporal matching inertia: discount cost if slot i continues its previous hypothesis branch
+            if b in self._prev_assignments and k_slots > 1:
+                prev_col = self._prev_assignments[b]
+                if len(prev_col) == k_slots:
+                    for slot_idx in range(k_slots):
+                        prev_c = prev_col[slot_idx]
+                        if prev_c < num_branches:
+                            cost_matrix[slot_idx, prev_c] -= self.inertia_weight
+
             # Hungarian Bipartite Assignment
             if k_slots == 1:
                 # Monolithic 1-slot model must be trained on the optimal lookahead branch
@@ -292,6 +305,11 @@ class MultiHypothesisBranchLoss(nn.Module):
             else:
                 row_ind = torch.argmin(cost_matrix, dim=0).cpu().numpy()
                 col_ind = np.arange(num_branches)
+
+            # Store assignment for temporal continuity on next frame
+            new_assign = np.zeros(k_slots, dtype=np.int64)
+            new_assign[row_ind] = col_ind
+            self._prev_assignments[b] = new_assign
 
             # Accumulate matched branch predictions
             matched_pred_loss = cost_matrix[row_ind, col_ind].mean()

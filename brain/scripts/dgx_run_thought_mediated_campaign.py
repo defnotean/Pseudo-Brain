@@ -1,11 +1,12 @@
 """DGX Spark Campaign Harness for Thought-Mediated Parallel Cognition.
 
 Evaluates:
-1. Balanced Multi-Family Checkpointed DAgger Training across steps {200, 400, 600, 800, 1000}.
+1. Balanced Multi-Family Checkpointed DAgger Training with Temporal Matching Inertia.
 2. Counterfactual Thought Transplant Test (proving state-specific semantic steering).
-3. Decision-Critical Forced-Choice Benchmark (100 forced-choice junction/evasion points).
-4. 8-Stage Progressive Presence vs. Meaning Causal Spectrum.
-5. Resource-Matched Capacity Scaling across K in {0, 1, 4, 5, 8, 16, 32}.
+3. Multi-Hypothesis Horizon Benchmark (H=4 steps) vs Standard Decision-Critical Benchmark.
+4. Per-K 5-Stage Decision Decomposition (Imagined -> Accurate -> Hazard -> Ranked -> Selected).
+5. 8-Stage Progressive Presence vs. Meaning Causal Spectrum.
+6. Resource-Matched Capacity Scaling across K in {0, 1, 4, 5, 8, 16, 32}.
 """
 
 from __future__ import annotations
@@ -32,7 +33,9 @@ from irene_brain.environments.phase2_suite import (
 )
 from irene_brain.environments.decision_critical_suite import (
     DecisionCriticalReport,
+    MultiHypothesisHorizonReport,
     evaluate_decision_critical_benchmark,
+    evaluate_multi_hypothesis_horizon_benchmark,
 )
 from irene_brain.model.spec import ThoughtFieldConfig
 from irene_brain.model.thought_mediated_model import (
@@ -82,10 +85,10 @@ def train_thought_mediated_model(
     training_steps: int = 300,
     lr: float = 5e-4,
 ) -> None:
-    """Balanced Multi-Family On-Policy DAgger training across all 5 task families simultaneously."""
+    """Balanced Multi-Family On-Policy DAgger training with temporal matching inertia."""
     model.train()
     optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
-    loss_fn = MultiHypothesisBranchLoss().to(device)
+    loss_fn = MultiHypothesisBranchLoss(inertia_weight=0.5).to(device)
 
     all_families = list(TaskFamily)
     envs = [Phase2TaskEnvironment(make_family_suite(fam)[0]) for fam in all_families]
@@ -331,7 +334,7 @@ def main() -> None:
     args = parser.parse_args()
 
     device = torch.device(args.device)
-    print(f"=== Starting Checkpointed Multi-Family DAgger Campaign on {device} ===")
+    print(f"=== Starting Multi-Family DAgger Campaign with Temporal Inertia on {device} ===")
     print(f"PyTorch: {torch.__version__}, CUDA: {torch.cuda.is_available()}")
 
     seeds = [42, 43, 44, 45, 46]
@@ -346,9 +349,8 @@ def main() -> None:
         "pb_k32_trajectory": {},
         "gru_trajectory": {},
         "thought_transplant_report": {},
-        "decision_critical_benchmark": {},
-        "thought_mediated_pb_k32": {},
-        "proposal_gru_baseline": {},
+        "per_k_decision_decomposition": {},
+        "multi_hypothesis_horizon_benchmark": {},
         "resource_matched_capacity_curve": {},
         "future_coverage_diagnostics": {},
         "progressive_causal_interventions": {},
@@ -367,20 +369,25 @@ def main() -> None:
         eval_res = evaluate_closed_loop_model(pb_model, test_env, seed=42, episodes=args.episodes_per_world, device=device)
         cov_res = evaluate_future_coverage(pb_model, test_env, device=device)
         crit_res = evaluate_decision_critical_benchmark(pb_model, device=device)
+        h4_res = evaluate_multi_hypothesis_horizon_benchmark(pb_model, device=device)
 
         results["pb_k32_trajectory"][ckpt] = {
             "iqm_return": eval_res["iqm_return"],
             "online_top1_acc_pct": eval_res["online_top1_acc_pct"],
             "decision_critical_score": crit_res.total_decision_score,
             "decision_critical_acc_pct": crit_res.decision_accuracy_pct,
+            "horizon4_score": h4_res.multi_hypothesis_score,
+            "horizon4_acc_pct": h4_res.horizon4_accuracy_pct,
+            "trap_avoidance_pct": h4_res.greedy_trap_avoidance_pct,
             "distinct_future_coverage": cov_res.distinct_future_coverage,
             "displacement_mse": cov_res.displacement_mse,
             "hazard_auroc": cov_res.hazard_auroc,
-            "ranking_correlation_rho": cov_res.ranking_correlation_rho,
-            "offline_top1_acc_pct": cov_res.optimal_action_top1_acc_pct,
-            "reflex_action_flip_rate_pct": cov_res.reflex_action_flip_rate_pct,
+            "stage1_imagined_pct": cov_res.stage1_imagined_pct,
+            "stage2_accurate_pct": cov_res.stage2_accurate_pct,
+            "stage3_correctly_ranked_pct": cov_res.stage3_correctly_ranked_pct,
+            "stage4_selected_pct": cov_res.stage4_selected_pct,
         }
-        print(f"  [PB K=32 @ {ckpt:4d} Steps] IQM = {eval_res['iqm_return']:6.2f} | DecCrit Score = {crit_res.total_decision_score:+5.1f} ({crit_res.decision_accuracy_pct:5.1f}%) | Online Top1 = {eval_res['online_top1_acc_pct']:5.1f}% | Offline Top1 = {cov_res.optimal_action_top1_acc_pct:5.1f}% | Haz AUROC = {cov_res.hazard_auroc:.3f}")
+        print(f"  [PB K=32 @ {ckpt:4d} Steps] DecCrit = {crit_res.total_decision_score:+5.1f} ({crit_res.decision_accuracy_pct:5.1f}%) | H4 Score = {h4_res.multi_hypothesis_score:+5.1f} ({h4_res.horizon4_accuracy_pct:5.1f}%) | S1-4 = [{cov_res.stage1_imagined_pct:.0f}%, {cov_res.stage2_accurate_pct:.0f}%, {cov_res.stage3_correctly_ranked_pct:.0f}%, {cov_res.stage4_selected_pct:.0f}%]")
 
     # 2. Checkpointed Interactive Multi-Family DAgger for Matched Proposal-GRU Baseline
     print("\n--- Checkpointed Multi-Family DAgger Training: Proposal-GRU Baseline ---")
@@ -394,13 +401,17 @@ def main() -> None:
 
         eval_res = evaluate_closed_loop_model(gru_model, test_env, seed=42, episodes=args.episodes_per_world, device=device)
         crit_res = evaluate_decision_critical_benchmark(gru_model, device=device)
+        h4_res = evaluate_multi_hypothesis_horizon_benchmark(gru_model, device=device)
         results["gru_trajectory"][ckpt] = {
             "iqm_return": eval_res["iqm_return"],
             "online_top1_acc_pct": eval_res["online_top1_acc_pct"],
             "decision_critical_score": crit_res.total_decision_score,
             "decision_critical_acc_pct": crit_res.decision_accuracy_pct,
+            "horizon4_score": h4_res.multi_hypothesis_score,
+            "horizon4_acc_pct": h4_res.horizon4_accuracy_pct,
+            "trap_avoidance_pct": h4_res.greedy_trap_avoidance_pct,
         }
-        print(f"  [GRU Matched @ {ckpt:4d} Steps] IQM = {eval_res['iqm_return']:6.2f} | DecCrit Score = {crit_res.total_decision_score:+5.1f} ({crit_res.decision_accuracy_pct:5.1f}%) | Online Top1 = {eval_res['online_top1_acc_pct']:5.1f}%")
+        print(f"  [GRU Matched @ {ckpt:4d} Steps] DecCrit = {crit_res.total_decision_score:+5.1f} ({crit_res.decision_accuracy_pct:5.1f}%) | H4 Score = {h4_res.multi_hypothesis_score:+5.1f} ({h4_res.horizon4_accuracy_pct:5.1f}%) | Trap Avoid = {h4_res.greedy_trap_avoidance_pct:5.1f}%")
 
     # 3. Counterfactual Thought Transplant Test (Semantic Causal Steering)
     print("\n--- Running Counterfactual Thought Transplant Test ---")
@@ -417,45 +428,12 @@ def main() -> None:
     print(f"  Recipient Action Suppressed: {trans_report.recipient_action_suppression_pct:5.1f}% (Suppression of recipient original action)")
     print(f"  Semantic Fidelity Score    : {trans_report.semantic_fidelity_score:5.3f} / 1.000")
 
-    # 4. Full 5-Seed Evaluation on 5 Task Families at 1000 Steps
-    print("\n--- Full 5-Seed Evaluation on 5 Task Families at 1000 Steps ---")
-    pb_returns = []
-    pb_family_scores: dict[str, list[float]] = {}
-    gru_returns = []
-    gru_family_scores: dict[str, list[float]] = {}
-
-    for seed in seeds:
-        for family in TaskFamily:
-            configs = make_family_suite(family)
-            eval_env = Phase2TaskEnvironment(configs[0])
-            pb_res = evaluate_closed_loop_model(pb_model, eval_env, seed=seed, episodes=args.episodes_per_world, device=device)
-            pb_returns.append(pb_res["mean_return"])
-            pb_family_scores.setdefault(family.value, []).append(pb_res["mean_return"])
-
-            gru_res = evaluate_closed_loop_model(gru_model, eval_env, seed=seed, episodes=args.episodes_per_world, device=device)
-            gru_returns.append(gru_res["mean_return"])
-            gru_family_scores.setdefault(family.value, []).append(gru_res["mean_return"])
-
-    ci_low, ci_high = compute_bootstrap_ci(pb_returns)
-    results["thought_mediated_pb_k32"] = {
-        "mean_return": float(np.mean(pb_returns)),
-        "iqm_return": compute_iqm(pb_returns),
-        "ci_95": [ci_low, ci_high],
-        "family_scores": {k: float(np.mean(v)) for k, v in pb_family_scores.items()},
-    }
-    gru_ci_low, gru_ci_high = compute_bootstrap_ci(gru_returns)
-    results["proposal_gru_baseline"] = {
-        "mean_return": float(np.mean(gru_returns)),
-        "iqm_return": compute_iqm(gru_returns),
-        "ci_95": [gru_ci_low, gru_ci_high],
-        "family_scores": {k: float(np.mean(v)) for k, v in gru_family_scores.items()},
-    }
-
-    # 5. Resource-Matched Capacity Scaling Curve: K in {0, 1, 4, 5, 8, 16, 32}
-    print("\n--- Evaluating Resource-Matched Capacity Scaling Curve across K ---")
+    # 4. Resource-Matched Capacity Scaling Curve & Per-K Decision Decomposition
+    print("\n--- Evaluating Resource-Matched Capacity Scaling & Decision Decomposition across K ---")
     k_points = [0, 1, 4, 5, 8, 16, 32]
     capacity_curve: dict[int, float] = {}
     coverage_curve: dict[int, dict[str, float]] = {}
+    h4_curve: dict[int, dict[str, float]] = {}
 
     for k in k_points:
         if k == 0:
@@ -463,12 +441,14 @@ def main() -> None:
             eval_res = evaluate_closed_loop_model(matched_model, test_env, seed=42, episodes=args.episodes_per_world, device=device, active_slots=0)
             cov_res = evaluate_future_coverage(matched_model, test_env, device=device, active_slots=0)
             crit_res = evaluate_decision_critical_benchmark(matched_model, device=device, active_slots=0)
+            h4_res = evaluate_multi_hypothesis_horizon_benchmark(matched_model, device=device, active_slots=0)
         else:
             matched_model = build_resource_matched_thought_model(k).to(device)
             train_thought_mediated_model(matched_model, device=device, training_steps=300)
             eval_res = evaluate_closed_loop_model(matched_model, test_env, seed=42, episodes=args.episodes_per_world, device=device)
             cov_res = evaluate_future_coverage(matched_model, test_env, device=device)
             crit_res = evaluate_decision_critical_benchmark(matched_model, device=device)
+            h4_res = evaluate_multi_hypothesis_horizon_benchmark(matched_model, device=device)
 
         capacity_curve[k] = eval_res["iqm_return"]
         coverage_curve[k] = {
@@ -476,25 +456,26 @@ def main() -> None:
             "hazard_identification_rate_pct": cov_res.hazard_identification_rate_pct,
             "displacement_mse": cov_res.displacement_mse,
             "hazard_auroc": cov_res.hazard_auroc,
-            "mean_hazard_on_danger": cov_res.mean_hazard_on_danger,
-            "mean_hazard_on_safe": cov_res.mean_hazard_on_safe,
             "ranking_correlation_rho": cov_res.ranking_correlation_rho,
-            "offline_top1_acc_pct": cov_res.optimal_action_top1_acc_pct,
-            "online_top1_acc_pct": eval_res["online_top1_acc_pct"],
             "decision_critical_score": crit_res.total_decision_score,
             "decision_critical_acc_pct": crit_res.decision_accuracy_pct,
-            "reflex_action_flip_rate_pct": cov_res.reflex_action_flip_rate_pct,
             "stage1_imagined_pct": cov_res.stage1_imagined_pct,
             "stage2_accurate_pct": cov_res.stage2_accurate_pct,
             "stage3_correctly_ranked_pct": cov_res.stage3_correctly_ranked_pct,
             "stage4_selected_pct": cov_res.stage4_selected_pct,
         }
-        print(f"  Resource-Matched K = {k:2d} | DecCrit Score = {crit_res.total_decision_score:+5.1f} ({crit_res.decision_accuracy_pct:5.1f}%) | Futures = {cov_res.distinct_future_coverage:.2f}/5 | Haz AUROC = {cov_res.hazard_auroc:.3f}")
+        h4_curve[k] = {
+            "horizon4_score": h4_res.multi_hypothesis_score,
+            "horizon4_acc_pct": h4_res.horizon4_accuracy_pct,
+            "trap_avoidance_pct": h4_res.greedy_trap_avoidance_pct,
+        }
+        print(f"  K = {k:2d} | Futures = {cov_res.distinct_future_coverage:.2f}/5 | H4 Score = {h4_res.multi_hypothesis_score:+5.1f} ({h4_res.horizon4_accuracy_pct:5.1f}%) | S1: {cov_res.stage1_imagined_pct:.0f}% S2: {cov_res.stage2_accurate_pct:.0f}% S3: {cov_res.stage3_correctly_ranked_pct:.0f}% S4: {cov_res.stage4_selected_pct:.0f}%")
 
     results["resource_matched_capacity_curve"] = capacity_curve
     results["future_coverage_diagnostics"] = coverage_curve
+    results["multi_hypothesis_horizon_benchmark"] = h4_curve
 
-    # 6. The 8-Stage Progressive Causal Intervention Spectrum (Presence vs Meaning)
+    # 5. The 8-Stage Progressive Causal Intervention Spectrum (Presence vs Meaning)
     print("\n--- 8-Stage Progressive Causal Intervention Spectrum (Presence vs Meaning) ---")
     donor_env = Phase2TaskEnvironment(make_family_suite(TaskFamily.FAMILY_A_MULTI_OBJECT)[0])
     donor_obs = donor_env.reset(9999)
