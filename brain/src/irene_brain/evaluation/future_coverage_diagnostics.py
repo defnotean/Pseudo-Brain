@@ -235,7 +235,7 @@ def evaluate_future_coverage(
             if len(predicted_action_choices) > 0 and (predicted_action_choices == opt_action_idx).any():
                 s1_imagined.append(1.0)
                 matching_slots = (predicted_action_choices == opt_action_idx).nonzero(as_tuple=True)[0]
-                best_slot = matching_slots[0]
+                best_slot = matching_slots[torch.argmax(active_confs[matching_slots])]
 
                 # Stage 2a: Displacement accurate within 1.0?
                 slot_disp_err = (active_disps[best_slot] - gt_disps[opt_action_idx]).abs().max().item()

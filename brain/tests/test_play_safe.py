@@ -24,33 +24,22 @@ class PlaySafeConfigurationTests(unittest.TestCase):
         self.assertFalse(runtime["write_artifacts"])
 
     def test_importing_phase0_modules_starts_nothing_and_loads_no_accelerator(self) -> None:
-        modules = (
-            "irene_brain",
-            "irene_brain.data",
-            "irene_brain.environments",
-            "irene_brain.evaluation.compliance",
-            "irene_brain.experiment",
-            "irene_brain.runtime.clock",
-            "irene_brain.runtime.continuous",
-            "irene_brain.runtime.policy",
+        code = (
+            "import importlib, sys, threading\n"
+            "modules = ('irene_brain', 'irene_brain.data', 'irene_brain.environments', "
+            "'irene_brain.evaluation.compliance', 'irene_brain.experiment', "
+            "'irene_brain.runtime.clock', 'irene_brain.runtime.continuous', 'irene_brain.runtime.policy')\n"
+            "before = tuple(thread.ident for thread in threading.enumerate())\n"
+            "for name in modules:\n"
+            "    importlib.import_module(name)\n"
+            "after = tuple(thread.ident for thread in threading.enumerate())\n"
+            "assert after == before, f'{after} != {before}'\n"
+            "forbidden = {'torch', 'tensorflow', 'jax', 'cv2', 'mss', 'PIL', 'pyautogui', 'pynput'}\n"
+            "assert forbidden.isdisjoint(sys.modules), f'{forbidden.intersection(sys.modules)}'\n"
         )
-        before = tuple(thread.ident for thread in threading.enumerate())
-        for name in modules:
-            importlib.import_module(name)
-        after = tuple(thread.ident for thread in threading.enumerate())
-
-        self.assertEqual(after, before)
-        forbidden = {
-            "torch",
-            "tensorflow",
-            "jax",
-            "cv2",
-            "mss",
-            "PIL",
-            "pyautogui",
-            "pynput",
-        }
-        self.assertTrue(forbidden.isdisjoint(sys.modules))
+        import subprocess
+        result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
 
 
 if __name__ == "__main__":
