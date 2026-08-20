@@ -167,8 +167,8 @@ class MultiHypothesisBranchLoss(nn.Module):
             pred_disp = proposals.displacement[b]       # [K, 2]
             pred_haz = proposals.hazard_prob[b]         # [K, 1]
             pred_rew = proposals.reward_estimate[b]     # [K, 1]
-            pred_util = proposals.utility_logits[b]     # [K, 1]
-            pred_act = proposals.button_logits[b]       # [K, num_buttons]
+            pred_util = getattr(proposals, "consequence_utility", getattr(proposals, "utility_logits", None))[b]
+            pred_act = getattr(proposals, "action_logits", getattr(proposals, "button_logits", None))[b]
 
             # Compute pairwise cost matrix between K proposals and M branches
             disp_cost = torch.cdist(pred_disp, bundle.displacements)  # [K, M]
@@ -201,25 +201,32 @@ class MultiHypothesisBranchLoss(nn.Module):
             matched_pred_loss = cost_matrix[row_ind, col_ind].mean()
 
             # Target action loss for matched slots
-            target_buttons = torch.zeros((len(row_ind), pred_act.shape[-1]), device=device)
-            for idx, col in enumerate(col_ind):
-                act_idx = int(bundle.action_indices[col].item())
-                if act_idx == 1:
-                    target_buttons[idx, int(HidKey.W)] = 1.0
-                elif act_idx == 2:
-                    target_buttons[idx, int(HidKey.A)] = 1.0
-                elif act_idx == 3:
-                    target_buttons[idx, int(HidKey.S)] = 1.0
-                elif act_idx == 4:
-                    target_buttons[idx, int(HidKey.D)] = 1.0
+            if hasattr(proposals, "action_logits"):
+                matched_act_loss = F.cross_entropy(
+                    proposals.action_logits[b, row_ind],
+                    bundle.action_indices[col_ind],
+                )
+            else:
+                target_buttons = torch.zeros((len(row_ind), pred_act.shape[-1]), device=device)
+                for idx, col in enumerate(col_ind):
+                    act_idx = int(bundle.action_indices[col].item())
+                    if act_idx == 1:
+                        target_buttons[idx, int(HidKey.W)] = 1.0
+                    elif act_idx == 2:
+                        target_buttons[idx, int(HidKey.A)] = 1.0
+                    elif act_idx == 3:
+                        target_buttons[idx, int(HidKey.S)] = 1.0
+                    elif act_idx == 4:
+                        target_buttons[idx, int(HidKey.D)] = 1.0
+                matched_act_loss = F.binary_cross_entropy_with_logits(pred_act[row_ind], target_buttons)
 
-            matched_act_loss = F.binary_cross_entropy_with_logits(pred_act[row_ind], target_buttons)
+            # Confidence loss: active matched slots should predict high confidence
+            if hasattr(proposals, "confidence"):
+                conf_loss = F.binary_cross_entropy(proposals.confidence[b, row_ind], torch.ones_like(proposals.confidence[b, row_ind]))
+            else:
+                conf_loss = torch.tensor(0.0, device=device)
 
-            # Utility score loss: supervise utility logit toward ground truth branch utility
-            target_util = bundle.utilities[col_ind]  # [len(col_ind), 1]
-            util_loss = F.mse_loss(pred_util[row_ind], target_util)
-
-            sample_loss = matched_pred_loss + self.action_weight * matched_act_loss + self.utility_weight * util_loss
+            sample_loss = matched_pred_loss + self.action_weight * matched_act_loss + 0.5 * conf_loss
             total_loss = total_loss + sample_loss
 
             with torch.no_grad():

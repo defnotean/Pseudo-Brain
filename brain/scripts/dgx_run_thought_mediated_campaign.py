@@ -39,6 +39,10 @@ from irene_brain.model.thought_scrambler import (
     permute_whole_slots,
     scramble_cognitive_bindings,
 )
+from irene_brain.evaluation.future_coverage_diagnostics import (
+    FutureCoverageReport,
+    evaluate_future_coverage,
+)
 from irene_brain.training.staged_branch_curriculum import (
     ComprehensiveBranchBundle,
     MultiHypothesisBranchLoss,
@@ -327,24 +331,35 @@ def main() -> None:
     print(f"Proposal-GRU Baseline IQM Return: {results['proposal_gru_baseline']['iqm_return']:.2f}")
 
     # 3. Resource-Matched Capacity Scaling Curve: K in {0, 1, 4, 8, 16, 32}
-    print("\n--- Evaluating Resource-Matched Capacity Scaling Curve ---")
+    print("\n--- Evaluating Resource-Matched Capacity Scaling Curve & Future Coverage ---")
     test_env = Phase2TaskEnvironment(make_family_suite(TaskFamily.FAMILY_B_PURSUIT_EVASION)[0])
     k_points = [0, 1, 4, 8, 16, 32]
     capacity_curve: dict[int, float] = {}
+    coverage_curve: dict[int, dict[str, float]] = {}
 
     for k in k_points:
         if k == 0:
             # Complete thought knockout (Reflex only)
             matched_model = build_resource_matched_thought_model(1).to(device)
             eval_res = evaluate_closed_loop_model(matched_model, test_env, seed=42, episodes=args.episodes_per_world, device=device, active_slots=0)
+            cov_res = evaluate_future_coverage(matched_model, test_env, device=device, active_slots=0)
         else:
             matched_model = build_resource_matched_thought_model(k).to(device)
             train_thought_mediated_model(matched_model, device=device, training_steps=args.train_steps)
             eval_res = evaluate_closed_loop_model(matched_model, test_env, seed=42, episodes=args.episodes_per_world, device=device)
+            cov_res = evaluate_future_coverage(matched_model, test_env, device=device)
+
         capacity_curve[k] = eval_res["iqm_return"]
-        print(f"  Resource-Matched K = {k:2d} (Core Width compensated) -> IQM Return = {eval_res['iqm_return']:.2f}")
+        coverage_curve[k] = {
+            "distinct_future_coverage": cov_res.distinct_future_coverage,
+            "hazard_identification_rate_pct": cov_res.hazard_identification_rate_pct,
+            "displacement_mse": cov_res.displacement_mse,
+            "ranking_correlation_rho": cov_res.ranking_correlation_rho,
+        }
+        print(f"  Resource-Matched K = {k:2d} | IQM = {eval_res['iqm_return']:6.2f} | Unique Futures = {cov_res.distinct_future_coverage:.2f}/5 | Hazard ID = {cov_res.hazard_identification_rate_pct:5.1f}%")
 
     results["resource_matched_capacity_curve"] = capacity_curve
+    results["future_coverage_diagnostics"] = coverage_curve
 
     # 4. Causal Diagnostics: Permutation, Scrambling, and Thought Knockout
     print("\n--- Diagnostic Causal Interventions ---")

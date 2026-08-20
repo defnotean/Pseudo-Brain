@@ -1,11 +1,11 @@
-"""Thought-Mediated Brain Model and Proposal GRU Baseline.
+"""Thought-Mediated Brain Model and Proposal GRU Baseline with Consequence-Driven Actuators.
 
 Implements:
 1. ThoughtMediatedBrainModel:
-   - Full thought-mediated information flow: Sensors -> Belief -> Thoughts -> Per-Thoughtlet Proposals -> Main Action Intent (+ Bounded Reflex).
+   - Full thought-mediated information flow: Sensors -> Belief -> Thoughts -> Action-Conditioned Consequence Proposals -> Outcome-Driven Utility Selection -> Main Action Intent (+ Bounded Reflex).
    - No direct connection from belief to main action.
 2. ProposalGRUBaseline:
-   - Monolithic GRU baseline equipped with the identical proposal-style action head (critical control baseline).
+   - Monolithic GRU baseline equipped with the identical consequence-proposal action head (critical control baseline).
 3. Resource-Matched Scaling Factory:
    - Constructs matched models across K in {1, 4, 8, 16, 32} with hidden width compensation.
 """
@@ -21,26 +21,26 @@ import torch.nn as nn
 from torch import Tensor
 import torch.nn.functional as F
 
+from .consequence_thought_actuator import ConsequenceActionOutput, ConsequenceThoughtActuator
 from .spec import ThoughtFieldConfig
-from .thought_mediated_actuator import ThoughtMediatedActionOutput, ThoughtMediatedActuator
 from .torch_model import BrainState, IreneBrainModel
 from ..types import GenericControl
 
 
 @dataclass(frozen=True, slots=True)
 class ThoughtMediatedModelOutput:
-    action: ThoughtMediatedActionOutput
+    action: ConsequenceActionOutput
     next_state: BrainState
 
 
 class ThoughtMediatedBrainModel(nn.Module):
-    """Pseudo-Brain Model with Thought-Mediated Action Flow (No Belief Bypass)."""
+    """Pseudo-Brain Model with Consequence-Driven Thought-Mediated Flow (No Belief Bypass)."""
 
     def __init__(self, config: ThoughtFieldConfig) -> None:
         super().__init__()
         self.config = config
         self.base_brain = IreneBrainModel(config)
-        self.actuator = ThoughtMediatedActuator(
+        self.actuator = ConsequenceThoughtActuator(
             core_width=config.core_width,
             num_buttons=config.actuator.keyboard_keys + config.actuator.mouse_buttons,
             max_reflex_delta=0.10,
@@ -76,7 +76,7 @@ class ThoughtMediatedBrainModel(nn.Module):
                 active_mask[:, :min(active_slots, self.config.thoughtlets)] = 1.0
             thoughts = thoughts * active_mask.unsqueeze(-1).unsqueeze(-1)
 
-        # Decode action EXCLUSIVELY through thought proposals + bounded sensory reflex
+        # Decode action EXCLUSIVELY through consequence proposals + bounded sensory reflex
         sensors = next_state.belief  # [B, S, Width]
         action_out = self.actuator(sensors=sensors, thoughts=thoughts, active_mask=active_mask)
 
@@ -87,7 +87,7 @@ class ThoughtMediatedBrainModel(nn.Module):
 
 
 class ProposalGRUBaseline(nn.Module):
-    """Monolithic GRU Recurrent Baseline with Identical Proposal Aggregator."""
+    """Monolithic GRU Recurrent Baseline with Identical Consequence-Proposal Aggregator."""
 
     def __init__(self, *, hidden_dim: int = 180, num_proposals: int = 1, num_buttons: int = 296) -> None:
         super().__init__()
@@ -104,7 +104,7 @@ class ProposalGRUBaseline(nn.Module):
         )
         self.encoder = nn.Linear(32 * 8 * 8, hidden_dim)
         self.gru = nn.GRUCell(hidden_dim, hidden_dim)
-        self.actuator = ThoughtMediatedActuator(
+        self.actuator = ConsequenceThoughtActuator(
             core_width=hidden_dim,
             num_buttons=num_buttons,
             max_reflex_delta=0.10,
