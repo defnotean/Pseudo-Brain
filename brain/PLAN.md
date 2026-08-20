@@ -1221,7 +1221,7 @@ Go gate (All 9 Passed on NVIDIA DGX Spark):
 - Separate strictly bounded $[-0.1, +0.1]$ reflex path for short-timescale physical stabilization only.
 - Resource-matched scaling evaluation: $K \in \{1, 4, 8, 16, 32\}$ with compensating width to match parameters/FLOPs.
 - Control Baseline: Monolithic GRU with identical proposal-style action head.
-- **Gate 6 (make-or-break)**: ≥10% IQM/return over that matched Proposal-GRU. Named probe `dgx-gate6-matched-gru-v1` **FAIL**: PB IQM **−27.76** vs GRU **−25.69** (−8.04%). Knockout sanity held. Do not claim architecture superiority. ([preregistration](docs/preregistrations/2026-08-20-gate6-matched-proposal-gru-probe.md), [run record](docs/runs/2026-08-20-gate6-matched-proposal-gru.md), [JSON](docs/phase_closure/gate6_matched_gru_results.json)).
+- **Gate 6 (make-or-break)**: ≥10% IQM/return over that matched Proposal-GRU. Named probe `dgx-gate6-matched-gru-v1` **FAIL**: PB IQM **−27.76** vs GRU **−25.69** (−8.04%). Knockout sanity held. Do not claim architecture superiority. ([preregistration](docs/preregistrations/2026-08-20-gate6-matched-proposal-gru-probe.md), [run record](docs/runs/2026-08-20-gate6-matched-proposal-gru.md), [JSON](docs/phase_closure/gate6_matched_gru_results.json)). Remaining Gates 1–8: [`docs/runs/2026-08-20-phase25-remaining-gates.md`](docs/runs/2026-08-20-phase25-remaining-gates.md). Next work is a newly named diagnosis (why GRU wins while knockout is huge), not a Gate 6 retry.
 if neither prediction nor control improves by at least 5 percent over the
 strongest matched baseline, retire parallel microthoughts as the central
 hypothesis. The project may continue as a conventional recurrent world model,
