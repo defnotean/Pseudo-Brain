@@ -16,10 +16,12 @@ keep a persistent internal state, talk sparsely, and can emit an action after
 any internal cycle. The long-term aim is human-speed closed-loop play.
 
 **ACTIVE FRONTIER:**
-Phase 2 / 2.5 final mechanistic closure (collapse-resistance mechanism)
+**Phase 2 / 2.5 CLOSED (2026-08-22)** — verdict MIXED: task-specific training-reliability
+advantage, mechanistically corroborated, no return superiority. Closure memo:
+[brain/docs/PHASE2_CLOSURE_MEMO.md](brain/docs/PHASE2_CLOSURE_MEMO.md)
 
-**NEXT MAJOR PHASE (do not start until Phase 2 closes):**
-Phase 2.6 Foundation Hardening — see
+**CURRENT PHASE:**
+Phase 2.6 Foundation Hardening — begin with the FOUNDATION AUDIT per
 [brain/docs/MASTER_ROADMAP.md](brain/docs/MASTER_ROADMAP.md) (canonical forward roadmap)
 
 **LONG-TERM TARGET [ASPIRATIONAL]:**
