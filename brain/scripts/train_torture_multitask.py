@@ -75,9 +75,12 @@ def train_multitask(model, device, steps: int, lr: float, seed: int,
         dt = torch.tensor([0.016667], device=device)
         for i in range(dec_idx + 1):
             out, state = model(frames[i:i+1], ctrl, dt, state=state)
-        logits = out.proposals.action_logits.mean(dim=1)  # [1,5] slot-averaged
-        target = torch.tensor([label], device=device)
-        loss = F.cross_entropy(logits, target)
+        # Phase-2-style per-slot CE (target replicated across all K/num_proposals slots),
+        # matching how the escalation campaign trains decisions.
+        slot_logits = out.proposals.action_logits  # [1, K, 5]
+        k_slots = slot_logits.shape[1]
+        target = torch.full((1, k_slots), label, dtype=torch.long, device=device)
+        loss = F.cross_entropy(slot_logits.view(-1, 5), target.view(-1))
         opt.zero_grad()
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
