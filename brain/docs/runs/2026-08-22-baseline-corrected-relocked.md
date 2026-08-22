@@ -26,9 +26,9 @@ The gap to GRU (−0.042) is therefore **not primarily a training-head artifact*
 under the fair, Phase-2-faithful recipe, PB still learns the torture tasks far
 more slowly than the GRU at this scale/recipe.
 
-[INFERRED] This is itself a significant Phase 2.6 audit finding: the architecture
-that wins on reliability (Phase 2) is *worse at multi-task sample efficiency* under
-a light recipe. Candidate explanations to test in the BrainCell/lifecycle
+[INFERRED] This is itself a significant Phase 2.6 audit finding: PB substantially
+underperforms GRU in light-budget multitask sample efficiency on the locked
+torture-suite baseline. Candidate explanations to test in the BrainCell/lifecycle
 workstreams: (a) 32 slots dilute gradient signal per task; (b) the consequence
 aggregator needs task-set conditioning it doesn't have here; (c) 4000 steps is
 far too few for K=32 (escalation used 3000 steps for ONE task).
