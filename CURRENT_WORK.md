@@ -15,9 +15,27 @@ Pseudo-Brain is one model, not a committee. Shared-weight BrainCell thoughtlets
 keep a persistent internal state, talk sparsely, and can emit an action after
 any internal cycle. The long-term aim is human-speed closed-loop play.
 
+**ACTIVE FRONTIER:**
+Phase 2.5 long-horizon uncertainty discrimination
+
+**Latest verified milestone:**
+8293d3f
+
+**CURRENT QUESTIONS:**
+- independent-training-seed replication
+- persistence/reset causal controls
+- harder uncertainty beyond GRU saturation
+- PB vs matched multi-branch GRU
+
 The live experiment is **Phase 2.5 thought-mediated parallel cognition**
 (`PREREG-PHASE2-REVISED-THOUGHT-MEDIATED-V1`). Main action intent must flow
 through per-thought proposals; the direct belief-to-action bypass is gone.
+
+**LEGACY PREREGISTRATION:**
+ranked-k8-unmatched-suppress-v1
+status: completed/archived side experiment (local CPU, full run)
+verdict: FAIL (IQM advantage 1.11% < 10% margin; no superiority claimed).
+Results: `C:\Users\Demon\AppData\Local\Temp\ranked_k8_full_results.json`.
 
 **Gate 6 is FAIL.** Named CPU probe `dgx-gate6-matched-gru-v1` finished while
 GB10 stayed on Irene sglang. Thought-mediated IQM **−27.758** vs Proposal-GRU
