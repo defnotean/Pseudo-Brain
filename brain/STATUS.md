@@ -1,8 +1,23 @@
 # Implementation status
 
-Updated: 2026-08-20
+Updated: 2026-08-22
 
-## Active campaign: Phase 2.5 thought-mediated parallel cognition
+## Phase 2.5 closure status (supersedes the active-campaign section below for current state)
+
+**Strongest current signal [MEASURED]:** on the 8-hypothesis multi-stage uncertainty task
+(n=10 independent training seeds, 3000 steps, DGX GB10), PB K=32 showed substantially
+lower catastrophic training collapse than the matched Proposal-GRU (1–3/10 vs 6–7/10,
+Fisher p≈0.027) with higher median return and Stage-1 survival. **Not yet a confirmed
+claim**: mechanistic battery + fresh-seed confirmation pending. A separate ephemeral
+single-cue memory task did NOT reproduce a PB advantage (GRU equal/better on return,
+p=0.80) — the effect is task-specific. Legacy ranked-K8/K4 branch closed negative.
+Records: runs/2026-08-22-dgx-reliability10.md, runs/2026-08-22-reliability-statistics.md,
+runs/2026-08-22-ephemeral-reliability-negative.md, runs/2026-08-22-resources-and-closure-status.md.
+
+Forward roadmap: [docs/MASTER_ROADMAP.md](docs/MASTER_ROADMAP.md) (canonical).
+Invariants: [docs/ARCHITECTURAL_CONSTITUTION.md](docs/ARCHITECTURAL_CONSTITUTION.md).
+
+## Historical campaign: Phase 2.5 thought-mediated parallel cognition
 
 Phase 0 locked (7/7). Phase 1 locked (9/9 on DGX Spark). Original Phase 2
 microthought thesis **falsified**.

@@ -16,16 +16,36 @@ keep a persistent internal state, talk sparsely, and can emit an action after
 any internal cycle. The long-term aim is human-speed closed-loop play.
 
 **ACTIVE FRONTIER:**
-Phase 2.5 long-horizon uncertainty discrimination
+Phase 2 / 2.5 final mechanistic closure (collapse-resistance mechanism)
+
+**NEXT MAJOR PHASE (do not start until Phase 2 closes):**
+Phase 2.6 Foundation Hardening — see
+[brain/docs/MASTER_ROADMAP.md](brain/docs/MASTER_ROADMAP.md) (canonical forward roadmap)
+
+**LONG-TERM TARGET [ASPIRATIONAL]:**
+frontier-scale general cognitive foundation architecture; current evidence is
+tiny research-scale prototypes only
 
 **Latest verified milestone:**
-8293d3f
+c387503
 
 **CURRENT QUESTIONS:**
-- independent-training-seed replication
-- persistence/reset causal controls
-- harder uncertainty beyond GRU saturation
-- PB vs matched multi-branch GRU
+- WHY does PB K=32 resist catastrophic training collapse? (mechanistic battery
+  on preserved checkpoints + pre-collapse trajectory analysis — telemetry and
+  checkpoints captured in Spark `runs/mechanism-discovery-v1/`)
+- Fresh independent-training-seed confirmation once a mechanism hypothesis is frozen
+- Persistence/reset causal battery on surviving checkpoints
+- Task-specificity boundary: multi-latent uncertainty (PB wins reliability) vs
+  single-cue ephemeral memory (GRU wins return)
+
+**Discovery-set result driving closure [MEASURED, n=10 independent training seeds,
+8-hypothesis escalation, 3000 steps]:** PB K=32 catastrophic collapse 1–3/10 vs GRU
+6–7/10 (Fisher p≈0.027); higher PB median return and Stage-1 survival. Strong
+empirical evidence; NOT yet a confirmed claim. Ephemeral-memory negative replication
+preserved. Records:
+[brain/docs/runs/2026-08-22-dgx-reliability10.md](brain/docs/runs/2026-08-22-dgx-reliability10.md),
+[brain/docs/runs/2026-08-22-reliability-statistics.md](brain/docs/runs/2026-08-22-reliability-statistics.md),
+[brain/docs/runs/2026-08-22-ephemeral-reliability-negative.md](brain/docs/runs/2026-08-22-ephemeral-reliability-negative.md).
 
 The live experiment is **Phase 2.5 thought-mediated parallel cognition**
 (`PREREG-PHASE2-REVISED-THOUGHT-MEDIATED-V1`). Main action intent must flow
