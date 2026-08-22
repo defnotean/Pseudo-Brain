@@ -60,6 +60,9 @@ class EpisodicMemoryV0(nn.Module):
         self.writes_attempted = 0
         self.writes_committed = 0
         self.retrievals = 0
+        self.last_gate_mean = None
+        self.last_retrieval_sims = None
+        self.last_retrieval_idx = None
 
     @torch.no_grad()
     def _commit(self, key: Tensor, value: Tensor) -> None:
@@ -74,6 +77,7 @@ class EpisodicMemoryV0(nn.Module):
         b = frame_summary.shape[0]
         gate_in = torch.cat((frame_summary, content), dim=-1)
         g = self.write_gate(gate_in)  # [B,1]
+        self.last_gate_mean = g.mean().detach()
         self.writes_attempted += b
         committed = (g > 0.5).float().mean().item()
         self.writes_committed += int(round(committed * b))
@@ -86,8 +90,8 @@ class EpisodicMemoryV0(nn.Module):
             self.write_ptr += 1
         return g
 
-    def retrieve(self, query: Tensor, k: int = 1) -> tuple[Tensor, Tensor]:
-        """query: [B, W]. Returns (values [B,k,V], similarities [B,k])."""
+    def retrieve(self, query: Tensor, k: int = 1) -> tuple[Tensor, Tensor, Tensor]:
+        """query: [B, W]. Returns (values [B,k,V], sims [B,k], indices [B,k])."""
         q = torch.nn.functional.normalize(query, dim=-1)
         keys_n = torch.nn.functional.normalize(self.keys, dim=-1)
         sims = q @ keys_n.T  # [B, entries]
@@ -96,7 +100,15 @@ class EpisodicMemoryV0(nn.Module):
         vals, idx = torch.topk(sims_masked, k=min(k, self.entries), dim=-1)
         retrieved = self.values[idx]  # [B, k, V]
         self.retrievals += query.shape[0]
-        return retrieved, vals
+        self.last_retrieval_sims = vals.detach()
+        self.last_retrieval_idx = idx.detach()
+        return retrieved, vals, idx
+
+    def gate_sparsity_loss(self) -> Tensor:
+        """L2 pressure toward closed gate; task decides how open it must be."""
+        if self.last_gate_mean is None:
+            return torch.zeros(1, device=self.keys.device).squeeze()
+        return self.last_gate_mean
 
     def reset_store(self) -> None:
         self.keys.zero_(); self.values.zero_()
