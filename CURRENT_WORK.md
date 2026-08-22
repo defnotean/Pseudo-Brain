@@ -36,6 +36,11 @@ ranked-k8-unmatched-suppress-v1
 status: completed/archived side experiment (local CPU, full run)
 verdict: FAIL (IQM advantage 1.11% < 10% margin; no superiority claimed).
 Results: `C:\Users\Demon\AppData\Local\Temp\ranked_k8_full_results.json`.
+K=4 follow-up (the preregistration's prescribed distinct second idea): smoke
+FAIL — PB IQM −141.667 vs GRU −24.467 (−479%), knockout sanity failed
+(knockout *improved* Family B, −92.4%); full not launched (smoke not ahead).
+Record: [brain/docs/runs/2026-08-22-ranked-k4-smoke-fail.md](brain/docs/runs/2026-08-22-ranked-k4-smoke-fail.md).
+Branch closed.
 
 **Gate 6 is FAIL.** Named CPU probe `dgx-gate6-matched-gru-v1` finished while
 GB10 stayed on Irene sglang. Thought-mediated IQM **−27.758** vs Proposal-GRU
@@ -212,7 +217,14 @@ The project maintains a strict, non-derailing three-tiered hierarchy:
      Record: [brain/docs/runs/2026-08-20-phase25-belief-collapse-diagnostics.md](brain/docs/runs/2026-08-20-phase25-belief-collapse-diagnostics.md).
      Do not launch the full thought-mediated Spark campaign from this workstation;
      use `--cpu-smoke` only. Do not resume RCQ-v2.
-   - CPU-only play-safe test suite maintenance and manifest integrity.
+   - **CPU-only play-safe test suite maintenance and manifest integrity.**
+   - **Phase 2.5 frontier campaigns completed on local CPU (2026-08-21):** definitive
+     8-hypothesis escalation (K=8 best return, beats multi-branch GRU) and the
+     ephemeral-memory campaign (GRU leads return; K=8 leads accuracy; reset > normal
+     for all Pseudo-Brain variants). Record:
+     [brain/docs/runs/2026-08-21-phase25-cpu-frontier-campaigns.md](brain/docs/runs/2026-08-21-phase25-cpu-frontier-campaigns.md).
+     Behavioral results only — Spark (GB10) is hosting Qwen, so no latency/Gate-8
+     comparison from these runs.
 
 2. **NEAR-TERM RESEARCH:**
    - Real-time $60\text{ Hz}$ closed-loop arcade benchmark (Pac-Man family, frame skip 1, latency $\text{p99} < 16.67\text{ ms}$).
