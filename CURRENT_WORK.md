@@ -33,19 +33,30 @@ GRU baseline note updated: its locked −0.042 was seed-optimistic (n=3 σ=0.14)
 |---|---|
 | Training profile | GPU-bound; 80 ms/step; forward+backward 97.7%; recurrent serialization dominates |
 | Episode-batched engine | equivalence PASS per prereg (3/3 seeds ≤0.03); **~12× per-episode throughput** |
-| W-scaling sweep | W120 −0.233±0.004 → W240 −0.218±0.026 → W480 −0.172±0.134; latency flat ~1 ms |
+| W-scaling sweep (v1) | mean lift ↑ with width but variance ↑↑ — **later found CONFOUNDED** |
+| Salted-hash root cause | `hash()` episode banks differ per process; within-process comparisons stand, cross-process absolute numbers confounded [MEASURED] |
+| Determinism audit B/C | **Outcome A**: normal-mode same-seed runs diverge from step 50 (1 ULP → amplified); deterministic flags make 3/3 reps bitwise identical (lift −0.2273 ×3) |
+
+## Determinism protocol (now mandatory for all scaling runs)
+
+```python
+torch.use_deterministic_algorithms(True)
+os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
+torch.backends.cudnn.deterministic = True; torch.backends.cudnn.benchmark = False
+torch.backends.cuda.matmul.allow_tf32 = False; torch.backends.cudnn.allow_tf32 = False
+# banks: zlib.crc32(fn.__name__.encode()) % 99991  (NEVER hash())
+```
 
 ## Next recommended work
 
-1. ~~W=480 variance disambiguation~~ **DONE 2026-08-23: UNSTABLE** — doubling
-   budget did not shrink seed σ (0.073→0.102); fixed-seed runs diverge across
-   processes. Width push deferred until stability work; Core V1 stays W=120.
-2. Multi-model batching (stacked-state ensembling) on top of episode batching —
-   now doubly motivated: ensembling is also the natural mitigation for the
-   W-axis instability.
-3. K×W joint scaling cell (e.g. K64×W240) only after a stability mechanism is
-   validated.
-4. Post-V1 memory program gated on an update rule that passes ideal-evidence probe.
+1. ~~W=480 variance disambiguation~~ superseded by root-cause + audit work.
+2. **Stage E (running): corrected seed-variance curve** — W{120,240,480} × 4
+   seeds × 6k steps under pinned banks + deterministic mode = first honest
+   optimization-stability read across width.
+3. If Stage E shows clean reproducibility and manageable seed variance →
+   rerun the W-scaling curve properly, then K×W cells.
+4. Multi-model ensemble batching (deferred prereg) — re-evaluate after E.
+5. Post-V1 memory program gated on an update rule that passes ideal-evidence probe.
 
 ## Session totals (2026-08-22 full day → overnight)
 
