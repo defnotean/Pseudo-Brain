@@ -20,6 +20,7 @@ import platform
 import zlib
 
 import numpy as np
+import torch
 
 
 def stable_task_offset(task_name: str) -> int:
