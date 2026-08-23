@@ -50,15 +50,23 @@ torch.backends.cuda.matmul.allow_tf32 = False; torch.backends.cudnn.allow_tf32 =
 ## Next recommended work
 
 1. ~~W=480 variance disambiguation~~ superseded by root-cause + audit work.
-2. **Stage E (running): corrected seed-variance curve** — W{120,240,480} × 4
-   seeds × 6k steps under pinned banks + deterministic mode = first honest
-   optimization-stability read across width.
-3. If Stage E shows clean reproducibility and manageable seed variance →
-   rerun the W-scaling curve properly, then K×W cells.
-4. Multi-model ensemble batching (deferred prereg) — re-evaluate after E.
-5. Post-V1 memory program gated on an update rule that passes ideal-evidence probe.
+2. ~~Stage E corrected W-curve~~ **DONE 2026-08-23: width does NOT buy
+   capability** (W120 −0.227±0.013 / W240 −0.232±0.039 / W480 −0.257±0.057).
+   v1 sweep improvement was artifact; Core V1 stays W=120 on clean evidence.
+3. **Scaling axis pivot (per director sequencing):** no parameter scaling.
+   Next candidates in order of information value:
+   a. training-budget curve (steps × LR schedule) at frozen W=120 — is lift
+      budget-bound rather than capacity-bound?
+   b. data curriculum / bank-composition study (task mixing ratios);
+   c. intake-mechanism program (only path that ever moved memory causality).
+4. Provenance helper (`run_provenance.py`) mandatory in all new scripts:
+   bank digest · init param digest · seeds · det flag · torch/CUDA versions.
+5. Multi-model ensemble batching (deferred prereg) — motivation weakened now
+   that variance is measured and modest at W=120; re-evaluate only if (3a)
+   shows budget-bound instability.
+6. Post-V1 memory program gated on an update rule that passes ideal-evidence probe.
 
-## Session totals (2026-08-22 full day → overnight)
+## Session totals (2026-08-22 full day → 2026-08-23)
 
-~40 commits pushed. All experiments preregistered or audit-only; every number
+~55 commits pushed. All experiments preregistered or audit-only; every number
 traceable to Spark run artifacts under `runs/`.
