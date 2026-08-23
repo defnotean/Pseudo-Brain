@@ -52,7 +52,8 @@ evidence_residual earns Core V1 candidacy iff, at 5 seeds:
 
 ## Routing hypothesis verdict so far
 
-[MEASURED] Partially CONFIRMED: the shared update rule is a demonstrated
-memory-intake bottleneck (arm A fails ideal-evidence probe; arm C passes).
-[OPEN] Whether fixing intake also improves multitask learning — needs the
-confirmation round at higher training budgets.
+[MEASURED] CONFIRMED for **idealized memory intake in this screening experiment**
+(3/3 seeds, synthetic injection). The broader BrainCell claim — that the shared
+update rule is a foundational bottleneck for real memory use and multitask
+learning — awaits the five-seed confirmation round.
+[OPEN] Whether fixing intake also improves multitask learning.
