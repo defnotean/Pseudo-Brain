@@ -37,11 +37,14 @@ GRU baseline note updated: its locked −0.042 was seed-optimistic (n=3 σ=0.14)
 
 ## Next recommended work
 
-1. **W=480 variance disambiguation**: 5-seed × {6000, 12000 steps} to separate
-   "wide needs more data" from "wide is unstable" — the batched engine makes
-   this ~1 h instead of a day.
-2. Multi-model batching (stacked-state ensembling) on top of episode batching.
-3. K×W joint scaling cell (e.g. K64×W240) once variance question resolved.
+1. ~~W=480 variance disambiguation~~ **DONE 2026-08-23: UNSTABLE** — doubling
+   budget did not shrink seed σ (0.073→0.102); fixed-seed runs diverge across
+   processes. Width push deferred until stability work; Core V1 stays W=120.
+2. Multi-model batching (stacked-state ensembling) on top of episode batching —
+   now doubly motivated: ensembling is also the natural mitigation for the
+   W-axis instability.
+3. K×W joint scaling cell (e.g. K64×W240) only after a stability mechanism is
+   validated.
 4. Post-V1 memory program gated on an update rule that passes ideal-evidence probe.
 
 ## Session totals (2026-08-22 full day → overnight)
