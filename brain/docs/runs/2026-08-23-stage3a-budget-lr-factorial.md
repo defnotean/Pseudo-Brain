@@ -17,13 +17,22 @@ SCHEDULED − FIXED @24k = −0.012 (FIXED marginally better).
 
 ## Outcome Classification (per prereg)
 
-**Primary: Outcome C — Plateau**  
-Neither schedule benefits from 4× more steps (|Δ| ≤ 0.03 for both).
-The current Core V1 is **not undertrained**; it has hit a capability
-plateau under this objective and data.
+**Mechanical classification: Mixed / Ambiguous**  
+Prereg Outcome C required |24k − 6k| ≤ 0.03 in **both** arms.  
+FIXED: Δ = −0.008 (passes). SCHEDULED: Δ = −0.039 (**fails**, |Δ| > 0.03).  
+SCHEDULED − FIXED @24k = −0.012 (not B). σ(24k) FIXED = 0.102 > 0.08 but no mean improvement (not classic D).
 
-**Secondary observation:** FIXED σ(24k)=0.102 exceeds D-threshold (0.08)
-but mean does not improve — "fragile without improvement."
+**Scientific read: consistent with a training-signal/generalization plateau rather than undertraining or LR-schedule limitation.**
+
+| Test | Result |
+|---|---|
+| More steps improve FIXED? | No: −0.008 |
+| More steps improve SCHEDULED? | No — it gets worse: −0.039 |
+| Scheduled beats fixed at 24k? | No: −0.012 |
+| Budget-limited? | No |
+| Optimizer-gated? | No |
+| Classic fragile improvement? | No |
+| Evidence of training/eval decoupling? | **Very strong** |
 
 ## Critical Diagnostic: SCHEDULED overfits perfectly, generalizes zero
 
@@ -43,20 +52,56 @@ transfer to held-out evaluation.
 This is the **evidence-intake deficit** in its purest form: optimization
 works, but the training signal does not constrain the right hypotheses.
 
+Interestingly, SCHEDULED **reduces seed variance** (σ 0.102 → 0.046) while
+failing to improve mean capability — it stabilizes convergence toward a
+solution that still doesn't generalize.
+
 ## Conclusions
 
-1. **Core V1 is at a capability ceiling** for the torture suite under the
-   current recipe. Budget scaling (steps, LR schedule) is exhausted.
-2. **Parameter scaling is definitively off the table** — W-curve was
-   flat/negative (Stage E), K-sweep was flat (Phase 2.6), now budget
-   curve is flat. All three capacity axes closed.
-3. **The binding constraint is the learning signal** — the only axis that
-   ever moved memory causality in Phase 2 was the ideal-evidence probe
-   (external teacher signal). The update rule / intake mechanism is the
-   next workstream.
-4. Data curriculum (3b) is still worth one diagnostic pass (does task
-   mixing change the plateau?), but the overfitting result strongly
-   suggests the signal itself is the problem, not its presentation.
+1. **Core V1 cannot convert additional optimization on the current fixed
+   training distribution/objective into greater held-out torture-suite
+   capability.** It is not primarily suffering from insufficient optimizer
+   steps or the wrong LR schedule.
+2. **The current training objective/data distribution permits near-perfect
+   fitting without transferable cognitive capability.** The train/eval gap
+   is the dominant phenomenon.
+3. **Parameter scaling is not the next step** — W-curve was flat/negative
+   (Stage E), K-sweep was flat (Phase 2.6), now budget curve shows no
+   positive return. All three capacity axes (W, K, budget) are
+   flat-to-negative under this recipe.
+4. **The binding constraint is the learning signal / data / objective.**
+   The only axis that ever moved memory causality in Phase 2 was the
+   ideal-evidence probe (external teacher signal). The update rule /
+   intake mechanism is the *ultimate* workstream — but first, the cheap
+   causal question is whether the problem is the information we're
+   teaching with (data/curriculum) or the mechanism that learns it.
+
+## Next Workstream: Stage 3b — Data / Curriculum / Generalization Audit
+
+Before modifying Core V1, the highest-information experiment attacks the
+data/generalization hypothesis directly:
+
+**Design:** Frozen Core V1 (W=120 K=32), frozen optimizer (FIXED lr=5e-4),
+frozen budget (6k steps for speed), deterministic mode, pinned seeds.
+Vary ONLY:
+
+- **ARM A (control):** Current finite pinned bank (repeating 420 episodes).
+- **ARM B:** Deterministically generated **non-repeating** training stream
+  (same procedural tasks, fresh episodes every step — vastly more unique
+  experiences). Both arms fully reproducible.
+
+**Questions:**
+- Does ARM B stop training loss from trivially collapsing?
+- Does held-out torture lift improve?
+- Does the train/eval gap shrink?
+
+If yes → data diversity / memorization was the bottleneck.
+If no (still fits training without transferring) → move aggressively to
+Stage 3c: evidence-intake / learning-objective mechanisms.
+
+This is cleaner than immediately modifying Core V1, and scientifically
+identifies whether the ceiling is in the *experience* or the *learning
+mechanism*.
 
 ## Provenance
 
