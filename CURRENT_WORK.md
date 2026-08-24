@@ -53,18 +53,25 @@ torch.backends.cuda.matmul.allow_tf32 = False; torch.backends.cudnn.allow_tf32 =
 2. ~~Stage E corrected W-curve~~ **DONE 2026-08-23: width does NOT buy
    capability** (W120 −0.227±0.013 / W240 −0.232±0.039 / W480 −0.257±0.057).
    v1 sweep improvement was artifact; Core V1 stays W=120 on clean evidence.
-3. ~~Stage 3a training-budget curve~~ **DONE 2026-08-23: PLATEAU (Outcome C)**.
-   FIXED Δ(24k-6k)=−0.008, SCHEDULED Δ=−0.039. SCHEDULED overfits loss→0.0
-   by step 7k but generalizes worse (−0.233 vs −0.221). **Core V1 not
-   undertrained; capability ceiling reached.** All three capacity axes (W, K,
-   budget) closed.
+3. ~~Stage 3a training-budget curve~~ **DONE 2026-08-23: MIXED by strict
+   gate (Outcome C requires |Δ|≤0.03 in both arms; SCHEDULED |Δ|=0.039
+   fails). Scientific read: strong train/eval decoupling / generalization
+   plateau.** FIXED Δ(24k-6k)=−0.008, SCHEDULED Δ=−0.039. SCHEDULED
+   overfits loss→0.0 by step 7k but generalizes worse (−0.233 vs −0.221);
+   reduces σ(24k) 0.102→0.046 without improving mean. Core V1 not
+   undertrained; cannot convert optimization on current data/objective into
+   capability. All three capacity axes (W, K, budget) closed.
 4. **Next candidates in order of information value:**
-   a. **Data curriculum / bank-composition study** (task mixing ratios) — does
-      presentation change the plateau?
+   a. **Stage 3b — Data / Generalization Audit:** Frozen Core V1 + FIXED LR.
+      ARM A = current finite pinned bank (repeating). ARM B = deterministically
+      generated **non-repeating** training stream (fresh episodes every step).
+      Questions: does ARM B stop loss collapse? improve held-out lift? shrink
+      train/eval gap? If yes → memorization/diversity bottleneck. If no →
+      Stage 3c intake mechanism.
    b. **Intake-mechanism program** (only path that ever moved memory causality:
       ideal-evidence probe in Phase 2).
    c. Optimizer stability workstream deferred — σ(24k)=0.102 at FIXED but no
-      mean improvement; fragile without gain.
+      mean improvement; SCHEDULED reduces σ to 0.046 without mean gain.
 5. Provenance helper (`run_provenance.py`) mandatory in all new scripts:
    bank digest · init param digest · seeds · det flag · torch/CUDA versions.
 6. Multi-model ensemble batching (deferred prereg) — motivation weakened;
