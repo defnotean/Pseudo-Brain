@@ -1,7 +1,7 @@
 # CURRENT_WORK — ACTIVE FRONTIER
 
-**Last updated:** 2026-08-22 (overnight autonomous session)
-**HEAD:** `ac1bebb` · **Tag:** `core-v1` @ `890e4d0` (frozen foundation)
+**Last updated:** 2026-08-24 (autonomous session: Stage 3b closed, TE V2 profiled, Core V2 skeleton built)
+**HEAD:** `75e0edf` · **Tag:** `core-v1` @ `890e4d0` (frozen foundation)
 
 ## PHASE 2.6: CLOSED — Core V1 frozen
 
@@ -70,17 +70,35 @@ torch.backends.cuda.matmul.allow_tf32 = False; torch.backends.cudnn.allow_tf32 =
    Seed 142 (−0.046) is strong relative outlier, still negative, undecided
    noise-vs-basin. **Disambiguation:** train ARM B to matched training-loss
    criterion, then compare — requires Training Engine V2 first.
-   b. **Stage 3c0 — Learning Contract Audit (NEXT, highest priority):** No arch
-      changes. Diagnose whether the training objective supervises what the eval
-      path uses. Gradient audit (which heads get grad?), train-vs-eval output
-      audit (per-slot accuracy vs aggregated action_dist), thought diversity,
-      consequence calibration, aggregator ablation (replace with mean of slot
-      logits → does held-out jump?), oracle-consequence test. Potential defect:
-      replicated per-slot CE on action_logits while deployed decision uses
-      consequence utilities/branch_prob/confidence that are NOT supervised.
-   c. **Intake-mechanism program** (only path that ever moved memory causality:
-      ideal-evidence probe in Phase 2) — pending 3c0 outcome.
-   d. Optimizer stability workstream deferred — σ(24k)=0.102 at FIXED but no
+   **TE V2 profiler (2026-08-24) [MEASURED]:** ARM B 13.6× cost was NOT frame
+   conversion or RNG — it is 14 serial B=1 GPU launches/step (Python/launch
+   overhead dominates 2.5ms forwards). Batched padded B=14 single pass:
+   **6.86× speedup** (1614.7→235.2 ms/step), zero numeric change; non-blocking
+   H2D a wash. ARM B disambiguation now ~24min/seed instead of ~166min.
+   `brain/scripts/te_v2_profiler.py`, results in `runs/tev2prof/`.
+   b. ~~Stage 3c0 Learning Contract Audit~~ **SUPERSEDED by Core V2 build
+      (2026-08-24):** the learning-contract mismatch hypothesis is now being
+      addressed directly by building Core V2 with the DEPLOYED decision loss
+      as the primary objective (`losses.deployed_decision_loss` trains the
+      aggregated action_values path, not replicated per-slot logits).
+      The V1 audit diagnostics remain available if V2 shows the same failure.
+   c. **Core V2 (NEW, active):** explicit-timescale one-brain architecture at
+      `brain/src/irene_brain/v2/` — encode → error(before cognition) →
+      retrieve → believe → think(K exchangeable thoughtlets, shared BrainCell,
+      permutation-equivariant verified) → hypothesize(per-thoughtlet
+      consequence w/ existence+branch) → aggregate(multiplicity-proof weighted
+      MEAN) → predict(pending, detached). Config locked W=120 K=32 C=3.
+      Feature flags CONFIG_A/B/C for staged integration. CPU smoke tests ALL
+      PASS incl. deployed-loss learning signal (1.6094→0.0003 in 60 steps on
+      synthetic color task), bitwise determinism, slot equivariance.
+      **Next: Stage V2.0 prereg — torture-suite training run vs Core V1
+      baseline under identical gates (FIXED lr=5e-4, 6k steps, pinned banks,
+      deterministic mode).** Then consequence-head supervision (V2.1),
+      multi-tick sequences w/ prediction-error + episodic memory live (V2.2),
+      meta-learning across trials (V2.3).
+   d. **Intake-mechanism program** (only path that ever moved memory causality:
+      ideal-evidence probe in Phase 2) — folded into V2 roadmap.
+   e. Optimizer stability workstream deferred — σ(24k)=0.102 at FIXED but no
       mean improvement; SCHEDULED reduces σ to 0.046 without mean gain.
 5. Provenance helper (`run_provenance.py`) mandatory in all new scripts:
    bank digest · init param digest · seeds · det flag · torch/CUDA versions.
@@ -88,7 +106,7 @@ torch.backends.cuda.matmul.allow_tf32 = False; torch.backends.cudnn.allow_tf32 =
    re-evaluate only if a future axis shows budget-bound instability.
 7. Post-V1 memory program gated on an update rule that passes ideal-evidence probe.
 
-## Session totals (2026-08-22 full day → 2026-08-23)
+## Session totals (2026-08-22 full day → 2026-08-24)
 
-~58 commits pushed. All experiments preregistered or audit-only; every number
+~62 commits pushed. All experiments preregistered or audit-only; every number
 traceable to Spark run artifacts under `runs/`.
