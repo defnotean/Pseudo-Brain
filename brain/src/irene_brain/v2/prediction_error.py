@@ -43,9 +43,10 @@ class PredictionErrorV2(nn.Module):
         super().__init__()
         self.config = config
         self.error_encoder = ErrorEncoder(config)
-        # Surprise predictor
+        # Surprise predictor: fixed 4 features = |latent|, |reward|, |hazard|,
+        # |confidence| error magnitudes (zero when the component is absent).
         self.surprise_net = nn.Sequential(
-            nn.Linear(config.error_encoder_dim * 3 + 2, config.surprise_dim),
+            nn.Linear(4, config.surprise_dim),
             nn.ReLU(),
             nn.Linear(config.surprise_dim, 1),
             nn.Sigmoid(),
@@ -110,18 +111,26 @@ class PredictionErrorV2(nn.Module):
             # We don't have ground-truth "correctness" here; skip or use 0
             confidence_error = torch.zeros_like(pending.predicted_confidence)
 
-        # Surprise: combine error magnitudes
-        error_components = []
-        error_components.append(latent_error.abs().mean(dim=-1, keepdim=True))
-        if reward_error is not None:
-            error_components.append(reward_error.abs())
-        if hazard_error is not None:
-            error_components.append(hazard_error.abs())
-        if confidence_error is not None:
-            error_components.append(confidence_error.abs())
+        # Surprise: fixed 4-feature vector of error magnitudes (0 when absent)
+        def mag(t, ref):
+            # reduce to [N, 1] magnitude matching latent_error's leading dims
+            if t is None:
+                return torch.zeros_like(ref)
+            m = t.abs()
+            while m.dim() > ref.dim():
+                m = m.mean(dim=-1, keepdim=True) if m.shape[-1] != 1 else m
+            if m.dim() == ref.dim() and m.shape != ref.shape:
+                m = m.mean(dim=-1, keepdim=True)
+            return m
 
-        surprise_input = torch.cat(error_components, dim=-1)
-        surprise = self.surprise_net(surprise_input)
+        ref = latent_error.abs().mean(dim=-1, keepdim=True)
+        feats = torch.cat([
+            ref,
+            mag(reward_error, ref),
+            mag(hazard_error, ref),
+            mag(confidence_error, ref),
+        ], dim=-1)
+        surprise = self.surprise_net(feats)
 
         # Reshape surprise to match latent_error batch dims
         if surprise.dim() == 3 and latent_error.dim() == 3:
