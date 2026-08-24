@@ -48,6 +48,7 @@ class ProposalGRUBaseline(nn.Module):
             core_width=hidden_dim,
             num_buttons=296,
             max_reflex_delta=0.02,
+            temperature=0.1,
         )
 
     def initial_state(self, batch_size: int = 1) -> Tensor:
@@ -117,6 +118,7 @@ class VectorizedPseudoBrain(nn.Module):
             core_width=width,
             num_buttons=296,
             max_reflex_delta=0.02,
+            temperature=0.1,
         )
 
     def initial_state(self, batch_size: int = 1) -> Tensor:
