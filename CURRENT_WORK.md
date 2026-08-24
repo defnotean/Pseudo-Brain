@@ -61,16 +61,26 @@ torch.backends.cuda.matmul.allow_tf32 = False; torch.backends.cudnn.allow_tf32 =
    reduces σ(24k) 0.102→0.046 without improving mean. Core V1 not
    undertrained; cannot convert optimization on current data/objective into
    capability. All three capacity axes (W, K, budget) closed.
-4. **Next candidates in order of information value:**
-   a. **Stage 3b — Data / Generalization Audit:** Frozen Core V1 + FIXED LR.
-      ARM A = current finite pinned bank (repeating). ARM B = deterministically
-      generated **non-repeating** training stream (fresh episodes every step).
-      Questions: does ARM B stop loss collapse? improve held-out lift? shrink
-      train/eval gap? If yes → memorization/diversity bottleneck. If no →
-      Stage 3c intake mechanism.
-   b. **Intake-mechanism program** (only path that ever moved memory causality:
-      ideal-evidence probe in Phase 2).
-   c. Optimizer stability workstream deferred — σ(24k)=0.102 at FIXED but no
+4. ~~Stage 3b Data / Generalization Audit~~ **DONE 2026-08-23: AMBIGUOUS by
+   frozen gate (strongly MECHANISM-leaning).** DATA rejected at 6k (Δ=−0.008,
+   not ≥+0.03). MECHANISM gate fails second limb: ARM B loss ≈1.85 did NOT
+   collapse (ARM A ≈1.01). Two explanations alive: (A) learning
+   mechanism/objective wrong; (B) fresh stream undertrained at 6k. ARM B 16×
+   higher seed variance (σ 0.007→0.112), 13.6× wall cost (9976s vs 732s).
+   Seed 142 (−0.046) is strong relative outlier, still negative, undecided
+   noise-vs-basin. **Disambiguation:** train ARM B to matched training-loss
+   criterion, then compare — requires Training Engine V2 first.
+   b. **Stage 3c0 — Learning Contract Audit (NEXT, highest priority):** No arch
+      changes. Diagnose whether the training objective supervises what the eval
+      path uses. Gradient audit (which heads get grad?), train-vs-eval output
+      audit (per-slot accuracy vs aggregated action_dist), thought diversity,
+      consequence calibration, aggregator ablation (replace with mean of slot
+      logits → does held-out jump?), oracle-consequence test. Potential defect:
+      replicated per-slot CE on action_logits while deployed decision uses
+      consequence utilities/branch_prob/confidence that are NOT supervised.
+   c. **Intake-mechanism program** (only path that ever moved memory causality:
+      ideal-evidence probe in Phase 2) — pending 3c0 outcome.
+   d. Optimizer stability workstream deferred — σ(24k)=0.102 at FIXED but no
       mean improvement; SCHEDULED reduces σ to 0.046 without mean gain.
 5. Provenance helper (`run_provenance.py`) mandatory in all new scripts:
    bank digest · init param digest · seeds · det flag · torch/CUDA versions.
