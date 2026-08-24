@@ -53,20 +53,25 @@ torch.backends.cuda.matmul.allow_tf32 = False; torch.backends.cudnn.allow_tf32 =
 2. ~~Stage E corrected W-curve~~ **DONE 2026-08-23: width does NOT buy
    capability** (W120 −0.227±0.013 / W240 −0.232±0.039 / W480 −0.257±0.057).
    v1 sweep improvement was artifact; Core V1 stays W=120 on clean evidence.
-3. **Scaling axis pivot (per director sequencing):** no parameter scaling.
-   Next candidates in order of information value:
-   a. training-budget curve (steps × LR schedule) at frozen W=120 — is lift
-      budget-bound rather than capacity-bound?
-   b. data curriculum / bank-composition study (task mixing ratios);
-   c. intake-mechanism program (only path that ever moved memory causality).
-4. Provenance helper (`run_provenance.py`) mandatory in all new scripts:
+3. ~~Stage 3a training-budget curve~~ **DONE 2026-08-23: PLATEAU (Outcome C)**.
+   FIXED Δ(24k-6k)=−0.008, SCHEDULED Δ=−0.039. SCHEDULED overfits loss→0.0
+   by step 7k but generalizes worse (−0.233 vs −0.221). **Core V1 not
+   undertrained; capability ceiling reached.** All three capacity axes (W, K,
+   budget) closed.
+4. **Next candidates in order of information value:**
+   a. **Data curriculum / bank-composition study** (task mixing ratios) — does
+      presentation change the plateau?
+   b. **Intake-mechanism program** (only path that ever moved memory causality:
+      ideal-evidence probe in Phase 2).
+   c. Optimizer stability workstream deferred — σ(24k)=0.102 at FIXED but no
+      mean improvement; fragile without gain.
+5. Provenance helper (`run_provenance.py`) mandatory in all new scripts:
    bank digest · init param digest · seeds · det flag · torch/CUDA versions.
-5. Multi-model ensemble batching (deferred prereg) — motivation weakened now
-   that variance is measured and modest at W=120; re-evaluate only if (3a)
-   shows budget-bound instability.
-6. Post-V1 memory program gated on an update rule that passes ideal-evidence probe.
+6. Multi-model ensemble batching (deferred prereg) — motivation weakened;
+   re-evaluate only if a future axis shows budget-bound instability.
+7. Post-V1 memory program gated on an update rule that passes ideal-evidence probe.
 
 ## Session totals (2026-08-22 full day → 2026-08-23)
 
-~55 commits pushed. All experiments preregistered or audit-only; every number
+~58 commits pushed. All experiments preregistered or audit-only; every number
 traceable to Spark run artifacts under `runs/`.
