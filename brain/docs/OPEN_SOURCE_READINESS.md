@@ -4,7 +4,7 @@
 not a release. Do not publish this file, do not change repo visibility, do not
 apply a license without explicit owner instruction.
 
-**Last updated:** 2026-08-24 (Stage V2.0 in flight)
+**Last updated:** 2026-08-24 (V2.0j V2-A four-seed alpha; V2-C confirmation running)
 
 ---
 
@@ -12,8 +12,8 @@ apply a license without explicit owner instruction.
 
 | Item | State |
 |---|---|
-| Deploy-aligned learning signal | ✅ MEASURED locally (smoke: deployed CE 1.609→0.0003) |
-| Core V2 vs V1 held-out lift | ⏳ Stage V2.0 running (frozen gates α/β/γ vs R=−0.2130) |
+| Deploy-aligned learning signal | ✅ MEASURED locally for V2.0b direct-set path; legacy V2.0 path proven zero-gradient |
+| Core V2 vs V1 held-out lift | ⚠️ V2-A four-seed alpha: lift −0.0457, delta +0.1673 vs V1, σ 0.0208; V2-C confirmation running |
 | Independent confirmation | ❌ not attempted yet |
 | Causal mechanism ablation | ❌ interfaces exist (interventions), tests not run |
 | Valid corrected benchmark (Torture Suite V2) | ❌ not built |

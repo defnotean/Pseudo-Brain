@@ -1,7 +1,107 @@
 # CURRENT_WORK — ACTIVE FRONTIER
 
-**Last updated:** 2026-08-24 (autonomous session: Stage 3b closed, TE V2 profiled, Core V2 skeleton built)
-**HEAD:** `75e0edf` · **Tag:** `core-v1` @ `890e4d0` (frozen foundation)
+**Last updated:** 2026-08-25 (PB21M terminal scientific CAL negative; DEV sealed)
+**Base HEAD:** `106c193` plus the uncommitted V2.0b working tree · **Tag:** `core-v1` @ `890e4d0`
+
+## ACTIVE FRONTIER — V2.1i all-action causal outcomes
+
+**PB21M status: TERMINAL SCIENTIFIC CAL NEGATIVE; DEV SEALED.** Registration
+`f2ca97558697e4597d57578261a82f13621808758cfd2ec5e1b8542ba516dee6`,
+attempt `e3322c79cd979d6b3b486680360c1eeafb961ad528a194d4706e68d2434d8758`,
+CAL evidence `5bdf26f0988a1bd79faa07b650eede2fadd08c37616a97b5b21ee739069ffe02`,
+CAL decision `20bc265e17c02e25a78cb76d31ceb281e253b44cfb1478db88dd64bc912706df`,
+and result `0833b6c848003f9639c7e69250724639948b6cda334f992b0ff32fb0abd4d18f`
+are terminal and retry is forbidden. All 18 heads completed 73,728 optimizer
+steps; authoritative reload byte-reproduced all 36 cross-fit and 18 final AA
+calibrators. No DEV-open receipt, DEV source/evidence, checkpoint, or nomination
+exists; classification is `fresh_CAL_futility_negative_no_DEV`.
+
+Scientifically, all nine BAL-UPMIX cells passed absolute all-action and
+nonselected-complement gates, but zero of nine passed the factual domain.
+Factual aggregate positive bias/ECE was 0.05828–0.07131 against the frozen
+0.05 limit. Grand paired factual BCE/Brier improvements were positive with
+positive 97.5% lower bounds, but only 3/9 cells and 1/3 cohorts passed both.
+No checkpoint, scaling, full-model, qualification, or live-play claim follows.
+
+**DGX status: BLOCKED.** PB21M nominated no recipe and cannot unlock scaling or
+full-model training. The next work is the two-arm PB21M post-hoc mechanism
+audit, not an accelerator run. A fresh PB21N preregistration and later
+component/integration/latency qualification are required before any DGX run.
+
+The current mechanism combines the evidence-backed parts of prior hypotheses:
+
+- one factual recurrent trajectory and one expert action label per state;
+- five exact same-snapshot idle/W/A/S/D one-step outcome targets;
+- a vectorized all-action outcome table with semantic action-ID joins;
+- cosine next-latent targets and symlog two-hot reward distributions;
+- fused latent/reward/hazard/surprise prediction-error feedback;
+- a dedicated stop-gradient nonlinear hazard path, calibrated separately so it
+  cannot alter next-state, reward, decision, belief, or thought parameters.
+
+V2.1h is now frozen as exploratory evidence. Its replicated hazard ranking is
+retained, but its 44,161-parameter "calibration" pass is rejected as a true
+calibrator: seed 43 improved ranking while worsening BCE and underpredicting the
+validation hazard rate by about 11.5 percentage points. V2.1i instead freezes the
+raw scorer and fits only five action-specific logit biases on a disjoint
+TRAIN-CAL episode range. The five scale buffers remain exactly one. This keeps
+the useful state discrimination while making calibration incapable of hiding a
+weak representation.
+
+**Qualification infrastructure now implemented:** strict aggregate/per-action
+BCE, Brier, ROC-AUC, PR-AUC, equal-mass ECE, calibration bias, TRAIN-fitted
+branch and factual action priors, 20 deterministic cross-episode derangements,
+10,000-resample episode-clustered confidence bounds, and latent non-collapse
+metrics. A create-only namespace contract reserves disjoint TRAIN/DEV/CPU-QUAL
+ranges, forbids TEST, binds the complete five-seed cohort and source bundle, and
+prevents CPU-QUAL materialization until a canonical preregistration is sealed.
+CPU-QUAL has not been materialized.
+
+**Causal dataset evidence:** on held-out validation, action choice changed
+caught/safe outcome in 197/384 states (51.30%) and some immediate outcome in
+337/384 (87.76%). Historical intervention batch manifest remains exactly
+`94470d5ffd38d7e1a5d275e36af28d6e6d40f05bde94e1f71e2954baeb1122ae`.
+
+**Seed 42 integrated calibrated checkpoint (exploratory):** next-latent
+`1.0212 -> 0.3869`; reward CE `4.3388 -> 2.9628`; all-action hazard
+`0.6680 -> 0.6153`. Factual caught probability is `0.5255` versus safe
+`0.3259`. Hazard-only held-out ROC-AUC is `0.6655`; state shuffle worsens BCE
+from `0.6169` to `0.7263`; all five per-action AUCs exceed `0.63`. Exactly
+seven dedicated hazard tensors changed during calibration and every other
+checkpoint tensor is byte-identical.
+
+**Seed 43 replication (exploratory):** next-latent `1.0014 -> 0.3850` and
+reward CE `4.1276 -> 2.6506` remain strong after integrated calibration.
+Factual caught probability is `0.3413` versus safe `0.2020`. Hazard-only
+ROC-AUC is `0.6813`, but BCE `0.6402` misses the existing 1%-better-than-action-
+prior gate (`0.6429`) even though Brier and all causal discrimination controls
+improve. This is not yet confirmatory qualification.
+
+**Live speed:** calibrated CPU pixels-to-control plus in-process simulator step
+is 3.001 ms mean, 3.984 ms p99 over 200 ticks on one thread; capture, network,
+physical HID, and display latency remain excluded.
+
+**Verification:** the last pre-V2.1i full suite passed 809 tests in 156.862 s,
+with 2 expected skips. The current V2.1i focused suites are green for the
+counterfactual dataset/objective, integrated bias-only calibration, qualification
+metrics, sealed namespace, provenance guards, and latent non-collapse checks;
+a new full-suite run is still required after runner integration. Historical
+manifest and sequence-content goldens are pinned. Source identity now covers the
+entire `irene_brain` package plus exact pipeline scripts. Artifacts and
+checkpoints are create-only, and failed qualification writes negative evidence
+before exiting nonzero. No TEST split was opened by V2.1f/g/h/i work.
+
+**Next gate: PB21M post-hoc consumed mechanism audit.** Separately test one
+fixed MIX35 cross-fit calibrator on sealed raw CAL logits (no sweep or scorer
+training) and prior-action residual strata from reconstructed consumed CAL
+tapes (no training). Both arms are permanently post-hoc/nonqualifying and may
+never open DEV, CPU-QUAL, PLAY-QUAL, or TEST. At most one single change may be
+nominated for a later fresh PB21N preregistration; the two changes may not be
+combined. DGX and full-model training remain blocked.
+
+The downstream real-time embodied qualification target is documented in
+`brain/docs/preregistrations/2026-08-25-realtime-embodied-qualification-v3.md`.
+It is a Q0--Q6 design contract only: it does not authorize a run, alter the
+PB21M/PB21N sequence, or relax any component, integration, or DGX gate.
 
 ## PHASE 2.6: CLOSED — Core V1 frozen
 
@@ -82,20 +182,65 @@ torch.backends.cuda.matmul.allow_tf32 = False; torch.backends.cudnn.allow_tf32 =
       as the primary objective (`losses.deployed_decision_loss` trains the
       aggregated action_values path, not replicated per-slot logits).
       The V1 audit diagnostics remain available if V2 shows the same failure.
-   c. **Core V2 (NEW, active):** explicit-timescale one-brain architecture at
-      `brain/src/irene_brain/v2/` — encode → error(before cognition) →
-      retrieve → believe → think(K exchangeable thoughtlets, shared BrainCell,
-      permutation-equivariant verified) → hypothesize(per-thoughtlet
-      consequence w/ existence+branch) → aggregate(multiplicity-proof weighted
-      MEAN) → predict(pending, detached). Config locked W=120 K=32 C=3.
-      Feature flags CONFIG_A/B/C for staged integration. CPU smoke tests ALL
-      PASS incl. deployed-loss learning signal (1.6094→0.0003 in 60 steps on
-      synthetic color task), bitwise determinism, slot equivariance.
-      **Next: Stage V2.0 prereg — torture-suite training run vs Core V1
-      baseline under identical gates (FIXED lr=5e-4, 6k steps, pinned banks,
-      deterministic mode).** Then consequence-head supervision (V2.1),
-      multi-tick sequences w/ prediction-error + episodic memory live (V2.2),
-      meta-learning across trials (V2.3).
+   c. **Core V2 (active):** explicit-timescale one-brain architecture at
+      `brain/src/irene_brain/v2/`. **Stage V2.0 terminal GAMMA (2026-08-24):**
+      both V2-A and V2-C produced mean lift −0.3567, sigma 0, delta −0.1437
+      vs Core V1. Root cause is an exact zero-gradient contract defect:
+      zero-initialized scalar consequence utility makes all deployed action
+      values zero (`0/56` parameters with a non-zero gradient). The final JSON
+      was lost to a root-owned output-dir permission error; aggregate container
+      logs are preserved and the failure is not rerun. **Stage V2.0b smoke:**
+      V2-A validated the direct set policy (lift −0.0100, delta +0.2030, three
+      actions), but V2-C became NaN and stayed constant-policy; full V2.0b was
+      correctly blocked. Diagnosis found two expansive recurrences: the five
+      additive BrainCell gates exploded by update 9, and belief's unbounded
+      residual reached 299k after thought normalization. **Stage V2.0c is
+      frozen:** convex normalized thought updates plus GRU-style bounded belief.
+      Full V2-C completed 120 CPU updates finite. **V2.0c Spark smoke stayed
+      finite and moved both arms to near-chance lift, but failed:** V2-A used
+      one majority action, V2-C used two, and fixed-probe learning missed the
+      frozen 10% gate. The actual padded exposure counts are
+      `[24,236,268,111,113]`. **V2.0d Spark smoke failed:** its nominal inverse
+      weights were renormalized inside every length bucket, producing effective
+      shares `[4.0%,29.0%,28.7%,21.5%,16.8%]`; both macro probes worsened and
+      balanced accuracy stayed near chance (`0.2017`/`0.2131`). The 6k run was
+      correctly blocked. **V2.0e is frozen:** fixed-exposure mean makes the
+      aggregate loss exactly 20% per class while changing no other factor.
+      Eight focused contracts and the final full repository regression suite pass.
+      V2.0e's exact 20%-per-class correction also failed: probes worsened to
+      `2.686/2.459` and balanced accuracy stayed `0.213/0.205`. Its 6k run is
+      blocked. Class 0 occurs only at batch positions 35–36, while update 399
+      stops 34 updates later. A bounded equal-exposure fixed-order versus
+      deterministic-reshuffling diagnostic is active to test within-cycle
+      interference before another preregistration. V2.0f measured fixed-order
+      macro loss `1.878->3.542` versus reshuffled `1.878->1.413`, proving order
+      is one defect, but rare classes 0/4 still had zero recall. A gradient-clip
+      diagnostic measured that all 47 batches clip and nominal class-0 update
+      share collapses from 20% to 0.56%. Full-cycle accumulation restored both
+      rare pathways (classes 0 and 4 each reached 100% training recall) and
+      raised held-out balanced accuracy to 0.238, but lr `5e-4` oscillated and
+      ended overcommitted to action 0. A 32-cycle lower-LR diagnostic found the
+      first non-collapsed policy: at `1e-4`, macro loss `1.878->1.196`, all five
+      held-out actions, balanced accuracy 0.511, lift -0.051 (delta +0.162 vs
+      V1), and stable state. **V2.0j preregistered smoke PASSED both arms:**
+      V2-A macro `1.878->1.203`, balanced acc. 0.492, lift -0.066; V2-C macro
+      `1.613->1.396`, balanced acc. 0.501, lift -0.087. Both emitted all five
+      actions and stayed bounded. **V2-A four-seed confirmation is now ALPHA:**
+      mean lift `-0.0457`, delta `+0.1673` versus Core V1, sigma `0.0208`;
+      every seed retained all five actions. V2-C four-seed confirmation remains
+      active on the unchanged frozen release. V2.1 predictive trajectory wiring
+      is implemented and CPU-integrated: live same-tick world-model gradients,
+      detached recurrent predictions, EMA target encoder, probability hazard,
+      turn-weighted causal maze trajectories, and 30 focused contracts. The
+      mini checkpoint completed a 32-tick closed loop with 32/32 submissions
+      and no invalid controls. Single-thread CPU model latency is 2.27 ms mean,
+      2.60 ms p99 over 200 recurrent ticks (inference only, not end-to-end).
+      The extended pixel-to-control plus simulated-world loop is 2.58 ms mean,
+      3.24 ms p99; physical capture/network/HID/display latency remains open.
+      The final repository regression is green: 779 tests, 2 expected skips. A
+      three-arm V2.1 smoke is frozen but will not compete with V2-C on the
+      Spark. Then multi-tick prediction error plus live episodic memory (V2.2),
+      and meta-learning across trials (V2.3).
    d. **Intake-mechanism program** (only path that ever moved memory causality:
       ideal-evidence probe in Phase 2) — folded into V2 roadmap.
    e. Optimizer stability workstream deferred — σ(24k)=0.102 at FIXED but no
