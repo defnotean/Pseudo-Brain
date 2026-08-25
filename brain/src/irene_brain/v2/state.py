@@ -17,6 +17,7 @@ class PredictionErrorState:
     This is the "how wrong was I" signal from the previous step.
     """
     latent_error: Optional[Tensor] = None       # [B, W] or [B, K, W]
+    cognitive_error: Optional[Tensor] = None    # fused [B, W] or [B, K, W]
     reward_error: Optional[Tensor] = None       # [B, 1] or [B, K, 1]
     hazard_error: Optional[Tensor] = None       # [B, 1] or [B, K, 1]
     confidence_error: Optional[Tensor] = None   # [B, 1] or [B, K, 1]
@@ -27,6 +28,7 @@ class PredictionErrorState:
         if mode == "zero":
             return PredictionErrorState(
                 latent_error=torch.zeros_like(self.latent_error) if self.latent_error is not None else None,
+                cognitive_error=torch.zeros_like(self.cognitive_error) if self.cognitive_error is not None else None,
                 reward_error=torch.zeros_like(self.reward_error) if self.reward_error is not None else None,
                 hazard_error=torch.zeros_like(self.hazard_error) if self.hazard_error is not None else None,
                 confidence_error=torch.zeros_like(self.confidence_error) if self.confidence_error is not None else None,
@@ -41,6 +43,7 @@ class PredictionErrorState:
                 return t[idx]
             return PredictionErrorState(
                 latent_error=scramble(self.latent_error),
+                cognitive_error=scramble(self.cognitive_error),
                 reward_error=scramble(self.reward_error),
                 hazard_error=scramble(self.hazard_error),
                 confidence_error=scramble(self.confidence_error),
@@ -64,13 +67,14 @@ class PendingPrediction:
     """
     predicted_next_latent: Optional[Tensor] = None    # [B, K, W] or [B, W]
     predicted_reward: Optional[Tensor] = None         # [B, K, 1] or [B, 1]
+    predicted_reward_logits: Optional[Tensor] = None  # [B, bins]
     predicted_hazard: Optional[Tensor] = None         # [B, K, 1] or [B, 1]
     predicted_confidence: Optional[Tensor] = None     # [B, K, 1] or [B, 1]
     predicted_branch_logit: Optional[Tensor] = None   # [B, K, 1] or [B, 1]
 
     def detach_(self):
         """Stop-gradient all predictions so they don't chain into next-step gradients."""
-        for attr in ("predicted_next_latent", "predicted_reward", "predicted_hazard",
+        for attr in ("predicted_next_latent", "predicted_reward", "predicted_reward_logits", "predicted_hazard",
                      "predicted_confidence", "predicted_branch_logit"):
             v = getattr(self, attr)
             if v is not None:

@@ -10,6 +10,7 @@ from struct import pack
 from typing import Iterator
 
 from ..data import (
+    MazeChaseCounterfactualSequence,
     CurriculumDatasetConfig,
     CurriculumScenario,
     CurriculumSequenceDataset,
@@ -141,6 +142,52 @@ class TrajectoryBatch:
         return self.batch_size * (self.sequence_length - self.burn_in_steps)
 
 
+@dataclass(frozen=True, slots=True)
+class AllActionTrajectoryBatchV1:
+    """Explicit batch boundary for exhaustive same-state action supervision."""
+
+    split: str
+    burn_in_steps: int
+    sequences: tuple[MazeChaseCounterfactualSequence, ...]
+
+    def __post_init__(self) -> None:
+        if self.split not in {"train", "validation", "test"}:
+            raise ValueError("split must be train, validation, or test")
+        if type(self.burn_in_steps) is not int or self.burn_in_steps < 0:
+            raise ValueError("burn_in_steps must be a nonnegative integer")
+        if not isinstance(self.sequences, tuple) or not self.sequences:
+            raise ValueError("sequences must be a non-empty tuple")
+        if any(
+            not isinstance(sequence, MazeChaseCounterfactualSequence)
+            for sequence in self.sequences
+        ):
+            raise ValueError(
+                "all-action batches require counterfactual maze sequences"
+            )
+        expected_length = len(self.sequences[0].transitions)
+        if self.burn_in_steps >= expected_length:
+            raise ValueError("burn_in_steps must be smaller than sequence length")
+        if any(
+            len(sequence.transitions) != expected_length
+            for sequence in self.sequences
+        ):
+            raise ValueError("all sequences in a batch must have equal length")
+        if any(sequence.split.value != self.split for sequence in self.sequences):
+            raise ValueError("batch split must match every sequence split")
+
+    @property
+    def batch_size(self) -> int:
+        return len(self.sequences)
+
+    @property
+    def sequence_length(self) -> int:
+        return len(self.sequences[0].transitions)
+
+    @property
+    def sample_count(self) -> int:
+        return self.batch_size * (self.sequence_length - self.burn_in_steps)
+
+
 class MovingShapesBatchSource:
     """Lazy split-namespaced trajectories with deterministic epoch ordering."""
 
@@ -248,7 +295,6 @@ class MovingShapesBatchSource:
             )
             emitted += 1
 
-
 @dataclass(frozen=True, slots=True)
 class MazeChaseBatchConfig:
     """Split counts and maze_chase world knobs for :class:`MazeChaseBatchSource`.
@@ -276,6 +322,9 @@ class MazeChaseBatchConfig:
     discount: float = 0.99
     episode_horizon: int = 0
     window_sampling: str = "uniform"
+    behavior_policy: str = "teacher"
+    behavior_intervention_rate: float = 0.0
+    counterfactual_targets: str = "none"
 
     def __post_init__(self) -> None:
         for value, name in (
@@ -361,6 +410,56 @@ class MazeChaseBatchConfig:
                     "maze_chase.window_sampling tiled requires episode_horizon "
                     "divisible by sequence_length"
                 )
+        if not isinstance(self.behavior_policy, str) or self.behavior_policy not in {
+            "teacher",
+            "balanced_intervention_v1",
+        }:
+            raise ValueError(
+                "maze_chase.behavior_policy must be teacher or balanced_intervention_v1"
+            )
+        if isinstance(self.behavior_intervention_rate, bool) or not isinstance(
+            self.behavior_intervention_rate, (int, float)
+        ):
+            raise ValueError("maze_chase.behavior_intervention_rate must be a number")
+        if not 0.0 <= float(self.behavior_intervention_rate) <= 1.0:
+            raise ValueError(
+                "maze_chase.behavior_intervention_rate must be in [0, 1]"
+            )
+        if self.behavior_policy == "teacher" and float(
+            self.behavior_intervention_rate
+        ) != 0.0:
+            raise ValueError(
+                "maze_chase teacher behavior_policy requires zero intervention rate"
+            )
+        if self.behavior_policy == "balanced_intervention_v1":
+            if float(self.behavior_intervention_rate) <= 0.0:
+                raise ValueError(
+                    "maze_chase balanced_intervention_v1 requires a positive rate"
+                )
+            if self.input_delay_ticks != 0 or self.sticky_direction:
+                raise ValueError(
+                    "maze_chase balanced_intervention_v1 requires zero input delay "
+                    "and sticky_direction=False"
+                )
+        if self.counterfactual_targets not in {"none", "all_actions_v1"}:
+            raise ValueError(
+                "maze_chase.counterfactual_targets must be none or all_actions_v1"
+            )
+        if self.counterfactual_targets == "all_actions_v1" and (
+            self.input_delay_ticks != 0 or self.sticky_direction
+        ):
+            raise ValueError(
+                "maze_chase all_actions_v1 requires zero input delay and "
+                "sticky_direction=False"
+            )
+        if (
+            self.counterfactual_targets == "all_actions_v1"
+            and self.episode_horizon != 0
+        ):
+            raise ValueError(
+                "maze_chase all_actions_v1 requires spawn-only sequences until "
+                "window boundaries have a separate mask"
+            )
         if self.seed_offset + max(
             self.train_sequences,
             self.validation_sequences,
@@ -414,6 +513,9 @@ class MazeChaseBatchSource:
                     discount=config.discount,
                     episode_horizon=config.episode_horizon,
                     window_sampling=config.window_sampling,
+                    behavior_policy=config.behavior_policy,
+                    behavior_intervention_rate=config.behavior_intervention_rate,
+                    counterfactual_targets=config.counterfactual_targets,
                 )
             )
             for split, count in counts.items()
@@ -472,6 +574,10 @@ class MazeChaseBatchSource:
         batch_size: int,
         max_batches: int | None = None,
     ) -> Iterator[TrajectoryBatch]:
+        if self.config.counterfactual_targets != "none":
+            raise RuntimeError(
+                "all_actions_v1 requires iter_all_action_batches()"
+            )
         partition = self._split(split)
         if type(epoch) is not int or epoch < 0:
             raise ValueError("epoch must be a nonnegative integer")
@@ -502,6 +608,60 @@ class MazeChaseBatchSource:
                 split=partition.value,
                 burn_in_steps=self.config.burn_in_steps,
                 sequences=tuple(dataset[index] for index in selected),
+            )
+            emitted += 1
+
+    def iter_all_action_batches(
+        self,
+        *,
+        split: str,
+        epoch: int,
+        start_batch: int,
+        batch_size: int,
+        max_batches: int | None = None,
+    ) -> Iterator[AllActionTrajectoryBatchV1]:
+        """Yield only the versioned all-action batch contract."""
+
+        if self.config.counterfactual_targets != "all_actions_v1":
+            raise RuntimeError(
+                "iter_all_action_batches requires all_actions_v1 dataset targets"
+            )
+        partition = self._split(split)
+        if type(epoch) is not int or epoch < 0:
+            raise ValueError("epoch must be a nonnegative integer")
+        if type(start_batch) is not int or start_batch < 0:
+            raise ValueError("start_batch must be a nonnegative integer")
+        if type(batch_size) is not int or batch_size < 1:
+            raise ValueError("batch_size must be a positive integer")
+        if max_batches is not None and (
+            type(max_batches) is not int or max_batches < 1
+        ):
+            raise ValueError("max_batches must be a positive integer or None")
+
+        dataset = self._datasets[partition]
+        total_batches = self.batches_per_epoch(split=split, batch_size=batch_size)
+        if start_batch > total_batches:
+            raise ValueError("start_batch exceeds the number of batches")
+        indices = dataset.epoch_indices(
+            epoch=epoch,
+            shuffle=partition is DatasetSplit.TRAIN,
+        )
+        emitted = 0
+        for batch_index in range(start_batch, total_batches):
+            if max_batches is not None and emitted >= max_batches:
+                break
+            start = batch_index * batch_size
+            selected = indices[start : start + batch_size]
+            sequences = tuple(dataset[index] for index in selected)
+            if any(
+                not isinstance(sequence, MazeChaseCounterfactualSequence)
+                for sequence in sequences
+            ):
+                raise RuntimeError("all-action dataset emitted a legacy sequence")
+            yield AllActionTrajectoryBatchV1(
+                split=partition.value,
+                burn_in_steps=self.config.burn_in_steps,
+                sequences=sequences,
             )
             emitted += 1
 
@@ -884,6 +1044,10 @@ class MixedWorldBatchConfig:
                 raise ValueError(f"mixed worlds must share {name}")
         if float(moving.discount) != float(maze.discount):
             raise ValueError("mixed worlds must share discount")
+        if maze.counterfactual_targets != "none":
+            raise ValueError(
+                "mixed-world batches do not yet support all-action supervision"
+            )
 
 
 class MixedWorldBatchSource:
@@ -945,6 +1109,9 @@ class MixedWorldBatchSource:
                     discount=maze.discount,
                     episode_horizon=maze.episode_horizon,
                     window_sampling=maze.window_sampling,
+                    behavior_policy=maze.behavior_policy,
+                    behavior_intervention_rate=maze.behavior_intervention_rate,
+                    counterfactual_targets=maze.counterfactual_targets,
                 )
             )
             for split, count in counts.items()
@@ -1079,6 +1246,7 @@ class MixedWorldBatchSource:
 
 
 __all__ = [
+    "AllActionTrajectoryBatchV1",
     "BUTTON_TARGET_INDICES",
     "CONTINUOUS_TARGET_INDICES",
     "CONTROL_LAYOUT_ID",

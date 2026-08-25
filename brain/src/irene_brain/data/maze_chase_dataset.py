@@ -28,7 +28,7 @@ remain sequence metadata or explicit supervision targets.
 from __future__ import annotations
 
 from collections.abc import Iterator, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from hashlib import sha256
 from json import dumps
 from math import gcd
@@ -36,6 +36,7 @@ from struct import pack
 from typing import Any, overload
 
 from ..environments.maze_chase import _GHOST_RULES, MazeChaseEnv
+from ..types import GenericControl, HidKey, ModelObservation
 from .moving_shapes_dataset import (
     DatasetSplit,
     MovingShapesSequence,
@@ -43,6 +44,7 @@ from .moving_shapes_dataset import (
     _TransitionWithoutValue,
     _integer,
     _number,
+    _sha256_string,
     _split,
     split_episode_seed,
 )
@@ -56,9 +58,27 @@ _EPISODE_WINDOW_GENERATOR_ID = (
 _TILED_WINDOW_GENERATOR_ID = (
     "irene.maze_chase.planner_teacher.tiled_windows.v1"
 )
+_INTERVENTION_GENERATOR_ID = (
+    "irene.maze_chase.planner_labels.balanced_behavior_intervention.v1"
+)
+_INTERVENTION_EPISODE_WINDOW_GENERATOR_ID = (
+    "irene.maze_chase.planner_labels.balanced_behavior_intervention.episode_windows.v1"
+)
+_INTERVENTION_TILED_WINDOW_GENERATOR_ID = (
+    "irene.maze_chase.planner_labels.balanced_behavior_intervention.tiled_windows.v1"
+)
 _UNIFORM_WINDOW_SAMPLING = "uniform_start_across_episode"
 _TILED_WINDOW_SAMPLING = "tiled_stride_across_episode"
 _LICENSE_RECORD_ID = "original-project-content"
+_BEHAVIOR_POLICIES = frozenset({"teacher", "balanced_intervention_v1"})
+_COUNTERFACTUAL_TARGETS = frozenset({"none", "all_actions_v1"})
+_ACTION_KEYS: tuple[int | None, ...] = (
+    None,
+    int(HidKey.W),
+    int(HidKey.A),
+    int(HidKey.S),
+    int(HidKey.D),
+)
 
 # The transition and sequence containers are family-generic: their
 # invariants (boundary-frame continuity, terminal placement, discounted
@@ -66,6 +86,164 @@ _LICENSE_RECORD_ID = "original-project-content"
 # code reads in its own vocabulary.
 MazeChaseTransition = MovingShapesTransition
 MazeChaseSequence = MovingShapesSequence
+
+
+@dataclass(frozen=True, slots=True)
+class MazeChaseCounterfactualTarget:
+    """One labelled action branch from the transition's exact root state."""
+
+    action_class: int
+    requested_control: GenericControl
+    applied_control: GenericControl
+    next_observation_target: ModelObservation
+    reward_target: float
+    event_targets: tuple[str, ...]
+    terminated_target: bool
+    truncated_target: bool
+    result_state_sha256: str
+
+    def __post_init__(self) -> None:
+        action_class = _integer(
+            self.action_class,
+            name="counterfactual action_class",
+            maximum=len(_ACTION_KEYS) - 1,
+        )
+        if not isinstance(self.requested_control, GenericControl):
+            raise ValueError("counterfactual requested_control must be a GenericControl")
+        if not isinstance(self.applied_control, GenericControl):
+            raise ValueError("counterfactual applied_control must be a GenericControl")
+        expected_key = _ACTION_KEYS[action_class]
+        expected_control = (
+            GenericControl()
+            if expected_key is None
+            else GenericControl(keys_down=(expected_key,))
+        )
+        if self.requested_control != expected_control:
+            raise ValueError("counterfactual action_class and requested_control disagree")
+        if self.applied_control != self.requested_control:
+            raise ValueError("counterfactual v1 requires requested control to be applied")
+        if not isinstance(self.next_observation_target, ModelObservation):
+            raise ValueError(
+                "counterfactual next_observation_target must be a ModelObservation"
+            )
+        object.__setattr__(
+            self,
+            "reward_target",
+            _number(self.reward_target, name="counterfactual reward_target"),
+        )
+        if not isinstance(self.event_targets, tuple) or any(
+            not isinstance(event, str) or not event for event in self.event_targets
+        ):
+            raise ValueError(
+                "counterfactual event_targets must be a tuple of non-empty strings"
+            )
+        if not isinstance(self.terminated_target, bool):
+            raise ValueError("counterfactual terminated_target must be a boolean")
+        if not isinstance(self.truncated_target, bool):
+            raise ValueError("counterfactual truncated_target must be a boolean")
+        _sha256_string(
+            self.result_state_sha256,
+            name="counterfactual result_state_sha256",
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class MazeChaseCounterfactualTransition(MovingShapesTransition):
+    """A factual recurrent transition plus exhaustive one-step action branches."""
+
+    root_state_sha256: str
+    counterfactual_targets: tuple[MazeChaseCounterfactualTarget, ...]
+
+    def __post_init__(self) -> None:
+        MovingShapesTransition.__post_init__(self)
+        _sha256_string(self.root_state_sha256, name="root_state_sha256")
+        targets = self.counterfactual_targets
+        if (
+            not isinstance(targets, tuple)
+            or len(targets) != len(_ACTION_KEYS)
+            or any(
+                not isinstance(target, MazeChaseCounterfactualTarget)
+                for target in targets
+            )
+        ):
+            raise ValueError("counterfactual_targets must contain all five actions")
+        if tuple(target.action_class for target in targets) != tuple(
+            range(len(_ACTION_KEYS))
+        ):
+            raise ValueError("counterfactual_targets must be ordered by action class")
+        for target in targets:
+            branch_observation = target.next_observation_target
+            if branch_observation.frame_id != self.observation.frame_id + 1:
+                raise ValueError("every counterfactual must be the immediately following frame")
+            if branch_observation.elapsed_ns <= self.observation.elapsed_ns:
+                raise ValueError("every counterfactual must occur after the branch root")
+            if branch_observation.previous_control != target.applied_control:
+                raise ValueError("counterfactual next observation must carry its applied action")
+
+        factual_class = next(
+            target.action_class
+            for target in targets
+            if target.applied_control == self.applied_control
+        )
+        factual = targets[factual_class]
+        if (
+            factual.next_observation_target != self.next_observation_target
+            or factual.reward_target.hex() != self.reward_target.hex()
+            or factual.event_targets != self.event_targets
+            or factual.terminated_target != self.terminated_target
+            or factual.truncated_target != self.truncated_target
+        ):
+            raise ValueError("the applied-action branch must equal the factual transition")
+
+
+@dataclass(frozen=True, slots=True)
+class MazeChaseCounterfactualSequence(MovingShapesSequence):
+    """A recurrent factual sequence whose siblings never enter its history."""
+
+    def __post_init__(self) -> None:
+        MovingShapesSequence.__post_init__(self)
+        if any(
+            not isinstance(transition, MazeChaseCounterfactualTransition)
+            for transition in self.transitions
+        ):
+            raise ValueError(
+                "counterfactual sequences require counterfactual transitions"
+            )
+
+    @property
+    def content_sha256(self) -> str:
+        digest = sha256(b"IRMCCFSEQUENCE\x01")
+        digest.update(bytes.fromhex(MovingShapesSequence.content_sha256.fget(self)))
+        for transition in self.transitions:
+            digest.update(bytes.fromhex(transition.root_state_sha256))
+            digest.update(pack(">I", len(transition.counterfactual_targets)))
+            for target in transition.counterfactual_targets:
+                digest.update(pack(">I", target.action_class))
+                for branch_control in (
+                    target.requested_control,
+                    target.applied_control,
+                ):
+                    control = branch_control.canonical_bytes()
+                    digest.update(pack(">I", len(control)))
+                    digest.update(control)
+                digest.update(bytes.fromhex(target.next_observation_target.content_hash))
+                digest.update(pack(">d", target.reward_target))
+                digest.update(pack(">I", len(target.event_targets)))
+                for event in target.event_targets:
+                    encoded = event.encode("utf-8")
+                    digest.update(pack(">I", len(encoded)))
+                    digest.update(encoded)
+                digest.update(
+                    bytes((target.terminated_target, target.truncated_target))
+                )
+                digest.update(bytes.fromhex(target.result_state_sha256))
+        return digest.hexdigest()
+
+
+@dataclass(frozen=True, slots=True)
+class _CounterfactualTransitionWithoutValue(_TransitionWithoutValue):
+    root_state_sha256: str
+    counterfactual_targets: tuple[MazeChaseCounterfactualTarget, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -107,6 +285,15 @@ class MazeChaseDatasetConfig:
     # covers episode_horizon / sequence_length). Spawn-only (horizon 0)
     # stays uniform-only so planner_teacher.v1 hashes stay byte-identical.
     window_sampling: str = "uniform"
+    # The teacher remains the action-label policy. In intervention mode a
+    # separate deterministic behavior policy occasionally applies a balanced
+    # idle/W/A/S/D action, giving the world-model heads causal action coverage
+    # instead of only the teacher's on-policy consequences.
+    behavior_policy: str = "teacher"
+    behavior_intervention_rate: float = 0.0
+    # Exhaustive one-step branches are supervision siblings only. Exactly one
+    # factual behavior action still advances the recurrent trajectory.
+    counterfactual_targets: str = "none"
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "split", _split(self.split))
@@ -184,15 +371,85 @@ class MazeChaseDatasetConfig:
                     "tiled window_sampling requires episode_horizon divisible "
                     "by sequence_length"
                 )
+        behavior_policy = self.behavior_policy
+        if (
+            not isinstance(behavior_policy, str)
+            or behavior_policy not in _BEHAVIOR_POLICIES
+        ):
+            raise ValueError(
+                f"behavior_policy must be one of {sorted(_BEHAVIOR_POLICIES)}"
+            )
+        intervention_rate = _number(
+            self.behavior_intervention_rate,
+            name="behavior_intervention_rate",
+        )
+        if intervention_rate < 0.0 or intervention_rate > 1.0:
+            raise ValueError("behavior_intervention_rate must be in [0, 1]")
+        if behavior_policy == "teacher" and intervention_rate != 0.0:
+            raise ValueError(
+                "teacher behavior_policy requires behavior_intervention_rate == 0"
+            )
+        if behavior_policy == "balanced_intervention_v1":
+            if intervention_rate <= 0.0:
+                raise ValueError(
+                    "balanced_intervention_v1 requires behavior_intervention_rate > 0"
+                )
+            # The current planner models its own submitted-action FIFO. Once a
+            # separate behavior stream is introduced that FIFO would no longer
+            # describe the environment, so fail closed until the delayed-input
+            # teacher exposes an explicit behavior-synchronization contract.
+            if self.input_delay_ticks != 0 or self.sticky_direction:
+                raise ValueError(
+                    "balanced_intervention_v1 currently requires zero input delay "
+                    "and sticky_direction=False"
+                )
+        counterfactual_targets = self.counterfactual_targets
+        if (
+            not isinstance(counterfactual_targets, str)
+            or counterfactual_targets not in _COUNTERFACTUAL_TARGETS
+        ):
+            raise ValueError(
+                f"counterfactual_targets must be one of {sorted(_COUNTERFACTUAL_TARGETS)}"
+            )
+        if counterfactual_targets == "all_actions_v1" and (
+            self.input_delay_ticks != 0 or self.sticky_direction
+        ):
+            raise ValueError(
+                "all_actions_v1 currently requires zero input delay and "
+                "sticky_direction=False"
+            )
+        if counterfactual_targets == "all_actions_v1" and horizon != 0:
+            raise ValueError(
+                "all_actions_v1 currently requires spawn-only sequences; "
+                "episode windows need a separate sequence-boundary mask"
+            )
         object.__setattr__(self, "sequence_count", count)
         object.__setattr__(self, "sequence_length", length)
         object.__setattr__(self, "seed_offset", offset)
         object.__setattr__(self, "discount", discount)
         object.__setattr__(self, "episode_horizon", horizon)
         object.__setattr__(self, "window_sampling", sampling)
+        object.__setattr__(self, "behavior_policy", behavior_policy)
+        object.__setattr__(
+            self,
+            "behavior_intervention_rate",
+            intervention_rate,
+        )
+        object.__setattr__(self, "counterfactual_targets", counterfactual_targets)
 
     @property
     def generator_id(self) -> str:
+        if self.counterfactual_targets == "all_actions_v1":
+            return (
+                "irene.maze_chase.planner_labels.factual_rollout."
+                "all_action_branches.v1"
+            )
+        if self.behavior_policy == "balanced_intervention_v1":
+            if self.window_sampling == "tiled":
+                return _INTERVENTION_TILED_WINDOW_GENERATOR_ID
+            if self.episode_horizon > 0:
+                return _INTERVENTION_EPISODE_WINDOW_GENERATOR_ID
+            return _INTERVENTION_GENERATOR_ID
         if self.window_sampling == "tiled":
             return _TILED_WINDOW_GENERATOR_ID
         if self.episode_horizon > 0:
@@ -251,6 +508,38 @@ class MazeChaseDatasetConfig:
                 _TILED_WINDOW_SAMPLING
                 if self.window_sampling == "tiled"
                 else _UNIFORM_WINDOW_SAMPLING
+            )
+        if self.behavior_policy != "teacher":
+            payload["behavior_policy"] = self.behavior_policy
+            payload["behavior_intervention_rate_hex"] = (
+                self.behavior_intervention_rate.hex()
+            )
+            payload["action_supervision_policy"] = (
+                "diagnostic.scripted_maze_chase_planner.v1"
+            )
+        if self.counterfactual_targets != "none":
+            payload["counterfactual_targets"] = self.counterfactual_targets
+            payload.update(
+                {
+                    "transition_schema": "irene.maze_chase.all_action_transition.v1",
+                    "outcome_table_schema": "irene.discrete_action_outcome_table_target.v1",
+                    "branch_root": "exact_pre_action_snapshot",
+                    "branch_horizon_ticks": 1,
+                    "branch_action_ids": list(range(len(_ACTION_KEYS))),
+                    "branch_action_semantics": ["idle", "W", "A", "S", "D"],
+                    "branch_row_serialization": "ascending_action_id",
+                    "branch_cardinality": len(_ACTION_KEYS),
+                    "branch_coverage": "exhaustive",
+                    "branch_restore_contract": "snapshot_restore_state_hash_v1",
+                    "factual_branch_equivalence_required": True,
+                    "recurrent_path": "factual_only",
+                    "expert_ce_exposure": "once_per_factual_state",
+                    "branch_value_target": "none_one_step_only",
+                    "actuation_contract": (
+                        "zero_delay_nonsticky_requested_equals_applied_v1"
+                    ),
+                    "model_input_excludes_branch_targets": True,
+                }
             )
         return payload
 
@@ -347,20 +636,40 @@ class MazeChaseSequenceDataset(Sequence[MazeChaseSequence]):
         for _ in range(rollout_ticks):
             observation = raw_observation.to_model_observation(observation_age_ns=0)
             action_target = teacher.act(raw_observation)
-            outcome = environment.step(action_target)
+            counterfactual = self._counterfactual_targets(environment)
+            counterfactual_targets = (
+                None if counterfactual is None else counterfactual[1]
+            )
+            behavior_action = self._behavior_action(
+                action_target,
+                episode_seed=episode_seed,
+                tick=raw_observation.frame_id,
+            )
+            outcome = environment.step(behavior_action)
             next_observation = outcome.observation.to_model_observation(
                 observation_age_ns=0
             )
+            raw_transition_type = (
+                _CounterfactualTransitionWithoutValue
+                if counterfactual_targets is not None
+                else _TransitionWithoutValue
+            )
+            raw_kwargs: dict[str, Any] = {
+                "observation": observation,
+                "applied_control": outcome.applied_control,
+                "action_target": action_target,
+                "next_observation_target": next_observation,
+                "reward_target": outcome.reward,
+                "event_targets": outcome.events,
+                "terminated_target": outcome.terminated,
+                "truncated_target": outcome.truncated,
+            }
+            if counterfactual_targets is not None:
+                raw_kwargs["root_state_sha256"] = counterfactual[0]
+                raw_kwargs["counterfactual_targets"] = counterfactual_targets
             raw_transitions.append(
-                _TransitionWithoutValue(
-                    observation=observation,
-                    applied_control=outcome.applied_control,
-                    action_target=outcome.requested_control,
-                    next_observation_target=next_observation,
-                    reward_target=outcome.reward,
-                    event_targets=outcome.events,
-                    terminated_target=outcome.terminated,
-                    truncated_target=outcome.truncated,
+                raw_transition_type(
+                    **raw_kwargs,
                 )
             )
             raw_observation = outcome.observation
@@ -380,21 +689,39 @@ class MazeChaseSequenceDataset(Sequence[MazeChaseSequence]):
             running_return = raw.reward_target + (
                 0.0 if done else config.discount * running_return
             )
+            transition_type = (
+                MazeChaseCounterfactualTransition
+                if isinstance(raw, _CounterfactualTransitionWithoutValue)
+                else MazeChaseTransition
+            )
+            transition_kwargs: dict[str, Any] = {
+                "observation": raw.observation,
+                "applied_control": raw.applied_control,
+                "action_target": raw.action_target,
+                "next_observation_target": raw.next_observation_target,
+                "reward_target": raw.reward_target,
+                "value_target": running_return,
+                "event_targets": raw.event_targets,
+                "terminated_target": raw.terminated_target,
+                "truncated_target": raw.truncated_target,
+            }
+            if isinstance(raw, _CounterfactualTransitionWithoutValue):
+                transition_kwargs["root_state_sha256"] = raw.root_state_sha256
+                transition_kwargs["counterfactual_targets"] = (
+                    raw.counterfactual_targets
+                )
             reversed_transitions.append(
-                MazeChaseTransition(
-                    observation=raw.observation,
-                    applied_control=raw.applied_control,
-                    action_target=raw.action_target,
-                    next_observation_target=raw.next_observation_target,
-                    reward_target=raw.reward_target,
-                    value_target=running_return,
-                    event_targets=raw.event_targets,
-                    terminated_target=raw.terminated_target,
-                    truncated_target=raw.truncated_target,
+                transition_type(
+                    **transition_kwargs,
                 )
             )
 
-        return MazeChaseSequence(
+        sequence_type = (
+            MazeChaseCounterfactualSequence
+            if config.counterfactual_targets == "all_actions_v1"
+            else MazeChaseSequence
+        )
+        return sequence_type(
             split=config.split,
             sequence_index=sequence_index,
             episode_seed=episode_seed,
@@ -402,6 +729,81 @@ class MazeChaseSequenceDataset(Sequence[MazeChaseSequence]):
             manifest_sha256=self.manifest_sha256,
             transitions=tuple(reversed(reversed_transitions)),
         )
+
+    def _counterfactual_targets(
+        self,
+        environment: MazeChaseEnv,
+    ) -> tuple[str, tuple[MazeChaseCounterfactualTarget, ...]] | None:
+        """Evaluate every action from one root and restore that root exactly."""
+
+        if self.config.counterfactual_targets == "none":
+            return None
+        root = environment.snapshot()
+        root_hash = environment.state_hash()
+        targets: list[MazeChaseCounterfactualTarget] = []
+        try:
+            for action_class, key in enumerate(_ACTION_KEYS):
+                environment.restore(root)
+                if environment.state_hash() != root_hash:
+                    raise RuntimeError("counterfactual branch root changed after restore")
+                control = (
+                    GenericControl()
+                    if key is None
+                    else GenericControl(keys_down=(key,))
+                )
+                outcome = environment.step(control)
+                if outcome.applied_control != control:
+                    raise RuntimeError("counterfactual branch action was not applied exactly")
+                targets.append(
+                    MazeChaseCounterfactualTarget(
+                        action_class=action_class,
+                        requested_control=control,
+                        applied_control=outcome.applied_control,
+                        next_observation_target=(
+                            outcome.observation.to_model_observation(
+                                observation_age_ns=0
+                            )
+                        ),
+                        reward_target=outcome.reward,
+                        event_targets=outcome.events,
+                        terminated_target=outcome.terminated,
+                        truncated_target=outcome.truncated,
+                        result_state_sha256=environment.state_hash(),
+                    )
+                )
+        finally:
+            environment.restore(root)
+        if environment.state_hash() != root_hash:
+            raise RuntimeError("counterfactual evaluation mutated the factual root")
+        return root_hash, tuple(targets)
+
+    def _behavior_action(
+        self,
+        teacher_action: GenericControl,
+        *,
+        episode_seed: int,
+        tick: int,
+    ) -> GenericControl:
+        """Return the causal rollout action while preserving teacher labels."""
+
+        config = self.config
+        if config.behavior_policy == "teacher":
+            return teacher_action
+        digest = sha256(
+            b"IRMCBEHAVIOR\x01"
+            + bytes.fromhex(self.manifest_sha256)
+            + pack(">Q", episode_seed)
+            + pack(">Q", tick)
+        ).digest()
+        draw = int.from_bytes(digest[:8], "big")
+        threshold = int(config.behavior_intervention_rate * (1 << 64))
+        if draw >= threshold:
+            return teacher_action
+        action_class = int.from_bytes(digest[8:16], "big") % len(_ACTION_KEYS)
+        key = _ACTION_KEYS[action_class]
+        if key is None:
+            return GenericControl()
+        return GenericControl(keys_down=(key,))
 
     def _episode_and_window(self, sequence_index: int) -> tuple[int, int | None]:
         """Return (episode_index, tiled window index or None for uniform)."""
@@ -461,13 +863,8 @@ class MazeChaseSequenceDataset(Sequence[MazeChaseSequence]):
         window = raw_transitions[start : start + length]
         last = window[-1]
         if not last.terminated_target and not last.truncated_target:
-            window[-1] = _TransitionWithoutValue(
-                observation=last.observation,
-                applied_control=last.applied_control,
-                action_target=last.action_target,
-                next_observation_target=last.next_observation_target,
-                reward_target=last.reward_target,
-                event_targets=last.event_targets,
+            window[-1] = replace(
+                last,
                 terminated_target=False,
                 truncated_target=True,
             )
@@ -512,6 +909,9 @@ class MazeChaseSequenceDataset(Sequence[MazeChaseSequence]):
 __all__ = [
     "DatasetSplit",
     "MazeChaseDatasetConfig",
+    "MazeChaseCounterfactualSequence",
+    "MazeChaseCounterfactualTarget",
+    "MazeChaseCounterfactualTransition",
     "MazeChaseSequence",
     "MazeChaseSequenceDataset",
     "MazeChaseTransition",

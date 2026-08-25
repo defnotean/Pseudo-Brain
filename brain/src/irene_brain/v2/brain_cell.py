@@ -70,7 +70,11 @@ class BrainCellV2(nn.Module):
 
             # Prediction error summary
             if prediction_error is not None and prediction_error.latent_error is not None:
-                pe = prediction_error.latent_error
+                pe = (
+                    prediction_error.cognitive_error
+                    if prediction_error.cognitive_error is not None
+                    else prediction_error.latent_error
+                )
                 if pe.dim() == 3:
                     pe = pe.reshape(B * K, W)
                 elif pe.dim() == 2 and pe.shape[0] == B:
@@ -91,7 +95,11 @@ class BrainCellV2(nn.Module):
             if session_latent is None:
                 session_latent = torch.zeros(B, W, device=thought.device)
             if prediction_error is not None and prediction_error.latent_error is not None:
-                pe = prediction_error.latent_error
+                pe = (
+                    prediction_error.cognitive_error
+                    if prediction_error.cognitive_error is not None
+                    else prediction_error.latent_error
+                )
                 if pe.dim() == 3:
                     pe = pe.mean(dim=1)
                 has_pe = torch.ones(B, 1, device=thought.device)
@@ -121,14 +129,35 @@ class BrainCellV2(nn.Module):
         # Candidate update
         candidate = self.out_proj(h)
 
-        # Compose: preserve old + accept evidence + revise + retain hypothesis + react to surprise
-        new_thought = (
-            g_preserve * thought_flat
-            + g_accept * candidate
-            + g_revise * (-thought_flat)  # revision = flip
-            + g_retain * thought_flat     # retain = keep
-            + g_react * candidate         # react = strong update
-        )
+        if self.config.braincell_dynamics == "legacy_additive_v0":
+            # Historical V2.0/V2.0b path.  Its independently added gates can
+            # produce up to roughly 2*thought + 2*candidate per cycle and is
+            # retained only for exact failure reproduction.
+            new_thought = (
+                g_preserve * thought_flat
+                + g_accept * candidate
+                + g_revise * (-thought_flat)
+                + g_retain * thought_flat
+                + g_react * candidate
+            )
+        else:
+            # Three semantic proposals compete through one normalized gate.
+            # The convex mixture prevents vote-like coefficient inflation;
+            # per-sample layer normalization bounds recurrent state scale at
+            # every cognitive cycle without batch-dependent statistics.
+            gate_scores = torch.stack([
+                g_preserve + g_retain,
+                g_accept + g_react,
+                g_revise,
+            ], dim=-1)
+            mixture = F.softmax(gate_scores, dim=-1)
+            proposals = torch.stack([
+                thought_flat,
+                torch.tanh(candidate),
+                torch.tanh(candidate - thought_flat),
+            ], dim=-1)
+            new_thought = (mixture * proposals).sum(dim=-1)
+            new_thought = F.layer_norm(new_thought, (W,), eps=1e-5)
 
         # Fast plasticity residual (disabled by default)
         if self.fast_plasticity_enabled and self.training:

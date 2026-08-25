@@ -61,7 +61,11 @@ class BeliefUpdaterV2(nn.Module):
 
         # Prediction error summary
         if prediction_error is not None and prediction_error.latent_error is not None:
-            pe = prediction_error.latent_error
+            pe = (
+                prediction_error.cognitive_error
+                if prediction_error.cognitive_error is not None
+                else prediction_error.latent_error
+            )
             if pe.dim() == 3:
                 pe = pe.mean(dim=1)  # [B, W]
             has_error = torch.ones(B, 1, device=device)
@@ -92,6 +96,15 @@ class BeliefUpdaterV2(nn.Module):
         h = F.relu(self.in_proj(x))
         g = self.gate(h)
         delta = self.update(h)
-        new_belief = old_belief + g * delta
+        if self.config.belief_dynamics == "legacy_residual_v0":
+            # Historical V2.0/V2.0b path, preserved for reproduction.  This
+            # residual has no state-scale bound over recurrent application.
+            new_belief = old_belief + g * delta
+        else:
+            # GRU-style convex interpolation.  Starting from the zero state,
+            # every coordinate remains in [-1, 1] because both the old state
+            # and tanh candidate are bounded and g is in [0, 1].
+            candidate = torch.tanh(delta)
+            new_belief = (1.0 - g) * old_belief + g * candidate
 
         return new_belief

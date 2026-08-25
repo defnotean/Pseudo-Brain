@@ -1,6 +1,8 @@
-"""Multiplicity-Proof Action Aggregator V2.
+"""Permutation-invariant action aggregation for Core V2.
 
-Weighted MEAN, not raw vote count. Duplicate hypotheses cannot win by occupying more slots.
+Stage V2.0 exposed a zero-gradient defect in the original scalar-utility
+quotient.  The legacy path is retained for exact failure reproduction.  The
+active path aggregates action-specific evidence directly with a set mean.
 """
 from __future__ import annotations
 
@@ -27,14 +29,22 @@ class AggregatedDecision:
 
 
 class MultiplicityProofAggregator(nn.Module):
-    """Aggregates K consequence hypotheses into deployed action_dist.
+    """Aggregates K exchangeable hypotheses into the deployed action.
 
-    For each action a:
+    ``direct_mean_logits_v1``:
+        Q(a) = mean_k action_logit(k, a)
+
+    This is a smooth Deep-Sets-style invariant with a direct supervised path
+    from deployed cross entropy to every slot.  It is bounded with respect to
+    K, though (like any ordinary multiset mean) duplicating only a subset can
+    still change the result.
+
+    Historical ``legacy_scalar_utility_v0``:
         mass_k,a = existence_k * branch_probability_k * action_probability_k,a
+        Q(a) = sum_k mass_k,a * U_k / (sum_k mass_k,a + eps)
 
-    Q(a) = sum_k mass_k,a * U_k / (sum_k mass_k,a + eps)
-
-    This is a weighted MEAN. Duplicate hypotheses cannot win by vote stuffing.
+    The historical path can have identically zero action values and gradients
+    when utilities are zero.  It must not be selected by new training runs.
     """
 
     def __init__(self, config: CoreV2Config):
@@ -71,11 +81,17 @@ class MultiplicityProofAggregator(nn.Module):
         # Mass per thoughtlet per action: existence * branch_prob * action_prob
         mass = existence * branch_probs * action_probs  # [B, K, A]
 
-        # Q-values: weighted mean of utility per action
-        mass_sum = mass.sum(dim=1, keepdim=True) + self.eps  # [B, 1, A]
-        weighted_utility = (mass * utility).sum(dim=1, keepdim=True)  # [B, 1, A]
-        Q = weighted_utility / mass_sum  # [B, 1, A]
-        Q = Q.squeeze(1)  # [B, A]
+        if self.config.decision_aggregation == "legacy_scalar_utility_v0":
+            # Exact Stage V2.0 failure path, preserved for reproduction.
+            mass_sum = mass.sum(dim=1, keepdim=True) + self.eps
+            weighted_utility = (mass * utility).sum(dim=1, keepdim=True)
+            Q = (weighted_utility / mass_sum).squeeze(1)
+            mass_per_action = mass.sum(dim=1)
+        else:
+            # Direct action-specific evidence.  Consequence semantics remain
+            # diagnostics until they receive grounded auxiliary targets.
+            Q = hypotheses.action_logits.mean(dim=1)
+            mass_per_action = action_probs.mean(dim=1)
 
         # Deployed action distribution
         action_dist = F.softmax(Q / self.temperature, dim=-1)  # [B, A]
@@ -87,5 +103,5 @@ class MultiplicityProofAggregator(nn.Module):
             thought_existence=existence,
             thought_branch_prob=branch_probs,
             thought_utility=utility,
-            mass_per_action=mass.sum(dim=1),  # [B, A]
+            mass_per_action=mass_per_action,
         )

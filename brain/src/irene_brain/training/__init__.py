@@ -1,6 +1,7 @@
 """Offline training contracts with accelerator imports kept opt-in."""
 
 from .batches import (
+    AllActionTrajectoryBatchV1,
     BUTTON_TARGET_INDICES,
     CONTINUOUS_TARGET_INDICES,
     CONTROL_LAYOUT_ID,
@@ -46,6 +47,7 @@ from .protocol import (
 from .trainer import Trainer, TrainingSummary
 
 __all__ = [
+    "AllActionTrajectoryBatchV1",
     "BUTTON_TARGET_INDICES",
     "CONTINUOUS_TARGET_INDICES",
     "CONTROL_LAYOUT_ID",

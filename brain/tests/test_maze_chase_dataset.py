@@ -11,6 +11,8 @@ if str(SRC) not in sys.path:
 
 from irene_brain.data.maze_chase_dataset import (
     DatasetSplit,
+    MazeChaseCounterfactualSequence,
+    MazeChaseCounterfactualTransition,
     MazeChaseDatasetConfig,
     MazeChaseSequenceDataset,
     maze_chase_dataset_manifest_sha256,
@@ -70,9 +72,41 @@ class MazeChaseDatasetConfigTests(unittest.TestCase):
             MazeChaseDatasetConfig(sequence_length=8, episode_horizon=8)
         with self.assertRaises(ValueError):
             MazeChaseDatasetConfig(sequence_length=8, episode_horizon=7)
+        with self.assertRaises(ValueError):
+            MazeChaseDatasetConfig(behavior_policy="random")
+        with self.assertRaises(ValueError):
+            MazeChaseDatasetConfig(behavior_intervention_rate=0.5)
+        with self.assertRaises(ValueError):
+            MazeChaseDatasetConfig(
+                behavior_policy="balanced_intervention_v1",
+                behavior_intervention_rate=0.0,
+            )
+        with self.assertRaises(ValueError):
+            MazeChaseDatasetConfig(
+                behavior_policy="balanced_intervention_v1",
+                behavior_intervention_rate=0.5,
+                input_delay_ticks=1,
+            )
+        with self.assertRaises(ValueError):
+            MazeChaseDatasetConfig(counterfactual_targets="unknown")
+        with self.assertRaises(ValueError):
+            MazeChaseDatasetConfig(
+                counterfactual_targets="all_actions_v1",
+                sticky_direction=True,
+            )
+        with self.assertRaisesRegex(ValueError, "spawn-only"):
+            MazeChaseDatasetConfig(
+                sequence_length=8,
+                episode_horizon=24,
+                counterfactual_targets="all_actions_v1",
+            )
 
     def test_manifest_is_canonical_and_knob_sensitive(self) -> None:
         config = _config()
+        self.assertEqual(
+            maze_chase_dataset_manifest_sha256(config),
+            "f305abcaf0693cdbf08b99fab4a2f600997c0e192a136ab545ae121d4407f070",
+        )
         self.assertEqual(
             maze_chase_dataset_manifest_sha256(config),
             MazeChaseSequenceDataset(config).manifest_sha256,
@@ -88,6 +122,11 @@ class MazeChaseDatasetConfigTests(unittest.TestCase):
             {"sticky_direction": True},
             {"player_period": 2},
             {"episode_horizon": 256},
+            {
+                "behavior_policy": "balanced_intervention_v1",
+                "behavior_intervention_rate": 0.5,
+            },
+            {"counterfactual_targets": "all_actions_v1"},
         ):
             self.assertNotEqual(
                 maze_chase_dataset_manifest_sha256(_config(**override)),
@@ -144,8 +183,125 @@ class MazeChaseSequenceDatasetTests(unittest.TestCase):
         dataset = MazeChaseSequenceDataset(_config())
         first = dataset[1]
         second = dataset[1]
+        self.assertEqual(
+            dataset[0].content_sha256,
+            "eaa8e117f7722ac13f3fb12d813c55e26e7427856ad9417347793406fa286b80",
+        )
+        self.assertEqual(
+            first.content_sha256,
+            "f89b823e3f9767d87df3b57367c6ed827fe85cc498afa949741b4cddcb4e3791",
+        )
         self.assertEqual(first.content_sha256, second.content_sha256)
         self.assertNotEqual(first.content_sha256, dataset[0].content_sha256)
+
+    def test_intervention_behavior_preserves_distinct_teacher_labels(self) -> None:
+        dataset = MazeChaseSequenceDataset(
+            _config(
+                sequence_count=8,
+                sequence_length=16,
+                behavior_policy="balanced_intervention_v1",
+                behavior_intervention_rate=1.0,
+            )
+        )
+        manifest = dataset.config.manifest_dict()
+        self.assertEqual(
+            manifest["generator_id"],
+            "irene.maze_chase.planner_labels.balanced_behavior_intervention.v1",
+        )
+        self.assertEqual(manifest["behavior_policy"], "balanced_intervention_v1")
+        self.assertEqual(
+            manifest["behavior_intervention_rate_hex"],
+            float(1.0).hex(),
+        )
+        transitions = [
+            transition
+            for sequence in dataset
+            for transition in sequence.transitions
+        ]
+        self.assertTrue(
+            any(
+                transition.applied_control != transition.action_target
+                for transition in transitions
+            )
+        )
+        self.assertEqual(
+            {
+                key
+                for transition in transitions
+                for key in transition.applied_control.keys_down
+            },
+            {int(HidKey.W), int(HidKey.A), int(HidKey.S), int(HidKey.D)},
+        )
+        self.assertTrue(
+            any(not transition.applied_control.keys_down for transition in transitions)
+        )
+
+    def test_all_action_targets_share_one_root_and_preserve_factual_history(self) -> None:
+        dataset = MazeChaseSequenceDataset(
+            _config(
+                sequence_count=1,
+                sequence_length=8,
+                counterfactual_targets="all_actions_v1",
+            )
+        )
+        sequence = dataset[0]
+        self.assertIsInstance(sequence, MazeChaseCounterfactualSequence)
+        self.assertEqual(
+            dataset.config.manifest_dict()["generator_id"],
+            "irene.maze_chase.planner_labels.factual_rollout."
+            "all_action_branches.v1",
+        )
+        for transition in sequence.transitions:
+            self.assertIsInstance(transition, MazeChaseCounterfactualTransition)
+            self.assertEqual(
+                tuple(
+                    target.action_class
+                    for target in transition.counterfactual_targets
+                ),
+                (0, 1, 2, 3, 4),
+            )
+            self.assertEqual(
+                {
+                    target.next_observation_target.frame_id
+                    for target in transition.counterfactual_targets
+                },
+                {transition.observation.frame_id + 1},
+            )
+            factual = next(
+                target
+                for target in transition.counterfactual_targets
+                if target.applied_control == transition.applied_control
+            )
+            self.assertEqual(
+                factual.next_observation_target,
+                transition.next_observation_target,
+            )
+            self.assertEqual(factual.reward_target, transition.reward_target)
+            self.assertEqual(factual.event_targets, transition.event_targets)
+
+        # Only the factual branch is allowed into recurrent history.
+        for prior, current in zip(
+            sequence.transitions[:-1],
+            sequence.transitions[1:],
+            strict=True,
+        ):
+            self.assertEqual(current.observation, prior.next_observation_target)
+
+    def test_all_action_content_hash_includes_branch_siblings(self) -> None:
+        dataset = MazeChaseSequenceDataset(
+            _config(
+                sequence_count=1,
+                sequence_length=8,
+                counterfactual_targets="all_actions_v1",
+            )
+        )
+        self.assertEqual(dataset[0].content_sha256, dataset[0].content_sha256)
+        self.assertNotEqual(
+            dataset[0].content_sha256,
+            MazeChaseSequenceDataset(
+                _config(sequence_count=1, sequence_length=8)
+            )[0].content_sha256,
+        )
 
     def test_split_namespaces_stay_disjoint(self) -> None:
         for index in (0, 1, 2, 3):

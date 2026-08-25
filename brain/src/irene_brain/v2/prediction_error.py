@@ -13,6 +13,10 @@ from .config import CoreV2Config
 from .state import PredictionErrorState, PendingPrediction
 
 
+def _symlog(value: torch.Tensor) -> torch.Tensor:
+    return torch.sign(value) * torch.log1p(value.abs())
+
+
 class ErrorEncoder(nn.Module):
     """Encodes raw latent difference into structured error representation."""
     def __init__(self, config: CoreV2Config):
@@ -51,6 +55,11 @@ class PredictionErrorV2(nn.Module):
             nn.Linear(config.surprise_dim, 1),
             nn.Sigmoid(),
         )
+        self.outcome_fusion = (
+            nn.Linear(3, config.width, bias=False)
+            if config.prediction_error_fusion == "latent_outcome_surprise_v1"
+            else None
+        )
 
     def forward(
         self,
@@ -71,6 +80,7 @@ class PredictionErrorV2(nn.Module):
         if pending is None or pending.predicted_next_latent is None:
             return PredictionErrorState(
                 latent_error=torch.zeros(B, W, device=device),
+                cognitive_error=torch.zeros(B, W, device=device),
                 reward_error=torch.zeros(B, 1, device=device) if actual_reward is not None else None,
                 hazard_error=torch.zeros(B, 1, device=device) if actual_hazard is not None else None,
                 confidence_error=None,
@@ -85,9 +95,16 @@ class PredictionErrorV2(nn.Module):
         elif pred_latent.dim() == 2 and actual_latent.dim() == 2:
             pass  # both [B, W]
 
-        # Latent error: stop-gradient on target
+        # Latent error: stop-gradient on target. The versioned cosine mode
+        # removes arbitrary encoder magnitude before this signal enters
+        # belief and thought updates.
+        if self.config.latent_comparison == "cosine_distance_v1":
+            pred_latent = F.normalize(pred_latent, dim=-1)
+            actual_latent = F.normalize(actual_latent, dim=-1)
         latent_delta = pred_latent - actual_latent.detach()
-        latent_error = self.error_encoder(latent_delta.flatten(0, 1)).reshape(latent_delta.shape[:2] + (-1,))
+        latent_error = self.error_encoder(
+            latent_delta.reshape(-1, latent_delta.shape[-1])
+        ).reshape(latent_delta.shape[:-1] + (-1,))
 
         # Reward error
         reward_error = None
@@ -95,7 +112,10 @@ class PredictionErrorV2(nn.Module):
             pred_r = pending.predicted_reward
             if pred_r.dim() == 3 and actual_reward.dim() == 2:
                 actual_reward = actual_reward.unsqueeze(1).expand(-1, pred_r.shape[1], -1)
-            reward_error = actual_reward - pred_r.detach()
+            if self.config.reward_comparison == "symlog_mse_v1":
+                reward_error = _symlog(actual_reward) - _symlog(pred_r.detach())
+            else:
+                reward_error = actual_reward - pred_r.detach()
 
         # Hazard error
         hazard_error = None
@@ -138,8 +158,27 @@ class PredictionErrorV2(nn.Module):
         elif surprise.dim() == 2 and latent_error.dim() == 3:
             surprise = surprise.unsqueeze(1).expand(-1, latent_error.shape[1], -1)
 
+        cognitive_error = latent_error
+        if self.outcome_fusion is not None:
+            def aligned(value: Optional[torch.Tensor]) -> torch.Tensor:
+                if value is None:
+                    return torch.zeros_like(ref)
+                result = value
+                if result.dim() == 2 and latent_error.dim() == 3:
+                    result = result.unsqueeze(1).expand(-1, latent_error.shape[1], -1)
+                elif result.dim() == 3 and latent_error.dim() == 2:
+                    result = result.mean(dim=1)
+                return result
+
+            outcome_features = torch.cat(
+                [aligned(reward_error), aligned(hazard_error), aligned(surprise)],
+                dim=-1,
+            )
+            cognitive_error = latent_error + self.outcome_fusion(outcome_features)
+
         state = PredictionErrorState(
             latent_error=latent_error,
+            cognitive_error=cognitive_error,
             reward_error=reward_error,
             hazard_error=hazard_error,
             confidence_error=confidence_error,

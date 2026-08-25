@@ -62,6 +62,16 @@ class ConsequenceModelV2(nn.Module):
             nn.ReLU(),
         )
 
+        if config.outcome_action_conditioning == "factual_or_proposal_v1":
+            self.outcome_action_embed = nn.Embedding(A, W)
+            self.outcome_trunk = nn.Sequential(
+                nn.Linear(hidden + W, hidden),
+                nn.ReLU(),
+            )
+        else:
+            self.outcome_action_embed = None
+            self.outcome_trunk = None
+
         # Heads
         self.action_head = nn.Linear(hidden, A)
         self.next_latent_head = nn.Linear(hidden, W)
@@ -71,7 +81,11 @@ class ConsequenceModelV2(nn.Module):
         self.existence_head = nn.Linear(hidden, 1)
         self.branch_head = nn.Linear(hidden, 1)
 
-    def forward(self, thoughts: torch.Tensor) -> ConsequenceHypothesis:
+    def forward(
+        self,
+        thoughts: torch.Tensor,
+        action: torch.Tensor | None = None,
+    ) -> ConsequenceHypothesis:
         """thoughts: [B, K, W] -> consequence hypotheses."""
         B, K, W = thoughts.shape
 
@@ -79,11 +93,39 @@ class ConsequenceModelV2(nn.Module):
         flat = thoughts.reshape(B * K, W)
         h = self.trunk(flat)
 
-        # Heads
+        # The action proposal itself is always computed from thought state.
         action_logits = self.action_head(h).reshape(B, K, -1)
-        predicted_next_latent = self.next_latent_head(h).reshape(B, K, -1)
-        predicted_reward = self.reward_head(h).reshape(B, K, 1)
-        predicted_hazard = self.hazard_head(h).reshape(B, K, 1)
+
+        # Outcome heads can remain historically thought-only or explicitly
+        # condition on either a factual applied action (training/pending
+        # prediction) or each slot's soft proposal (counterfactual decision).
+        outcome_h = h
+        if self.outcome_action_embed is not None and self.outcome_trunk is not None:
+            if action is None:
+                action_emb = (
+                    F.softmax(action_logits, dim=-1)
+                    @ self.outcome_action_embed.weight
+                )
+            elif action.dim() == 1:
+                action_emb = self.outcome_action_embed(action.long()).unsqueeze(1)
+                action_emb = action_emb.expand(-1, K, -1)
+            elif action.dim() == 2 and action.shape[-1] == self.config.actions:
+                action_emb = (action @ self.outcome_action_embed.weight).unsqueeze(1)
+                action_emb = action_emb.expand(-1, K, -1)
+            else:
+                raise ValueError(
+                    "outcome action must have shape [B] or [B, actions]"
+                )
+            outcome_h = self.outcome_trunk(
+                torch.cat([h.reshape(B, K, -1), action_emb], dim=-1).reshape(
+                    B * K, -1
+                )
+            )
+        predicted_next_latent = self.next_latent_head(outcome_h).reshape(B, K, -1)
+        predicted_reward = self.reward_head(outcome_h).reshape(B, K, 1)
+        predicted_hazard = self.hazard_head(outcome_h).reshape(B, K, 1)
+        if self.config.hazard_parameterization == "probability_sigmoid_v1":
+            predicted_hazard = torch.sigmoid(predicted_hazard)
         confidence = torch.sigmoid(self.confidence_head(h)).reshape(B, K, 1)
         existence_logit = self.existence_head(h).reshape(B, K, 1)
         branch_logit = self.branch_head(h).reshape(B, K, 1)

@@ -26,7 +26,7 @@ from run_provenance import (build_bank_pinned, bank_digest, param_digest,
                             apply_deterministic_mode, provenance)
 from irene_brain.evaluation.torture_suite import TASKS
 from irene_brain.v2 import (
-    CoreV2Model,
+    CoreV2Model, CoreV2Config,
     CONFIG_A_DECISION_ONLY, CONFIG_C_FULL,
 )
 from irene_brain.v2.losses import deployed_decision_loss
@@ -57,6 +57,52 @@ def build_order(bank, B=16):
 
 
 @torch.no_grad()
+def fixed_probe_loss(model, bank, order, device, probe_seed=424242,
+                     class_weights=None, all_batches=False):
+    """Deployed loss on fixed data without perturbing training RNG."""
+    cpu_rng = torch.get_rng_state()
+    cuda_rng = torch.cuda.get_rng_state_all() if torch.cuda.is_available() else None
+    was_training = model.training
+    try:
+        torch.manual_seed(probe_seed)
+        torch.cuda.manual_seed_all(probe_seed)
+        model.eval()
+        numerator = torch.zeros((), device=device)
+        denominator = torch.zeros((), device=device)
+        groups = order if all_batches else order[:1]
+        for length, group in groups:
+            episodes = [bank[index] for index in group]
+            frames = torch.stack([
+                torch.stack([frames_tensor(episode, device)[tick]
+                             for tick in range(length)])
+                for episode in episodes
+            ])
+            labels = torch.tensor(
+                [episode.label for episode in episodes],
+                dtype=torch.long,
+                device=device,
+            )
+            state = model.init_state(len(episodes), device)
+            output = None
+            for tick in range(length):
+                output, state = model(frames[:, tick], state)
+            log_probs = F.log_softmax(output.decision.action_values, dim=-1)
+            losses = F.nll_loss(log_probs, labels, reduction="none")
+            sample_weights = (
+                class_weights[labels] if class_weights is not None
+                else torch.ones_like(losses)
+            )
+            numerator += (losses * sample_weights).sum()
+            denominator += sample_weights.sum()
+        return float((numerator / denominator).item())
+    finally:
+        torch.set_rng_state(cpu_rng)
+        if cuda_rng is not None:
+            torch.cuda.set_rng_state_all(cuda_rng)
+        model.train(was_training)
+
+
+@torch.no_grad()
 def eval_full_v2(model, device, episodes=30, base_seed=20260822):
     """Identical protocol to Stage 3b eval_full: argmax on DEPLOYED action_dist.
 
@@ -66,6 +112,8 @@ def eval_full_v2(model, device, episodes=30, base_seed=20260822):
     lifts = []
     slot_agree = []
     mass_ent = []
+    action_histogram = np.zeros(5, dtype=np.int64)
+    confusion = np.zeros((5, 5), dtype=np.int64)
     for fn in TASKS:
         ok = 0
         chance = float(getattr(fn(np.random.default_rng(0)), "chance", 0.0))
@@ -79,6 +127,8 @@ def eval_full_v2(model, device, episodes=30, base_seed=20260822):
                 out, state = model(ft[j:j + 1], state)
                 act = int(torch.argmax(out.decision.action_dist[0]).item())
             ok += int(act == ep.label)
+            action_histogram[act] += 1
+            confusion[int(ep.label), act] += 1
 
             # diagnostics at decision frame
             dec = out.decision
@@ -91,20 +141,40 @@ def eval_full_v2(model, device, episodes=30, base_seed=20260822):
         lifts.append(ok / episodes - chance)
     model.train()
     lifts_a = np.array(lifts)
+    class_totals = confusion.sum(axis=1)
+    recalls = np.divide(
+        np.diag(confusion), class_totals,
+        out=np.zeros(5, dtype=np.float64), where=class_totals > 0,
+    )
     return {
         "mean_lift": round(float(lifts_a.mean()), 4),
         "above_2pct": int((lifts_a > 0.02).sum()),
         "per_faculty": [round(float(x), 4) for x in lifts],
         "slot_agreement": round(float(np.mean(slot_agree)), 4) if slot_agree else None,
         "mass_entropy": round(float(np.mean(mass_ent)), 4) if mass_ent else None,
+        "action_histogram": action_histogram.tolist(),
+        "unique_actions": int(np.count_nonzero(action_histogram)),
+        "confusion_matrix": confusion.tolist(),
+        "per_class_recall": [round(float(value), 4) for value in recalls],
+        "balanced_accuracy": round(float(recalls[class_totals > 0].mean()), 4),
     }
 
 
-def run_v2_arm(flags, arm_name, seed, device, bdig):
+def run_v2_arm(flags, arm_name, seed, device, bdig, *, config=None,
+               total_steps=TOTAL_STEPS, class_weights=None,
+               full_bank_probe=False,
+               class_weight_normalization="batch_weight_sum_v0"):
     torch.manual_seed(seed)
     np.random.seed(seed % (2 ** 32))
     torch.cuda.manual_seed_all(seed)
-    model = CoreV2Model(flags=flags).to(device)
+    config = config or CoreV2Config(
+        decision_aggregation="legacy_scalar_utility_v0")
+    model = CoreV2Model(config=config, flags=flags).to(device)
+    if class_weights is not None:
+        class_weights = torch.as_tensor(
+            class_weights, dtype=torch.float32, device=device)
+        if class_weights.shape != (config.actions,):
+            raise ValueError("class_weights must have one value per action")
     init_dig = param_digest(model)
 
     bank = build_bank_pinned(42, TASKS)  # fixed bank seed, same as all Stage 3 runs
@@ -114,17 +184,34 @@ def run_v2_arm(flags, arm_name, seed, device, bdig):
     model.train()
 
     rec = {"arm": arm_name, "seed": seed,
+           "decision_aggregation": config.decision_aggregation,
+           "braincell_dynamics": config.braincell_dynamics,
+           "belief_dynamics": config.belief_dynamics,
+           "status": "completed",
+           "class_weights": class_weights.detach().cpu().tolist()
+           if class_weights is not None else None,
+           "class_weight_normalization": class_weight_normalization,
            "provenance": provenance(model=model, train_seed=seed,
                                     eval_seed=20260822, bank_digest=bdig,
                                     deterministic=True)}
     rec["provenance"]["init_param_digest"] = init_dig
+    rec["initial_probe_loss"] = round(
+        fixed_probe_loss(
+            model, bank, order, device,
+            class_weights=class_weights, all_batches=full_bank_probe,
+        ), 5)
+    rec["probe_scope"] = "full_padded_bank" if full_bank_probe else "first_batch"
 
     loss_curve = []
+    initial_loss = None
+    final_loss = None
+    max_abs_belief = 0.0
+    max_abs_thought = 0.0
     step = 0
     t0 = time.perf_counter()
-    while step < TOTAL_STEPS:
+    while step < total_steps:
         for ln, group in order:
-            if step >= TOTAL_STEPS:
+            if step >= total_steps:
                 break
             eps = [bank[i] for i in group]
             ftb = torch.stack([
@@ -138,18 +225,55 @@ def run_v2_arm(flags, arm_name, seed, device, bdig):
             out_j = None
             for j in range(ln):
                 out_j, state = model(ftb[:, j], state)
-            loss = deployed_decision_loss(out_j, labels)
+                max_abs_belief = max(
+                    max_abs_belief,
+                    float(out_j.belief.detach().abs().max().item()),
+                )
+                max_abs_thought = max(
+                    max_abs_thought,
+                    float(out_j.thoughts.detach().abs().max().item()),
+                )
+            loss = deployed_decision_loss(
+                out_j, labels, class_weights,
+                weight_normalization=class_weight_normalization,
+            )
+            loss_value = float(loss.item())
+            if not np.isfinite(loss_value):
+                raise FloatingPointError(
+                    f"non-finite deployed loss at step {step}")
+            if initial_loss is None:
+                initial_loss = loss_value
             opt.zero_grad()
             loss.backward()
-            nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+            grad_norm = float(nn.utils.clip_grad_norm_(model.parameters(), 1.0).item())
+            if not np.isfinite(grad_norm):
+                raise FloatingPointError(
+                    f"non-finite gradient norm at step {step}")
             opt.step()
+            for parameter_name, parameter in model.named_parameters():
+                if not bool(torch.isfinite(parameter).all().item()):
+                    raise FloatingPointError(
+                        f"non-finite parameter {parameter_name} at step {step}")
             if step % 100 == 0:
-                loss_curve.append({"step": step, "loss": round(float(loss.item()), 5)})
+                loss_curve.append({"step": step, "loss": round(loss_value, 5)})
+            final_loss = loss_value
             step += 1
+    if final_loss is not None and (
+            not loss_curve or loss_curve[-1]["step"] != total_steps - 1):
+        loss_curve.append({"step": total_steps - 1,
+                           "loss": round(final_loss, 5)})
     wall = time.perf_counter() - t0
     res = eval_full_v2(model, device)
     rec["final_eval"] = res
-    rec["final_loss"] = loss_curve[-1]["loss"] if loss_curve else None
+    rec["final_probe_loss"] = round(
+        fixed_probe_loss(
+            model, bank, order, device,
+            class_weights=class_weights, all_batches=full_bank_probe,
+        ), 5)
+    rec["initial_loss"] = round(initial_loss, 5) if initial_loss is not None else None
+    rec["final_loss"] = round(final_loss, 5) if final_loss is not None else None
+    rec["max_abs_belief"] = round(max_abs_belief, 5)
+    rec["max_abs_thought"] = round(max_abs_thought, 5)
     rec["loss_curve"] = loss_curve
     rec["wall_s"] = round(wall, 1)
     return rec
@@ -181,6 +305,8 @@ def main():
     assert bdig == "b3bb5fc33fd5f605", f"bank digest drift: {bdig}"
 
     seeds = args.seeds if args.seeds else SEEDS
+    legacy_config = CoreV2Config(
+        decision_aggregation="legacy_scalar_utility_v0")
     results = {"prereg": "2026-08-24-core-v2-deployed-loss-baseline",
                "reference_R": REFERENCE_R, "bank_digest": bdig,
                "seeds": seeds, "arms": {}}
@@ -190,7 +316,8 @@ def main():
         recs = []
         for s in seeds:
             print(f"[{name}] seed {s} ...", flush=True)
-            recs.append(run_v2_arm(flags, name, s, device, bdig))
+            recs.append(run_v2_arm(
+                flags, name, s, device, bdig, config=legacy_config))
         lifts = [r["final_eval"]["mean_lift"] for r in recs]
         ml, sig = float(np.mean(lifts)), float(np.std(lifts))
         cls, delta = classify(ml, sig)

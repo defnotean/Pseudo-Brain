@@ -32,6 +32,7 @@ from .session_state import SessionStateV2
 from .thought_field import ThoughtFieldV2
 from .consequence_model import ConsequenceModelV2, ConsequenceHypothesis
 from .world_model import WorldModelV2
+from .outcome_model import ActionOutcomeTable
 from .aggregator import MultiplicityProofAggregator, AggregatedDecision
 
 
@@ -46,6 +47,7 @@ class StepOutput:
     hypotheses: ConsequenceHypothesis       # K hypotheses
     decision: AggregatedDecision            # DEPLOYED action distribution
     pending_prediction: Optional[PendingPrediction]
+    outcome_table: Optional[ActionOutcomeTable] = None
 
 
 class CoreV2Model(nn.Module):
@@ -73,6 +75,8 @@ class CoreV2Model(nn.Module):
             # CONFIG_A degenerate path: single shared action head over mean thought
             self.degenerate_action_head = nn.Linear(W, config.actions)
         self.world_model = WorldModelV2(config) if flags.world_model_learning else None
+        if self.world_model is not None:
+            self.world_model.set_target_encoder(self.encoder)
         self.aggregator = MultiplicityProofAggregator(config)
 
         # Meta-learning session adapter (disabled by default)
@@ -94,6 +98,7 @@ class CoreV2Model(nn.Module):
         prev_action: Optional[torch.Tensor] = None,   # [B] long or [B, A] one-hot
         actual_reward: Optional[torch.Tensor] = None, # [B, 1] reality of last action
         actual_hazard: Optional[torch.Tensor] = None, # [B, 1]
+        world_model_action: Optional[torch.Tensor] = None, # [B] factual action for t -> t+1
         intervention_pe: Optional[str] = None,   # "normal"|"zero"|"scrambled"|...
         intervention_mem: Optional[str] = None,  # "normal"|"disable_read"|"clear"|...
         return_components: bool = False,
@@ -153,26 +158,87 @@ class CoreV2Model(nn.Module):
 
         # 6. HYPOTHESIZE
         if self.consequence_model is not None:
-            hypotheses = self.consequence_model(thoughts)
+            proposal_hypotheses = self.consequence_model(thoughts)
         else:
             # Degenerate mode (CONFIG_A): single hypothesis from mean thought
-            hypotheses = self._degenerate_hypothesis(thoughts)
+            proposal_hypotheses = self._degenerate_hypothesis(thoughts)
 
         # 7. AGGREGATE (deployed output)
-        decision = self.aggregator(hypotheses)
+        decision = self.aggregator(proposal_hypotheses)
 
-        # 8. PREDICT (pending, detached so gradients don't chain across ticks)
+        # 8. PREDICT.  The output keeps the live graph for the current tick's
+        #    supervised world-model loss; only the recurrent copy is detached
+        #    so gradients cannot chain across ticks.
         pending = None
+        outcome_table = None
         if self.world_model is not None:
-            predicted_next = self.world_model(hypotheses, new_belief)
-            pending = PendingPrediction(
-                predicted_next_latent=predicted_next.detach(),
-                predicted_reward=hypotheses.predicted_reward.detach(),
-                predicted_hazard=hypotheses.predicted_hazard.detach(),
-                predicted_confidence=hypotheses.confidence.detach(),
-                predicted_branch_logit=hypotheses.branch_logit.detach(),
+            factual_action = (
+                decision.action_values.argmax(dim=-1)
+                if world_model_action is None
+                else world_model_action
             )
-            state.fast.pending_prediction = pending
+            if self.config.outcome_architecture == "all_action_table_v1":
+                # The full table is computed independently of the applied
+                # action. Factual supervision is an exact semantic gather, so
+                # it cannot alter the decision or counterfactual rows.
+                hypotheses = proposal_hypotheses
+                outcome_table = self.world_model.forward_all(new_belief)
+                pending = outcome_table.gather(factual_action)
+            else:
+                # Historical/transitional consequence-head path.
+                hypotheses = (
+                    self.consequence_model(thoughts, action=factual_action)
+                    if self.consequence_model is not None
+                    and self.config.outcome_action_conditioning
+                    == "factual_or_proposal_v1"
+                    else proposal_hypotheses
+                )
+                predicted_next = self.world_model(
+                    hypotheses,
+                    new_belief,
+                    action=factual_action,
+                )
+                pending = PendingPrediction(
+                    predicted_next_latent=predicted_next,
+                    predicted_reward=hypotheses.predicted_reward,
+                    predicted_hazard=hypotheses.predicted_hazard,
+                    predicted_confidence=hypotheses.confidence,
+                    predicted_branch_logit=hypotheses.branch_logit,
+                )
+            state.fast.pending_prediction = PendingPrediction(
+                predicted_next_latent=(
+                    None
+                    if pending.predicted_next_latent is None
+                    else pending.predicted_next_latent.detach()
+                ),
+                predicted_reward=(
+                    None
+                    if pending.predicted_reward is None
+                    else pending.predicted_reward.detach()
+                ),
+                predicted_reward_logits=(
+                    None
+                    if pending.predicted_reward_logits is None
+                    else pending.predicted_reward_logits.detach()
+                ),
+                predicted_hazard=(
+                    None
+                    if pending.predicted_hazard is None
+                    else pending.predicted_hazard.detach()
+                ),
+                predicted_confidence=(
+                    None
+                    if pending.predicted_confidence is None
+                    else pending.predicted_confidence.detach()
+                ),
+                predicted_branch_logit=(
+                    None
+                    if pending.predicted_branch_logit is None
+                    else pending.predicted_branch_logit.detach()
+                ),
+            )
+        else:
+            hypotheses = proposal_hypotheses
 
         output = StepOutput(
             latent=latent,
@@ -183,6 +249,7 @@ class CoreV2Model(nn.Module):
             hypotheses=hypotheses,
             decision=decision,
             pending_prediction=pending,
+            outcome_table=outcome_table,
         )
         return output, state
 

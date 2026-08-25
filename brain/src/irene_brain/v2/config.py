@@ -16,6 +16,91 @@ class CoreV2Config:
     cycles: int = 3
     actions: int = 5
 
+    # Deployed decision aggregation.  The legacy scalar-utility quotient is
+    # retained only so the failed Stage V2.0 result remains reproducible.
+    # New experiments use a direct, permutation-invariant mean of per-slot
+    # action logits so the supervised deployed loss has a non-zero gradient
+    # at initialization.
+    decision_aggregation: Literal[
+        "legacy_scalar_utility_v0",
+        "direct_mean_logits_v1",
+    ] = "direct_mean_logits_v1"
+
+    # The original five independently-added gates can amplify state on every
+    # cycle and is preserved for failed-run reproduction.  New sequential
+    # experiments must select the normalized convex mixture explicitly.
+    braincell_dynamics: Literal[
+        "legacy_additive_v0",
+        "normalized_mixture_v1",
+    ] = "legacy_additive_v0"
+
+    # The historical belief residual is also unbounded across long sequences.
+    # Keep it selectable for reproduction; use the GRU-style convex update in
+    # all newly registered sequential experiments.
+    belief_dynamics: Literal[
+        "legacy_residual_v0",
+        "convex_gated_v1",
+    ] = "legacy_residual_v0"
+
+    # Historical runs emitted an unconstrained hazard scalar. Predictive
+    # training uses an actual probability so feedback and utility share the
+    # same 0..1 semantics.
+    hazard_parameterization: Literal[
+        "legacy_unbounded_v0",
+        "probability_sigmoid_v1",
+    ] = "legacy_unbounded_v0"
+
+    # Historical next-latent supervision used raw MSE, which makes arbitrary
+    # encoder magnitude part of the target. Predictive experiments may instead
+    # compare direction in the latent space and normalize feedback deltas.
+    latent_comparison: Literal[
+        "raw_mse_v0",
+        "cosine_distance_v1",
+    ] = "raw_mse_v0"
+
+    # Reward outputs stay in environment units. The symlog option compresses
+    # scale only while computing loss and feedback.
+    reward_comparison: Literal[
+        "raw_mse_v0",
+        "symlog_mse_v1",
+    ] = "raw_mse_v0"
+
+    # Historical reward/hazard heads only saw the thought state. The factual
+    # option conditions outcome heads on the applied action for supervision,
+    # while proposal actions are used for pre-decision counterfactuals.
+    outcome_action_conditioning: Literal[
+        "thought_only_v0",
+        "factual_or_proposal_v1",
+    ] = "thought_only_v0"
+
+    # The v1 outcome architecture evaluates every discrete action in one
+    # vectorized table, then gathers the physically applied action. It keeps
+    # proposal policy and factual supervision semantically separate.
+    outcome_architecture: Literal[
+        "legacy_hypothesis_world_v0",
+        "all_action_table_v1",
+    ] = "legacy_hypothesis_world_v0"
+    # A dedicated hazard path prevents reward/next-state multi-task gradients
+    # from monopolizing the imminent-collision representation. Its input is
+    # stop-gradient because the frozen-belief probe already established that
+    # the recurrent state contains the required signal.
+    hazard_outcome_path: Literal[
+        "shared_outcome_v0",
+        "dedicated_stopgrad_v1",
+    ] = "shared_outcome_v0"
+    reward_prediction: Literal[
+        "scalar_v0",
+        "symlog_twohot_v1",
+    ] = "scalar_v0"
+    reward_bins: int = 65
+    reward_symlog_min: float = -4.0
+    reward_symlog_max: float = 4.0
+
+    prediction_error_fusion: Literal[
+        "latent_only_v0",
+        "latent_outcome_surprise_v1",
+    ] = "latent_only_v0"
+
     # Sensor encoder
     encoder_channels: int = 32
     encoder_kernel: int = 3
@@ -89,6 +174,117 @@ class CoreV2Config:
             raise ValueError(
                 "Core V2 research config locked: W=120, K=32, C=3. "
                 "Do not scale until learning system is proven."
+            )
+        if self.decision_aggregation not in {
+            "legacy_scalar_utility_v0",
+            "direct_mean_logits_v1",
+        }:
+            raise ValueError(
+                "decision_aggregation must be legacy_scalar_utility_v0 or "
+                "direct_mean_logits_v1"
+            )
+        if self.braincell_dynamics not in {
+            "legacy_additive_v0",
+            "normalized_mixture_v1",
+        }:
+            raise ValueError(
+                "braincell_dynamics must be legacy_additive_v0 or "
+                "normalized_mixture_v1"
+            )
+        if self.belief_dynamics not in {
+            "legacy_residual_v0",
+            "convex_gated_v1",
+        }:
+            raise ValueError(
+                "belief_dynamics must be legacy_residual_v0 or "
+                "convex_gated_v1"
+            )
+        if self.hazard_parameterization not in {
+            "legacy_unbounded_v0",
+            "probability_sigmoid_v1",
+        }:
+            raise ValueError(
+                "hazard_parameterization must be legacy_unbounded_v0 or "
+                "probability_sigmoid_v1"
+            )
+        if self.latent_comparison not in {
+            "raw_mse_v0",
+            "cosine_distance_v1",
+        }:
+            raise ValueError(
+                "latent_comparison must be raw_mse_v0 or cosine_distance_v1"
+            )
+        if self.reward_comparison not in {
+            "raw_mse_v0",
+            "symlog_mse_v1",
+        }:
+            raise ValueError(
+                "reward_comparison must be raw_mse_v0 or symlog_mse_v1"
+            )
+        if self.outcome_action_conditioning not in {
+            "thought_only_v0",
+            "factual_or_proposal_v1",
+        }:
+            raise ValueError(
+                "outcome_action_conditioning must be thought_only_v0 or "
+                "factual_or_proposal_v1"
+            )
+        if self.outcome_architecture not in {
+            "legacy_hypothesis_world_v0",
+            "all_action_table_v1",
+        }:
+            raise ValueError(
+                "outcome_architecture must be legacy_hypothesis_world_v0 or "
+                "all_action_table_v1"
+            )
+        if self.hazard_outcome_path not in {
+            "shared_outcome_v0",
+            "dedicated_stopgrad_v1",
+        }:
+            raise ValueError(
+                "hazard_outcome_path must be shared_outcome_v0 or "
+                "dedicated_stopgrad_v1"
+            )
+        if (
+            self.hazard_outcome_path == "dedicated_stopgrad_v1"
+            and self.outcome_architecture != "all_action_table_v1"
+        ):
+            raise ValueError(
+                "dedicated_stopgrad_v1 requires all_action_table_v1"
+            )
+        if (
+            self.outcome_architecture == "all_action_table_v1"
+            and self.hazard_parameterization != "probability_sigmoid_v1"
+        ):
+            raise ValueError(
+                "all_action_table_v1 requires probability_sigmoid_v1 hazards"
+            )
+        if self.reward_prediction not in {"scalar_v0", "symlog_twohot_v1"}:
+            raise ValueError(
+                "reward_prediction must be scalar_v0 or symlog_twohot_v1"
+            )
+        if isinstance(self.reward_bins, bool) or not isinstance(self.reward_bins, int):
+            raise ValueError("reward_bins must be an integer")
+        if self.reward_bins < 2:
+            raise ValueError("reward_bins must be at least 2")
+        if not self.reward_symlog_min < self.reward_symlog_max:
+            raise ValueError(
+                "reward_symlog_min must be smaller than reward_symlog_max"
+            )
+        if (
+            self.outcome_architecture == "all_action_table_v1"
+            and self.outcome_action_conditioning != "thought_only_v0"
+        ):
+            raise ValueError(
+                "all_action_table_v1 replaces consequence-head action conditioning"
+            )
+        if self.prediction_error_fusion not in {
+            "latent_only_v0",
+            "latent_outcome_surprise_v1",
+        }:
+            raise ValueError(
+                "prediction_error_fusion must be latent_only_v0 or "
+                "latent_outcome_surprise_v1"
             )
 
 

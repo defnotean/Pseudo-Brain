@@ -12,6 +12,9 @@ from .curriculum_dataset import (
     curriculum_dataset_manifest_sha256,
 )
 from .maze_chase_dataset import (
+    MazeChaseCounterfactualSequence,
+    MazeChaseCounterfactualTarget,
+    MazeChaseCounterfactualTransition,
     MazeChaseDatasetConfig,
     MazeChaseSequence,
     MazeChaseSequenceDataset,
@@ -58,6 +61,9 @@ __all__ = [
     "DatasetSplit",
     "LifetimeRecord",
     "MazeChaseDatasetConfig",
+    "MazeChaseCounterfactualSequence",
+    "MazeChaseCounterfactualTarget",
+    "MazeChaseCounterfactualTransition",
     "MazeChaseSequence",
     "MazeChaseSequenceDataset",
     "MazeChaseTransition",
