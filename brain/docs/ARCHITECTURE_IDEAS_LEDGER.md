@@ -14,6 +14,18 @@ Status legend:
 - `[HYPOTHESIS]` — a candidate mechanism, not yet shown.
 - `[ASPIRATIONAL]` — a long-horizon goal, no causal evidence yet.
 
+**Program status (2026-08-25):** the hazard **post-processing** family —
+per-action calibration with or without prior-action conditioning, affine or
+monotone-nonlinear (PAV) or block-capped PAV — is **closed** as a route to
+the frozen factual gate. Every member is a sealed frozen negative
+(PB21M Arm A / PB21N #1 / PB21O #1) or probe-refuted (L8 block-cap sweep +
+information-ceiling diagnostic). The diagnosed binding constraint is
+**factual-hazard ranking / signal density**, not calibrator function class
+(L8). The only remaining unexplored mechanism in this branch is
+representation-level (change what the hazard path *sees*); each candidate
+needs its own fresh namespace + prereg + control arm and is not licensed by
+any closed trial. See L8.
+
 ---
 
 ## L1 — Prior-action conditioning of the hazard representation
@@ -185,6 +197,61 @@ Status: `[MEASURED negative]` for **both** function classes (affine: PB21N
   (bias_abs Δ −0.0108/−0.0146) while G1 failed — the factual-vs-
   all-action two-constraint collision persists across both function
   classes.
+
+## L8 — Hazard information-ceiling diagnosis + block-cap PAV refutation
+Status: `[MEASURED]` (read-only diagnostics on sealed PB21O evidence) ·
+**closes the calibration function-class family; no PB21P trial warranted.**
+
+- **Why:** PB21N (affine) and PB21O (full isotonic/PAV) both failed G1, and
+  in-sample PAV looked dramatically better than cross-fit PAV. Before
+  authoring a representation-level trial, two read-only, publish-free
+  probes on the *sealed* PB21O OOF logits decided whether the binding
+  failure was calibration-level (fixable by a better/more-constrained
+  function class) or ranking-level (no remap can fix it).
+- **Probe 1 — information ceiling** (`brain/scratch/probe_hazard_info_\
+ceiling.py`):
+  - Factual aggregate AUC: **0.631 (frozen base) → 0.708 (prior-
+    conditioned OOF)**. Per-action 0.649–0.746 (base) → 0.679–0.746
+    (prior). AUC is invariant to *any* monotone remap — 0.71 is the ceiling
+    every calibrator can ever reach on this logit. `[MEASURED]`
+  - In-sample per-action PAV factual ECE: **agg 0.0039 (fold0) / 0.0082
+    (fold1)**, vs the trial's cross-fit PAV 0.0842 / 0.0625. The 0.05 gap
+    is cross-fit variance at sparse positive rates (factual positive rates
+    per applied action: 0.067–0.375; n_factual 413–747), not a
+    function-class impossibility. `[MEASURED]`
+  - Representation sufficiency: the hazard logit beats a frozen linear
+    belief readout in 7/10 factual (fold, action) cells (worst cell 0.667
+    vs 0.725); the representation is not under-fit relative to the beliefs.
+    `[MEASURED]`
+- **Probe 2 — block-cap PAV sweep** (`brain/scratch/probe_pb21p_blockcap_\
+pav.py`): froze a deterministic block-count cap K on PAV (greedy SSE-merge
+pooling) and cross-fit K ∈ {2,4,6,8,16, full} on the sealed OOF logits:
+  - Factual ECE (fold0/fold1): affine 0.0834/0.0644 · K=2 0.0936/0.0873 ·
+    K=4 0.0836/0.0663 · K=6 0.0800/0.0668 · **K=8 0.0798/0.0625 (best)** ·
+    K=16 0.0837/0.0621 · full PAV 0.0842/0.0625. **No member clears the
+    0.05 G1 limit on either fold.** `[MEASURED]`
+- **Conclusion [INFERRED, on top of the measured anchors]:** the entire
+  monotone-calibration spectrum (affine → block-capped K=2..16 → full PAV)
+  saturates at ~0.06–0.08 factual ECE on this hazard logit. The
+  "intermediate block-cap" hypothesis that would have justified a PB21P
+  calibration trial is **refuted at probe level** — no trial warranted, and
+  none will be run. Combined with the ceiling: the factual failure is
+  **ranking/signal-density-limited** (AUC 0.71, sparse positives), not
+  calibrator-limited. This completes the L1/L4/L7 closure of the
+  hazard post-processing family.
+- **Consequence:** the next mechanism must be representation-level
+  (change what the hazard path *sees*), and — because ranking is the
+  binding constraint — any such trial should carry a **ranking gate**
+  (e.g., factual AUC improvement over the 0.708 prior-conditioned
+  ceiling), not only a calibration gate. Each candidate is a new
+  namespace + prereg + control arm; **not licensed** by any closed trial.
+- **Provenance:** both probes are read-only (no partition, no publish, no
+  frozen-state change); inputs are the sealed PB21O evidence
+  `2026-08-25-pb21o-isotonic-hazard-calibration-v1.evidence.npz` under
+  `brain/runs/pb21o-isotonic-hazard-cal/` (artifact hashes in
+  `brain/docs/runs/2026-08-25-pb21o-isotonic-hazard-calibration-trial1.md`).
+  Both probes were re-run 2026-08-26 and reproduce the numbers above
+  exactly (deterministic).
 
 ---
 

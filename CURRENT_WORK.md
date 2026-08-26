@@ -1,7 +1,17 @@
 # CURRENT_WORK — ACTIVE FRONTIER
 
-**Last updated:** 2026-08-25 (PB21O trial #1 sealed: isotonic/PAV hazard calibrator FROZEN NEGATIVE — G1/G2/G5 FAIL, G3/G4/G6 PASS; both calibrator function classes (affine PB21N, isotonic PB21O) now refuted on the prior-action conditioned path; factual miscalibration is representation-limited. Hazard post-processing family closed; next unexplored mechanism is representation-level, unlicensed.)
-**Base HEAD:** `1b0152a` plus the uncommitted V2.0b working tree · **Tag:** `core-v1` @ `890e4d0`
+**Last updated:** 2026-08-26 (hazard post-processing family closed: L8
+read-only diagnostics on sealed PB21O evidence refuted the last
+calibration hypothesis — block-cap PAV sweep K=2..16/full all fail G1
+(best K=8 factual ECE 0.0798/0.0625 vs 0.05 limit); information-ceiling
+probe shows factual AUC ceiling 0.708 (prior-conditioned) vs 0.631
+(frozen base) and in-sample PAV ECE 0.0039/0.0082 vs cross-fit
+0.0842/0.0625 — the failure is ranking/signal-density-limited, not
+calibrator-limited. No PB21P trial warranted; next mechanism, if any,
+representation-level with a ranking gate, unlicensed. Stale PB21M runner
+crash notification triaged: sealed artifacts re-verified byte-exact, no
+re-execution.)
+**Base HEAD:** `a530cce` · **Tag:** `core-v1` @ `890e4d0`
 
 ## ACTIVE FRONTIER — V2.1i all-action causal outcomes
 
@@ -352,6 +362,53 @@ torch.backends.cuda.matmul.allow_tf32 = False; torch.backends.cudnn.allow_tf32 =
       nomination rule, create-only publish, parent-integrity/OOF
       reconstruction) passes 22/22. All V2.1 workstreams remain
       preregistered; the audit is post-hoc and non-qualifying.
+      **L8 hazard diagnostics (2026-08-26, READ-ONLY on sealed PB21O
+      evidence — no partition, no publish, no frozen-state change):**
+      two probes closed the last open calibration hypothesis and diagnosed
+      the binding constraint. (a) Information-ceiling probe: factual
+      aggregate AUC **0.631 (frozen base) → 0.708 (prior-conditioned
+      OOF)**; per-action 0.649–0.746 → 0.679–0.746; in-sample PAV factual
+      ECE **0.0039 (fold0) / 0.0082 (fold1)** vs the trial's cross-fit
+      PAV 0.0842/0.0625; the hazard logit beats a frozen linear belief
+      readout in 7/10 factual cells. Factual positive rates per applied
+      action are sparse (0.067–0.375; n 413–747). (b) Block-cap PAV sweep:
+      cross-fitting a frozen block-count cap K ∈ {2,4,6,8,16, full} on the
+      sealed OOF logits gives factual ECE (fold0/fold1) affine
+      0.0834/0.0644, K=2 0.0936/0.0873, K=4 0.0836/0.0663, K=6
+      0.0800/0.0668, **K=8 0.0798/0.0625 (best)**, K=16 0.0837/0.0621,
+      full PAV 0.0842/0.0625 — **no member clears the 0.05 G1 limit on
+      either fold**. Conclusion [INFERRED on measured anchors]: the entire
+      monotone-calibration spectrum saturates at ~0.06–0.08 factual ECE;
+      the factual failure is **ranking/signal-density-limited** (AUC 0.71),
+      not calibrator-limited; a PB21P block-cap calibration trial is
+      **refuted at probe level and will not be run**. The hazard
+      post-processing family (L1/L4/L7 + L8) is now closed. Ledger entry:
+      `brain/docs/ARCHITECTURE_IDEAS_LEDGER.md` **L8**; probes:
+      `brain/scratch/probe_hazard_info_ceiling.py`,
+      `brain/scratch/probe_pb21p_blockcap_pav.py` (both re-run 2026-08-26,
+      deterministic, reproduce these numbers exactly). Next mechanism, if
+      any, is representation-level (new hazard-path inputs) and — because
+      ranking is the binding constraint — should carry a **ranking gate**
+      (factual AUC over the 0.708 ceiling), not only a calibration gate;
+      it needs its own fresh namespace + prereg + control arm and is
+      **not licensed** by any closed trial.
+      **Stale PB21M runner crash (2026-08-26, triaged — NO re-execution):**
+      a background notification reported a crash of
+      `brain/scripts/v21m_posthoc_mechanism_audit_v1.py` inside Arm A's
+      MIX35 fit (`ValueError: targets must be binary and weights
+      positive`, line 286/498/530/995). Attributed to a **stale pre-commit
+      working-tree process**: the committed runner (`561f5ae`, the sealed
+      one) raises "weights **non-negative**" at the same guard and is
+      1077 lines (crash line numbers and message text do not match it;
+      "weights positive" appears in no git revision). The crash was in
+      `arm_a`, *before* any publish, and the create-only `_publish` guard
+      (`result already published`) would have blocked any overwrite. All
+      five sealed PB21M artifacts re-hashed 2026-08-26 and match the run
+      report byte-exact (result `0d0be6f7…`, attempt `ec2dcf6f…`, evidence
+      `e5fd6c67…`, registration `f9c2d13e…`, artifact-completion
+      `3f2fbc2e…`; sizes 143,408 / 368 / 8,848,530 / 2,075 / 629). The
+      audit remains sealed and non-retryable; nothing was modified or
+      regenerated.
    d. **Intake-mechanism program** (only path that ever moved memory causality:
       ideal-evidence probe in Phase 2) — folded into V2 roadmap.
    e. Optimizer stability workstream deferred — σ(24k)=0.102 at FIXED but no
