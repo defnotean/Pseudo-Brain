@@ -1,17 +1,7 @@
 # CURRENT_WORK — ACTIVE FRONTIER
 
-**Last updated:** 2026-08-26 (hazard post-processing family closed: L8
-read-only diagnostics on sealed PB21O evidence refuted the last
-calibration hypothesis — block-cap PAV sweep K=2..16/full all fail G1
-(best K=8 factual ECE 0.0798/0.0625 vs 0.05 limit); information-ceiling
-probe shows factual AUC ceiling 0.708 (prior-conditioned) vs 0.631
-(frozen base) and in-sample PAV ECE 0.0039/0.0082 vs cross-fit
-0.0842/0.0625 — the failure is ranking/signal-density-limited, not
-calibrator-limited. No PB21P trial warranted; next mechanism, if any,
-representation-level with a ranking gate, unlicensed. Stale PB21M runner
-crash notification triaged: sealed artifacts re-verified byte-exact, no
-re-execution.)
-**Base HEAD:** `a530cce` · **Tag:** `core-v1` @ `890e4d0`
+**Last updated:** 2026-08-26 (hazard branch fully characterized at a clean boundary: L8 diagnostics close the calibration function-class family — block-cap PAV sweep K=2..16/full all fail G1, factual AUC ceiling 0.708 (prior-conditioned) vs 0.631 (frozen base), in-sample PAV ECE 0.0039/0.0082 vs cross-fit 0.0842/0.0625; L9 probe closes the prior-action window-length axis at K=1 — 2-step window factual AUC 0.6973 < 1-step 0.7060, no PB21Q trial. Binding constraint: factual-hazard ranking/signal density (AUC ~0.70). No PB21P/PB21Q trial warranted. Remaining unexplored mechanism: representation-level directions orthogonal to window length, unlicensed. Stale PB21M runner crash notification triaged: sealed artifacts re-verified byte-exact, no re-execution.)
+**Base HEAD:** `5be6bb0` · **Tag:** `core-v1` @ `890e4d0`
 
 ## ACTIVE FRONTIER — V2.1i all-action causal outcomes
 
@@ -392,6 +382,27 @@ torch.backends.cuda.matmul.allow_tf32 = False; torch.backends.cudnn.allow_tf32 =
       (factual AUC over the 0.708 ceiling), not only a calibration gate;
       it needs its own fresh namespace + prereg + control arm and is
       **not licensed** by any closed trial.
+      **L9 2-step prior-action window probe (2026-08-26, READ-ONLY, no
+      publish):** the single-change representation-level extension of the
+      measured 1-step prior-action mechanism (PB21N) was tested as a
+      signal probe on the PB21O-CAL partition (deterministic replay of the
+      frozen parent; three zero-extended hazard arms retrained per OOF
+      fold: base 2H / 1-step 3H / 2-step 4H; 33 s wall). Factual aggregate
+      AUC: base **0.6706**, 1-step **0.7060**, 2-step **0.6973** — the
+      2-step window **fails to clear the 1-step ceiling** and is worse on
+      actions 1 (0.664 vs 0.711) and 2 (0.638 vs 0.674); its in-sample PAV
+      ECE ceiling also degrades on the binding actions (fold0 a0 0.0550 vs
+      0.0416; fold1 a0 0.0593 vs 0.0562). Conclusion [INFERRED on
+      measured anchors]: a longer window adds trunk capacity / fit
+      variance, **not** ranking signal; the prior-action **window-length
+      axis is closed at K=1**; **no PB21Q trial is warranted** (refuted at
+      probe level, same discipline as PB21P). Ledger: L9; probe:
+      `brain/scratch/probe_pb21q_2step_window_signal.py`. The remaining
+      unexplored representation-level directions are orthogonal to window
+      length (different context trunk, outcome-history features, richer
+      candidate-action encoding, different upstream representation); none
+      is motivated by this probe and each would need its own fresh
+      namespace + prereg + control arm.
       **Stale PB21M runner crash (2026-08-26, triaged — NO re-execution):**
       a background notification reported a crash of
       `brain/scripts/v21m_posthoc_mechanism_audit_v1.py` inside Arm A's

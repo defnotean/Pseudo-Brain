@@ -14,17 +14,21 @@ Status legend:
 - `[HYPOTHESIS]` — a candidate mechanism, not yet shown.
 - `[ASPIRATIONAL]` — a long-horizon goal, no causal evidence yet.
 
-**Program status (2026-08-25):** the hazard **post-processing** family —
+**Program status (2026-08-26):** the hazard **post-processing** family —
 per-action calibration with or without prior-action conditioning, affine or
 monotone-nonlinear (PAV) or block-capped PAV — is **closed** as a route to
-the frozen factual gate. Every member is a sealed frozen negative
-(PB21M Arm A / PB21N #1 / PB21O #1) or probe-refuted (L8 block-cap sweep +
-information-ceiling diagnostic). The diagnosed binding constraint is
-**factual-hazard ranking / signal density**, not calibrator function class
-(L8). The only remaining unexplored mechanism in this branch is
-representation-level (change what the hazard path *sees*); each candidate
-needs its own fresh namespace + prereg + control arm and is not licensed by
-any closed trial. See L8.
+the frozen factual gate (L1/L4/L7 sealed frozen negatives; L8 probe-refutes
+the last calibration hypothesis). The prior-action **window-length** axis
+is also **closed at K=1** (L9 probe: a 2-step window's factual AUC 0.6973
+sits *below* the 1-step ceiling 0.7060 and degrades the in-sample PAV
+ceiling — refuted at probe level, no PB21Q trial). The diagnosed binding
+constraint is **factual-hazard ranking / signal density** (AUC ~0.70), not
+calibrator function class or window length. The remaining unexplored
+mechanisms in this branch are representation-level directions *orthogonal
+to window length* (different context trunk, outcome-history features, a
+richer candidate-action encoding, a different upstream representation);
+each needs its own fresh namespace + prereg + control arm and is not
+licensed by any closed trial. See L8/L9.
 
 ---
 
@@ -252,6 +256,63 @@ pooling) and cross-fit K ∈ {2,4,6,8,16, full} on the sealed OOF logits:
   `brain/docs/runs/2026-08-25-pb21o-isotonic-hazard-calibration-trial1.md`).
   Both probes were re-run 2026-08-26 and reproduce the numbers above
   exactly (deterministic).
+
+## L9 — 2-step prior-action window (representation-level, single change)
+Status: `[MEASURED negative]` at probe level (read-only signal probe) ·
+**no PB21Q trial warranted.**
+
+- **What:** extend the measured 1-step prior-action mechanism (PB21N, L1)
+  to a 2-step window — condition the hazard representation on the action
+  applied one tick earlier *and* two ticks earlier. The single-change,
+  CPU-feasible, ranking-testable representation-level extension of the only
+  confirmed hazard mechanism (PB21N G5 specific; PB21O G6 retrain control
+  passed). The natural first candidate for the "representation-level"
+  direction L8 left open.
+- **Probe (read-only, no publish, no frozen-state change):**
+  `brain/scratch/probe_pb21q_2step_window_signal.py`. On the PB21O-CAL
+  partition (seed_offset 167,774,720; 256 ep × 12 roots = 3072; 2 folds of
+  1536; burn-in 4), retrained three zero-extended hazard arms per OOF fold
+  (deterministic, CPU, single-thread, CUDA hidden; 33 s wall) — base (2H),
+  1-step (3H, one prior channel), 2-step (4H, two prior channels) — and
+  reported factual aggregate + per-action AUC and the in-sample PAV ECE
+  ceiling per arm.
+- **Measured (factual aggregate AUC; the L8 binding constraint):**
+  - base (2H) **0.6706** · per-action 0.634–0.704
+  - **1-step (3H) 0.7060** · per-action 0.674–0.750
+  - **2-step (4H) 0.6973** · per-action 0.638–0.746
+  - The 2-step arm **fails to clear the 1-step ceiling** (0.6973 < 0.7060)
+    and is *worse* on actions 1 (0.664 vs 0.711) and 2 (0.638 vs 0.674).
+  - In-sample PAV factual ECE ceiling (per fold / per action):
+    base fold0 0.0437/0.0149/0.0312/0.0219/0.0223, fold1
+    0.0404/0.0173/0.0325/0.0359/0.0243; 1-step fold0
+    0.0416/0.0127/0.0189/0.0269/0.0215, fold1
+    0.0562/0.0194/0.0341/0.0147/0.0177; **2-step fold0
+    0.0550/0.0146/0.0112/0.0269/0.0263, fold1
+    0.0593/0.0271/0.0470/0.0284/0.0371** — the 2-step ceiling is *worse*
+    on the binding actions (fold0 a0 0.0550 vs 1-step 0.0416; fold1 a0
+    0.0593 vs 0.0562). `[MEASURED]`
+- **Conclusion [INFERRED, on the measured anchors]:** extending the
+  prior-action window from 1 to 2 steps adds trunk capacity / fit variance,
+  **not** ranking signal — the 2-step logit's factual AUC (0.6973) sits
+  *below* the 1-step ceiling (0.7060) that L8 showed no calibrator can
+  exceed. Within the prior-action family, **1 step is the best window**; a
+  longer window does not lift the binding ranking constraint. **No PB21Q
+  trial is warranted** (same discipline that saved the PB21P block-cap
+  trial — the hypothesis is refuted at probe level). `[MEASURED]`
+- **Consequence:** the prior-action *window-length* axis is closed at
+  K=1. The remaining unexplored representation-level directions are
+  orthogonal to window length (different context trunk, outcome-history
+  features, a richer candidate-action encoding, or a different upstream
+  representation altogether) — each a new namespace + prereg + control
+  arm, **not licensed** by any closed trial, and none is motivated by this
+  probe. The hazard branch is at a clean, well-characterized boundary:
+  post-processing closed (L1/L4/L7/L8), window-length closed (L9); the
+  binding constraint is factual-hazard ranking/signal density (AUC ~0.70).
+- **Provenance:** read-only (no partition, no publish, no frozen-state
+  change); deterministic replay of the frozen V2.1i parent (state digest
+  `2619b5b0…`) over the PB21O-CAL partition. Re-run 2026-08-26; 33 s wall.
+  The 1-step arm (0.7060) is a harness self-validation consistent with
+  L8's 0.708 prior-conditioned ceiling on the identical partition.
 
 ---
 
