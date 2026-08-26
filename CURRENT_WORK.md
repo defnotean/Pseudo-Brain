@@ -1,6 +1,6 @@
 # CURRENT_WORK — ACTIVE FRONTIER
 
-**Last updated:** 2026-08-25 (PB21M post-hoc mechanism audit sealed: Arm B prior-action PASSES, Arm A MIX35 FAILS on A3; Arm B single change nominated for fresh PB21N)
+**Last updated:** 2026-08-25 (PB21N trial #1 sealed: prior-action hazard mechanism FROZEN NEGATIVE — G5/G6/G2/G4 PASS, G1/G3 FAIL; mechanism confirmed specific but not calibrating; namespace closed. Next-gate leads L7/L4/L3.)
 **Base HEAD:** `106c193` plus the uncommitted V2.0b working tree · **Tag:** `core-v1` @ `890e4d0`
 
 ## ACTIVE FRONTIER — V2.1i all-action causal outcomes
@@ -269,6 +269,33 @@ torch.backends.cuda.matmul.allow_tf32 = False; torch.backends.cudnn.allow_tf32 =
       factual miscalibration is organized by prior applied action (18/18
       cells structured; specificity 0.3253 vs 0.3021 p95, thin but frozen-
       rule-passing). Nomination: prior-action conditioning for a fresh PB21N.
+      **PB21N trial #1 (2026-08-25, SEALED — FROZEN NEGATIVE):** the fresh-
+      namespace single-change trial ran fully local (CPU-only, single-thread,
+      CUDA hidden, 34.8 s wall; 256 train episodes @ offset 167,774,464,
+      contiguous after PB21M C2B, zero overlap; upstream V2.1i parent frozen
+      byte-exact, G4). The prior-action hazard path (3H trunk + prior-action
+      embedding, retrained 8×64 steps/fold) is **confirmed specific but not
+      calibrating**: G5 PASS (observed stratum-bias range 0.5206 vs permuted
+      p95 0.4247 — mechanism specific, stronger than the audit's thin
+      margin), G6 PASS (beats the pure-retrain control, fold-0 LCB +0.00045 /
+      fold-1 +0.0245), G2 PASS (factual BCE/Brier improvement vs frozen base,
+      both folds LCB>0), G4 PASS — but **G1 FAIL** (fold-1 factual bias/ECE
+      0.0823 vs 0.05 limit) and **G3 FAIL** (all-action bias/ECE drift
+      0.011–0.015 vs 0.01 no-degradation margin, both folds). The mechanism
+      is a genuine hazard-representation effect that does not, as a *single*
+      change, clear the frozen calibration gates — same two-constraint
+      collision as MIX35 Arm A. Namespace closed (single-shot); DEV sealed;
+      no retry. Run report:
+      `brain/docs/runs/2026-08-25-pb21n-prior-action-hazard-conditioning-
+      trial1.md`. Integrity note: the published `determinism: false` flag is
+      a documented harness false-negative (whole-array byte check read
+      uninitialized OOF complement half); eval-row OOF logits re-derived
+      byte-exact post-hoc and all gates read eval rows only. Runner fixed
+      post-trial (zero-init OOF slots) + regression test.
+      **Next-gate leads (architecture ideas ledger L7/L4/L3):** L7 combined
+      prior-action hazard path + refit calibrator [HYPOTHESIS, needs fresh
+      namespace + prereg + control arm]; L4 isotonic/non-linear per-action
+      calibrator; L3 pre-prune calibration.
       **Test-suite status (2026-08-25, local):** full module suite is green
       except two pre-existing environmental failures in
       `test_dgx_launch_contract.py` (POSIX `/tmp`/`realpath` bash contracts
