@@ -1,7 +1,7 @@
 # CURRENT_WORK — ACTIVE FRONTIER
 
-**Last updated:** 2026-08-25 (PB21N trial #1 sealed: prior-action hazard mechanism FROZEN NEGATIVE — G5/G6/G2/G4 PASS, G1/G3 FAIL; mechanism confirmed specific but not calibrating; namespace closed. Next-gate leads L7/L4/L3.)
-**Base HEAD:** `106c193` plus the uncommitted V2.0b working tree · **Tag:** `core-v1` @ `890e4d0`
+**Last updated:** 2026-08-25 (PB21O trial #1 sealed: isotonic/PAV hazard calibrator FROZEN NEGATIVE — G1/G2/G5 FAIL, G3/G4/G6 PASS; both calibrator function classes (affine PB21N, isotonic PB21O) now refuted on the prior-action conditioned path; factual miscalibration is representation-limited. Hazard post-processing family closed; next unexplored mechanism is representation-level, unlicensed.)
+**Base HEAD:** `1b0152a` plus the uncommitted V2.0b working tree · **Tag:** `core-v1` @ `890e4d0`
 
 ## ACTIVE FRONTIER — V2.1i all-action causal outcomes
 
@@ -39,12 +39,23 @@ permuted p95 0.3021 (permuted max 0.3284 — thin margin, recorded honestly).
 **Nomination (frozen rule): Arm B single change** — "condition the hazard
 representation on the prior applied action (one-step lag, burn-in-aware)" —
 licensed for exactly one fresh PB21N preregistration in a fresh namespace;
-no run is authorized by the nomination; the two changes may never be combined.
-Mechanism-signal only [HYPOTHESIS-LEVEL OUTPUT]. Run report:
+the two changes may never be combined. Mechanism-signal only
+[HYPOTHESIS-LEVEL OUTPUT]. Run report:
 `brain/docs/runs/2026-08-25-pb21m-posthoc-mechanism-audit.md`. Artifacts under
 `brain/runs/pb21m-posthoc-audit/` (result `0d0be6f7…`, evidence
 `e5fd6c67…`, registration `f9c2d13e…`; completion provenance in
 `…v1.artifact-completion.json`).
+
+**Nomination executed and closed (2026-08-25):** PB21N trial #1 (fresh
+namespace) → FROZEN NEGATIVE (G5/G6/G2/G4 pass; G1/G3 fail — mechanism
+specific but not calibrating). Its licensed follow-up, PB21O (isotonic/PAV
+calibrator on the same conditioned path, fresh namespace) → FROZEN
+NEGATIVE (G5 function-class isolation fails: isotonic strictly worse than
+affine; G1/G2 fail; G3/G4/G6 pass). The hazard post-processing family
+(affine ± prior-action conditioning, isotonic/PAV) is therefore closed as
+a route to the frozen factual gate; see
+`brain/docs/ARCHITECTURE_IDEAS_LEDGER.md` L1/L4/L7 and
+`brain/docs/runs/2026-08-25-pb21o-isotonic-hazard-calibration-trial1.md`.
 
 The current mechanism combines the evidence-backed parts of prior hypotheses:
 
@@ -108,13 +119,21 @@ entire `irene_brain` package plus exact pipeline scripts. Artifacts and
 checkpoints are create-only, and failed qualification writes negative evidence
 before exiting nonzero. No TEST split was opened by V2.1f/g/h/i work.
 
-**Next gate: PB21M post-hoc consumed mechanism audit.** Separately test one
-fixed MIX35 cross-fit calibrator on sealed raw CAL logits (no sweep or scorer
-training) and prior-action residual strata from reconstructed consumed CAL
-tapes (no training). Both arms are permanently post-hoc/nonqualifying and may
-never open DEV, CPU-QUAL, PLAY-QUAL, or TEST. At most one single change may be
-nominated for a later fresh PB21N preregistration; the two changes may not be
-combined. DGX and full-model training remain blocked.
+**Audit executed and closed (2026-08-25).** The PB21M post-hoc consumed
+mechanism audit ran: Arm A (MIX35 cross-fit calibrator on sealed raw CAL
+logits, no sweep or scorer training) FAILED gate A3 (all-action |bias|
+degraded ≈0.020 vs the 0.01 tolerance; A1/A2 passed); Arm B (prior-action
+residual strata from reconstructed consumed CAL tapes, no training)
+PASSED B1+B2+B3. Both arms are permanently post-hoc/nonqualifying and never
+opened DEV, CPU-QUAL, PLAY-QUAL, or TEST. The frozen nomination rule sent the
+Arm B single change to a fresh PB21N preregistration (executed, FROZEN
+NEGATIVE) and, as its licensed follow-up, PB21O isotonic/PAV calibration
+(executed, FROZEN NEGATIVE). The hazard post-processing family is closed as a
+route to the frozen factual gate. DGX and full-model training remain blocked.
+The next unexplored mechanism is representation-level (new hazard-path
+inputs) and is **not licensed** by any closed trial; it would need its own
+fresh namespace + preregistration + control arm before any run.
+
 
 The downstream real-time embodied qualification target is documented in
 `brain/docs/preregistrations/2026-08-25-realtime-embodied-qualification-v3.md`.
@@ -292,12 +311,37 @@ torch.backends.cuda.matmul.allow_tf32 = False; torch.backends.cudnn.allow_tf32 =
       uninitialized OOF complement half); eval-row OOF logits re-derived
       byte-exact post-hoc and all gates read eval rows only. Runner fixed
       post-trial (zero-init OOF slots) + regression test.
-      **Next-gate leads (architecture ideas ledger L7/L4/L3):** L7 combined
-      prior-action hazard path + refit calibrator [HYPOTHESIS, needs fresh
-      namespace + prereg + control arm]; L4 isotonic/non-linear per-action
-      calibrator; L3 pre-prune calibration.
+      **PB21O trial #1 (2026-08-25, SEALED — FROZEN NEGATIVE):** the
+      licensed follow-up — isotonic (PAV) per-action hazard calibrator on
+      the prior-action conditioned path, affine calibrator as control arm
+      (fresh PB21O-CAL partition, seed offset 167,774,720, verified
+      disjoint; PAV hand-rolled, sklearn cross-checked at 1e-16) — **FAILED**
+      G1 factual absolute (fold0 bias/ECE 0.0842/0.0842; fold1 ECE 0.0625),
+      G2 paired vs base, and G5 function-class isolation (isotonic strictly
+      *worse* than affine on the identical path, factual BCE Δ −0.121/−0.109,
+      LCB < 0); G3 all-action control, G4 parent preservation, and G6
+      determinism passed. Report:
+      `brain/docs/runs/2026-08-25-pb21o-isotonic-hazard-calibration-trial1.md`.
+      **Cumulative conclusion [INFERRED]:** the factual-domain
+      miscalibration of the V2.1i frozen hazard scorer is
+      **representation-limited** — every post-processing remap of the
+      current hazard-path logit (affine with/without prior-action
+      conditioning, isotonic/PAV) fails the frozen factual gate while
+      sometimes improving the all-action aggregate; the two-constraint
+      collision persists across the whole family. The hazard post-
+      processing lane is closed; the remaining unexplored mechanism is
+      representation-level (new hazard-path inputs: 2-step prior window,
+      outcome-history features, different context trunk) — each a new
+      mechanism needing its own fresh namespace + prereg + control arm,
+      **not licensed** by any closed trial.
+      **Next-gate leads (architecture ideas ledger):** L4 isotonic →
+      `[MEASURED negative]` (PB21O); L7 combined lead fully refuted (both
+      function classes); L3 pre-prune calibration, L1 representation-level
+      extensions, L5/L6 roadmap leads remain open.
       **Test-suite status (2026-08-25, local):** full module suite is green
-      except two pre-existing environmental failures in
+      (103/104 modules incl. new `test_v21n_prior_action_hazard_conditioning_v1.py`
+      19/19 and `test_v21o_isotonic_hazard_calibration_v1.py` 11/11) except
+      the two pre-existing environmental failures in
       `test_dgx_launch_contract.py` (POSIX `/tmp`/`realpath` bash contracts
       that only resolve on the Linux DGX host; Windows git-bash target).
       `test_v21_artifact_verifier.py` shipped in `5ead7b5` without a

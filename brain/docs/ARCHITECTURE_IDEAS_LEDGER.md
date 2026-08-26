@@ -103,16 +103,35 @@ Status: `[HYPOTHESIS]` · not tested.
   comparison.
 
 ## L4 — Isotonic / non-linear per-action calibrator
-Status: `[HYPOTHESIS]` · not tested.
+Status: `[MEASURED negative]` (PB21O trial #1, frozen negative; namespace
+closed) · was the licensed single-change trial after PB21N #1.
 
 - **What:** replace the per-action *affine* (two-parameter) hazard
-  calibrator with a monotone (isotonic or spline) per-action calibrator,
+  calibrator with a monotone (isotonic/PAV) per-action calibrator,
   to fit a non-linear factual-vs-counterfactual probability shape.
-- **Basis:** the per-action bias structure measured in PB21M/PB21L is not a
-  single shift+scale; an affine map may be the wrong function class.
-  `[INFERRED]`
-- **Cost:** moderate. **Risk:** more parameters ⇒ overfit risk on a 6144-
-  row CAL split; needs stronger holdout and the all-action control gate.
+- **Result (PB21O trial #1, 2026-08-25, sealed):** **G5 function-class
+  isolation FAILED** — isotonic PAV is strictly *worse* than the affine
+  control on the identical conditioned path (factual BCE Δ −0.121 fold 0,
+  −0.109 fold 1, 97.5% LCB < 0 both). G1 factual absolute FAILED
+  (bias 0.0842 / ECE 0.0842 fold 0; bias 0.0474 / ECE 0.0625 fold 1).
+  G2 paired vs base FAILED. G3 all-action control PASSED (bias_abs Δ
+  −0.0108/−0.0146, ECE Δ −0.0103/−0.0066, worst factual AUC drop
+  0.034/0.0). G4 parent + G6 determinism PASSED. `[MEASURED]`
+- **Why (mechanistic read):** a non-linear monotone remap of the *same*
+  logit carries no new information beyond the affine fit; at 1,536 fit
+  rows per fold with sparse positive rates it adds fit variance, not
+  signal. The factual miscalibration is **representation-limited, not
+  calibrator-limited**. `[INFERRED]`
+- **Cost:** one extra PAV fit per action per fold on top of the L1 trial;
+  CPU-feasible (32 s wall end-to-end).
+- **Prereg:** `brain/docs/preregistrations/
+  2026-08-25-pb21o-isotonic-hazard-calibration-v1.md`.
+- **Report:** `brain/docs/runs/
+  2026-08-25-pb21o-isotonic-hazard-calibration-trial1.md`.
+- **Next:** none in this family — both function classes (affine PB21N,
+  isotonic PB21O) refuted on the same conditioned path. Remaining
+  unexplored direction is representation-level (new hazard-path inputs),
+  a separate fresh namespace if ever authorized.
 
 ## L5 — Multi-tick prediction error + live episodic memory (V2.2)
 Status: `[ASPIRATIONAL]` · roadmap, not a mechanism yet.
@@ -129,30 +148,43 @@ Status: `[ASPIRATIONAL]` · roadmap.
 - **Status:** roadmap milestone; no causal evidence yet.
 
 ## L7 — Combined prior-action hazard path + refit calibrator (lead from PB21N #1)
-Status: `[HYPOTHESIS]` · untested · **not licensed** — requires a fresh
-namespace + its own prereg + a control arm; it deliberately *combines* the
-L1 and L2 mechanisms, which the PB21M frozen nomination rule forbids inside
-one trial, hence the fresh-prereg requirement.
+Status: `[MEASURED negative]` for **both** function classes (affine: PB21N
+#1; isotonic: PB21O #1) · lead fully refuted, closed.
 
-- **What:** take the L1 prior-action hazard representation (G5/G6-verified
-  specific) and, on top of it, refit the per-action affine (or L4 non-linear)
-  calibrator against the *conditioned* hazard path's OOF logits on a fresh
-  CAL partition.
-- **Basis [INFERRED]:** PB21N trial #1 shows L1 alone fixes the factual
-  mean (G2) and is specific (G5/G6) yet leaves fold-1 factual bias/ECE at
-  0.082 (G1 fail) and drifts all-action control ~0.011–0.015 (G3 fail) —
-  the same two-constraint collision that MIX35 Arm A measured on the
-  *unconditioned* path (L2). Hypothesis: conditioning changes the residual
-  miscalibration shape enough that a refit calibrator now lands inside both
-  gates where neither mechanism alone could.
-- **Cost:** one extra cross-fit + AA fit on top of the L1 trial; CPU-feasible.
-- **Risk:** the combined candidate must re-clear BOTH a factual-absolute
-  gate AND an all-action no-degradation gate on fresh data with a control
-  arm; if either fails, the mechanism stays "specific but not calibrating"
-  and L4/L3 become the next single-mechanism leads.
+- **What (as originally framed):** take the L1 prior-action hazard
+  representation and refit the per-action calibrator against its OOF
+  logits. **Core correction (2026-08-25, post PB21N #1):** the *affine*
+  version of this combination is NOT a new experiment — PB21N trial #1's
+  `H_prior_cal` arm WAS exactly "prior-action path + refit per-action
+  affine (AA) calibrator" on a fresh partition, and it **failed G1 (fold-1
+  factual bias/ECE 0.0823) and G3 (all-action drift 0.011–0.015)** while
+  passing G5/G6. `[MEASURED]`
+- **Resolution of the remaining hypothesis (2026-08-25, PB21O #1):** the
+  follow-up that a *non-linear* (isotonic/PAV) calibrator is the correct
+  function class was tested in the fresh PB21O namespace and **FAILED** —
+  G5 function-class isolation showed the isotonic map strictly *worse*
+  than the affine control on the identical conditioned path (factual BCE
+  Δ −0.121/−0.109, LCB < 0). `[MEASURED]`
+- **Basis [INFERRED]:** both function classes refuted ⇒ the factual
+  miscalibration of the V2.1i frozen scorer on this hazard path is
+  **representation-limited**: no post-processing remap of the current
+  hazard-path logit (linear or monotone-nonlinear, with or without
+  prior-action conditioning) reaches the frozen factual gate. The
+  two-constraint collision (factual vs all-action) measured by PB21M Arm
+  A / PB21N G1+G3 / PB21O G1+G2 persists.
+- **Next:** the remaining unexplored direction is representation-level
+  (change what the hazard path *sees*: 2-step prior window, outcome-
+  history features, different context trunk), each a new mechanism with
+  its own fresh namespace + prereg + control arm. Not licensed by any
+  closed trial. Report:
+  `brain/docs/runs/2026-08-25-pb21o-isotonic-hazard-calibration-trial1.md`.
 - **Measured anchors to carry forward:** PB21N #1 G5 observed range 0.5206
   (strong), G6 fold-1 point +0.0336 BCE, G1 fold-1 bias 0.0823, G3 worst
-  ECEΔ +0.0149.
+  ECEΔ +0.0149; PB21O #1 G5 factual-BCE Δ −0.121/−0.109 (isotonic worse
+  than affine), G1 fold-0 bias/ECE 0.0842/0.0842, G3 all-action improved
+  (bias_abs Δ −0.0108/−0.0146) while G1 failed — the factual-vs-
+  all-action two-constraint collision persists across both function
+  classes.
 
 ---
 
