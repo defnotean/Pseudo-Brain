@@ -14,21 +14,27 @@ Status legend:
 - `[HYPOTHESIS]` — a candidate mechanism, not yet shown.
 - `[ASPIRATIONAL]` — a long-horizon goal, no causal evidence yet.
 
-**Program status (2026-08-26):** the hazard **post-processing** family —
-per-action calibration with or without prior-action conditioning, affine or
+**Program status (2026-08-26):** the hazard branch is fully characterized
+at a clean boundary. The **post-processing** family — per-action
+calibration with or without prior-action conditioning, affine or
 monotone-nonlinear (PAV) or block-capped PAV — is **closed** as a route to
-the frozen factual gate (L1/L4/L7 sealed frozen negatives; L8 probe-refutes
-the last calibration hypothesis). The prior-action **window-length** axis
-is also **closed at K=1** (L9 probe: a 2-step window's factual AUC 0.6973
-sits *below* the 1-step ceiling 0.7060 and degrades the in-sample PAV
-ceiling — refuted at probe level, no PB21Q trial). The diagnosed binding
-constraint is **factual-hazard ranking / signal density** (AUC ~0.70), not
-calibrator function class or window length. The remaining unexplored
-mechanisms in this branch are representation-level directions *orthogonal
-to window length* (different context trunk, outcome-history features, a
-richer candidate-action encoding, a different upstream representation);
-each needs its own fresh namespace + prereg + control arm and is not
-licensed by any closed trial. See L8/L9.
+the frozen factual gate (L1/L4/L7 sealed frozen negatives; L8 probe-
+refutes the last calibration hypothesis). Two representation-level
+directions are **probe-refuted** at probe level: the prior-action
+**window-length** axis is **closed at K=1** (L9: a 2-step window's factual
+AUC 0.6973 sits *below* the 1-step ceiling 0.7060, no PB21Q trial) and the
+**crude outcome-history** feature is **closed** (L10: despite the
+hazard target's measured multi-tick autocorrelation — P(h_t|h_{t-k}=1)
+lift 1.4–1.8× for k=1–4 — a recent-hazard-count channel drops factual AUC
+from 0.6706 to 0.6583; no PB21R trial). The diagnosed binding constraint
+is **factual-hazard ranking / signal density** (AUC ~0.70), not calibrator
+function class, window length, or a coarse history feature. The remaining
+unexplored directions are finer-grained representations (per-action
+recency-weighted history, belief-residual history, a dedicated recurrent
+hazard-history state, a richer candidate-action encoding, a different
+context trunk or upstream representation); none is motivated by the
+existing probes and each needs its own fresh namespace + prereg + control
+arm — not licensed by any closed trial. See L8/L9/L10.
 
 ---
 
@@ -313,6 +319,66 @@ Status: `[MEASURED negative]` at probe level (read-only signal probe) ·
   `2619b5b0…`) over the PB21O-CAL partition. Re-run 2026-08-26; 33 s wall.
   The 1-step arm (0.7060) is a harness self-validation consistent with
   L8's 0.708 prior-conditioned ceiling on the identical partition.
+
+## L10 — Outcome-history hazard features (representation-level, single change)
+Status: `[MEASURED negative]` at probe level (read-only signal probes) ·
+**no PB21R trial warranted.**
+
+- **What:** condition the hazard representation on recent applied-trajectory
+  hazard events (outcome-history features) — a representation-level
+  direction *orthogonal* to the L9-refuted prior-action window-length
+  axis. Motivated by a first finding [MEASURED]: the factual hazard
+  target is **not exchangeable over ticks** (L10 motivation below).
+- **Motivation [MEASURED]** (`brain/scratch/probe_outcome_history_\
+signal.py`, read-only on the sealed PB21O evidence): factual marginal
+  hazard rate 0.1315; P(h_t=1 | h_{t-k}=1) = 0.193/0.182/0.213/0.231 for
+  k=1/2/3/4 (lift 1.46/1.38/1.62/1.76×), any-hazard-in-last-K lift
+  1.36–1.53× for K=1–4 — persistent, multi-tick hazard autocorrelation.
+  This is real target structure, unlike the L9 window-length axis which had
+  no supporting signal.
+- **Probe (read-only, no publish, no frozen-state change):**
+  `brain/scratch/probe_pb21r_outcome_history_signal.py`. Same partition
+  (PB21O-CAL), two zero-extended arms retrained per OOF fold
+  (deterministic, CPU, single-thread, CUDA hidden; 31 s wall; init-identity
+  max|Δ|=0.0): base (2H) vs hist (2H + 1-dim raw scalar channel =
+  recent-hazard count in last K=4 applied-ticks / 4, mean 0.0898, 28.5% of
+  rows nonzero). The outcome-history mechanism is tested **alone** against
+  the base control (single-change discipline; NOT stacked on the 1-step
+  action channel).
+- **Measured (factual aggregate AUC; the L8 binding constraint):**
+  - base (2H) **0.6706** (exactly reproduces L9's base arm — harness
+    self-validation passes).
+  - **hist (2H+1) 0.6583** — *below* base; per-action 0.623–0.702 vs base
+    0.634–0.704 (worse on a1 0.692/0.634-adjacent, a2 0.623 vs 0.634).
+  - In-sample PAV factual ECE ceiling: hist fold0
+    0.0188/0.0175/0.0328/0.0121/0.0248 vs base
+    0.0437/0.0149/0.0312/0.0219/0.0223; fold1 0.0740/0.0097/0.0397/0.0338/
+    0.0214 vs base 0.0404/0.0173/0.0325/0.0359/0.0243 — mixed and on
+    balance no better (fold1 a0 0.0740 is the worst single cell measured in
+    this whole program). `[MEASURED]`
+- **Conclusion [INFERRED, on the measured anchors]:** although the hazard
+  target has genuine multi-tick autocorrelation, a *coarse recent-hazard
+  count* adds trunk fit variance, **not** ranking signal — the hist arm's
+  factual AUC (0.6583) sits *below* the base (0.6706) and far below the
+  1-step action ceiling (0.7060). Consistent with L8's sufficiency finding:
+  the frozen belief context already encodes recent state/outcome
+  information; a scalar history feature carries no *new* ranking
+  information the hazard path can exploit at this budget. **No PB21R trial
+  is warranted** — refuted at probe level. `[MEASURED]`
+- **Consequence:** the *crude-count* outcome-history feature is closed.
+  The target's measured autocorrelation is preserved as a genuine
+  [MEASURED] fact; a finer-grained history mechanism (per-action
+  recency-weighted history, belief-residual history, or a dedicated
+  recurrent hazard-history state) remains untested but is **not** motivated
+  by this probe and would need its own fresh namespace + prereg + control
+  arm. As of 2026-08-26 the hazard branch is fully characterized at a clean
+  boundary: post-processing closed (L1/L4/L7/L8), window-length closed at
+  K=1 (L9), crude outcome-history closed (L10); the binding constraint is
+  factual-hazard ranking/signal density (AUC ~0.70).
+- **Provenance:** read-only (no partition, no publish, no frozen-state
+  change); deterministic replay of the frozen V2.1i parent (state digest
+  `2619b5b0…`) over the PB21O-CAL partition. Re-run 2026-08-26; 31 s wall.
+  Base arm 0.6706 == L9 base arm (identical parent/partition/schedule).
 
 ---
 

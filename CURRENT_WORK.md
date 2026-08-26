@@ -1,7 +1,7 @@
 # CURRENT_WORK — ACTIVE FRONTIER
 
-**Last updated:** 2026-08-26 (hazard branch fully characterized at a clean boundary: L8 diagnostics close the calibration function-class family — block-cap PAV sweep K=2..16/full all fail G1, factual AUC ceiling 0.708 (prior-conditioned) vs 0.631 (frozen base), in-sample PAV ECE 0.0039/0.0082 vs cross-fit 0.0842/0.0625; L9 probe closes the prior-action window-length axis at K=1 — 2-step window factual AUC 0.6973 < 1-step 0.7060, no PB21Q trial. Binding constraint: factual-hazard ranking/signal density (AUC ~0.70). No PB21P/PB21Q trial warranted. Remaining unexplored mechanism: representation-level directions orthogonal to window length, unlicensed. Stale PB21M runner crash notification triaged: sealed artifacts re-verified byte-exact, no re-execution.)
-**Base HEAD:** `5be6bb0` · **Tag:** `core-v1` @ `890e4d0`
+**Last updated:** 2026-08-26 (hazard branch fully characterized at a clean boundary: L8 diagnostics close the calibration function-class family; L9 probe closes the prior-action window-length axis at K=1 (2-step factual AUC 0.6973 < 1-step 0.7060, no PB21Q trial); L10 probe closes the crude outcome-history feature — the hazard target has measured multi-tick autocorrelation (P(h_t|h_{t-k}=1) lift 1.4–1.8×, k=1–4) but a recent-hazard-count channel drops factual AUC 0.6706 → 0.6583, no PB21R trial. Binding constraint: factual-hazard ranking/signal density, AUC ~0.70. Remaining unexplored: finer-grained representations, unlicensed. Stale PB21M runner crash triaged: sealed artifacts re-verified byte-exact, no re-execution.)
+**Base HEAD:** `62c2820` · **Tag:** `core-v1` @ `890e4d0`
 
 ## ACTIVE FRONTIER — V2.1i all-action causal outcomes
 
@@ -399,10 +399,43 @@ torch.backends.cuda.matmul.allow_tf32 = False; torch.backends.cudnn.allow_tf32 =
       probe level, same discipline as PB21P). Ledger: L9; probe:
       `brain/scratch/probe_pb21q_2step_window_signal.py`. The remaining
       unexplored representation-level directions are orthogonal to window
-      length (different context trunk, outcome-history features, richer
-      candidate-action encoding, different upstream representation); none
-      is motivated by this probe and each would need its own fresh
+      length (different context trunk, outcome-history features,
+      richer candidate-action encoding, different upstream representation);
+      none is motivated by this probe and each would need its own fresh
       namespace + prereg + control arm.
+      **L10 outcome-history hazard features (2026-08-26, READ-ONLY, no
+      publish):** a representation-level direction orthogonal to the L9
+      window-length axis. Motivated by a first measured [MEASURED]: the
+      factual hazard target is **not exchangeable over ticks** — on the
+      sealed PB21O evidence (`brain/scratch/probe_outcome_history_signal.\
+py`), P(h_t=1 | h_{t-k}=1) = 0.193/0.182/0.213/0.231 for k=1/2/3/4
+      (lift 1.46/1.38/1.62/1.76× vs 0.1315 marginal), any-hazard-in-last-K
+      lift 1.36–1.53× (K=1–4): persistent multi-tick hazard
+      autocorrelation. The signal probe
+      (`brain/scratch/probe_pb21r_outcome_history_signal.py`; deterministic
+      replay of the frozen parent on PB21O-CAL; two zero-extended arms
+      retrained per OOF fold — base 2H vs hist 2H+1-dim raw scalar =
+      recent-hazard count in last K=4 applied-ticks / 4, mean 0.0898, 28.5%
+      nonzero; init-identity max|Δ|=0.0; 31 s wall) tested the
+      outcome-history mechanism **alone** against base. Factual aggregate
+      AUC: base **0.6706** (exactly reproduces L9's base — harness
+      self-validation passes), hist **0.6583** (*below* base; per-action
+      0.623–0.702 vs 0.634–0.704). In-sample PAV ECE ceiling: hist
+      fold0 0.0188/0.0175/0.0328/0.0121/0.0248 vs base
+      0.0437/0.0149/0.0312/0.0219/0.0223, fold1 0.0740/0.0097/0.0397/0.0338/
+      0.0214 vs base 0.0404/0.0173/0.0325/0.0359/0.0243 (fold1 a0 0.0740
+      is the worst single cell in this program). Conclusion [INFERRED on
+      measured anchors]: although the target has genuine autocorrelation, a
+      *coarse recent-hazard count* adds trunk fit variance, **not**
+      ranking signal — the hist arm sits below base and far below the
+      1-step action ceiling (0.7060); consistent with L8's sufficiency
+      finding (the belief context already encodes recent state/outcome
+      information). **No PB21R trial is warranted** (refuted at probe
+      level). The target's autocorrelation is preserved as a genuine
+      [MEASURED] fact; finer-grained history mechanisms (per-action
+      recency-weighted, belief-residual, a dedicated recurrent
+      hazard-history state) remain untested but are not motivated by this
+      probe. Ledger: L10.
       **Stale PB21M runner crash (2026-08-26, triaged — NO re-execution):**
       a background notification reported a crash of
       `brain/scripts/v21m_posthoc_mechanism_audit_v1.py` inside Arm A's
