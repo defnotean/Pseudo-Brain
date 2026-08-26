@@ -1,0 +1,20 @@
+C:\Users\Demon\OneDrive\Desktop\Projects\Pseudo-Brain\brain\scripts\v21n_prior_action_hazard_conditioning_v1.py:689: RuntimeWarning: overflow encountered in exp
+  return 1.0 / (1.0 + np.exp(-x))
+{
+ "status": "completed",
+ "passed": false,
+ "determinism": {
+  "prior_oof_logits_rederived_byte_equal": false,
+  "retrain_oof_logits_rederived_byte_equal": false,
+  "crossfit_rederivation_byte_equal": false
+ },
+ "gates": {
+  "G1_factual_absolute": false,
+  "G2_paired_vs_base": true,
+  "G3_all_action_controls": false,
+  "G5_shuffle_specificity": true,
+  "G6_mechanism_isolation": true,
+  "G4_parent_preservation": true
+ },
+ "wall_seconds": 34.80779695510864
+}

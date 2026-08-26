@@ -1,0 +1,10 @@
+retrain      whole-array equal=False
+    fold0 eval rows bit-equal=True
+    fold1 eval rows bit-equal=True
+prior        whole-array equal=False
+    fold0 eval rows bit-equal=True
+    fold1 eval rows bit-equal=True
+
+=== conclusion ===
+re-derivation reproducible (eval rows) for retrain: True
+re-derivation reproducible (eval rows) for prior: True

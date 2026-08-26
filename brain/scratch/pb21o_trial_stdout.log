@@ -1,0 +1,17 @@
+{
+ "status": "completed",
+ "passed": false,
+ "determinism": {
+  "prior_conditioning_rederived_byte_equal": true,
+  "iso_oof_prob_rederived_byte_equal": true,
+  "g6_passed": true
+ },
+ "gates": {
+  "G1_factual_absolute": false,
+  "G2_paired_vs_base": false,
+  "G3_all_action_controls": true,
+  "G5_function_class_isolation": false,
+  "G4_parent_preservation": true
+ },
+ "wall_seconds": 32.397642612457275
+}
