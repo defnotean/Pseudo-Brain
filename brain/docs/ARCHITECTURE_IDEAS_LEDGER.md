@@ -14,27 +14,33 @@ Status legend:
 - `[HYPOTHESIS]` — a candidate mechanism, not yet shown.
 - `[ASPIRATIONAL]` — a long-horizon goal, no causal evidence yet.
 
-**Program status (2026-08-26):** the hazard branch is fully characterized
-at a clean boundary. The **post-processing** family — per-action
-calibration with or without prior-action conditioning, affine or
-monotone-nonlinear (PAV) or block-capped PAV — is **closed** as a route to
-the frozen factual gate (L1/L4/L7 sealed frozen negatives; L8 probe-
-refutes the last calibration hypothesis). Two representation-level
-directions are **probe-refuted** at probe level: the prior-action
-**window-length** axis is **closed at K=1** (L9: a 2-step window's factual
-AUC 0.6973 sits *below* the 1-step ceiling 0.7060, no PB21Q trial) and the
-**crude outcome-history** feature is **closed** (L10: despite the
-hazard target's measured multi-tick autocorrelation — P(h_t|h_{t-k}=1)
-lift 1.4–1.8× for k=1–4 — a recent-hazard-count channel drops factual AUC
-from 0.6706 to 0.6583; no PB21R trial). The diagnosed binding constraint
-is **factual-hazard ranking / signal density** (AUC ~0.70), not calibrator
-function class, window length, or a coarse history feature. The remaining
-unexplored directions are finer-grained representations (per-action
-recency-weighted history, belief-residual history, a dedicated recurrent
-hazard-history state, a richer candidate-action encoding, a different
-context trunk or upstream representation); none is motivated by the
-existing probes and each needs its own fresh namespace + prereg + control
-arm — not licensed by any closed trial. See L8/L9/L10.
+**Program status (2026-08-26, after L11):** the hazard branch is fully
+characterized at a clean boundary. The **post-processing** family —
+per-action calibration with or without prior-action conditioning,
+affine or monotone (PAV) or block-capped — is **closed** [MEASURED
+negatives, L1/L4/L7/L8]. Three representation-level directions are
+likewise closed: the prior-action **window-length** axis is **closed at
+K=1** (L9: a 2-step window's factual AUC 0.6973 sits *below* the 1-step
+ceiling 0.7060; no PB21Q trial), the **crude outcome-history** scalar is
+**closed** (L10: despite the hazard target's measured multi-tick
+autocorrelation — P(h_t|h_{t-k}=1) lift 1.4–1.8× for k=1–4 — a
+recent-hazard-count channel drops factual AUC from 0.6706 to 0.6583; no
+PB21R trial), and the **recurrent applied-trajectory hazard-history
+state** is **closed at fresh-partition level** (L11: a GRU(128) over the
+applied (action, hazard) sequence gave +0.0307 AUC on the discovery
+partition PB21O-CAL but **−0.0188 on the fresh disjoint partition
+PB21S-CAL** — the gain does not generalize; a drafted PB21S prereg is
+superseded/refuted before execution). No tested representation-level
+mechanism improves factual-hazard ranking (AUC ceiling ~0.70) on fresh
+data. The diagnosed binding constraint is **factual-hazard
+ranking / signal density**, not calibrator function class, window
+length, coarse history, or recurrent history. The remaining open
+directions are (a) a different upstream representation (context trunk,
+richer action encoding) — a much larger single-change not motivated by
+any measured signal — or (b) moving to another model component or the
+integrated qualification battery (realtime-embodied-qualification v3,
+Q0–Q6). Per the standing instruction, the next step is the
+qualification battery for the *integrated* model. See L8/L9/L10/L11.
 
 ---
 
@@ -379,6 +385,76 @@ signal.py`, read-only on the sealed PB21O evidence): factual marginal
   change); deterministic replay of the frozen V2.1i parent (state digest
   `2619b5b0…`) over the PB21O-CAL partition. Re-run 2026-08-26; 31 s wall.
   Base arm 0.6706 == L9 base arm (identical parent/partition/schedule).
+
+## L11 — Recurrent applied-trajectory hazard-history state (representation-level, single change)
+Status: `[MEASURED negative]` at fresh-partition level (read-only signal probes) ·
+**no PB21S trial warranted.**
+
+- **What:** condition the hazard representation on a **recurrent**
+  applied-trajectory hazard-history state — a 1-layer GRU (hidden 128,
+  reset to zero at tick 0) over the applied
+  (action-embedding(32) + hazard-event(1)) sequence; the **causal** state
+  through tick t−1 (never including tick t's own event — the label) is
+  concatenated into the hazard outcome trunk input
+  (`cat([state 120, action 120, hist 128]) = 368 → 256 → head`).
+  Motivated by L10's [MEASURED] multi-tick hazard autocorrelation;
+  non-redundant with L9 (window length, refuted) and L10 (feedforward
+  scalar, refuted): the GRU carries the *sequence/persistence*, not a
+  single snapshot.
+- **Discovery partition (PB21O-CAL, seed_offset 167,774,720) [MEASURED]:**
+  - base(2H) retrained factual aggregate AUC = **0.6499**
+  - rec(2H+128) factual aggregate AUC = **0.6806** → **+0.0307** (seed 0;
+    multi-seed mean +0.023, all 4 seeds positive, SE ≈ 0.009)
+  - **Specificity permutation** (1000 episode-permutations of the
+    applied (action, hazard) sequence, OOF-trained modules, no
+    retraining): shuffled-rec AUC = **0.6472 ≈ base**, empirical
+    **p = 0.0000** — the discovery gain is *specifically* from the
+    applied-trajectory sequence, not trunk width.
+- **Fresh partition (PB21S-CAL, seed_offset 167,774,976 — contiguous
+  after PB21O-CAL, disjoint from all occupied ranges) [MEASURED]:**
+  - base(2H) retrained factual aggregate AUC = **0.6711**
+  - rec(2H+128) factual aggregate AUC = **0.6523** → **−0.0188**
+    (the rec arm is *worse* than base on unseen data)
+  - Specificity permutation on the fresh partition: p = 0.104
+    (not significant).
+- **Conclusion [INFERRED, on the measured anchors]:** the discovery-
+  partition +0.0307 AUC gain **does not generalize** to a fresh disjoint
+  partition; on PB21S-CAL the rec arm loses 0.019 AUC vs the retrained
+  base. The discovery gain is partition-specific noise (the applied-
+  trajectory sequence happens to carry signal in some episode sets and
+  not in others — consistent with the sparse factual hazard rates of
+  6.7–37.5% per action, where per-partition signal is unstable). The
+  fresh-partition check is the correct gate for a publish-once trial
+  (a mechanism that does not generalize to unseen data is a frozen
+  negative for the generalization claim), and it fails. **No PB21S trial
+  is warranted** — refuted at fresh-partition level, same discipline as
+  PB21P (block-cap) and L9/L10. `[MEASURED]`
+- **Determinism lesson (carried into all future runners):** the builtin
+  `hash(str)` is process-salted (PYTHONHASHSEED) and MUST NOT seed any
+  parameter init — it made the rec arm's GRU init non-deterministic
+  across processes (base arm identical, rec arm drifted 0.6846 → 0.6479
+  between two runs of the same partition). Fixed with
+  `zlib.crc32(name)`-stable seeds. `[MEASURED]`
+- **Provenance:** read-only (no partition constructed, no publish, no
+  frozen-state change); deterministic replay of the frozen V2.1i parent
+  (state digest `2619b5b0…`) over two disjoint partitions
+  (PB21O-CAL 167,774,720 discovery; PB21S-CAL 167,774,976 fresh).
+  Probes: `brain/scratch/probe_pb21s_recurrent_history_signal.py`,
+  `probe_pb21s_stability_check.py`,
+  `probe_pb21s_specificity_perm.py`. Re-run 2026-08-26; 33+65+33+65 s
+  wall. A preregistration was drafted
+  (`brain/docs/preregistrations/2026-08-26-pb21s-recurrent-hazard-history-
+  v1.md`) and **superseded** by the fresh-partition refutation before
+  execution — it is retained for provenance only (status: REFUTED-
+  BEFORE-EXECUTION, no trial was published).
+- **Consequence:** the recurrent-history direction is closed. As of
+  2026-08-26 the hazard branch is fully characterized at a clean
+  boundary: post-processing closed (L1/L4/L7/L8), window-length closed
+  at K=1 (L9), crude outcome-history closed (L10), recurrent
+  hazard-history closed at fresh-partition level (L11); the binding
+  constraint is factual-hazard ranking/signal density (AUC ~0.70),
+  which no tested representation-level mechanism has been shown to
+  improve on fresh data.
 
 ---
 

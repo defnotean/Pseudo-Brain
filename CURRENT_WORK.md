@@ -1,6 +1,6 @@
 # CURRENT_WORK — ACTIVE FRONTIER
 
-**Last updated:** 2026-08-26 (hazard branch fully characterized at a clean boundary: L8 diagnostics close the calibration function-class family; L9 probe closes the prior-action window-length axis at K=1 (2-step factual AUC 0.6973 < 1-step 0.7060, no PB21Q trial); L10 probe closes the crude outcome-history feature — the hazard target has measured multi-tick autocorrelation (P(h_t|h_{t-k}=1) lift 1.4–1.8×, k=1–4) but a recent-hazard-count channel drops factual AUC 0.6706 → 0.6583, no PB21R trial. Binding constraint: factual-hazard ranking/signal density, AUC ~0.70. Remaining unexplored: finer-grained representations, unlicensed. Stale PB21M runner crash triaged: sealed artifacts re-verified byte-exact, no re-execution.)
+**Last updated:** 2026-08-26 (hazard branch fully characterized at a clean boundary: L8 diagnostics close the calibration function-class family; L9 probe closes the prior-action window-length axis at K=1 (2-step factual AUC 0.6973 < 1-step 0.7060, no PB21Q trial); L10 probe closes the crude outcome-history feature (recent-hazard-count drops factual AUC 0.6706 → 0.6583, no PB21R trial); L11 probe closes the recurrent applied-trajectory hazard-history state at fresh-partition level (discovery +0.0307 AUC on PB21O-CAL does NOT generalize — −0.0188 on fresh PB21S-CAL, p=0.104; drafted PB21S prereg refuted before execution, no trial published). Binding constraint: factual-hazard ranking/signal density, AUC ~0.70 — no tested representation-level mechanism improves it on fresh data. Next step: realtime-embodied-qualification v3 battery for the integrated model. Stale PB21M runner crash triaged: sealed artifacts re-verified byte-exact, no re-execution.)
 **Base HEAD:** `62c2820` · **Tag:** `core-v1` @ `890e4d0`
 
 ## ACTIVE FRONTIER — V2.1i all-action causal outcomes
@@ -436,6 +436,42 @@ py`), P(h_t=1 | h_{t-k}=1) = 0.193/0.182/0.213/0.231 for k=1/2/3/4
       recency-weighted, belief-residual, a dedicated recurrent
       hazard-history state) remain untested but are not motivated by this
       probe. Ledger: L10.
+      **L11 recurrent applied-trajectory hazard-history state (2026-08-26,
+      READ-ONLY, no publish — REFUTED AT FRESH-PARTITION LEVEL):** a
+      representation-level direction motivated by L10's [MEASURED]
+      multi-tick hazard autocorrelation, and *non-redundant* with L9
+      (window length) and L10 (feedforward scalar): a 1-layer GRU
+      (hidden 128, reset to zero at tick 0) over the applied
+      (action-emb 32 + hazard-event 1) sequence, whose **causal** state
+      through tick t−1 (never including tick t's own event — the label)
+      is concatenated into the hazard outcome trunk input
+      (`cat([state 120, action 120, hist 128]) = 368 → 256 → head`).
+      Probes: `brain/scratch/probe_pb21s_recurrent_history_signal.py`
+      (two zero-extended arms retrained per OOF fold, base 2H vs rec
+      2H+128, init-identity max|Δ|=4.77e-07), `probe_pb21s_stability_
+      check.py` (multi-seed), `probe_pb21s_specificity_perm.py` (1000
+      episode-permutations of the applied (action, hazard) sequence,
+      OOF-trained modules, no retraining). **Discovery partition
+      (PB21O-CAL 167,774,720):** base 0.6499, rec 0.6806 (**+0.0307**;
+      multi-seed mean +0.023, all 4 seeds positive); specificity perm
+      p = 0.0000 (shuffled-rec 0.6472 ≈ base → gain specifically from
+      the sequence, not trunk width). **Fresh disjoint partition
+      (PB21S-CAL 167,774,976, contiguous after PB21O-CAL):** base
+      0.6711, rec 0.6523 (**−0.0188** — the rec arm is *worse* than
+      base on unseen data); specificity perm p = 0.104. Conclusion
+      [INFERRED on measured anchors]: the discovery gain **does not
+      generalize** — it is partition-specific noise consistent with the
+      sparse factual hazard rates (6.7–37.5% per action). A
+      publish-once trial must not be tuned against its own test
+      partition, so the fresh-partition check is the correct pre-trial
+      gate, and it fails. **No PB21S trial is warranted**; the drafted
+      prereg (`2026-08-26-pb21s-recurrent-hazard-history-v1.md`) is
+      marked REFUTED-BEFORE-EXECUTION. **Determinism lesson:** the
+      builtin `hash(str)` is process-salted (PYTHONHASHSEED) and MUST
+      NOT seed parameter init — it made the rec arm's GRU init
+      non-deterministic across processes (base arm identical, rec arm
+      drifted 0.6846 → 0.6479 between two runs of the same partition);
+      fixed with `zlib.crc32(name)`-stable seeds. Ledger: L11.
       **Stale PB21M runner crash (2026-08-26, triaged — NO re-execution):**
       a background notification reported a crash of
       `brain/scripts/v21m_posthoc_mechanism_audit_v1.py` inside Arm A's
