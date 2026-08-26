@@ -3,12 +3,17 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import tempfile
 import unittest
+from pathlib import Path
 
 import torch
 
-from verify_v21_predictive_trajectory_artifact import ARMS, file_sha256, verify
+BRAIN_ROOT = Path(__file__).resolve().parents[1]
+sys.path[:0] = [str(BRAIN_ROOT / "scripts"), str(BRAIN_ROOT / "src")]
+
+from verify_v21_predictive_trajectory_artifact import ARMS, file_sha256, verify  # noqa: E402
 
 
 def _arm(name: str, checkpoint: dict[str, str]) -> dict[str, object]:

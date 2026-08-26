@@ -1,6 +1,6 @@
 # CURRENT_WORK — ACTIVE FRONTIER
 
-**Last updated:** 2026-08-25 (PB21M terminal scientific CAL negative; DEV sealed)
+**Last updated:** 2026-08-25 (PB21M post-hoc mechanism audit sealed: Arm B prior-action PASSES, Arm A MIX35 FAILS on A3; Arm B single change nominated for fresh PB21N)
 **Base HEAD:** `106c193` plus the uncommitted V2.0b working tree · **Tag:** `core-v1` @ `890e4d0`
 
 ## ACTIVE FRONTIER — V2.1i all-action causal outcomes
@@ -24,9 +24,27 @@ positive 97.5% lower bounds, but only 3/9 cells and 1/3 cohorts passed both.
 No checkpoint, scaling, full-model, qualification, or live-play claim follows.
 
 **DGX status: BLOCKED.** PB21M nominated no recipe and cannot unlock scaling or
-full-model training. The next work is the two-arm PB21M post-hoc mechanism
-audit, not an accelerator run. A fresh PB21N preregistration and later
-component/integration/latency qualification are required before any DGX run.
+full-model training. The two-arm PB21M post-hoc mechanism audit is now
+**SEALED (2026-08-25)**: `2026-08-25-pb21m-posthoc-mechanism-audit-v1`,
+classification `post_hoc_consumed_data_nonqualifying`. Solver controls passed
+byte-exact (AA 180/180 refits, worst diff 0.0; PB21K MIX w=0.5, 45/45, 0
+acceptance mismatches). **Arm A (MIX35, focal w=0.35) FAILED on gate A3** —
+all 18 tables degrade all-action |bias| by ≈0.020 against the 0.01 tolerance
+(A1 factual absolute PASS: worst |bias| 0.04987 < 0.05; A2 paired factual
+PASS: 9/9 positive LCBs; context variants w=0.5→0.0352, w=1.0→−0.0006 report
+only). **Arm B (prior-action residual strata) PASSED B1+B2+B3** — all six
+cohorts byte-identical data-only replay; 18/18 cells with ≥3 structured
+strata (worst |bias| 0.140–0.174); B3 specificity observed range 0.3253 vs
+permuted p95 0.3021 (permuted max 0.3284 — thin margin, recorded honestly).
+**Nomination (frozen rule): Arm B single change** — "condition the hazard
+representation on the prior applied action (one-step lag, burn-in-aware)" —
+licensed for exactly one fresh PB21N preregistration in a fresh namespace;
+no run is authorized by the nomination; the two changes may never be combined.
+Mechanism-signal only [HYPOTHESIS-LEVEL OUTPUT]. Run report:
+`brain/docs/runs/2026-08-25-pb21m-posthoc-mechanism-audit.md`. Artifacts under
+`brain/runs/pb21m-posthoc-audit/` (result `0d0be6f7…`, evidence
+`e5fd6c67…`, registration `f9c2d13e…`; completion provenance in
+`…v1.artifact-completion.json`).
 
 The current mechanism combines the evidence-backed parts of prior hypotheses:
 
@@ -241,6 +259,28 @@ torch.backends.cuda.matmul.allow_tf32 = False; torch.backends.cudnn.allow_tf32 =
       three-arm V2.1 smoke is frozen but will not compete with V2-C on the
       Spark. Then multi-tick prediction error plus live episodic memory (V2.2),
       and meta-learning across trials (V2.3).
+      **Post-hoc mechanism audit (2026-08-25, SEALED):** the two-arm audit of
+      the PB21M terminal negative ran fully local (CPU-only, single-thread,
+      CUDA hidden, 126.0 s wall). Arm A MIX35 failed on all-action control A3
+      (focal w=0.35 fixes the factual domain — worst factual |bias| 0.04987 —
+      but costs ≈0.020 all-action |bias| vs the 0.01 tolerance; context
+      bracket w=1.0 reaches factual bias −0.0006, so the two constraints
+      collide at the focal point). Arm B prior-action strata passed: the
+      factual miscalibration is organized by prior applied action (18/18
+      cells structured; specificity 0.3253 vs 0.3021 p95, thin but frozen-
+      rule-passing). Nomination: prior-action conditioning for a fresh PB21N.
+      **Test-suite status (2026-08-25, local):** full module suite is green
+      except two pre-existing environmental failures in
+      `test_dgx_launch_contract.py` (POSIX `/tmp`/`realpath` bash contracts
+      that only resolve on the Linux DGX host; Windows git-bash target).
+      `test_v21_artifact_verifier.py` shipped in `5ead7b5` without a
+      `sys.path` shim for `brain/scripts` and was fixed test-only. The new
+      audit module `test_v21m_posthoc_mechanism_audit_v1.py` (22 contracts:
+      frozen constants, MIX35 weight algebra, weighted-solver guards +
+      determinism + zero-weight context case, burn-in prior replay semantics,
+      nomination rule, create-only publish, parent-integrity/OOF
+      reconstruction) passes 22/22. All V2.1 workstreams remain
+      preregistered; the audit is post-hoc and non-qualifying.
    d. **Intake-mechanism program** (only path that ever moved memory causality:
       ideal-evidence probe in Phase 2) — folded into V2 roadmap.
    e. Optimizer stability workstream deferred — σ(24k)=0.102 at FIXED but no
