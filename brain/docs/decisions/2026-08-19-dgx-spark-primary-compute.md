@@ -1,7 +1,7 @@
 # Decision Record: Designation of NVIDIA DGX Spark as Primary Compute Platform
 
 **Date**: August 19, 2026  
-**Status**: APPROVED & REGISTERED ✅  
+**Status**: SUPERSEDED (2026-08-26) by `2026-08-26-local-cpu-canonical-compute.md` — do not act on this record's compute designation  
 **Type**: Formal Roadmap & Hardware Architecture Amendment  
 **Scope**: All training, inference, cognitive unrolling, world modeling, memory, future language/tool-use, and robotics intelligence.
 
