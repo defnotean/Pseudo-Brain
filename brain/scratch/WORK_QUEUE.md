@@ -16,8 +16,9 @@ any completion claim.
 
 - [T0-1] ACTIVE — full regression suite green? (~157s). Prior session claimed
   1051 pass / 2 expected skips; UNVERIFIED on disk. Re-run to completion.
-- [T0-2] ACTIVE — V2-C four-seed confirmation closeout: record result per its
-  frozen release; commit. (Prior log claimed "COMPLETE"; no artifact exists.)
+- [DONE] T0-2 — V2-C four-seed confirmation closed out: AMBIGUOUS (mean -0.037,
+  delta +0.176, sigma 0.0653 > 0.06 tol), per frozen classes; no retry/relaxation.
+  Report: `brain/docs/runs/2026-08-26-v20j-confirmatory-v2c-arm-closeout.md`.
 - [DONE] T0-3 — decision record superseding DGX-Spark-primary:
   `brain/docs/decisions/2026-08-26-local-cpu-canonical-compute.md` + old record
   status line amended to SUPERSEDED. (Written for real, this session.)
