@@ -83,17 +83,17 @@ The "clean" condition is the family base with no perturbation.
 | ID | Name | Mechanism (frozen rule) |
 |----|------|--------------------------|
 | P1 | `palette_shift` | Remap the four render RGB constants (`PLAYER`, `PELLET`, `GHOST`, `WALL`) + the two background shades by a fixed, seed-derived byte offset (see §5 P1 rule). Geometry, dynamics, and pellet layout are byte-identical to clean; only pixel values change. |
-| P2 | `frame_loss_10pct` | The observation channel drops exactly every 10th rendered frame: for global frame index `g` (0-based within the episode), frame `g` is **not delivered** iff `g mod 10 == 0`. The capacity-one queue's latest-complete-frame semantics then delivers the prior frame. Deterministic, no randomness. |
+| P2 | `frame_loss_10pct` | The observation channel drops exactly every 10th rendered frame: the reset frame (g=0) initializes the capacity-one queue and is always delivered; for g >= 1, frame `g` is **not delivered** iff `g mod 10 == 0` (steady-state loss is exactly 10%, deterministic, no randomness). When frame g is dropped the queue retains the prior delivered frame, which the controller dequeues at cycle g. |
 | P3 | `obs_delay_1` | The observation delivered at control tick `n` is the frame rendered at tick `n-1` (exactly one-frame latency). Tick 0's frame is the reset frame; the agent's first decision sees the reset frame. |
-| P4 | `speed_90pct` | World runs at 0.9× control speed: ghost movement period becomes `max(1, round(ghost_period / 0.9))` and (if `player_period > 1`) `player_period' = round(player_period / 0.9)`. Ghosts chase ~11% slower; layout/dynamics otherwise identical. |
-| P5 | `speed_110pct` | World runs at 1.1× control speed: `ghost_period' = max(1, round(ghost_period / 1.1))`. Ghosts chase ~10% faster. |
+| P4 | `speed_90pct` | Channel-level world speed at 0.9× the agent's pace: at every cycle `n` with `n mod 10 == 0` (including `n = 0`), the world is **held** for that cycle (no environment step; the controller's action for that cycle is not applied and the queue retains the prior frame; at `n = 0` the reset frame is delivered unchanged). Over every 100 agent cycles aligned to the 10-cycle grid the world advances exactly 90 ticks. |
+| P5 | `speed_110pct` | Channel-level world speed at 1.1× the agent's pace: at every cycle `n` with `n mod 10 == 0` (including `n = 0`), the environment is stepped **an extra time** (the agent's action for that cycle is applied to two consecutive world ticks; the queue's latest-complete-frame semantics delivers the newest). Over every 100 agent cycles aligned to the 10-cycle grid the world advances exactly 110 ticks. |
 | P6 | `enemy_policy_change` | Swap `ghost_rule` to the family's frozen alternate: F0→`direct`, F1→`direct`, F2→`shy`, F3→`ambush`, F4→`direct`. All other axes unchanged. |
 
-Notes: P2/P3 act on the **harness observation channel**, not the simulator,
-so they are the cleanest demonstration that the candidate is timing- and
-corruption-robust without the simulator being altered. P1/P4/P5/P6 act on the
-simulator config/render. Every perturbation is paired to its clean twin on the
-**same seed/layout** (v3 §5 shared seed-paired draws).
+Notes: P2/P3/P4/P5 act on the **harness observation/world channel**, not the
+simulator, so they are the cleanest demonstration that the candidate is
+timing- and corruption-robust without the simulator being altered. P1/P6 act
+on the simulator render/config. Every perturbation is paired to its clean
+twin on the **same seed/layout** (v3 §5 shared seed-paired draws).
 
 ## 3. Registered seed partitions (frozen)
 

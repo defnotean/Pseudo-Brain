@@ -36,16 +36,27 @@ any completion claim.
   `brain/docs/decisions/2026-08-26-local-cpu-canonical-compute.md` + old record
   status line amended to SUPERSEDED. (Written for real, this session.)
 
-## Tier 1 — Pac-Man-like harness (env does NOT exist yet)
+## Tier 1 — Pac-Man-like harness
 
-- [T1-1] Preregistration for harness construction: v3 §4 contract
-  (cycle_id/frame_id/action_id, no-pause 60Hz, 5 difficulty families, six
-  registered perturbations, TRAIN/DEV/CAL/TEST seeds by layout family, no
-  privileged state reaching the model — C8).
-- [T1-2] Build deterministic sim; determinism protocol mandatory (zlib.crc32
-  banks, never hash()).
-- [T1-3] Expert/scripted policy → behavior-cloning corpus.
-- [T1-4] Reactive baseline (never weakened).
+- [DONE] T1-1 — harness preregistration frozen: `2026-08-27-pacman-harness-v1.md`
+  (no-pause 60Hz contract, 5 families, 6 perturbations P1–P6, seed partitions,
+  H1–H7 gates). P2/P4/P5 amended post-commit to channel-level rules
+  (working-tree text is the operative frozen contract; see the 2026-08-28
+  adjudication record for why the original P4/P5 rounding rule was degenerate
+  and why a divergent "construction" reconstruction was retired).
+- [DONE] T1-2 — deterministic sim + harness built:
+  `environments/pacman_harness.py` + `scripts/pacman_harness_gates.py`.
+  H1–H7 all PASS at frozen scale on 2026-08-27 (2.387 s) AND re-verified
+  2026-08-28 (3.419 s, `runs/pacman-harness-gates/2026-08-28-full-rerun.json`).
+  The P1–P6 test module `tests/test_pacman_harness.py` (cited as 21/21 in the
+  T1-2 report but never committed) was reconstructed 2026-08-28: 25/25 OK.
+  Frozen §4.3 timing gates live in the harness layer (`TIMING_GATES`).
+  Adjudication record: `brain/docs/runs/2026-08-28-t12-pacman-harness-stack-
+  adjudication.md`.
+- [ ] T1-3 — expert/scripted policy → behavior-cloning corpus on TRAIN.
+  (`diagnostic.scripted_maze_chase_planner.v1` exists, pixel-only; needs a
+  corpus-generation prereg + runner under the T1-1 contract.)
+- [ ] T1-4 — reactive baseline (never weakened), candidate's budget class.
 
 ## Tier 2 — integrated training
 

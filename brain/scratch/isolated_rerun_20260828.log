@@ -1,0 +1,41 @@
+test_realtime_arcade_play (unittest.loader._FailedTest.test_realtime_arcade_play) ... ERROR
+test_v21m_fresh_bal_cal_first_qualification_v1 (unittest.loader._FailedTest.test_v21m_fresh_bal_cal_first_qualification_v1) ... ERROR
+test_dgx_launch_contract (unittest.loader._FailedTest.test_dgx_launch_contract) ... ERROR
+
+======================================================================
+ERROR: test_realtime_arcade_play (unittest.loader._FailedTest.test_realtime_arcade_play)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: test_realtime_arcade_play
+Traceback (most recent call last):
+  File "C:\Users\Demon\AppData\Local\Programs\Python\Python311\Lib\unittest\loader.py", line 162, in loadTestsFromName
+    module = __import__(module_name)
+             ^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'test_realtime_arcade_play'
+
+
+======================================================================
+ERROR: test_v21m_fresh_bal_cal_first_qualification_v1 (unittest.loader._FailedTest.test_v21m_fresh_bal_cal_first_qualification_v1)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: test_v21m_fresh_bal_cal_first_qualification_v1
+Traceback (most recent call last):
+  File "C:\Users\Demon\AppData\Local\Programs\Python\Python311\Lib\unittest\loader.py", line 162, in loadTestsFromName
+    module = __import__(module_name)
+             ^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'test_v21m_fresh_bal_cal_first_qualification_v1'
+
+
+======================================================================
+ERROR: test_dgx_launch_contract (unittest.loader._FailedTest.test_dgx_launch_contract)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: test_dgx_launch_contract
+Traceback (most recent call last):
+  File "C:\Users\Demon\AppData\Local\Programs\Python\Python311\Lib\unittest\loader.py", line 162, in loadTestsFromName
+    module = __import__(module_name)
+             ^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'test_dgx_launch_contract'
+
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.000s
+
+FAILED (errors=3)
