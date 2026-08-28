@@ -62,7 +62,24 @@ any completion claim.
   pellet-fraction 0.77–1.00, mean M_P 0.52–0.94 — a competent teacher, not a
   strawman). `corpus_sha256=59c41b6dc71f…`. Report:
   `brain/docs/runs/2026-08-28-t13-pacman-corpus-generated.md`.
-- [ ] T1-4 — reactive baseline (never weakened), candidate's budget class.
+- [DONE] T1-4 — reactive baseline (never weakened), candidate's budget class.
+  `ReactiveBaselineV1` (133,773 params, 4-frame + prev-action, non-recurrent)
+  trained on the shared TRAIN corpus: 6000 steps, batch 16,
+  AdamW(5e-4, 1e-4), grad-clip 1.0, seeds [42,142,242,342], local CPU
+  single-thread below-normal priority (gaming-polite), 385.8 s wall.
+  **All 4 gates PASS** (2026-08-28): R determinism (seed-42 repeat
+  byte-match: param sha256 `6878d34e…` both runs, 6000-loss-curve
+  identical), S causal boundary C8 (static audit: 3 tagged input lines,
+  zero privileged reads), T budget fidelity (4x exactly 6000 steps), U
+  non-degenerate (all 5 action classes emitted every seed; corpus
+  self-recall 0.9451/0.9461/0.9460/0.9454; training loss
+  1.779/1.636/2.033/1.887 → 0.074/0.194/0.041/0.027 per seed 42/142/242/342).
+  This is a live, causally-clean, deterministic baseline — NOT a
+  qualification claim (candidate comparison is the Tier-3 Q2 arm).
+  Runner: `scripts/run_reactive_baseline_v1.py`; prereg:
+  `2026-08-28-pacman-reactive-baseline-v1.md`; report:
+  `brain/runs/embodied-reactive-baseline-v1/2026-08-28-reactive-baseline-v1.json`
+  (create-only; checkpoints `seed_*.pt` in same dir, gitignored).
 
 ## Tier 2 — integrated training
 
