@@ -1,0 +1,190 @@
+..............................................s.................................................................................................................E..........E...EEF..F......................................................................................................................................................F......................................................................................................................................................................................................................s.................................................................................F....................................................................................C:\Users\Demon\OneDrive\Desktop\Projects\Pseudo-Brain\brain\tests\test_thought_mediated_actuator.py:31: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+Consider using tensor.detach() first. (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\torch\csrc\autograd\generated\python_variable_methods.cpp:823.)
+  self.assertLessEqual(float(out.reflex_correction.abs().max()), 0.10001)
+..........................................................................................................................FAIL -> C:\Users\Demon\AppData\Local\Temp\tmplagf4iyi\failed.json
+..DONE -> C:\Users\Demon\AppData\Local\Temp\tmpsfdmdqt2\passed.json
+...................[V2.1i seed train] epoch=1 loss=0.237445
+...........E..............................E...............................................................E......................................................................................E.......................................................................................................................
+======================================================================
+ERROR: test_canonical_rcq_workspace_and_authority_trees_require_private_account_state (test_dgx_launch_contract.DgxLaunchContractTests.test_canonical_rcq_workspace_and_authority_trees_require_private_account_state)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Demon\OneDrive\Desktop\Projects\Pseudo-Brain\brain\tests\test_dgx_launch_contract.py", line 174, in test_canonical_rcq_workspace_and_authority_trees_require_private_account_state
+    self._run_bash_function_contract(body)
+  File "C:\Users\Demon\OneDrive\Desktop\Projects\Pseudo-Brain\brain\tests\test_dgx_launch_contract.py", line 1196, in _run_bash_function_contract
+    completed = subprocess.run(
+                ^^^^^^^^^^^^^^^
+  File "C:\Users\Demon\AppData\Local\Programs\Python\Python311\Lib\subprocess.py", line 550, in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Demon\AppData\Local\Programs\Python\Python311\Lib\subprocess.py", line 1209, in communicate
+    stdout, stderr = self._communicate(input, endtime, timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Demon\AppData\Local\Programs\Python\Python311\Lib\subprocess.py", line 1630, in _communicate
+    raise TimeoutExpired(self.args, orig_timeout)
+subprocess.TimeoutExpired: Command '['C:\\Program Files\\Git\\bin\\bash.exe', 'function-contract.sh', '.']' timed out after 15 seconds
+
+======================================================================
+ERROR: test_original_run_identity_mismatches_fail_behaviorally (test_dgx_launch_contract.DgxLaunchContractTests.test_original_run_identity_mismatches_fail_behaviorally)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Demon\OneDrive\Desktop\Projects\Pseudo-Brain\brain\tests\test_dgx_launch_contract.py", line 1088, in test_original_run_identity_mismatches_fail_behaviorally
+    self._run_bash_function_contract(body)
+  File "C:\Users\Demon\OneDrive\Desktop\Projects\Pseudo-Brain\brain\tests\test_dgx_launch_contract.py", line 1196, in _run_bash_function_contract
+    completed = subprocess.run(
+                ^^^^^^^^^^^^^^^
+  File "C:\Users\Demon\AppData\Local\Programs\Python\Python311\Lib\subprocess.py", line 550, in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Demon\AppData\Local\Programs\Python\Python311\Lib\subprocess.py", line 1209, in communicate
+    stdout, stderr = self._communicate(input, endtime, timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Demon\AppData\Local\Programs\Python\Python311\Lib\subprocess.py", line 1630, in _communicate
+    raise TimeoutExpired(self.args, orig_timeout)
+subprocess.TimeoutExpired: Command '['C:\\Program Files\\Git\\bin\\bash.exe', 'function-contract.sh', '.']' timed out after 15 seconds
+
+======================================================================
+ERROR: test_reference_launch_requires_untampered_staging_canary_receipt (test_dgx_launch_contract.DgxLaunchContractTests.test_reference_launch_requires_untampered_staging_canary_receipt)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Demon\OneDrive\Desktop\Projects\Pseudo-Brain\brain\tests\test_dgx_launch_contract.py", line 651, in test_reference_launch_requires_untampered_staging_canary_receipt
+    self._run_bash_function_contract(body)
+  File "C:\Users\Demon\OneDrive\Desktop\Projects\Pseudo-Brain\brain\tests\test_dgx_launch_contract.py", line 1196, in _run_bash_function_contract
+    completed = subprocess.run(
+                ^^^^^^^^^^^^^^^
+  File "C:\Users\Demon\AppData\Local\Programs\Python\Python311\Lib\subprocess.py", line 550, in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Demon\AppData\Local\Programs\Python\Python311\Lib\subprocess.py", line 1209, in communicate
+    stdout, stderr = self._communicate(input, endtime, timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Demon\AppData\Local\Programs\Python\Python311\Lib\subprocess.py", line 1630, in _communicate
+    raise TimeoutExpired(self.args, orig_timeout)
+subprocess.TimeoutExpired: Command '['C:\\Program Files\\Git\\bin\\bash.exe', 'function-contract.sh', '.']' timed out after 15 seconds
+
+======================================================================
+ERROR: test_release_python_source_allowlist_rejects_import_shadows (test_dgx_launch_contract.DgxLaunchContractTests.test_release_python_source_allowlist_rejects_import_shadows)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Demon\OneDrive\Desktop\Projects\Pseudo-Brain\brain\tests\test_dgx_launch_contract.py", line 374, in test_release_python_source_allowlist_rejects_import_shadows
+    self._run_bash_function_contract(body)
+  File "C:\Users\Demon\OneDrive\Desktop\Projects\Pseudo-Brain\brain\tests\test_dgx_launch_contract.py", line 1196, in _run_bash_function_contract
+    completed = subprocess.run(
+                ^^^^^^^^^^^^^^^
+  File "C:\Users\Demon\AppData\Local\Programs\Python\Python311\Lib\subprocess.py", line 550, in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Demon\AppData\Local\Programs\Python\Python311\Lib\subprocess.py", line 1209, in communicate
+    stdout, stderr = self._communicate(input, endtime, timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Demon\AppData\Local\Programs\Python\Python311\Lib\subprocess.py", line 1630, in _communicate
+    raise TimeoutExpired(self.args, orig_timeout)
+subprocess.TimeoutExpired: Command '['C:\\Program Files\\Git\\bin\\bash.exe', 'function-contract.sh', '.']' timed out after 15 seconds
+
+======================================================================
+ERROR: test_current_diagnostic_source_bundle_is_bound_to_v3_production (test_v21i_frozen_representation_continuation_diagnostic_v1.V21IFrozenContinuationDiagnosticTests.test_current_diagnostic_source_bundle_is_bound_to_v3_production)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Demon\OneDrive\Desktop\Projects\Pseudo-Brain\brain\tests\test_v21i_frozen_representation_continuation_diagnostic_v1.py", line 498, in test_current_diagnostic_source_bundle_is_bound_to_v3_production
+    bundle = _diagnostic_source_bundle(project_root)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Demon\OneDrive\Desktop\Projects\Pseudo-Brain\brain\scripts\v21i_frozen_representation_continuation_diagnostic_v1.py", line 158, in _diagnostic_source_bundle
+    raise RuntimeError("production source differs from the exact v3 source bundle")
+RuntimeError: production source differs from the exact v3 source bundle
+
+======================================================================
+ERROR: test_complete_strict_live_source_bundle_is_recomputed (test_v21i_strict_live_component_localization_v1.StrictLiveComponentLocalizationTests.test_complete_strict_live_source_bundle_is_recomputed)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Demon\OneDrive\Desktop\Projects\Pseudo-Brain\brain\tests\test_v21i_strict_live_component_localization_v1.py", line 490, in test_complete_strict_live_source_bundle_is_recomputed
+    exact = probe.strict._diagnostic_source_bundle(project_root)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Demon\OneDrive\Desktop\Projects\Pseudo-Brain\brain\scripts\v21i_strict_live_representation_probe_v1.py", line 195, in _diagnostic_source_bundle
+    raise RuntimeError("production source differs from the exact v3 source bundle")
+RuntimeError: production source differs from the exact v3 source bundle
+
+======================================================================
+ERROR: test_real_parent_and_registration_payload_validate_before_registration (test_v21j_fresh_bz_production_form_diagnostic_v1.FreshBZProductionFormTests.test_real_parent_and_registration_payload_validate_before_registration)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Demon\OneDrive\Desktop\Projects\Pseudo-Brain\brain\tests\test_v21j_fresh_bz_production_form_diagnostic_v1.py", line 428, in test_real_parent_and_registration_payload_validate_before_registration
+    parent = probe.validate_component_parent(root)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Demon\OneDrive\Desktop\Projects\Pseudo-Brain\brain\scripts\v21j_fresh_bz_production_form_diagnostic_v1.py", line 383, in validate_component_parent
+    current = component._diagnostic_source_bundle(project_root)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Demon\OneDrive\Desktop\Projects\Pseudo-Brain\brain\scripts\v21i_strict_live_component_localization_v1.py", line 194, in _diagnostic_source_bundle
+    strict_live_source = strict._diagnostic_source_bundle(project_root)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Demon\OneDrive\Desktop\Projects\Pseudo-Brain\brain\scripts\v21i_strict_live_representation_probe_v1.py", line 195, in _diagnostic_source_bundle
+    raise RuntimeError("production source differs from the exact v3 source bundle")
+RuntimeError: production source differs from the exact v3 source bundle
+
+======================================================================
+ERROR: test_unmocked_windows_resource_guard_uses_pointer_width_safe_handles (test_v21m_fresh_bal_cal_first_qualification_v1.PB21MFreshBALCALFirstTests.test_unmocked_windows_resource_guard_uses_pointer_width_safe_handles)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Demon\OneDrive\Desktop\Projects\Pseudo-Brain\brain\tests\test_v21m_fresh_bal_cal_first_qualification_v1.py", line 880, in test_unmocked_windows_resource_guard_uses_pointer_width_safe_handles
+    completed = subprocess.run(
+                ^^^^^^^^^^^^^^^
+  File "C:\Users\Demon\AppData\Local\Programs\Python\Python311\Lib\subprocess.py", line 571, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '['C:\\Users\\Demon\\AppData\\Local\\Programs\\Python\\Python311\\python.exe', '-c', "import importlib.util,json,pathlib,sys,torch;p=pathlib.Path('C:\\\\Users\\\\Demon\\\\OneDrive\\\\Desktop\\\\Projects\\\\Pseudo-Brain\\\\brain\\\\scripts\\\\v21m_fresh_bal_cal_first_qualification_v1.py');sys.path[:0]=[str(p.parent),str(p.parents[1]/'src')];s=importlib.util.spec_from_file_location('pb21m_guard_subprocess',p);m=importlib.util.module_from_spec(s);sys.modules[s.name]=m;s.loader.exec_module(m);m.apply_deterministic_mode();torch.set_num_threads(1);torch.set_num_interop_threads(1);print(json.dumps(m.resource_guard(pathlib.Path('C:\\\\Users\\\\Demon\\\\AppData\\\\Local\\\\Temp\\\\tmps74kvokx')/'evidence.npz',phase='unmocked_windows_ABI')))"]' returned non-zero exit status 1.
+
+======================================================================
+FAIL: test_release_sync_requires_one_canonical_fixed_registration (test_dgx_launch_contract.DgxLaunchContractTests.test_release_sync_requires_one_canonical_fixed_registration)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Demon\OneDrive\Desktop\Projects\Pseudo-Brain\brain\tests\test_dgx_launch_contract.py", line 418, in test_release_sync_requires_one_canonical_fixed_registration
+    self._run_bash_function_contract(body)
+  File "C:\Users\Demon\OneDrive\Desktop\Projects\Pseudo-Brain\brain\tests\test_dgx_launch_contract.py", line 1204, in _run_bash_function_contract
+    self.assertEqual(
+AssertionError: 1 != 0 : stdout:
+
+stderr:
+Traceback (most recent call last):
+  File "<stdin>", line 16, in <module>
+  File "C:\Users\Demon\AppData\Local\Programs\Python\Python311\Lib\pathlib.py", line 1050, in read_bytes
+    with self.open(mode='rb') as f:
+         ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Demon\AppData\Local\Programs\Python\Python311\Lib\pathlib.py", line 1044, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '\\tmp\\dgx-function-contract-fowm27iu\\release\\registrations\\rcq-v2-reference-v2.json'
+DGX_FAIL code=invalid_registration message=fixed RCQ-v2 registration is not one canonical target-blind object
+
+
+======================================================================
+FAIL: test_resume_preflight_refuses_terminal_failed_stage_gates (test_dgx_launch_contract.DgxLaunchContractTests.test_resume_preflight_refuses_terminal_failed_stage_gates)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Demon\OneDrive\Desktop\Projects\Pseudo-Brain\brain\tests\test_dgx_launch_contract.py", line 804, in test_resume_preflight_refuses_terminal_failed_stage_gates
+    self._run_bash_function_contract(body)
+  File "C:\Users\Demon\OneDrive\Desktop\Projects\Pseudo-Brain\brain\tests\test_dgx_launch_contract.py", line 1204, in _run_bash_function_contract
+    self.assertEqual(
+AssertionError: 1 != 0 : stdout:
+
+stderr:
+
+
+======================================================================
+FAIL: test_checked_in_manifest_and_recipes_are_strictly_identified (test_matched_baselines.MatchedBaselineTests.test_checked_in_manifest_and_recipes_are_strictly_identified)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Demon\OneDrive\Desktop\Projects\Pseudo-Brain\brain\tests\test_matched_baselines.py", line 469, in test_checked_in_manifest_and_recipes_are_strictly_identified
+    self.assertIn(expected_digest, actual_digests)
+AssertionError: 'f6c7f9e5031a753e406744e715a7f8045b8503020cd6052fbc2fa05e66bceba4' not found in ('d2dad5e74a6fdce1c63cdd84f71508b90989eb9fecfdea1a192b4d82c2aad5ea', 'd2dad5e74a6fdce1c63cdd84f71508b90989eb9fecfdea1a192b4d82c2aad5ea')
+
+======================================================================
+FAIL: test_60hz_arcade_tick_budget_and_latency (test_realtime_arcade_play.RealtimeArcadePlayTests.test_60hz_arcade_tick_budget_and_latency)
+Verify the model comfortably completes inference within the 60 Hz 16.6ms tick budget.
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Demon\OneDrive\Desktop\Projects\Pseudo-Brain\brain\tests\test_realtime_arcade_play.py", line 93, in test_60hz_arcade_tick_budget_and_latency
+    self.assertLess(p50_ms, 16.67, f"p50 latency {p50_ms:.2f}ms exceeds 16.67ms frame budget")
+AssertionError: 17.544300004374236 not less than 16.67 : p50 latency 17.54ms exceeds 16.67ms frame budget
+
+----------------------------------------------------------------------
+Ran 1169 tests in 452.597s
+
+FAILED (failures=4, errors=8, skipped=2)

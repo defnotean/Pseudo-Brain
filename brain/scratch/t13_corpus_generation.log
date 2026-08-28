@@ -1,0 +1,31 @@
+F0 ep 0/50 seed 201327092 ticks=4000 M_P=0.993 pellet_frac=0.987
+F0 ep 10/50 seed 201327102 ticks=4000 M_P=0.990 pellet_frac=0.980
+F0 ep 20/50 seed 201327112 ticks=210 M_P=0.526 pellet_frac=1.000
+F0 ep 30/50 seed 201327122 ticks=191 M_P=0.524 pellet_frac=1.000
+F0 ep 40/50 seed 201327132 ticks=184 M_P=0.523 pellet_frac=1.000
+F1 ep 0/50 seed 201331188 ticks=326 M_P=0.527 pellet_frac=1.000
+F1 ep 10/50 seed 201331198 ticks=354 M_P=0.529 pellet_frac=1.000
+F1 ep 20/50 seed 201331208 ticks=286 M_P=0.524 pellet_frac=1.000
+F1 ep 30/50 seed 201331218 ticks=236 M_P=0.520 pellet_frac=1.000
+F1 ep 40/50 seed 201331228 ticks=573 M_P=0.548 pellet_frac=1.000
+F2 ep 0/50 seed 201335284 ticks=375 M_P=0.531 pellet_frac=1.000
+F2 ep 10/50 seed 201335294 ticks=232 M_P=0.519 pellet_frac=1.000
+F2 ep 20/50 seed 201335304 ticks=459 M_P=0.538 pellet_frac=1.000
+F2 ep 30/50 seed 201335314 ticks=216 M_P=0.518 pellet_frac=1.000
+F2 ep 40/50 seed 201335324 ticks=243 M_P=0.520 pellet_frac=1.000
+F3 ep 0/50 seed 201339380 ticks=8000 M_P=0.940 pellet_frac=0.880
+F3 ep 10/50 seed 201339390 ticks=304 M_P=0.519 pellet_frac=1.000
+F3 ep 20/50 seed 201339400 ticks=324 M_P=0.520 pellet_frac=1.000
+F3 ep 30/50 seed 201339410 ticks=290 M_P=0.518 pellet_frac=1.000
+F3 ep 40/50 seed 201339420 ticks=296 M_P=0.518 pellet_frac=1.000
+F4 ep 0/50 seed 201343476 ticks=419 M_P=0.526 pellet_frac=1.000
+F4 ep 10/50 seed 201343486 ticks=8000 M_P=0.780 pellet_frac=0.560
+F4 ep 20/50 seed 201343496 ticks=485 M_P=0.530 pellet_frac=1.000
+F4 ep 30/50 seed 201343506 ticks=441 M_P=0.528 pellet_frac=1.000
+F4 ep 40/50 seed 201343516 ticks=8000 M_P=0.681 pellet_frac=0.361
+[PASS] C_determinism
+[PASS] D_causal_boundary
+[PASS] E_action_class_validity
+[PASS] F_scale
+[PASS] G_expert_competence_floor
+all_passed=True wall=691.973s corpus_sha=59c41b6dc71fdda1
