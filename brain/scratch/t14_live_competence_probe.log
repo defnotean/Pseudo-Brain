@@ -1,0 +1,32 @@
+loaded seed_42.pt (133773 params); 0.0s
+F0 seed 201327092: teacher M_P=0.993 (148/150 pel, 4000t) | model M_P=0.500 (0/150 pel, 4000t)
+F0 seed 201327093: teacher M_P=0.990 (147/150 pel, 4000t) | model M_P=0.500 (0/150 pel, 4000t)
+F0 seed 201327094: teacher M_P=0.524 (150/150 pel, 190t) | model M_P=0.500 (0/150 pel, 4000t)
+F0 seed 201327095: teacher M_P=0.997 (149/150 pel, 4000t) | model M_P=0.500 (0/150 pel, 4000t)
+F0 seed 201327096: teacher M_P=0.524 (150/150 pel, 192t) | model M_P=0.500 (0/150 pel, 4000t)
+F1 seed 201331188: teacher M_P=0.527 (142/142 pel, 326t) | model M_P=0.827 (93/142 pel, 6000t)
+F1 seed 201331189: teacher M_P=0.524 (142/142 pel, 287t) | model M_P=0.901 (114/142 pel, 6000t)
+F1 seed 201331190: teacher M_P=0.525 (142/142 pel, 302t) | model M_P=0.856 (101/142 pel, 6000t)
+F1 seed 201331191: teacher M_P=0.524 (142/142 pel, 284t) | model M_P=0.842 (97/142 pel, 6000t)
+F1 seed 201331192: teacher M_P=0.521 (142/142 pel, 249t) | model M_P=0.908 (116/142 pel, 6000t)
+F2 seed 201335284: teacher M_P=0.531 (138/138 pel, 375t) | model M_P=0.804 (84/138 pel, 6000t)
+F2 seed 201335285: teacher M_P=0.522 (138/138 pel, 260t) | model M_P=0.870 (102/138 pel, 6000t)
+F2 seed 201335286: teacher M_P=0.523 (138/138 pel, 281t) | model M_P=0.826 (90/138 pel, 6000t)
+F2 seed 201335287: teacher M_P=0.519 (138/138 pel, 231t) | model M_P=0.870 (102/138 pel, 6000t)
+F2 seed 201335288: teacher M_P=0.518 (138/138 pel, 217t) | model M_P=0.812 (86/138 pel, 6000t)
+F3 seed 201339380: teacher M_P=0.940 (125/142 pel, 8000t) | model M_P=0.979 (136/142 pel, 8000t)
+F3 seed 201339381: teacher M_P=0.531 (142/142 pel, 490t) | model M_P=0.866 (104/142 pel, 8000t)
+F3 seed 201339382: teacher M_P=0.655 (44/142 pel, 8000t) | model M_P=0.933 (123/142 pel, 8000t)
+F3 seed 201339383: teacher M_P=0.523 (142/142 pel, 366t) | model M_P=0.954 (129/142 pel, 8000t)
+F3 seed 201339384: teacher M_P=0.975 (135/142 pel, 8000t) | model M_P=0.968 (133/142 pel, 8000t)
+F4 seed 201343476: teacher M_P=0.526 (166/166 pel, 419t) | model M_P=0.506 (2/166 pel, 8000t)
+F4 seed 201343477: teacher M_P=0.943 (147/166 pel, 8000t) | model M_P=0.524 (8/166 pel, 8000t)
+F4 seed 201343478: teacher M_P=0.633 (44/166 pel, 8000t) | model M_P=0.509 (3/166 pel, 8000t)
+F4 seed 201343479: teacher M_P=0.958 (152/166 pel, 8000t) | model M_P=0.503 (1/166 pel, 8000t)
+F4 seed 201343480: teacher M_P=0.804 (101/166 pel, 8000t) | model M_P=0.524 (8/166 pel, 8000t)
+
+=== CLOSED-LOOP COMPETENCE (seed-42 model vs teacher, read-only) ===
+teacher: mean M_P=0.670  mean pellet-frac=0.911  mean survival=2899t
+model  : mean M_P=0.731  mean pellet-frac=0.463  mean survival=6400t
+ratio (model/teacher)  M_P=1.092  pellet=0.508  survival=2.208
+(wall 247.9s; n=25 episodes; diagnostic only, no publish)

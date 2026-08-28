@@ -80,6 +80,17 @@ any completion claim.
   `2026-08-28-pacman-reactive-baseline-v1.md`; report:
   `brain/runs/embodied-reactive-baseline-v1/2026-08-28-reactive-baseline-v1.json`
   (create-only; checkpoints `seed_*.pt` in same dir, gitignored).
+  **Closed-loop competence probe (2026-08-28, diagnostic, TRAIN only):**
+  `brain/scratch/probe_t14_live_competence.py` + record
+  `brain/docs/runs/2026-08-28-t14-reactive-baseline-closed-loop-probe.md`.
+  [MEASURED, 25 episodes all 5 families] model is a cautious grazer:
+  NEVER caught (survives full horizon all 25), but pellet-fraction 0.463
+  vs teacher 0.911 (~0.51× the teacher); mean M_P 0.731 vs 0.670 only
+  because M_P's survival weight rewards never-dying. Family-dependent:
+  near-inert on F0_calm (0/150 pellets, constant-W lockup at one seed) and
+  F4_open_slow (1–8/166), productive on F1/F2/F3 (57–95% of pellets).
+  [INFERRED] naive-BC covariate-shift limit, not a build defect. Preserved
+  as a negative result; makes the Tier-3 Q2 contrast more informative.
 
 ## Tier 2 — integrated training
 
