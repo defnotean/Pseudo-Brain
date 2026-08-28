@@ -53,9 +53,15 @@ any completion claim.
   Frozen §4.3 timing gates live in the harness layer (`TIMING_GATES`).
   Adjudication record: `brain/docs/runs/2026-08-28-t12-pacman-harness-stack-
   adjudication.md`.
-- [ ] T1-3 — expert/scripted policy → behavior-cloning corpus on TRAIN.
-  (`diagnostic.scripted_maze_chase_planner.v1` exists, pixel-only; needs a
-  corpus-generation prereg + runner under the T1-1 contract.)
+- [DONE] T1-3 — expert/scripted policy → behavior-cloning corpus on TRAIN.
+  `scripts/run_pacman_corpus_v1.py` ran the frozen pixel-only expert
+  (family-matched knobs) on `partition_seeds(f,"TRAIN")[:50]` × 5 families.
+  **All 5 gates PASS** (250 episodes, 507,768 transitions, wall 692 s):
+  C determinism (byte-match), D causal boundary (C8), E action-class
+  validity, F scale (exact seeds), G expert-competence floor (mean
+  pellet-fraction 0.77–1.00, mean M_P 0.52–0.94 — a competent teacher, not a
+  strawman). `corpus_sha256=59c41b6dc71f…`. Report:
+  `brain/docs/runs/2026-08-28-t13-pacman-corpus-generated.md`.
 - [ ] T1-4 — reactive baseline (never weakened), candidate's budget class.
 
 ## Tier 2 — integrated training
