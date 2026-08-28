@@ -1,0 +1,95 @@
+..............................................s..................................................................................................................................F..F......................................................................................................................................................F....................................................................................................................................................................................................s......................................................................................................................................................................C:\Users\Demon\OneDrive\Desktop\Projects\Pseudo-Brain\brain\tests\test_thought_mediated_actuator.py:31: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+Consider using tensor.detach() first. (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\torch\csrc\autograd\generated\python_variable_methods.cpp:823.)
+  self.assertLessEqual(float(out.reflex_correction.abs().max()), 0.10001)
+..........................................................................................................................FAIL -> C:\Users\Demon\AppData\Local\Temp\tmpj8sfktc6\failed.json
+..DONE -> C:\Users\Demon\AppData\Local\Temp\tmp0qmd4f9l\passed.json
+...................[V2.1i seed train] epoch=1 loss=0.237445
+...........E..............................E...............................................................E..............................................................................................................................................................................................................
+======================================================================
+ERROR: test_current_diagnostic_source_bundle_is_bound_to_v3_production (test_v21i_frozen_representation_continuation_diagnostic_v1.V21IFrozenContinuationDiagnosticTests.test_current_diagnostic_source_bundle_is_bound_to_v3_production)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Demon\OneDrive\Desktop\Projects\Pseudo-Brain\brain\tests\test_v21i_frozen_representation_continuation_diagnostic_v1.py", line 498, in test_current_diagnostic_source_bundle_is_bound_to_v3_production
+    bundle = _diagnostic_source_bundle(project_root)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Demon\OneDrive\Desktop\Projects\Pseudo-Brain\brain\scripts\v21i_frozen_representation_continuation_diagnostic_v1.py", line 158, in _diagnostic_source_bundle
+    raise RuntimeError("production source differs from the exact v3 source bundle")
+RuntimeError: production source differs from the exact v3 source bundle
+
+======================================================================
+ERROR: test_complete_strict_live_source_bundle_is_recomputed (test_v21i_strict_live_component_localization_v1.StrictLiveComponentLocalizationTests.test_complete_strict_live_source_bundle_is_recomputed)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Demon\OneDrive\Desktop\Projects\Pseudo-Brain\brain\tests\test_v21i_strict_live_component_localization_v1.py", line 490, in test_complete_strict_live_source_bundle_is_recomputed
+    exact = probe.strict._diagnostic_source_bundle(project_root)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Demon\OneDrive\Desktop\Projects\Pseudo-Brain\brain\scripts\v21i_strict_live_representation_probe_v1.py", line 195, in _diagnostic_source_bundle
+    raise RuntimeError("production source differs from the exact v3 source bundle")
+RuntimeError: production source differs from the exact v3 source bundle
+
+======================================================================
+ERROR: test_real_parent_and_registration_payload_validate_before_registration (test_v21j_fresh_bz_production_form_diagnostic_v1.FreshBZProductionFormTests.test_real_parent_and_registration_payload_validate_before_registration)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Demon\OneDrive\Desktop\Projects\Pseudo-Brain\brain\tests\test_v21j_fresh_bz_production_form_diagnostic_v1.py", line 428, in test_real_parent_and_registration_payload_validate_before_registration
+    parent = probe.validate_component_parent(root)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Demon\OneDrive\Desktop\Projects\Pseudo-Brain\brain\scripts\v21j_fresh_bz_production_form_diagnostic_v1.py", line 383, in validate_component_parent
+    current = component._diagnostic_source_bundle(project_root)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Demon\OneDrive\Desktop\Projects\Pseudo-Brain\brain\scripts\v21i_strict_live_component_localization_v1.py", line 194, in _diagnostic_source_bundle
+    strict_live_source = strict._diagnostic_source_bundle(project_root)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Demon\OneDrive\Desktop\Projects\Pseudo-Brain\brain\scripts\v21i_strict_live_representation_probe_v1.py", line 195, in _diagnostic_source_bundle
+    raise RuntimeError("production source differs from the exact v3 source bundle")
+RuntimeError: production source differs from the exact v3 source bundle
+
+======================================================================
+FAIL: test_release_sync_requires_one_canonical_fixed_registration (test_dgx_launch_contract.DgxLaunchContractTests.test_release_sync_requires_one_canonical_fixed_registration)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Demon\OneDrive\Desktop\Projects\Pseudo-Brain\brain\tests\test_dgx_launch_contract.py", line 418, in test_release_sync_requires_one_canonical_fixed_registration
+    self._run_bash_function_contract(body)
+  File "C:\Users\Demon\OneDrive\Desktop\Projects\Pseudo-Brain\brain\tests\test_dgx_launch_contract.py", line 1204, in _run_bash_function_contract
+    self.assertEqual(
+AssertionError: 1 != 0 : stdout:
+
+stderr:
+Traceback (most recent call last):
+  File "<stdin>", line 16, in <module>
+  File "C:\Users\Demon\AppData\Local\Programs\Python\Python311\Lib\pathlib.py", line 1050, in read_bytes
+    with self.open(mode='rb') as f:
+         ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Demon\AppData\Local\Programs\Python\Python311\Lib\pathlib.py", line 1044, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '\\tmp\\dgx-function-contract-hez268el\\release\\registrations\\rcq-v2-reference-v2.json'
+DGX_FAIL code=invalid_registration message=fixed RCQ-v2 registration is not one canonical target-blind object
+
+
+======================================================================
+FAIL: test_resume_preflight_refuses_terminal_failed_stage_gates (test_dgx_launch_contract.DgxLaunchContractTests.test_resume_preflight_refuses_terminal_failed_stage_gates)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Demon\OneDrive\Desktop\Projects\Pseudo-Brain\brain\tests\test_dgx_launch_contract.py", line 804, in test_resume_preflight_refuses_terminal_failed_stage_gates
+    self._run_bash_function_contract(body)
+  File "C:\Users\Demon\OneDrive\Desktop\Projects\Pseudo-Brain\brain\tests\test_dgx_launch_contract.py", line 1204, in _run_bash_function_contract
+    self.assertEqual(
+AssertionError: 1 != 0 : stdout:
+
+stderr:
+
+
+======================================================================
+FAIL: test_checked_in_manifest_and_recipes_are_strictly_identified (test_matched_baselines.MatchedBaselineTests.test_checked_in_manifest_and_recipes_are_strictly_identified)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Demon\OneDrive\Desktop\Projects\Pseudo-Brain\brain\tests\test_matched_baselines.py", line 469, in test_checked_in_manifest_and_recipes_are_strictly_identified
+    self.assertIn(expected_digest, actual_digests)
+AssertionError: 'f6c7f9e5031a753e406744e715a7f8045b8503020cd6052fbc2fa05e66bceba4' not found in ('d2dad5e74a6fdce1c63cdd84f71508b90989eb9fecfdea1a192b4d82c2aad5ea', 'd2dad5e74a6fdce1c63cdd84f71508b90989eb9fecfdea1a192b4d82c2aad5ea')
+
+----------------------------------------------------------------------
+Ran 1151 tests in 132.527s
+
+FAILED (failures=3, errors=3, skipped=2)
+EXIT=1

@@ -14,8 +14,21 @@ any completion claim.
 
 ## Tier 0 — immediate
 
-- [T0-1] ACTIVE — full regression suite green? (~157s). Prior session claimed
-  1051 pass / 2 expected skips; UNVERIFIED on disk. Re-run to completion.
+- [DONE] T0-1 — full regression suite re-run to completion, 2026-08-27.
+  **MEASURED: 1151 run / 1143 pass / 2 skip / 3 fail / 3 error = 6 non-green.**
+  NONE is a behavioral regression: 2 are the documented Windows-`/tmp`
+  environmental failures (`test_dgx_launch_contract`, expected per the
+  2026-08-26 decision record); 4 are **stale frozen-identity provenance
+  canaries** correctly signaling the tree advanced past historical pins
+  (3× the V2.1i `EXACT_V3_SOURCE_BUNDLE_SHA256` pin, fired solely by
+  `embodied_interface.py` being added in `b94c920`; 1× the
+  baseline-architecture-manifest pin, fired by `actuator.py`/`torch_model.py`
+  advancing past the 08-18 manifest). **Decision: NOT re-frozen, NOT
+  weakened, NOT skip-gated** — re-baselining a sealed identity is a
+  scientific-claim decision needing a fresh registration, not autonomous
+  maintenance. The prior session's "1051 pass / 2 skips" was unverified and
+  is superseded. Full record:
+  `brain/docs/runs/2026-08-27-t01-full-regression-reverification.md`.
 - [DONE] T0-2 — V2-C four-seed confirmation closed out: AMBIGUOUS (mean -0.037,
   delta +0.176, sigma 0.0653 > 0.06 tol), per frozen classes; no retry/relaxation.
   Report: `brain/docs/runs/2026-08-26-v20j-confirmatory-v2c-arm-closeout.md`.
