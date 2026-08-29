@@ -1,4 +1,4 @@
-"""Monotonic timing and deadline-aware runtime components."""
+"""Monotonic timing, deadline-aware runtime, and guaranteed context compression."""
 
 from .continuous import (
     AdvanceResult,
@@ -8,6 +8,13 @@ from .continuous import (
     PostAdvanceRuntimeError,
     PostAdvanceValueError,
 )
+from .context_compressor import (
+    CompressedContext,
+    ContextStore,
+    SparkConfig,
+    compress,
+    estimate_tokens,
+)
 
 __all__ = [
     "AdvanceResult",
@@ -16,4 +23,9 @@ __all__ = [
     "ContinuousEnvironmentDriver",
     "PostAdvanceRuntimeError",
     "PostAdvanceValueError",
+    "CompressedContext",
+    "ContextStore",
+    "SparkConfig",
+    "compress",
+    "estimate_tokens",
 ]
