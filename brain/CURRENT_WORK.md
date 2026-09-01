@@ -63,6 +63,18 @@ CORE V2 / EMBODIED QUALIFICATION (Tier-0..3 workstream)
 ## 3. Next (queue)
 
 1. **T1-4 closeout** — record gate R/S/T/U results; commit + push.
+2. **Fruit-Fly Brain Reference** — fly-inspired architecture variant (preregistered 2026-08-29)
+   - [DONE] Preregistration document
+   - [DONE] Literature review & connectome mapping
+   - [DONE] Architecture sketch (4-module topology, sparse coding, DAN gating)
+   - [DONE] Probe script & comparison script in `brain/scratch/`
+   - [DONE] Fly-inspired model module: `brain/src/irene_brain/model/fly_inspired.py`
+   - [DONE] RCQ evaluation wrapper: `brain/src/irene_brain/evaluation/fly_rcq.py`
+   - [DONE] Training script: `brain/scripts/train_fly_inspired.py`
+   - [ ] Run comparison experiment (fly-inspired vs canonical)
+   - [ ] Run training script
+   - [ ] Analyze results and issue go/no-go recommendation
+3. **T2-1** — train Core V2 (W120/K32/C3) + EmbodiedInterfaceV1 heads
 2. **T2-1** — train Core V2 (W120/K32/C3) + EmbodiedInterfaceV1 heads jointly
    on the same corpus under the deployed decision loss; multi-seed.
 3. **T2-2** — CPU-QUAL preregistration (seal before opening; TEST untouched).

@@ -1,0 +1,92 @@
+Metadata-Version: 2.4
+Name: pseudo-brain
+Version: 0.0.1
+Summary: A streaming, persistent sensorimotor thought-field research model
+Author: Pseudo-Brain project
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+
+# Pseudo-Brain
+
+Pseudo-Brain is a standalone research project for a single, continuously
+running sensorimotor model with a persistent world state and many parallel
+latent microthoughts, scaling into a general-purpose cognitive agent
+([PLAN.md §43](./PLAN.md#43-long-term-research-direction-general-purpose-language-tool-use--long-horizon-agent)).
+
+The historical Python package name remains `irene_brain` so that immutable
+training releases and checkpoints remain verifiable. New project work lives
+under `Projects/Pseudo-Brain`; the separate Irene application and personality
+data are not dependencies of this project.
+
+The current campaign, in plain language, is
+[CURRENT_WORK.md](../CURRENT_WORK.md). How to freeze, register, and launch is
+[docs/OPERATOR_GUIDE.md](./docs/OPERATOR_GUIDE.md).
+The current project blueprint is [PLAN.md](./PLAN.md).
+Current implementation status is [STATUS.md](./STATUS.md).
+
+This project is intentionally separate from Irene's turn-based voice/screen
+pipeline and chat-personality supervision. Neither is training data for the
+sensorimotor model.
+
+Phase 0A provides a dependency-free deterministic core: generic controls,
+canonical observations, a branchable pixel world, exact replay, counterfactual
+rollouts, leakage-safe records, a fake-clock continuous driver, resource-policy
+guards, experiment manifests, and one-brain compliance checks.
+
+The live and recorded paths materialize the same resolved `ModelObservation`:
+pixels, optional audio/text, relative timing, dropped-frame count, and the last
+control actually applied. File references, current/future actions, rewards, and
+privileged environment state are excluded by construction. Real-time catch-up
+is bounded and faults return the controller to neutral.
+
+Phase 1 now includes an opt-in PyTorch implementation of the single shared
+thought-field model, a lazy million-transition procedural dataset, structured
+307-channel action training, deterministic validation, mixed-precision training,
+and integrity-checked checkpoint/resume. PyTorch remains lazily imported: merely
+importing the Phase 0 package starts no accelerator runtime.
+
+Training never starts automatically. The checked-in CUDA configurations are
+for explicit offline execution on the DGX Spark; see
+[DGX_SPARK_TRAINING.md](./docs/DGX_SPARK_TRAINING.md). The one-seed reference
+qualification and untouched-TEST rules are frozen in
+[RCQ_V2_PROTOCOL.md](./docs/RCQ_V2_PROTOCOL.md). Screen capture, physical input
+injection, and background training remain disabled unless separately and
+explicitly armed.
+
+New DGX releases and runs use `~/projects/pseudo-brain` and the version-2
+workspace marker. The old `~/projects/irene-brain` tree is retained in place as
+read-only historical storage and is accessible only through explicit legacy
+status/artifact retrieval switches.
+
+The first bounded smoke and full-thesis canary completed successfully. The
+first procedural bootstrap was deliberately stopped after its step-100 gate
+exposed an all-directions action-loss shortcut; the objective and decisive
+metrics were corrected and locally verified. The fresh immutable successor
+then failed its bounded 100-step action-learning gate with near-zero logits, so
+longer training remains blocked. See the
+[first DGX run record](./docs/runs/2026-08-16-first-dgx-run.md) for immutable
+release, checkpoint hashes, measured losses, and the live-control boundary.
+The successor [corrected Stage A gate record](./docs/runs/2026-08-16-corrected-stagea-gate.md)
+records the clean 100-step failure and the controlled action-path diagnostic
+that must pass before longer training.
+The matched [action overfit A/B record](./docs/runs/2026-08-16-action-overfit-ab.md)
+shows that the action path can learn and selects the calibrated objective for
+the broad held-out gate. The registered 500-step
+[Stage A continuation gate](./docs/runs/2026-08-16-stagea-continuation-gate.md)
+then improved late but validly failed its held-out behavioral thresholds. Its
+matched [constant-schedule control](./docs/runs/2026-08-16-stagea-constant-gate.md)
+improved exact held-out actions from `51/96` to `72/96`, reduced movement false
+positives from 22 to 8, and removed opposite-direction conflicts, but still
+failed the frozen `80/96` policy gate and value-loss bound. The 1,000-step
+bootstrap and causal ablation remain blocked while matched baselines and a
+larger untouched evaluation are built.
+The preregistered [causal thought ablation](./docs/CAUSAL_THOUGHT_ABLATION.md)
+tests only whether the complete final thought tensor beneficially affects
+movement decisions on the fixed Stage-A slice; it does not certify slot
+specialization or human-like thought.
+
+From the `Pseudo-Brain` project root, run the CPU-only play-safe tests with:
+
+~~~powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\brain\scripts\run_play_safe_tests.ps1
+~~~
