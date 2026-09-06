@@ -109,11 +109,14 @@ class FastPlasticityModule(nn.Module):
         P_t: torch.Tensor,
         state: torch.Tensor,
         surprise: torch.Tensor,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
-        """Returns (P_{t+1}, delta_P)."""
+        return_gate: bool = False,
+    ) -> Tuple[torch.Tensor, torch.Tensor] | Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Returns (P_{t+1}, delta_P) or (P_{t+1}, delta_P, gate)."""
         gate = self.surprise_gate(surprise)
         delta = gate * torch.tanh(self.modulator(torch.cat([state, surprise], dim=-1)))
         P_next = self.decay * P_t + self.lr * delta
+        if return_gate:
+            return P_next, delta, gate
         return P_next, delta
 
 
@@ -178,7 +181,8 @@ class PredictiveGRUModel(nn.Module):
         surprise_t: torch.Tensor,
         h: Optional[torch.Tensor] = None,
         P_t: Optional[torch.Tensor] = None,
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, Optional[torch.Tensor], Optional[torch.Tensor]]:
+        return_gate: bool = False,
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, Optional[torch.Tensor], Optional[torch.Tensor]] | Tuple[torch.Tensor, torch.Tensor, torch.Tensor, Optional[torch.Tensor], Optional[torch.Tensor], Optional[torch.Tensor]]:
         B = z_t.size(0)
         dev = z_t.device
         if h is None:
@@ -201,12 +205,15 @@ class PredictiveGRUModel(nn.Module):
         base_logits = self.action_head(h_new)
 
         delta_P = None
+        gate = None
         if self.use_plasticity and P_t is not None:
-            P_t, delta_P = self.plasticity.update(P_t, h_new, e_t)
+            P_t, delta_P, gate = self.plasticity.update(P_t, h_new, e_t, return_gate=True)
             logits = base_logits + self.plasticity.scale * P_t
         else:
             logits = base_logits
 
+        if return_gate:
+            return logits, h_new, e_t, P_t, delta_P, gate
         return logits, h_new, e_t, P_t, delta_P
 
     def predict_next_latent(self, h: torch.Tensor, action: torch.Tensor) -> torch.Tensor:
@@ -218,7 +225,8 @@ class PredictiveGRUModel(nn.Module):
         prev_actions: torch.Tensor,
         actions: torch.Tensor,
         ss_rate: float = 0.0,
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        return_diagnostics: bool = False,
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor] | Tuple[torch.Tensor, torch.Tensor, torch.Tensor, Dict]:
         """Vectorized sequence forward pass across all T steps.
 
         Args:
@@ -226,11 +234,13 @@ class PredictiveGRUModel(nn.Module):
             prev_actions: [B, T] antecedent actions
             actions: [B, T] ground-truth actions for current steps
             ss_rate: scheduled sampling probability in [0, 1]
+            return_diagnostics: whether to return internal gate and surprise trajectories
 
         Returns:
             all_logits: [B, T, ACTION_CLASSES] action logits
             all_z_hat: [B, T - 1, latent_dim] predicted next latents
             final_surprise: [B, 1] final surprise norm
+            (optional) diagnostics: Dict of surprise, gate, and plasticity norms
         """
         B, T, _ = all_z.shape
         dev = all_z.device
@@ -241,10 +251,17 @@ class PredictiveGRUModel(nn.Module):
 
         logits_list = []
         z_hat_list = []
+        gate_list = []
+        surp_list = []
 
         for t in range(T):
             z_t = all_z[:, t]
-            logits, h, e_t, P_t, _ = self.forward_step(z_t, curr_prev_act, surprise, h, P_t)
+            if return_diagnostics:
+                logits, h, e_t, P_t, _, gate = self.forward_step(z_t, curr_prev_act, surprise, h, P_t, return_gate=True)
+                if gate is not None:
+                    gate_list.append(gate)
+            else:
+                logits, h, e_t, P_t, _ = self.forward_step(z_t, curr_prev_act, surprise, h, P_t)
             logits_list.append(logits)
 
             if t < T - 1:
@@ -252,6 +269,8 @@ class PredictiveGRUModel(nn.Module):
                 z_hat_list.append(z_hat)
                 z_next_true = all_z[:, t + 1].detach()
                 surprise = torch.norm(z_hat.detach() - z_next_true, dim=-1, keepdim=True)
+                if return_diagnostics:
+                    surp_list.append(surprise)
 
                 if ss_rate > 0.0:
                     use_pred = (torch.rand(B, device=dev) < ss_rate)
@@ -261,6 +280,14 @@ class PredictiveGRUModel(nn.Module):
 
         all_logits = torch.stack(logits_list, dim=1)
         all_z_hat = torch.stack(z_hat_list, dim=1) if z_hat_list else torch.empty(B, 0, self.latent_dim, device=dev)
+
+        if return_diagnostics:
+            diag = {
+                "all_surprises": torch.stack(surp_list, dim=1) if surp_list else torch.empty(B, 0, 1, device=dev),
+                "all_gates": torch.stack(gate_list, dim=1) if gate_list else torch.empty(B, 0, 1, device=dev),
+            }
+            return all_logits, all_z_hat, surprise, diag
+
         return all_logits, all_z_hat, surprise
 
 
@@ -317,7 +344,8 @@ class PredictiveThoughtletModel(nn.Module):
         surprise_t: torch.Tensor,
         thoughts: Optional[torch.Tensor] = None,
         P_t: Optional[torch.Tensor] = None,
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, Optional[torch.Tensor], Optional[torch.Tensor]]:
+        return_gate: bool = False,
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, Optional[torch.Tensor], Optional[torch.Tensor]] | Tuple[torch.Tensor, torch.Tensor, torch.Tensor, Optional[torch.Tensor], Optional[torch.Tensor], Optional[torch.Tensor]]:
         B = z_t.size(0)
         dev = z_t.device
         if thoughts is None:
@@ -348,12 +376,15 @@ class PredictiveThoughtletModel(nn.Module):
         base_logits = self.action_head(flat_state)
 
         delta_P = None
+        gate = None
         if self.use_plasticity and P_t is not None:
-            P_t, delta_P = self.plasticity.update(P_t, flat_state, e_t)
+            P_t, delta_P, gate = self.plasticity.update(P_t, flat_state, e_t, return_gate=True)
             logits = base_logits + self.plasticity.scale * P_t
         else:
             logits = base_logits
 
+        if return_gate:
+            return logits, thoughts_new, e_t, P_t, delta_P, gate
         return logits, thoughts_new, e_t, P_t, delta_P
 
     def predict_next_latent(self, thoughts: torch.Tensor, action: torch.Tensor) -> torch.Tensor:
@@ -367,7 +398,8 @@ class PredictiveThoughtletModel(nn.Module):
         prev_actions: torch.Tensor,
         actions: torch.Tensor,
         ss_rate: float = 0.0,
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        return_diagnostics: bool = False,
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor] | Tuple[torch.Tensor, torch.Tensor, torch.Tensor, Dict]:
         """Vectorized sequence forward pass across all T steps for parallel thoughtlets.
 
         Args:
@@ -375,11 +407,13 @@ class PredictiveThoughtletModel(nn.Module):
             prev_actions: [B, T] antecedent actions
             actions: [B, T] ground-truth actions for current steps
             ss_rate: scheduled sampling probability in [0, 1]
+            return_diagnostics: whether to return internal gate and surprise trajectories
 
         Returns:
             all_logits: [B, T, ACTION_CLASSES] action logits
             all_z_hat: [B, T - 1, latent_dim] predicted next latents
             final_surprise: [B, 1] final surprise norm
+            (optional) diagnostics: Dict of surprise, gate, and plasticity norms
         """
         B, T, _ = all_z.shape
         dev = all_z.device
@@ -390,10 +424,17 @@ class PredictiveThoughtletModel(nn.Module):
 
         logits_list = []
         z_hat_list = []
+        gate_list = []
+        surp_list = []
 
         for t in range(T):
             z_t = all_z[:, t]
-            logits, thoughts, e_t, P_t, _ = self.forward_step(z_t, curr_prev_act, surprise, thoughts, P_t)
+            if return_diagnostics:
+                logits, thoughts, e_t, P_t, _, gate = self.forward_step(z_t, curr_prev_act, surprise, thoughts, P_t, return_gate=True)
+                if gate is not None:
+                    gate_list.append(gate)
+            else:
+                logits, thoughts, e_t, P_t, _ = self.forward_step(z_t, curr_prev_act, surprise, thoughts, P_t)
             logits_list.append(logits)
 
             if t < T - 1:
@@ -401,6 +442,8 @@ class PredictiveThoughtletModel(nn.Module):
                 z_hat_list.append(z_hat)
                 z_next_true = all_z[:, t + 1].detach()
                 surprise = torch.norm(z_hat.detach() - z_next_true, dim=-1, keepdim=True)
+                if return_diagnostics:
+                    surp_list.append(surprise)
 
                 if ss_rate > 0.0:
                     use_pred = (torch.rand(B, device=dev) < ss_rate)
@@ -410,6 +453,14 @@ class PredictiveThoughtletModel(nn.Module):
 
         all_logits = torch.stack(logits_list, dim=1)
         all_z_hat = torch.stack(z_hat_list, dim=1) if z_hat_list else torch.empty(B, 0, self.latent_dim, device=dev)
+
+        if return_diagnostics:
+            diag = {
+                "all_surprises": torch.stack(surp_list, dim=1) if surp_list else torch.empty(B, 0, 1, device=dev),
+                "all_gates": torch.stack(gate_list, dim=1) if gate_list else torch.empty(B, 0, 1, device=dev),
+            }
+            return all_logits, all_z_hat, surprise, diag
+
         return all_logits, all_z_hat, surprise
 
 

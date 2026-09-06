@@ -87,6 +87,9 @@ def run_single_experiment(
     use_wandb: bool = False,
     compile_model: bool = False,
     use_amp: bool = False,
+    total_samples: Optional[int] = None,
+    grad_accum_steps: int = 1,
+    use_legacy_forward: bool = False,
 ) -> Dict[str, Any]:
     """Executes training and evaluation for a single (model, seed) pair."""
     exp_dir = output_dir / experiment / f"{model_name}_seed_{seed}"
@@ -110,6 +113,9 @@ def run_single_experiment(
         "seed": seed,
         "steps": steps,
         "batch_size": batch_size,
+        "grad_accum_steps": grad_accum_steps,
+        "effective_batch_size": batch_size * grad_accum_steps,
+        "total_samples": total_samples,
         "device": device_str,
         "git_commit": commit_hash,
         "hardware": hw_info,
@@ -143,7 +149,9 @@ def run_single_experiment(
                 corpus_dir=corpus_path,
                 seed=seed,
                 total_steps=steps,
+                total_samples=total_samples,
                 batch_size=batch_size,
+                grad_accum_steps=grad_accum_steps,
                 device_str=device_str,
                 output_dir=exp_dir,
                 save_every=min(250, steps // 2 if steps > 2 else steps),
@@ -151,6 +159,7 @@ def run_single_experiment(
                 telemetry=telemetry,
                 compile_model=compile_model,
                 use_amp=use_amp,
+                use_legacy_forward=use_legacy_forward,
             )
 
         elif experiment == "self_correction":
@@ -225,6 +234,23 @@ def run_single_experiment(
 
                 acc_matrix = np.array(accuracies)
                 mean_acc = np.mean(acc_matrix, axis=0) * 100.0
+
+                p_norms = [s.get("mean_p_norm", 0.0) for s in sessions]
+                delta_p_norms = [s.get("mean_delta_p", 0.0) for s in sessions]
+                surprises = [s.get("mean_surprise", 0.0) for s in sessions]
+                var_surprises = [s.get("var_surprise", 0.0) for s in sessions]
+                std_surprises = [s.get("std_surprise", 0.0) for s in sessions]
+                max_surprises = [s.get("max_surprise", 0.0) for s in sessions]
+                gates = [s.get("mean_gate", 0.0) for s in sessions]
+                max_gates = [s.get("max_gate", 0.0) for s in sessions]
+
+                closed_loop_successes = []
+                for s in sessions:
+                    outcomes = s.get("trial_outcomes", [])
+                    t12_ok = outcomes[11]["correct"] if len(outcomes) > 11 else False
+                    t22_ok = outcomes[21]["correct"] if len(outcomes) > 21 else False
+                    closed_loop_successes.append(1.0 if (t12_ok and t22_ok) else 0.0)
+
                 eval_results = {
                     "t1_acc": float(mean_acc[0]),
                     "t2_acc": float(mean_acc[1]),
@@ -232,8 +258,19 @@ def run_single_experiment(
                     "t11_acc": float(mean_acc[10]),
                     "t12_acc": float(mean_acc[11]),
                     "t20_acc": float(mean_acc[19]),
-                    "t30_acc": float(mean_acc[29]),
+                    "t21_acc": float(mean_acc[20]) if len(mean_acc) > 20 else 0.0,
+                    "t22_acc": float(mean_acc[21]) if len(mean_acc) > 21 else 0.0,
+                    "t30_acc": float(mean_acc[29]) if len(mean_acc) > 29 else 0.0,
                     "mean_latency_ms": float(np.mean(latencies)),
+                    "mean_p_norm": float(np.mean(p_norms)),
+                    "mean_delta_p": float(np.mean(delta_p_norms)),
+                    "mean_surprise": float(np.mean(surprises)),
+                    "var_surprise": float(np.mean(var_surprises)),
+                    "std_surprise": float(np.mean(std_surprises)),
+                    "max_surprise": float(np.mean(max_surprises)),
+                    "mean_gate": float(np.mean(gates)),
+                    "max_gate": float(np.mean(max_gates)),
+                    "closed_loop_success_pct": float(np.mean(closed_loop_successes)) * 100.0 if closed_loop_successes else 0.0,
                 }
 
             elif experiment == "memory_benchmark":
@@ -287,11 +324,24 @@ def run_single_experiment(
     with open(meta_file, "w", encoding="utf-8") as f:
         json.dump(meta, f, indent=2)
 
+    train_summary = train_info if isinstance(train_info, dict) else {}
     final_payload = {
         "model": model_name,
         "seed": seed,
         "train_time_s": train_elapsed,
         "total_time_s": total_elapsed,
+        "batch_size": batch_size,
+        "grad_accum_steps": grad_accum_steps,
+        "effective_batch_size": batch_size * grad_accum_steps,
+        "total_samples": total_samples,
+        "train_metrics": {
+            "mean_grad_norm": train_summary.get("mean_grad_norm", 0.0),
+            "mean_update_norm": train_summary.get("mean_update_norm", 0.0),
+            "mean_surprise_var": train_summary.get("mean_surprise_var", 0.0),
+            "mean_surprise": train_summary.get("mean_surprise", 0.0),
+            "mean_gate": train_summary.get("mean_gate", 0.0),
+            "final_loss": train_summary.get("final_loss", 0.0),
+        },
         "eval": eval_results,
     }
     with open(eval_file, "w", encoding="utf-8") as f:
@@ -323,6 +373,9 @@ def _run_batch_worker(args: dict) -> dict:
             use_wandb=args["use_wandb"],
             compile_model=args["compile_model"],
             use_amp=args["use_amp"],
+            total_samples=args.get("total_samples"),
+            grad_accum_steps=args.get("grad_accum_steps", 1),
+            use_legacy_forward=args.get("use_legacy_forward", False),
         )
         return {"success": True, "result": res}
     except Exception as e:
@@ -347,6 +400,9 @@ def run_batch(
     parallel_jobs: int = 1,
     compile_model: bool = False,
     use_amp: bool = False,
+    total_samples: Optional[int] = None,
+    grad_accum_steps: int = 1,
+    use_legacy_forward: bool = False,
 ):
     """Iterates through all (model, seed) combinations, handling errors and aggregating results."""
     print("=" * 70)
@@ -354,9 +410,10 @@ def run_batch(
     print(f"Experiment: {experiment}")
     print(f"Models: {models}")
     print(f"Seeds: {seeds}")
-    print(f"Steps: {steps} | Device: {device_str}")
-    print(f"Batch size: {batch_size} | Parallel jobs: {parallel_jobs}")
-    print(f"Compile: {compile_model} | AMP: {use_amp}")
+    eff_batch = batch_size * grad_accum_steps
+    print(f"Steps: {steps} | Total Samples: {total_samples} | Device: {device_str}")
+    print(f"Batch size: {batch_size} | Accum: {grad_accum_steps} (Eff Batch: {eff_batch}) | Parallel jobs: {parallel_jobs}")
+    print(f"Compile: {compile_model} | AMP: {use_amp} | Legacy Forward: {use_legacy_forward}")
     print(f"Output Directory: {output_dir.resolve()}")
     if webhook_url:
         print("Telemetry: Webhook notifications active")
@@ -390,6 +447,9 @@ def run_batch(
                 "use_wandb": use_wandb,
                 "compile_model": compile_model,
                 "use_amp": use_amp,
+                "total_samples": total_samples,
+                "grad_accum_steps": grad_accum_steps,
+                "use_legacy_forward": use_legacy_forward,
             }
             for m in models
             for s in seeds
@@ -429,6 +489,9 @@ def run_batch(
                         use_wandb=use_wandb,
                         compile_model=compile_model,
                         use_amp=use_amp,
+                        total_samples=total_samples,
+                        grad_accum_steps=grad_accum_steps,
+                        use_legacy_forward=use_legacy_forward,
                     )
                     results.append(res)
                 except Exception as e:
@@ -447,15 +510,29 @@ def run_batch(
     # Write summary CSV
     agg_csv = agg_dir / "aggregate_results.csv"
     if results:
-        fieldnames = ["model", "seed", "train_time_s", "total_time_s"]
+        fieldnames = ["model", "seed", "batch_size", "grad_accum_steps", "effective_batch_size", "train_time_s", "total_time_s"]
+        train_keys = sorted(list(results[0].get("train_metrics", {}).keys()))
         eval_keys = sorted(list(results[0].get("eval", {}).keys()))
+        fieldnames.extend(train_keys)
         fieldnames.extend(eval_keys)
 
         with open(agg_csv, "w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
             writer.writerow(fieldnames)
             for r in results:
-                row = [r["model"], r["seed"], f"{r['train_time_s']:.1f}", f"{r['total_time_s']:.1f}"]
+                row = [
+                    r["model"],
+                    r["seed"],
+                    r.get("batch_size", batch_size),
+                    r.get("grad_accum_steps", grad_accum_steps),
+                    r.get("effective_batch_size", batch_size * grad_accum_steps),
+                    f"{r['train_time_s']:.1f}",
+                    f"{r['total_time_s']:.1f}",
+                ]
+                tr = r.get("train_metrics", {})
+                for k in train_keys:
+                    val = tr.get(k, "")
+                    row.append(f"{val:.4f}" if isinstance(val, float) else str(val))
                 ev = r.get("eval", {})
                 for k in eval_keys:
                     val = ev.get(k, "")
@@ -497,7 +574,9 @@ def main():
     parser.add_argument("--seed", type=int, default=42, help="Single seed")
     parser.add_argument("--seeds", type=int, nargs="+", default=None, help="List of seeds for batch")
     parser.add_argument("--steps", type=int, default=1500, help="Total training steps")
+    parser.add_argument("--total_samples", type=int, default=None, help="Fixed total samples (normalizes steps = total_samples // batch_size)")
     parser.add_argument("--batch_size", type=int, default=16, help="Minibatch size")
+    parser.add_argument("--grad_accum_steps", type=int, default=1, help="Gradient accumulation steps")
     parser.add_argument("--device", type=str, default="auto", help="Compute device (auto, cuda, cpu)")
     parser.add_argument(
         "--output_dir",
@@ -517,6 +596,7 @@ def main():
     parser.add_argument("--wandb", action="store_true", help="Enable Weights & Biases telemetry")
     parser.add_argument("--compile", action="store_true", help="Compile model with torch.compile")
     parser.add_argument("--use_amp", action="store_true", help="Enable bfloat16 automatic mixed precision")
+    parser.add_argument("--legacy_forward", action="store_true", help="Use unrolled eager step loop (original pipeline)")
     parser.add_argument("--parallel_jobs", type=int, default=1, help="Concurrent jobs for batch execution")
 
     args = parser.parse_args()
@@ -543,23 +623,52 @@ def main():
     else:
         seed_list = [args.seed]
 
-    run_batch(
-        experiment=args.experiment,
-        models=model_list,
-        seeds=seed_list,
-        steps=args.steps,
-        batch_size=args.batch_size,
-        device_str=args.device,
-        output_dir=Path(args.output_dir),
-        data_dir=Path(args.data_dir),
-        resume=args.resume,
-        auto_eval=not args.no_eval,
-        webhook_url=args.webhook,
-        use_wandb=args.wandb,
-        parallel_jobs=args.parallel_jobs,
-        compile_model=args.compile,
-        use_amp=args.use_amp,
-    )
+    out_path = Path(args.output_dir)
+    data_path = Path(args.data_dir)
+
+    is_batch = (len(model_list) > 1 or len(seed_list) > 1)
+
+    if is_batch:
+        run_batch(
+            experiment=args.experiment,
+            models=model_list,
+            seeds=seed_list,
+            steps=args.steps,
+            batch_size=args.batch_size,
+            device_str=args.device,
+            output_dir=out_path,
+            data_dir=data_path,
+            resume=args.resume,
+            auto_eval=(not args.no_eval),
+            webhook_url=args.webhook,
+            use_wandb=args.wandb,
+            parallel_jobs=args.parallel_jobs,
+            compile_model=args.compile,
+            use_amp=args.use_amp,
+            total_samples=args.total_samples,
+            grad_accum_steps=args.grad_accum_steps,
+            use_legacy_forward=args.legacy_forward,
+        )
+    else:
+        run_single_experiment(
+            experiment=args.experiment,
+            model_name=model_list[0],
+            seed=seed_list[0],
+            steps=args.steps,
+            batch_size=args.batch_size,
+            device_str=args.device,
+            output_dir=out_path,
+            data_dir=data_path,
+            resume=args.resume,
+            auto_eval=(not args.no_eval),
+            webhook_url=args.webhook,
+            use_wandb=args.wandb,
+            compile_model=args.compile,
+            use_amp=args.use_amp,
+            total_samples=args.total_samples,
+            grad_accum_steps=args.grad_accum_steps,
+            use_legacy_forward=args.legacy_forward,
+        )
 
 
 if __name__ == "__main__":

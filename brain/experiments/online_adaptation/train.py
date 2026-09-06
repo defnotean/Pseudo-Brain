@@ -50,7 +50,9 @@ def train_model(
     corpus_dir: str | Path,
     seed: int = 42,
     total_steps: int = 1500,
+    total_samples: Optional[int] = None,
     batch_size: int = 16,
+    grad_accum_steps: int = 1,
     lr: float = 5e-4,
     pred_weight: float = 0.5,
     device_str: str = "auto",
@@ -61,14 +63,26 @@ def train_model(
     telemetry: Optional[Any] = None,
     compile_model: bool = False,
     use_amp: bool = False,
+    use_legacy_forward: bool = False,
 ) -> Tuple[nn.Module, Dict]:
     torch.manual_seed(seed)
     np.random.seed(seed)
     device = resolve_device(device_str)
 
+    grad_accum_steps = max(1, grad_accum_steps)
+    if total_samples is not None:
+        total_steps = max(1, total_samples // batch_size)
+
+    effective_batch_size = batch_size * grad_accum_steps
+    total_optimizer_updates = max(1, total_steps // grad_accum_steps)
+
     hw = get_hardware_summary()
     dev_name = hw["gpu_name"] if hw["cuda_available"] else "CPU"
-    print(f"[{model_type.upper()}] Starting training on {dev_name} (device={device}, seed={seed}, steps={total_steps})...")
+    print(
+        f"[{model_type.upper()}] Starting training on {dev_name} (device={device}, seed={seed}, "
+        f"batch_size={batch_size}, accum={grad_accum_steps}, eff_batch={effective_batch_size}, "
+        f"steps={total_steps}, updates={total_optimizer_updates})..."
+    )
 
     corpus_path = Path(corpus_dir)
     train_ds = HiddenRuleSequenceDataset(corpus_path / "train", seq_len=32)
@@ -130,7 +144,7 @@ def train_model(
             print(f"  [{model_type.upper()}] Training already complete ({step} >= {total_steps} steps).")
             return model, {"history": history}
 
-    if compile_model and device.type == "cuda":
+    if compile_model and device.type == "cuda" and not use_legacy_forward:
         try:
             model = torch.compile(model, mode="reduce-overhead")
             print(f"  [{model_type.upper()}] torch.compile(model, mode='reduce-overhead') activated.")
@@ -140,6 +154,7 @@ def train_model(
     start_step = step
     t0 = time.time()
     train_iter = iter(train_loader)
+    optimizer.zero_grad()
 
     while step < total_steps:
         try:
@@ -167,25 +182,80 @@ def train_model(
                 logits = model(frames_flat)
                 loss = act_criterion(logits, actions_flat)
 
+            loss_unscaled = loss.item()
+            loss = loss / grad_accum_steps
+            loss.backward()
+
+            act_loss_val = loss_unscaled
             pred_loss_val = 0.0
             surprise_val = 0.0
+            surprise_var = 0.0
+            surprise_max = 0.0
+            gate_val = 0.0
 
-            optimizer.zero_grad()
+        elif use_legacy_forward:
+            # Unrolled eager loop (Cell A / B original pipeline)
+            h = None
+            P_t = None
+            curr_prev_act = prev_actions[:, 0]
+            surprise = torch.zeros(B, 1, device=device)
+            loss_act = torch.tensor(0.0, device=device)
+            loss_pred = torch.tensor(0.0, device=device)
+            surp_list = []
+            gate_list = []
+
+            for t in range(T):
+                z_t = model.encode_observation(frames[:, t])
+                if model_type == "gru":
+                    logits, h, e_t, P_t, _, gate = model.forward_step(
+                        z_t, curr_prev_act, surprise, h=h, P_t=P_t, return_gate=True
+                    )
+                else:
+                    logits, h, e_t, P_t, _, gate = model.forward_step(
+                        z_t, curr_prev_act, surprise, thoughts=h, P_t=P_t, return_gate=True
+                    )
+                if gate is not None:
+                    gate_list.append(gate)
+
+                loss_act = loss_act + act_criterion(logits, actions[:, t])
+
+                if t < T - 1:
+                    z_hat = model.predict_next_latent(h, actions[:, t])
+                    z_next_true = model.encode_observation(frames[:, t + 1]).detach()
+                    loss_pred = loss_pred + pred_criterion(z_hat, z_next_true)
+                    surprise = torch.norm(z_hat.detach() - z_next_true, dim=-1, keepdim=True)
+                    surp_list.append(surprise)
+
+                curr_prev_act = actions[:, t]
+
+            loss_act = loss_act / T
+            loss_pred = loss_pred / max(T - 1, 1)
+            loss = loss_act + pred_weight * loss_pred
+            loss_unscaled = loss.item()
+            loss = loss / grad_accum_steps
             loss.backward()
-            nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-            optimizer.step()
 
-            act_loss_val = loss.item()
+            act_loss_val = loss_act.item()
+            pred_loss_val = loss_pred.item()
+            if surp_list:
+                s_cat = torch.cat(surp_list, dim=0)
+                surprise_val = float(s_cat.mean().item())
+                surprise_var = float(s_cat.var().item()) if s_cat.numel() > 1 else 0.0
+                surprise_max = float(s_cat.max().item())
+            else:
+                surprise_val = surprise_var = surprise_max = 0.0
+            gate_val = float(torch.cat(gate_list, dim=0).mean().item()) if gate_list else 0.0
 
         else:
+            # Accelerated forward_sequence with diagnostics
             all_frames_flat = frames.reshape(B * T, 4, 3, 16, 16)
             ss_rate = min(0.5, (step / max(0.5 * total_steps, 1)) * 0.5)
 
             if use_amp and device.type == "cuda":
                 with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
                     all_z = model.encode_observation(all_frames_flat).reshape(B, T, -1)
-                    all_logits, all_z_hat, surprise = model.forward_sequence(
-                        all_z, prev_actions, actions, ss_rate=ss_rate
+                    all_logits, all_z_hat, surprise, diag = model.forward_sequence(
+                        all_z, prev_actions, actions, ss_rate=ss_rate, return_diagnostics=True
                     )
                     loss_act = act_criterion(all_logits.reshape(B * T, -1), actions.reshape(B * T))
                     if all_z_hat.shape[1] > 0:
@@ -195,8 +265,8 @@ def train_model(
                     loss = loss_act + pred_weight * loss_pred
             else:
                 all_z = model.encode_observation(all_frames_flat).reshape(B, T, -1)
-                all_logits, all_z_hat, surprise = model.forward_sequence(
-                    all_z, prev_actions, actions, ss_rate=ss_rate
+                all_logits, all_z_hat, surprise, diag = model.forward_sequence(
+                    all_z, prev_actions, actions, ss_rate=ss_rate, return_diagnostics=True
                 )
                 loss_act = act_criterion(all_logits.reshape(B * T, -1), actions.reshape(B * T))
                 if all_z_hat.shape[1] > 0:
@@ -205,14 +275,45 @@ def train_model(
                     loss_pred = torch.tensor(0.0, device=device)
                 loss = loss_act + pred_weight * loss_pred
 
-            optimizer.zero_grad()
+            loss_unscaled = loss.item()
+            loss = loss / grad_accum_steps
             loss.backward()
-            nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-            optimizer.step()
 
             act_loss_val = loss_act.item()
             pred_loss_val = loss_pred.item()
-            surprise_val = surprise.mean().item()
+            all_surps = diag.get("all_surprises", surprise)
+            if all_surps.numel() > 0:
+                surprise_val = float(all_surps.mean().item())
+                surprise_var = float(all_surps.var().item()) if all_surps.numel() > 1 else 0.0
+                surprise_max = float(all_surps.max().item())
+            else:
+                surprise_val = surprise_var = surprise_max = 0.0
+
+            all_gates = diag.get("all_gates", None)
+            if all_gates is not None and all_gates.numel() > 0:
+                gate_val = float(all_gates.mean().item())
+            else:
+                gate_val = 0.0
+
+        grad_norm_val = 0.0
+        update_norm_val = 0.0
+        is_accum_boundary = ((step + 1) % grad_accum_steps == 0) or ((step + 1) == total_steps)
+
+        if is_accum_boundary:
+            grad_params = [p for p in model.parameters() if p.grad is not None]
+            if grad_params:
+                grad_norm_val = float(torch.norm(torch.stack([torch.norm(p.grad.detach(), 2) for p in grad_params]), 2).item())
+                old_params = [p.detach().clone() for p in grad_params]
+            else:
+                grad_norm_val = 0.0
+                old_params = []
+
+            nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+            optimizer.step()
+
+            if old_params:
+                update_norm_val = float(torch.norm(torch.stack([torch.norm(p.detach() - old_p, 2) for p, old_p in zip(grad_params, old_params)]), 2).item())
+            optimizer.zero_grad()
 
         step += 1
 
@@ -236,7 +337,8 @@ def train_model(
                 f"  [{model_type.upper()}] Step {step:4d}/{total_steps:4d} | "
                 f"Act Loss: {act_loss_val:.4f} | "
                 f"Pred Loss: {pred_loss_val:.4f} | "
-                f"Surprise: {surprise_val:.3f} | "
+                f"Surprise Mean: {surprise_val:.3f} | Var: {surprise_var:.3f} | "
+                f"Gate: {gate_val:.3f} | Grad: {grad_norm_val:.3f} | "
                 f"Elapsed: {elapsed:.1f}s | "
                 f"ETA: {eta_m}m{eta_sec:02d}s"
             )
@@ -244,7 +346,12 @@ def train_model(
                 "step": step,
                 "act_loss": float(act_loss_val),
                 "pred_loss": float(pred_loss_val),
-                "surprise": float(surprise_val),
+                "surprise_mean": float(surprise_val),
+                "surprise_var": float(surprise_var),
+                "surprise_max": float(surprise_max),
+                "gate_mean": float(gate_val),
+                "grad_norm": float(grad_norm_val),
+                "update_norm": float(update_norm_val),
                 "elapsed_s": elapsed,
             })
 
@@ -263,13 +370,24 @@ def train_model(
                 "device": str(device),
                 "lr": lr,
                 "batch_size": batch_size,
+                "grad_accum_steps": grad_accum_steps,
+                "effective_batch_size": effective_batch_size,
             }
             torch.save(checkpoint_state, latest_file)
             if step == total_steps:
                 torch.save(checkpoint_state, ckpt_file)
                 print(f"  [{model_type.upper()}] Final checkpoint saved to {ckpt_file}")
 
-    return model, {"history": history}
+    summary = {
+        "history": history,
+        "mean_grad_norm": float(np.mean([h["grad_norm"] for h in history if h.get("grad_norm", 0.0) > 0.0])) if history else 0.0,
+        "mean_update_norm": float(np.mean([h["update_norm"] for h in history if h.get("update_norm", 0.0) > 0.0])) if history else 0.0,
+        "mean_surprise_var": float(np.mean([h["surprise_var"] for h in history])) if history else 0.0,
+        "mean_surprise": float(np.mean([h["surprise_mean"] for h in history])) if history else 0.0,
+        "mean_gate": float(np.mean([h["gate_mean"] for h in history])) if history else 0.0,
+        "final_loss": float(history[-1]["act_loss"] + pred_weight * history[-1]["pred_loss"]) if history else 0.0,
+    }
+    return model, summary
 
 
 if __name__ == "__main__":
@@ -277,7 +395,9 @@ if __name__ == "__main__":
     parser.add_argument("--model", type=str, required=True, choices=["reactive", "gru", "thoughtlet", "plastic_thoughtlet"])
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--steps", type=int, default=1500)
+    parser.add_argument("--total_samples", type=int, default=None, help="Fixed total samples (normalizes steps = total_samples // batch_size)")
     parser.add_argument("--batch_size", type=int, default=16)
+    parser.add_argument("--grad_accum_steps", type=int, default=1, help="Gradient accumulation steps")
     parser.add_argument("--corpus_dir", type=str, default="brain/datasets/hidden_rule_corpus_v1")
     parser.add_argument("--output_dir", type=str, default="brain/runs/online_adaptation/checkpoints")
     parser.add_argument("--device", type=str, default="auto")
@@ -286,6 +406,7 @@ if __name__ == "__main__":
     parser.add_argument("--resume_from", type=str, default=None)
     parser.add_argument("--compile", action="store_true", help="Compile model with torch.compile")
     parser.add_argument("--use_amp", action="store_true", help="Enable bfloat16 automatic mixed precision")
+    parser.add_argument("--legacy_forward", action="store_true", help="Use unrolled eager step loop (original pipeline)")
 
     args = parser.parse_args()
     train_model(
@@ -293,7 +414,9 @@ if __name__ == "__main__":
         corpus_dir=args.corpus_dir,
         seed=args.seed,
         total_steps=args.steps,
+        total_samples=args.total_samples,
         batch_size=args.batch_size,
+        grad_accum_steps=args.grad_accum_steps,
         output_dir=args.output_dir,
         device_str=args.device,
         save_every=args.save_every,
@@ -301,5 +424,6 @@ if __name__ == "__main__":
         resume_from=args.resume_from,
         compile_model=args.compile,
         use_amp=args.use_amp,
+        use_legacy_forward=args.legacy_forward,
     )
 

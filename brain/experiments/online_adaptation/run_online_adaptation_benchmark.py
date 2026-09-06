@@ -82,6 +82,7 @@ def evaluate_single_session(
     p_norms = []
     delta_p_norms = []
     surprises = []
+    gates = []
 
     # Configure model runtime flags
     if hasattr(model, "use_plasticity"):
@@ -113,20 +114,22 @@ def evaluate_single_session(
                 action = int(logits.argmax(dim=-1).item())
             else:
                 if model_type == "gru":
-                    logits, recurrent_state, e_t, P_t, delta_P = model.forward_step(
+                    logits, recurrent_state, e_t, P_t, delta_P, gate = model.forward_step(
                         z_t=z_t,
                         prev_action=prev_act_tensor,
                         surprise_t=surprise,
                         h=recurrent_state,
                         P_t=P_t,
+                        return_gate=True,
                     )
                 else:
-                    logits, recurrent_state, e_t, P_t, delta_P = model.forward_step(
+                    logits, recurrent_state, e_t, P_t, delta_P, gate = model.forward_step(
                         z_t=z_t,
                         prev_action=prev_act_tensor,
                         surprise_t=surprise,
                         thoughts=recurrent_state,
                         P_t=P_t,
+                        return_gate=True,
                     )
                 action = int(logits.argmax(dim=-1).item())
 
@@ -137,6 +140,8 @@ def evaluate_single_session(
                     p_norms.append(float(torch.norm(P_t).item()))
                 if delta_P is not None:
                     delta_p_norms.append(float(torch.norm(delta_P).item()))
+                if gate is not None:
+                    gates.append(float(gate.squeeze().item()))
 
         # Step environment
         ctrl = CTRL_MAP.get(action, CTRL_MAP[0])
@@ -170,6 +175,11 @@ def evaluate_single_session(
         "mean_p_norm": float(np.mean(p_norms)) if p_norms else 0.0,
         "mean_delta_p": float(np.mean(delta_p_norms)) if delta_p_norms else 0.0,
         "mean_surprise": float(np.mean(surprises)) if surprises else 0.0,
+        "var_surprise": float(np.var(surprises)) if len(surprises) > 1 else 0.0,
+        "std_surprise": float(np.std(surprises)) if surprises else 0.0,
+        "max_surprise": float(np.max(surprises)) if surprises else 0.0,
+        "mean_gate": float(np.mean(gates)) if gates else 0.0,
+        "max_gate": float(np.max(gates)) if gates else 0.0,
     }
 
 
@@ -221,6 +231,7 @@ def evaluate_sessions_batched(
     p_norms = [[] for _ in range(N)]
     delta_p_norms = [[] for _ in range(N)]
     surprises = [[] for _ in range(N)]
+    gates = [[] for _ in range(N)]
 
     while not all(dones):
         t0 = time.perf_counter()
@@ -236,20 +247,22 @@ def evaluate_sessions_batched(
                 actions = logits.argmax(dim=-1).cpu().tolist()
             else:
                 if model_type == "gru":
-                    logits, recurrent_state, e_t, P_t, delta_P = model.forward_step(
+                    logits, recurrent_state, e_t, P_t, delta_P, gate = model.forward_step(
                         z_t=z_t,
                         prev_action=prev_actions,
                         surprise_t=surprise,
                         h=recurrent_state,
                         P_t=P_t,
+                        return_gate=True,
                     )
                 else:
-                    logits, recurrent_state, e_t, P_t, delta_P = model.forward_step(
+                    logits, recurrent_state, e_t, P_t, delta_P, gate = model.forward_step(
                         z_t=z_t,
                         prev_action=prev_actions,
                         surprise_t=surprise,
                         thoughts=recurrent_state,
                         P_t=P_t,
+                        return_gate=True,
                     )
                 actions = logits.argmax(dim=-1).cpu().tolist()
                 actions_tensor = torch.tensor(actions, dtype=torch.long, device=device)
@@ -265,6 +278,11 @@ def evaluate_sessions_batched(
                     for i in range(N):
                         if not dones[i]:
                             delta_p_norms[i].append(dp_norm_vals[i])
+                if gate is not None:
+                    gate_vals = gate.squeeze(-1).cpu().tolist()
+                    for i in range(N):
+                        if not dones[i]:
+                            gates[i].append(gate_vals[i])
 
         # Step environments
         for i in range(N):
@@ -311,6 +329,11 @@ def evaluate_sessions_batched(
             "mean_p_norm": float(np.mean(p_norms[i])) if p_norms[i] else 0.0,
             "mean_delta_p": float(np.mean(delta_p_norms[i])) if delta_p_norms[i] else 0.0,
             "mean_surprise": float(np.mean(surprises[i])) if surprises[i] else 0.0,
+            "var_surprise": float(np.var(surprises[i])) if len(surprises[i]) > 1 else 0.0,
+            "std_surprise": float(np.std(surprises[i])) if surprises[i] else 0.0,
+            "max_surprise": float(np.max(surprises[i])) if surprises[i] else 0.0,
+            "mean_gate": float(np.mean(gates[i])) if gates[i] else 0.0,
+            "max_gate": float(np.max(gates[i])) if gates[i] else 0.0,
         })
     return results
 
