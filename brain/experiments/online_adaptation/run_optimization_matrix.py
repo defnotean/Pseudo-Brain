@@ -194,8 +194,13 @@ def write_summary_csv(results: List[Dict], out_csv: Path):
         "train_time_s",
         "total_time_s",
     ]
-    train_keys = sorted(list(results[0].get("train_metrics", {}).keys()))
-    eval_keys = sorted(list(results[0].get("eval", {}).keys()))
+    all_train_keys = set()
+    all_eval_keys = set()
+    for r in results:
+        all_train_keys.update(r.get("train_metrics", {}).keys())
+        all_eval_keys.update(r.get("eval", {}).keys())
+    train_keys = sorted(list(all_train_keys))
+    eval_keys = sorted(list(all_eval_keys))
     fieldnames.extend(train_keys)
     fieldnames.extend(eval_keys)
 
