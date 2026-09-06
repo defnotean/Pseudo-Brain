@@ -195,6 +195,8 @@ def train_model(
 
         elif use_legacy_forward:
             # Unrolled eager loop (Cell A / B original pipeline)
+            all_frames_flat = frames.reshape(B * T, 4, 3, 16, 16)
+            all_z = model.encode_observation(all_frames_flat).reshape(B, T, -1)
             h = None
             P_t = None
             curr_prev_act = prev_actions[:, 0]
@@ -205,7 +207,7 @@ def train_model(
             gate_list = []
 
             for t in range(T):
-                z_t = model.encode_observation(frames[:, t])
+                z_t = all_z[:, t]
                 if model_type == "gru":
                     logits, h, e_t, P_t, _, gate = model.forward_step(
                         z_t, curr_prev_act, surprise, h=h, P_t=P_t, return_gate=True
@@ -221,7 +223,7 @@ def train_model(
 
                 if t < T - 1:
                     z_hat = model.predict_next_latent(h, actions[:, t])
-                    z_next_true = model.encode_observation(frames[:, t + 1]).detach()
+                    z_next_true = all_z[:, t + 1].detach()
                     loss_pred = loss_pred + pred_criterion(z_hat, z_next_true)
                     surprise = torch.norm(z_hat.detach() - z_next_true, dim=-1, keepdim=True)
                     surp_list.append(surprise)
