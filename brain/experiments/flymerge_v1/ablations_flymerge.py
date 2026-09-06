@@ -64,7 +64,24 @@ def load_model_C(seed):
     return model
 
 
-def run_episode_ablated(env, model, max_ticks, ablate="none", h_init=None):
+def _rgb_to_np(rgb_frame):
+    """Convert RgbFrame to numpy array [H, W, 3] float32 in [0,1]."""
+    arr = np.frombuffer(rgb_frame.pixels, dtype=np.uint8).reshape(
+        rgb_frame.height, rgb_frame.width, 3
+    )
+    return arr.astype(np.float32) / 255.0
+
+
+_ACTION_KEYS = (0x1A, 0x04, 0x16, 0x07)  # W A S D
+
+
+def _control_for_class(action_class: int) -> GenericControl:
+    if action_class == 0:
+        return GenericControl(keys_down=())
+    return GenericControl(keys_down=(_ACTION_KEYS[action_class - 1],))
+
+
+def run_episode_ablated(env, model, max_ticks, seed, ablate="none", h_init=None):
     """Run an episode with an ablation applied.
 
     ablate options:
@@ -77,12 +94,11 @@ def run_episode_ablated(env, model, max_ticks, ablate="none", h_init=None):
       - "random_h": random noise injected into h each tick
       - "untrained_u": u set to uniform random (not from innate channel)
     """
-    obs = env.reset()
-    frames_buf = [obs.frame] * N_FRAMES
+    obs = env.reset(seed)
+    frames_buf = [_rgb_to_np(obs.rgb)] * N_FRAMES
     prev_action = 0
     device = next(model.parameters()).device
 
-    B = 1
     h = h_init.clone() if h_init is not None else torch.zeros(1, 32, device=device, dtype=torch.float32)
 
     metrics = {
@@ -98,7 +114,7 @@ def run_episode_ablated(env, model, max_ticks, ablate="none", h_init=None):
 
     for t in range(max_ticks):
         frames_tensor = torch.from_numpy(
-            np.stack(frames_buf[-N_FRAMES:]).transpose(0, 3, 1, 2).astype(np.float32) / 255.0
+            np.stack(frames_buf[-N_FRAMES:]).transpose(0, 3, 1, 2).astype(np.float32)
         ).unsqueeze(0).to(device)
         prev_act_tensor = torch.tensor([prev_action], dtype=torch.long, device=device)
 
@@ -106,18 +122,14 @@ def run_episode_ablated(env, model, max_ticks, ablate="none", h_init=None):
             if ablate == "none":
                 logits, h_new, u = model(frames_tensor, prev_act_tensor, h)
             elif ablate == "shunting":
-                # Compute with h_new but don't apply shunting: use h_new directly
                 logits_raw, h_new_raw, u = model(frames_tensor, prev_act_tensor, h)
-                # Override: bypass shunting means h = h_new (g=0, so h' = GRU(h,f))
                 h = h_new_raw
-                # Recompute logits without shunting effect
                 h_bar_proj = model.h_proj(h)
                 logits = h_bar_proj
                 bypass = model.bypass_proj(u)
                 logits = logits + bypass
             elif ablate == "modulation":
                 logits_raw, h_new, u = model(frames_tensor, prev_act_tensor, h)
-                # Temperature modulation disabled: use temp=1
                 h_bar_proj = model.h_proj(h_new)
                 logits = h_bar_proj
                 bypass = model.bypass_proj(u)
@@ -125,24 +137,20 @@ def run_episode_ablated(env, model, max_ticks, ablate="none", h_init=None):
                 h = h_new
             elif ablate == "bypass":
                 logits_raw, h_new, u = model(frames_tensor, prev_act_tensor, h)
-                # Zero out the bypass contribution
                 h_bar_proj = model.h_proj(h_new)
-                logits = h_bar_proj  # no bypass term
+                logits = h_bar_proj
                 h = h_new
             elif ablate == "freeze_h":
-                # h stays frozen at its initial value throughout
                 logits_raw, h_new, u = model(frames_tensor, prev_act_tensor, h)
-                h = h  # don't update h
                 logits = model.h_proj(h) + model.bypass_proj(u)
             elif ablate == "zero_h":
                 logits, h_new, u = model(frames_tensor, prev_act_tensor, h)
-                h = torch.zeros(1, 32, device=device, dtype=torch.float32)  # zero each tick
+                h = torch.zeros(1, 32, device=device, dtype=torch.float32)
             elif ablate == "random_h":
                 logits, h_new, u = model(frames_tensor, prev_act_tensor, h)
-                h = torch.randn_like(h)  # random noise each tick
+                h = torch.randn_like(h)
             elif ablate == "untrained_u":
                 logits, h_new, u = model(frames_tensor, prev_act_tensor, h)
-                # Replace u with random (not from innate channel)
                 u_rand = torch.rand(1, 1, device=device)
                 h_bar_proj = model.h_proj(h_new)
                 logits = h_bar_proj + model.bypass_proj(u_rand)
@@ -157,10 +165,7 @@ def run_episode_ablated(env, model, max_ticks, ablate="none", h_init=None):
         p = p[p > 0]
         metrics["action_entropy_sum"] += -np.sum(p * np.log(p))
 
-        control_map = {0: GenericControl(NOOP=True), 1: GenericControl(w=1),
-                       2: GenericControl(a=1), 3: GenericControl(s=1),
-                       4: GenericControl(d=1)}
-        ctrl = control_map.get(action, GenericControl(NOOP=True))
+        ctrl = _control_for_class(action)
         step_out = env.step(ctrl)
 
         metrics["ticks"] += 1
@@ -169,16 +174,15 @@ def run_episode_ablated(env, model, max_ticks, ablate="none", h_init=None):
         else:
             metrics["idle_ticks"] += 1
 
-        if step_out.frame is not None:
-            frames_buf.append(step_out.frame)
-            if len(frames_buf) > N_FRAMES:
-                frames_buf.pop(0)
+        frames_buf.append(_rgb_to_np(step_out.observation.rgb))
+        if len(frames_buf) > N_FRAMES:
+            frames_buf.pop(0)
 
-        if step_out.caught:
+        if "caught" in step_out.events:
             metrics["survived"] = False
             metrics["ghost_catches"] += 1
             break
-        if step_out.cleared:
+        if "cleared" in step_out.events:
             metrics["pellets_eaten"] += 1
             break
 
@@ -195,18 +199,18 @@ def main():
     if not model_C_exists:
         print("WARNING: Model C checkpoints not found. Run train_flymerge_v1.py first.", flush=True)
 
-    # Family configs
+    # Family configs (matching MazeChaseEnv constructor parameters)
     families = {
-        "F0_calm": {"n_ghosts": 1, "ghost_rule": "shy", "max_ticks": 4000,
-                     "player_speed": 1, "ghost_speed": 1},
-        "F1_standard": {"n_ghosts": 3, "ghost_rule": "mixed", "max_ticks": 6000,
-                        "player_speed": 1, "ghost_speed": 1},
-        "F2_pressured": {"n_ghosts": 4, "ghost_rule": "direct", "max_ticks": 6000,
-                         "player_speed": 1, "ghost_speed": 1},
-        "F3_fast": {"n_ghosts": 4, "ghost_rule": "mixed", "max_ticks": 8000,
-                     "player_speed": 1, "ghost_speed": 1, "ghost_elroy": True},
-        "F4_open_slow": {"n_ghosts": 2, "ghost_rule": "ambush", "max_ticks": 8000,
-                         "player_speed": 1, "ghost_speed": 2},
+        "F0_calm": {"ghost_count": 1, "ghost_period": 3, "ghost_rule": "shy",
+                     "ghost_elroy": False, "extra_loops": 24, "player_period": 1, "max_ticks": 4000},
+        "F1_standard": {"ghost_count": 3, "ghost_period": 2, "ghost_rule": "mixed",
+                        "ghost_elroy": False, "extra_loops": 16, "player_period": 1, "max_ticks": 6000},
+        "F2_pressured": {"ghost_count": 4, "ghost_period": 2, "ghost_rule": "direct",
+                         "ghost_elroy": False, "extra_loops": 12, "player_period": 1, "max_ticks": 6000},
+        "F3_fast": {"ghost_count": 4, "ghost_period": 1, "ghost_rule": "mixed",
+                     "ghost_elroy": True, "extra_loops": 16, "player_period": 1, "max_ticks": 8000},
+        "F4_open_slow": {"ghost_count": 2, "ghost_period": 3, "ghost_rule": "ambush",
+                         "ghost_elroy": False, "extra_loops": 40, "player_period": 2, "max_ticks": 8000},
     }
 
     ablations = ["none", "shunting", "modulation", "bypass", "freeze_h", "zero_h", "random_h", "untrained_u"]
@@ -220,10 +224,12 @@ def main():
         model = load_model_C(seed)
         for fam_name, fam_cfg in families.items():
             env_kwargs = {k: v for k, v in fam_cfg.items()
-                         if k in ("n_ghosts", "ghost_rule", "player_speed", "ghost_speed", "ghost_elroy")}
-            env = MazeChaseEnv(grid_size=16, seed=seed, **env_kwargs)
+                         if k in ("ghost_count", "ghost_period", "ghost_rule",
+                                  "ghost_elroy", "extra_loops", "player_period", "max_ticks")}
+            env = MazeChaseEnv(**env_kwargs)
             for ablate in ablations:
-                metrics = run_episode_ablated(env, model, fam_cfg.get("max_ticks", 6000), ablate=ablate)
+                metrics = run_episode_ablated(env, model, fam_cfg.get("max_ticks", 6000),
+                                              seed=seed, ablate=ablate)
                 results[f"seed{seed}"][f"{fam_name}_{ablate}"] = metrics
         print(f"  seed {seed} done", flush=True)
 

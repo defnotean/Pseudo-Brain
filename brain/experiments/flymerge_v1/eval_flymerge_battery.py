@@ -132,7 +132,9 @@ def run_episode(env, model, max_ticks=6000, seed=0, h_init=None,
     frames_buf = [first_frame] * N_FRAMES  # left-pad with first frame
     prev_action = 0  # idle as initial
     h = h_init.clone() if h_init is not None else None
-    B = 1
+
+    # Count total pellets from the env's initial state
+    total_pellets = env._pellets_remaining if hasattr(env, "_pellets_remaining") else 1
 
     metrics = {
         "pellets_eaten": 0,
@@ -143,8 +145,6 @@ def run_episode(env, model, max_ticks=6000, seed=0, h_init=None,
         "action_entropy_sum": 0.0,
         "movement_ticks": 0,
         "idle_ticks": 0,
-        "h_persistence_autocorr": [],
-        "h_norms": [],
     }
 
     device = next(model.parameters()).device
@@ -160,21 +160,17 @@ def run_episode(env, model, max_ticks=6000, seed=0, h_init=None,
                 logits, h_new, u = model(frames_tensor, prev_act_tensor, h)
 
                 if disable_shunting:
-                    # Override: bypass shunting, use h_new directly
-                    pass  # h_new already computed without shunting effect in forward
+                    pass
                 if disable_modulation:
-                    # Temperature modulation disabled; recompute logits with temp=1
                     h_bar_proj = model.h_proj(h_new)
                     logits = h_bar_proj
                     bypass = model.bypass_proj(u)
                     logits = logits + bypass
                 if untrained_urgency:
-                    # Replace learned urgency with random noise
                     u = torch.rand_like(u)
 
                 h = h_new
             else:
-                # Model A or B (ReactiveBaselineV1)
                 logits = model(frames_tensor, prev_act_tensor)
 
             # Sample action
@@ -188,53 +184,38 @@ def run_episode(env, model, max_ticks=6000, seed=0, h_init=None,
             metrics["action_entropy_sum"] += -np.sum(p * np.log(p))
 
             # Step env
-            control_map = {
-                0: GenericControl(keys_down=()),
-                1: control_for_class(1),
-                2: control_for_class(2),
-                3: control_for_class(3),
-                4: control_for_class(4),
-            }
-            ctrl = control_map.get(action, control_map[0])
+            ctrl = control_for_class(action)
             step_out = env.step(ctrl)
 
             metrics["ticks"] += 1
 
-            # Track movement vs idle
             if action != 0:
                 metrics["movement_ticks"] += 1
             else:
                 metrics["idle_ticks"] += 1
 
             # Update frame buffer
-            if step_out.observation is not None:
-                frames_buf.append(_rgb_to_tensor(step_out.observation.rgb))
-                if len(frames_buf) > N_FRAMES:
-                    frames_buf.pop(0)
+            frames_buf.append(_rgb_to_tensor(step_out.observation.rgb))
+            if len(frames_buf) > N_FRAMES:
+                frames_buf.pop(0)
 
-            # Update frame tensor
             frames_tensor = torch.stack(frames_buf[-N_FRAMES:]).unsqueeze(0).to(device)
             prev_act_tensor = torch.tensor([action], dtype=torch.long, device=device)
 
-            # Check termination
+            # Track pellets via events (not reward, to avoid double-counting on cleared)
+            if "pellet_eaten" in step_out.events:
+                metrics["pellets_eaten"] += 1
+
             if step_out.terminated:
-                metrics["survived"] = False
-                metrics["ghost_catches"] += 1
+                if "caught" in step_out.events:
+                    metrics["survived"] = False
+                    metrics["ghost_catches"] += 1
                 break
             if step_out.truncated:
                 break
 
-            # Track pellet count from reward (assuming reward=1 per pellet)
-            if step_out.reward > 0:
-                metrics["pellets_eaten"] += int(step_out.reward)
-
-    # Compute derived metrics
     metrics["avg_action_entropy"] = metrics["action_entropy_sum"] / max(metrics["ticks"], 1)
-    metrics["pellet_fraction"] = metrics["pellets_eaten"] / max(
-        len(env.pellets_history[-1]) if hasattr(env, "pellets_history") and env.pellets_history else 1, 1
-    ) if hasattr(env, "pellets_history") and env.pellets_history else 0.0
-
-    # Survival fraction
+    metrics["pellet_fraction"] = metrics["pellets_eaten"] / max(total_pellets, 1)
     metrics["survival_fraction"] = 1.0 if metrics["survived"] else 0.0
 
     return metrics
@@ -245,8 +226,8 @@ def run_scenario_s1(model, env_class, family_config, n_episodes=5, seeds=(42, 14
     results = []
     for seed in seeds:
         for ep in range(n_episodes):
-            env = env_class(**{k: v for k, v in family_config.items() if k != "seed"}, seed=seed + ep)
-            metrics = run_episode(env, model, max_ticks=family_config.get("max_ticks", 6000))
+            env = env_class(**{k: v for k, v in family_config.items() if k != "max_ticks"})
+            metrics = run_episode(env, model, max_ticks=family_config.get("max_ticks", 6000), seed=seed + ep)
             results.append(metrics)
     return results
 
@@ -256,9 +237,8 @@ def run_scenario_s2(model, env_class, family_config, n_episodes=5, seeds=(42, 14
     results = []
     for seed in seeds:
         for ep in range(n_episodes):
-            env = env_class(**{k: v for k, v in family_config.items() if k != "seed"}, seed=seed + ep)
-            # Custom: remove pellets after 20th pellet eaten
-            metrics = run_episode(env, model, max_ticks=family_config.get("max_ticks", 6000))
+            env = env_class(**{k: v for k, v in family_config.items() if k != "max_ticks"})
+            metrics = run_episode(env, model, max_ticks=family_config.get("max_ticks", 6000), seed=seed + ep)
             results.append(metrics)
     return results
 
@@ -268,8 +248,8 @@ def run_scenario_s3(model, env_class, family_config, n_episodes=5, seeds=(42, 14
     results = []
     for seed in seeds:
         for ep in range(n_episodes):
-            env = env_class(**{k: v for k, v in family_config.items() if k != "seed"}, seed=seed + ep)
-            metrics = run_episode(env, model, max_ticks=family_config.get("max_ticks", 6000))
+            env = env_class(**{k: v for k, v in family_config.items() if k != "max_ticks"})
+            metrics = run_episode(env, model, max_ticks=family_config.get("max_ticks", 6000), seed=seed + ep)
             results.append(metrics)
     return results
 
@@ -279,8 +259,8 @@ def run_scenario_s4(model, env_class, family_config, n_episodes=5, seeds=(42, 14
     results = []
     for seed in seeds:
         for ep in range(n_episodes):
-            env = env_class(**{k: v for k, v in family_config.items() if k != "seed"}, seed=seed + ep)
-            metrics = run_episode(env, model, max_ticks=family_config.get("max_ticks", 6000))
+            env = env_class(**{k: v for k, v in family_config.items() if k != "max_ticks"})
+            metrics = run_episode(env, model, max_ticks=family_config.get("max_ticks", 6000), seed=seed + ep)
             results.append(metrics)
     return results
 
@@ -290,8 +270,8 @@ def run_scenario_s5(model, env_class, family_config, n_episodes=5, seeds=(42, 14
     results = []
     for seed in seeds:
         for ep in range(n_episodes):
-            env = env_class(**{k: v for k, v in family_config.items() if k != "seed"}, seed=seed + ep)
-            metrics = run_episode(env, model, max_ticks=family_config.get("max_ticks", 6000))
+            env = env_class(**{k: v for k, v in family_config.items() if k != "max_ticks"})
+            metrics = run_episode(env, model, max_ticks=family_config.get("max_ticks", 6000), seed=seed + ep)
             results.append(metrics)
     return results
 
