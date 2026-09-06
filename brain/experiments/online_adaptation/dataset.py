@@ -213,13 +213,21 @@ class HiddenRuleSequenceDataset(Dataset):
             max_start = T - self.seq_len
             if max_start < 0:
                 continue
-            # Anchor sequence windows at trial boundaries to capture causal feedback -> decision transitions
-            trial_starts = set([0] + [t for t in range(1, T) if tr[t] != tr[t - 1]])
-            for t_start in trial_starts:
-                if t_start <= max_start:
-                    self.indices.append((ep_idx, t_start))
+            # Anchor sequence windows at trial transitions to capture causal feedback -> decision transitions.
+            # The feedback flash occurred at t_trans - 1 (and t_trans - 2).
+            # Anchoring 4-8 steps before t_trans ensures the window includes:
+            # Door Approach_k -> Feedback_k -> Reset -> Corridor Walk_{k+1} -> Decision_{k+1} -> Outcome_{k+1}
+            trial_transitions = [t for t in range(1, T) if tr[t] != tr[t - 1]]
+            anchors = set([0])
+            for t_trans in trial_transitions:
+                for offset in (4, 6, 8):
+                    t_anc = max(0, t_trans - offset)
+                    if t_anc <= max_start:
+                        anchors.add(t_anc)
+            for t_anc in sorted(anchors):
+                self.indices.append((ep_idx, t_anc))
             for t in range(0, max_start + 1, 4):
-                if t not in trial_starts:
+                if t not in anchors:
                     self.indices.append((ep_idx, t))
 
     def __len__(self) -> int:

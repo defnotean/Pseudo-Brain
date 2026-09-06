@@ -98,7 +98,8 @@ class FastPlasticityModule(nn.Module):
             nn.Linear(SURPRISE_DIM, 1),
             nn.Sigmoid(),
         )
-        self.scale = nn.Parameter(torch.tensor(0.5))
+        nn.init.constant_(self.surprise_gate[0].bias, -2.0)
+        self.scale = nn.Parameter(torch.tensor(1.5))
 
     def init_trace(self, batch_size: int, device: torch.device) -> torch.Tensor:
         return torch.zeros(batch_size, self.n_actions, device=device)

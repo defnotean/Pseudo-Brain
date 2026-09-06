@@ -1,4 +1,4 @@
-﻿"""Hidden Rule POMDP Environment for Rapid Online Adaptation.
+"""Hidden Rule POMDP Environment for Rapid Online Adaptation.
 
 A controlled 16x16 POMDP environment designed to test whether an agent can:
 1. Encounter an ambiguous situation where current visual observation alone cannot
@@ -60,7 +60,7 @@ class HiddenRuleEnv:
         *,
         rule_schedule: Optional[List[Tuple[Rule, int]]] = None,
         max_ticks_per_trial: int = 40,
-        feedback_dwell_ticks: int = 1,
+        feedback_dwell_ticks: int = 2,
     ):
         if rule_schedule is None:
             # Default: 10 trials Rule A, 10 trials Rule B, 10 trials Rule A (30 trials total)
@@ -300,20 +300,39 @@ class HiddenRuleEnv:
         left_color = self.DOOR_RGB
         right_color = self.DOOR_RGB
 
+        # Also illuminate player and surrounding door frame tiles so outcome is visually salient
+        player_color = self.PLAYER_RGB
+        if self._feedback_mode in ("success_left", "success_right"):
+            player_color = self.TARGET_SUCCESS_RGB
+        elif self._feedback_mode in ("fail_left", "fail_right"):
+            player_color = self.FAILURE_RGB
+
         if self._feedback_mode == "success_left":
             left_color = self.TARGET_SUCCESS_RGB
+            for dy in (-1, 1):
+                self._paint(pixels, self.left_door_pos[0], self.left_door_pos[1] + dy, self.TARGET_SUCCESS_RGB)
+                self._paint(pixels, self.left_door_pos[0] - 1, self.left_door_pos[1], self.TARGET_SUCCESS_RGB)
         elif self._feedback_mode == "fail_left":
             left_color = self.FAILURE_RGB
+            for dy in (-1, 1):
+                self._paint(pixels, self.left_door_pos[0], self.left_door_pos[1] + dy, self.FAILURE_RGB)
+                self._paint(pixels, self.left_door_pos[0] - 1, self.left_door_pos[1], self.FAILURE_RGB)
         elif self._feedback_mode == "success_right":
             right_color = self.TARGET_SUCCESS_RGB
+            for dy in (-1, 1):
+                self._paint(pixels, self.right_door_pos[0], self.right_door_pos[1] + dy, self.TARGET_SUCCESS_RGB)
+                self._paint(pixels, self.right_door_pos[0] + 1, self.right_door_pos[1], self.TARGET_SUCCESS_RGB)
         elif self._feedback_mode == "fail_right":
             right_color = self.FAILURE_RGB
+            for dy in (-1, 1):
+                self._paint(pixels, self.right_door_pos[0], self.right_door_pos[1] + dy, self.FAILURE_RGB)
+                self._paint(pixels, self.right_door_pos[0] + 1, self.right_door_pos[1], self.FAILURE_RGB)
 
         self._paint(pixels, self.left_door_pos[0], self.left_door_pos[1], left_color)
         self._paint(pixels, self.right_door_pos[0], self.right_door_pos[1], right_color)
 
         # 4. Player
-        self._paint(pixels, self._player_x, self._player_y, self.PLAYER_RGB)
+        self._paint(pixels, self._player_x, self._player_y, player_color)
 
         return RgbFrame(width=self.GRID_SIZE, height=self.GRID_SIZE, pixels=bytes(pixels))
 
