@@ -78,8 +78,12 @@ def train_model(
     if model_type == "reactive":
         model = ReactiveModel().to(device)
     elif model_type == "gru":
+        model = PredictiveGRUModel(use_plasticity=False).to(device)
+    elif model_type == "plastic_gru":
         model = PredictiveGRUModel(use_plasticity=True).to(device)
     elif model_type == "thoughtlet":
+        model = PredictiveThoughtletModel(use_plasticity=False).to(device)
+    elif model_type == "plastic_thoughtlet":
         model = PredictiveThoughtletModel(use_plasticity=True).to(device)
     else:
         raise ValueError(f"Unknown model_type: {model_type}")

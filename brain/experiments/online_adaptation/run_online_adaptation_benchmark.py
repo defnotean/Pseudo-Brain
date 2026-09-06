@@ -186,15 +186,17 @@ def run_benchmark(
         (Rule.RULE_A, 10),
     ]
 
+    plastic_ckpt = "plastic_thoughtlet_seed_42.pt" if (ckpt_path / "plastic_thoughtlet_seed_42.pt").exists() else "thoughtlet_seed_42.pt"
+
     # Models and configurations to benchmark
     # Format: (condition_name, model_type, ckpt_name, use_plasticity, ablate_surprise)
     conditions = [
         ("Reactive Baseline", "reactive", "reactive_seed_42.pt", False, False),
         ("Standard GRU", "gru", "gru_seed_42.pt", False, False),
         ("Thoughtlet Baseline", "thoughtlet", "thoughtlet_seed_42.pt", False, False),
-        ("Plastic Thoughtlet (Full)", "thoughtlet", "thoughtlet_seed_42.pt", True, False),
-        ("Plastic Thoughtlet (No Surprise)", "thoughtlet", "thoughtlet_seed_42.pt", True, True),
-        ("Plastic Thoughtlet (Disabled)", "thoughtlet", "thoughtlet_seed_42.pt", False, False),
+        ("Plastic Thoughtlet (Full)", "thoughtlet", plastic_ckpt, True, False),
+        ("Plastic Thoughtlet (No Surprise)", "thoughtlet", plastic_ckpt, True, True),
+        ("Plastic Thoughtlet (Disabled)", "thoughtlet", plastic_ckpt, False, False),
     ]
 
     all_results = {}

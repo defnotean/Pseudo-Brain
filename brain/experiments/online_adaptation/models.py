@@ -1,4 +1,4 @@
-﻿"""Model architectures for Rapid Online Adaptation Benchmark.
+"""Model architectures for Rapid Online Adaptation Benchmark.
 
 Includes:
 1. ReactiveModel: ConvEncoder -> FC (no recurrence, no memory)
@@ -94,6 +94,11 @@ class FastPlasticityModule(nn.Module):
         self.lr = lr
         self.n_actions = n_actions
         self.modulator = nn.Linear(state_dim + SURPRISE_DIM, n_actions)
+        self.surprise_gate = nn.Sequential(
+            nn.Linear(SURPRISE_DIM, 1),
+            nn.Sigmoid(),
+        )
+        self.scale = nn.Parameter(torch.tensor(0.5))
 
     def init_trace(self, batch_size: int, device: torch.device) -> torch.Tensor:
         return torch.zeros(batch_size, self.n_actions, device=device)
@@ -105,7 +110,8 @@ class FastPlasticityModule(nn.Module):
         surprise: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Returns (P_{t+1}, delta_P)."""
-        delta = torch.tanh(self.modulator(torch.cat([state, surprise], dim=-1)))
+        gate = self.surprise_gate(surprise)
+        delta = gate * torch.tanh(self.modulator(torch.cat([state, surprise], dim=-1)))
         P_next = self.decay * P_t + self.lr * delta
         return P_next, delta
 
@@ -196,7 +202,7 @@ class PredictiveGRUModel(nn.Module):
         delta_P = None
         if self.use_plasticity and P_t is not None:
             P_t, delta_P = self.plasticity.update(P_t, h_new, e_t)
-            logits = base_logits + P_t
+            logits = base_logits + self.plasticity.scale * P_t
         else:
             logits = base_logits
 
@@ -292,7 +298,7 @@ class PredictiveThoughtletModel(nn.Module):
         delta_P = None
         if self.use_plasticity and P_t is not None:
             P_t, delta_P = self.plasticity.update(P_t, flat_state, e_t)
-            logits = base_logits + P_t
+            logits = base_logits + self.plasticity.scale * P_t
         else:
             logits = base_logits
 

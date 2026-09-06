@@ -135,8 +135,7 @@ def run_single_experiment(
         if experiment == "online_adaptation":
             from online_adaptation.train import train_model
 
-            # Map model name
-            actual_model = "thoughtlet" if "thoughtlet" in model_name else model_name
+            actual_model = model_name
             model, train_info = train_model(
                 model_type=actual_model,
                 corpus_dir=corpus_path,

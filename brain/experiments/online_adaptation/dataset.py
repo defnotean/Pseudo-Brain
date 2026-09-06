@@ -1,4 +1,4 @@
-﻿"""Multi-trial demonstration corpus and dataset loader for HiddenRuleEnv.
+"""Multi-trial demonstration corpus and dataset loader for HiddenRuleEnv.
 
 Generates and loads multi-trial demonstration sessions demonstrating:
 1. Trial 1 exploration (50/50 prior, discovering the active rule via feedback).
@@ -197,6 +197,7 @@ class HiddenRuleSequenceDataset(Dataset):
         self.actions = []
         self.prev_actions = []
         self.rewards = []
+        self.trials = []
 
         for f in self.files:
             data = np.load(f)
@@ -204,15 +205,22 @@ class HiddenRuleSequenceDataset(Dataset):
             self.actions.append(data["actions"])
             self.prev_actions.append(data["prev_actions"])
             self.rewards.append(data["rewards"])
+            self.trials.append(data["trials"])
 
         self.indices: List[Tuple[int, int]] = []
-        for ep_idx, fr in enumerate(self.frames):
+        for ep_idx, (fr, tr) in enumerate(zip(self.frames, self.trials)):
             T = fr.shape[0]
             max_start = T - self.seq_len
             if max_start < 0:
                 continue
-            for t in range(0, max_start + 1, 4):  # step by 4 for sample efficiency
-                self.indices.append((ep_idx, t))
+            # Anchor sequence windows at trial boundaries to capture causal feedback -> decision transitions
+            trial_starts = set([0] + [t for t in range(1, T) if tr[t] != tr[t - 1]])
+            for t_start in trial_starts:
+                if t_start <= max_start:
+                    self.indices.append((ep_idx, t_start))
+            for t in range(0, max_start + 1, 4):
+                if t not in trial_starts:
+                    self.indices.append((ep_idx, t))
 
     def __len__(self) -> int:
         return len(self.indices)
