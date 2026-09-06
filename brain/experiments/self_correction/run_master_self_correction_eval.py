@@ -27,7 +27,7 @@ sys.path.insert(0, str(_REPO_ROOT / "experiments"))
 from irene_brain.environments.keys_doors import KeysDoorsEnv
 from memory_benchmark.models import make_model, count_parameters as count_bc_params
 from self_correction.diagnostic_eval import run_diagnostic_episode
-from self_correction.predictive_models import PredictiveGRUModel, PredictiveThoughtletModel
+from self_correction.models import PredictiveGRUModel, PredictiveThoughtletModel
 from self_correction.self_correction_benchmark import evaluate_predictive_episode
 
 

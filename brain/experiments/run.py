@@ -85,6 +85,8 @@ def run_single_experiment(
     auto_eval: bool = True,
     webhook_url: Optional[str] = None,
     use_wandb: bool = False,
+    compile_model: bool = False,
+    use_amp: bool = False,
 ) -> Dict[str, Any]:
     """Executes training and evaluation for a single (model, seed) pair."""
     exp_dir = output_dir / experiment / f"{model_name}_seed_{seed}"
@@ -147,6 +149,8 @@ def run_single_experiment(
                 save_every=min(250, steps // 2 if steps > 2 else steps),
                 resume=resume,
                 telemetry=telemetry,
+                compile_model=compile_model,
+                use_amp=use_amp,
             )
 
         elif experiment == "self_correction":
@@ -194,26 +198,27 @@ def run_single_experiment(
             device = resolve_device(device_str)
 
             if experiment == "online_adaptation":
-                from online_adaptation.run_online_adaptation_benchmark import evaluate_single_session
-                from online_adaptation.hidden_rule_env import HiddenRuleEnv, Rule
+                from online_adaptation.run_online_adaptation_benchmark import evaluate_sessions_batched
+                from online_adaptation.hidden_rule_env import Rule
 
                 test_schedule = [(Rule.RULE_A, 10), (Rule.RULE_B, 10), (Rule.RULE_A, 10)]
                 use_plast = "plastic" in model_name
                 ablate_surp = "no_surprise" in model_name
 
+                eval_seeds = [seed * 1000 + s_idx for s_idx in range(10)]
+                sessions = evaluate_sessions_batched(
+                    model=model,
+                    model_type=actual_model,
+                    seeds=eval_seeds,
+                    device=device,
+                    rule_schedule=test_schedule,
+                    use_plasticity=use_plast,
+                    ablate_surprise=ablate_surp,
+                )
+
                 accuracies = []
                 latencies = []
-                for s_idx in range(10):  # 10 test sessions for quick single-run eval
-                    env = HiddenRuleEnv(rule_schedule=test_schedule)
-                    sess = evaluate_single_session(
-                        model=model,
-                        model_type=actual_model,
-                        env=env,
-                        seed=seed * 1000 + s_idx,
-                        device=device,
-                        use_plasticity=use_plast,
-                        ablate_surprise=ablate_surp,
-                    )
+                for sess in sessions:
                     latencies.append(sess["latency_ms"])
                     correct_vec = [1.0 if t["correct"] else 0.0 for t in sess["trial_outcomes"]]
                     accuracies.append(correct_vec)
@@ -312,6 +317,9 @@ def run_batch(
     auto_eval: bool = True,
     webhook_url: Optional[str] = None,
     use_wandb: bool = False,
+    parallel_jobs: int = 1,
+    compile_model: bool = False,
+    use_amp: bool = False,
 ):
     """Iterates through all (model, seed) combinations, handling errors and aggregating results."""
     print("=" * 70)
@@ -320,6 +328,8 @@ def run_batch(
     print(f"Models: {models}")
     print(f"Seeds: {seeds}")
     print(f"Steps: {steps} | Device: {device_str}")
+    print(f"Batch size: {batch_size} | Parallel jobs: {parallel_jobs}")
+    print(f"Compile: {compile_model} | AMP: {use_amp}")
     print(f"Output Directory: {output_dir.resolve()}")
     if webhook_url:
         print("Telemetry: Webhook notifications active")
@@ -330,9 +340,17 @@ def run_batch(
     results = []
     failures = []
 
-    for m in models:
-        for s in seeds:
-            print(f"\n>>> Starting Run: Model={m} | Seed={s}")
+    parallel_jobs = max(1, parallel_jobs)
+    if parallel_jobs > 1:
+        import concurrent.futures
+        import multiprocessing as mp
+
+        print(f"Parallel Execution: Active ({parallel_jobs} concurrent workers)")
+        tasks = [(m, s) for m in models for s in seeds]
+        ctx = mp.get_context("spawn")
+
+        def _worker(args_tuple):
+            m, s = args_tuple
             try:
                 res = run_single_experiment(
                     experiment=experiment,
@@ -347,12 +365,53 @@ def run_batch(
                     auto_eval=auto_eval,
                     webhook_url=webhook_url,
                     use_wandb=use_wandb,
+                    compile_model=compile_model,
+                    use_amp=use_amp,
                 )
-                results.append(res)
+                return {"success": True, "result": res}
             except Exception as e:
-                print(f"[ERROR] Run failed for {m} (seed {s}): {e}")
-                traceback.print_exc()
-                failures.append({"model": m, "seed": s, "error": str(e)})
+                return {"success": False, "model": m, "seed": s, "error": str(e)}
+
+        with concurrent.futures.ProcessPoolExecutor(max_workers=parallel_jobs, mp_context=ctx) as executor:
+            future_to_task = {executor.submit(_worker, t): t for t in tasks}
+            for future in concurrent.futures.as_completed(future_to_task):
+                m, s = future_to_task[future]
+                try:
+                    out = future.result()
+                    if out["success"]:
+                        results.append(out["result"])
+                    else:
+                        print(f"[ERROR] Run failed for {m} (seed {s}): {out['error']}")
+                        failures.append({"model": m, "seed": s, "error": out["error"]})
+                except Exception as exc:
+                    print(f"[ERROR] Process failed for {m} (seed {s}): {exc}")
+                    failures.append({"model": m, "seed": s, "error": str(exc)})
+    else:
+        for m in models:
+            for s in seeds:
+                print(f"\n>>> Starting Run: Model={m} | Seed={s}")
+                try:
+                    res = run_single_experiment(
+                        experiment=experiment,
+                        model_name=m,
+                        seed=s,
+                        steps=steps,
+                        batch_size=batch_size,
+                        device_str=device_str,
+                        output_dir=output_dir,
+                        data_dir=data_dir,
+                        resume=resume,
+                        auto_eval=auto_eval,
+                        webhook_url=webhook_url,
+                        use_wandb=use_wandb,
+                        compile_model=compile_model,
+                        use_amp=use_amp,
+                    )
+                    results.append(res)
+                except Exception as e:
+                    print(f"[ERROR] Run failed for {m} (seed {s}): {e}")
+                    traceback.print_exc()
+                    failures.append({"model": m, "seed": s, "error": str(e)})
 
     # Write aggregate results
     agg_dir = output_dir / experiment
@@ -432,7 +491,9 @@ def main():
     parser.add_argument("--resume", action="store_true", help="Resume from checkpoint if available")
     parser.add_argument("--no_eval", action="store_true", help="Skip automatic evaluation")
     parser.add_argument("--webhook", type=str, default=None, help="Webhook URL for Discord/Slack alerts")
-    parser.add_argument("--wandb", action="store_true", help="Enable Weights & Biases telemetry")
+    parser.add_argument("--compile", action="store_true", help="Compile model with torch.compile")
+    parser.add_argument("--use_amp", action="store_true", help="Enable bfloat16 automatic mixed precision")
+    parser.add_argument("--parallel_jobs", type=int, default=1, help="Concurrent jobs for batch execution")
 
     args = parser.parse_args()
 
@@ -471,6 +532,9 @@ def main():
         auto_eval=not args.no_eval,
         webhook_url=args.webhook,
         use_wandb=args.wandb,
+        parallel_jobs=args.parallel_jobs,
+        compile_model=args.compile,
+        use_amp=args.use_amp,
     )
 
 

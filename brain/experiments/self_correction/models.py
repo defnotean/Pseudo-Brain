@@ -1,29 +1,33 @@
-"""Model architectures for Rapid Online Adaptation Benchmark.
+"""Predictive recurrent models with surprise feedback & fast plasticity.
 
-Includes:
-1. ReactiveModel: ConvEncoder -> FC (no recurrence, no memory)
-2. PredictiveGRUModel: 384-d GRU with latent prediction and fast plasticity
-3. PredictiveThoughtletModel: K=32 parallel thoughtlets with latent prediction and fast plasticity
-
-Plasticity features:
-- P_t: Fast associative state updated online without backprop
-- Diagnostic stats: tracks ||P_t||, ||Delta P_t||, and correlation with prediction error
-- Configurable decay (default 0.98 for inter-trial retention)
-- Ablation flags:
-  * use_plasticity=False: disables P_t entirely (returns 0)
-  * ablate_surprise=True: forces surprise input e_t = 0
+Incorporates:
+1. ConvEncoder: 4-frame stacked RGB (16x16 -> 32x32) -> 128-d feature space.
+2. Latent projection: z_t in R^128.
+3. Surprise encoder: Embeds scalar prediction error into R^16.
+4. Recurrent core:
+   - PredictiveGRUModel: 384-d GRU with latent prediction & fast plasticity.
+   - PredictiveThoughtletModel: K=32 thoughtlets (dim 12 each = 384 total)
+     with BrainCell dynamics, cross-thoughtlet multi-head attention,
+     and fast plasticity.
+5. FutureLatentPredictor: Predicts next latent state z_hat_{t+1} from recurrent state and action.
+6. Calibrated FastPlasticityModule:
+   - Online fast associative policy adaptation (P_t in R^n_actions).
+   - Surprise gate: Sigmoid(W * e_t + b) with calibrated bias b = -2.0.
+   - Bounded scale factor: scale = 1.5.
+   - Decay: 0.98, Learning rate: 0.25.
+   - No gradient / zero backprop during gameplay; resets cleanly per episode.
 """
 from __future__ import annotations
 
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
+_REPO_ROOT = Path(__file__).resolve().parents[2]  # brain/
 sys.path.insert(0, str(_REPO_ROOT / "experiments"))
 
 from memory_benchmark.models import (
@@ -76,10 +80,13 @@ class FutureLatentPredictor(nn.Module):
 
 
 class FastPlasticityModule(nn.Module):
-    """Fast episodic state adaptation (P_t).
+    """Calibrated fast episodic state adaptation (P_t).
 
     Updates online during gameplay without backprop:
-        P_{t+1} = gamma * P_t + eta * tanh(W [h_t, e_t])
+        gate_t = Sigmoid(W_gate * e_t + b_gate)  [b_gate initialized to -2.0]
+        delta_P = gate_t * tanh(W_mod [state_t, e_t])
+        P_{t+1} = gamma * P_t + eta * delta_P
+        logits = base_logits + scale * P_{t+1}   [scale initialized to 1.5]
     """
 
     def __init__(
@@ -88,6 +95,8 @@ class FastPlasticityModule(nn.Module):
         n_actions: int = ACTION_CLASSES,
         decay: float = 0.98,
         lr: float = 0.25,
+        gate_bias: float = -2.0,
+        init_scale: float = 1.5,
     ):
         super().__init__()
         self.decay = decay
@@ -98,8 +107,8 @@ class FastPlasticityModule(nn.Module):
             nn.Linear(SURPRISE_DIM, 1),
             nn.Sigmoid(),
         )
-        nn.init.constant_(self.surprise_gate[0].bias, -2.0)
-        self.scale = nn.Parameter(torch.tensor(1.5))
+        nn.init.constant_(self.surprise_gate[0].bias, gate_bias)
+        self.scale = nn.Parameter(torch.tensor(init_scale))
 
     def init_trace(self, batch_size: int, device: torch.device) -> torch.Tensor:
         return torch.zeros(batch_size, self.n_actions, device=device)
@@ -117,26 +126,7 @@ class FastPlasticityModule(nn.Module):
         return P_next, delta
 
 
-# --- 1. Reactive Model Baseline ---
-
-class ReactiveModel(nn.Module):
-    """Purely reactive feedforward policy (no recurrence, no memory)."""
-
-    def __init__(self):
-        super().__init__()
-        self.encoder = ConvEncoder()
-        self.head = nn.Linear(FEATURE_DIM, ACTION_CLASSES)
-
-    def forward(self, frames: torch.Tensor) -> torch.Tensor:
-        B = frames.size(0)
-        x = frames.reshape(B, N_FRAMES * 3, 16, 16)
-        if x.size(-2) != 32:
-            x = F.interpolate(x, size=(32, 32), mode="nearest")
-        feats = self.encoder(x)
-        return self.head(feats)
-
-
-# --- 2. Predictive GRU Model ---
+# --- Predictive GRU Model ---
 
 class PredictiveGRUModel(nn.Module):
     def __init__(
@@ -146,6 +136,7 @@ class PredictiveGRUModel(nn.Module):
         use_plasticity: bool = True,
         ablate_surprise: bool = False,
         plastic_decay: float = 0.98,
+        plastic_lr: float = 0.25,
     ):
         super().__init__()
         self.hidden_size = hidden_size
@@ -161,7 +152,14 @@ class PredictiveGRUModel(nn.Module):
         self.gru = nn.GRUCell(input_size=in_size, hidden_size=hidden_size)
         self.action_head = nn.Linear(hidden_size, ACTION_CLASSES)
         self.predictor = FutureLatentPredictor(state_dim=hidden_size, latent_dim=latent_dim)
-        self.plasticity = FastPlasticityModule(state_dim=hidden_size, decay=plastic_decay)
+        self.plasticity = FastPlasticityModule(
+            state_dim=hidden_size,
+            decay=plastic_decay,
+            lr=plastic_lr,
+        )
+
+        self.last_P_t: Optional[torch.Tensor] = None
+        self.last_delta_P: Optional[torch.Tensor] = None
 
     def encode_observation(self, frames: torch.Tensor) -> torch.Tensor:
         B = frames.size(0)
@@ -171,14 +169,27 @@ class PredictiveGRUModel(nn.Module):
         feats = self.encoder(x)
         return self.latent_proj(feats)
 
+    def compute_surprise(
+        self,
+        predicted_latent: torch.Tensor,
+        target_latent: torch.Tensor,
+    ) -> torch.Tensor:
+        """Surprise calculation from predictive future latent error: ||z_hat_{t} - z_t||_2."""
+        return torch.norm(predicted_latent - target_latent, dim=-1, keepdim=True)
+
     def forward_step(
         self,
         z_t: torch.Tensor,
         prev_action: torch.Tensor,
-        surprise_t: torch.Tensor,
+        surprise_t: Optional[torch.Tensor] = None,
         h: Optional[torch.Tensor] = None,
         P_t: Optional[torch.Tensor] = None,
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, Optional[torch.Tensor], Optional[torch.Tensor]]:
+        predicted_latent: Optional[torch.Tensor] = None,
+        return_delta: bool = True,
+    ) -> Union[
+        Tuple[torch.Tensor, torch.Tensor, torch.Tensor, Optional[torch.Tensor], Optional[torch.Tensor]],
+        Tuple[torch.Tensor, torch.Tensor, torch.Tensor, Optional[torch.Tensor]],
+    ]:
         B = z_t.size(0)
         dev = z_t.device
         if h is None:
@@ -186,14 +197,19 @@ class PredictiveGRUModel(nn.Module):
         if self.use_plasticity and P_t is None:
             P_t = self.plasticity.init_trace(B, dev)
 
-        # Surprise processing with optional ablation
+        # Surprise calculation from predictive future latent error
+        if surprise_t is None:
+            if predicted_latent is not None:
+                surprise_t = self.compute_surprise(predicted_latent, z_t)
+            else:
+                surprise_t = torch.zeros(B, 1, device=dev)
+
         if self.ablate_surprise:
             eff_surprise = torch.zeros_like(surprise_t)
         else:
             eff_surprise = surprise_t
 
         e_t = self.surprise_encoder(eff_surprise)
-
         a_onehot = _prev_onehot(prev_action, ACTION_CLASSES)
         x_in = torch.cat([z_t, a_onehot, e_t], dim=-1)
 
@@ -207,66 +223,34 @@ class PredictiveGRUModel(nn.Module):
         else:
             logits = base_logits
 
-        return logits, h_new, e_t, P_t, delta_P
+        self.last_P_t = P_t
+        self.last_delta_P = delta_P
+
+        if return_delta:
+            return logits, h_new, e_t, P_t, delta_P
+        return logits, h_new, e_t, P_t
 
     def predict_next_latent(self, h: torch.Tensor, action: torch.Tensor) -> torch.Tensor:
         return self.predictor(h, action)
 
-    def forward_sequence(
+    def forward(
         self,
-        all_z: torch.Tensor,
-        prev_actions: torch.Tensor,
-        actions: torch.Tensor,
-        ss_rate: float = 0.0,
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """Vectorized sequence forward pass across all T steps.
-
-        Args:
-            all_z: [B, T, latent_dim] encoded observations
-            prev_actions: [B, T] antecedent actions
-            actions: [B, T] ground-truth actions for current steps
-            ss_rate: scheduled sampling probability in [0, 1]
-
-        Returns:
-            all_logits: [B, T, ACTION_CLASSES] action logits
-            all_z_hat: [B, T - 1, latent_dim] predicted next latents
-            final_surprise: [B, 1] final surprise norm
-        """
-        B, T, _ = all_z.shape
-        dev = all_z.device
-        h = torch.zeros(B, self.hidden_size, device=dev)
-        P_t = self.plasticity.init_trace(B, dev) if self.use_plasticity else None
-        curr_prev_act = prev_actions[:, 0]
-        surprise = torch.zeros(B, 1, device=dev)
-
-        logits_list = []
-        z_hat_list = []
-
-        for t in range(T):
-            z_t = all_z[:, t]
-            logits, h, e_t, P_t, _ = self.forward_step(z_t, curr_prev_act, surprise, h, P_t)
-            logits_list.append(logits)
-
-            if t < T - 1:
-                z_hat = self.predict_next_latent(h, actions[:, t])
-                z_hat_list.append(z_hat)
-                z_next_true = all_z[:, t + 1].detach()
-                surprise = torch.norm(z_hat.detach() - z_next_true, dim=-1, keepdim=True)
-
-                if ss_rate > 0.0:
-                    use_pred = (torch.rand(B, device=dev) < ss_rate)
-                    curr_prev_act = torch.where(use_pred, logits.detach().argmax(dim=-1), actions[:, t])
-                else:
-                    curr_prev_act = actions[:, t]
-
-        all_logits = torch.stack(logits_list, dim=1)
-        all_z_hat = torch.stack(z_hat_list, dim=1) if z_hat_list else torch.empty(B, 0, self.latent_dim, device=dev)
-        return all_logits, all_z_hat, surprise
+        frames: torch.Tensor,
+        prev_action: torch.Tensor,
+        h: Optional[torch.Tensor] = None,
+        P_t: Optional[torch.Tensor] = None,
+        surprise: Optional[torch.Tensor] = None,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        z_t = self.encode_observation(frames)
+        step_res = self.forward_step(z_t, prev_action, surprise_t=surprise, h=h, P_t=P_t, return_delta=False)
+        return step_res[0], step_res[1]
 
 
-# --- 3. Predictive Thoughtlet Model ---
+# --- Predictive Thoughtlet Model ---
 
 class PredictiveThoughtletModel(nn.Module):
+    """Thoughtlet model with K=32 slots, predictive future latent foresight, and fast plasticity."""
+
     def __init__(
         self,
         K: int = 32,
@@ -302,6 +286,9 @@ class PredictiveThoughtletModel(nn.Module):
             lr=plastic_lr,
         )
 
+        self.last_P_t: Optional[torch.Tensor] = None
+        self.last_delta_P: Optional[torch.Tensor] = None
+
     def encode_observation(self, frames: torch.Tensor) -> torch.Tensor:
         B = frames.size(0)
         x = frames.reshape(B, N_FRAMES * 3, 16, 16)
@@ -310,20 +297,40 @@ class PredictiveThoughtletModel(nn.Module):
         feats = self.encoder(x)
         return self.latent_proj(feats)
 
+    def compute_surprise(
+        self,
+        predicted_latent: torch.Tensor,
+        target_latent: torch.Tensor,
+    ) -> torch.Tensor:
+        """Surprise calculation from predictive future latent error: ||z_hat_{t} - z_t||_2."""
+        return torch.norm(predicted_latent - target_latent, dim=-1, keepdim=True)
+
     def forward_step(
         self,
         z_t: torch.Tensor,
         prev_action: torch.Tensor,
-        surprise_t: torch.Tensor,
+        surprise_t: Optional[torch.Tensor] = None,
         thoughts: Optional[torch.Tensor] = None,
         P_t: Optional[torch.Tensor] = None,
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, Optional[torch.Tensor], Optional[torch.Tensor]]:
+        predicted_latent: Optional[torch.Tensor] = None,
+        return_delta: bool = True,
+    ) -> Union[
+        Tuple[torch.Tensor, torch.Tensor, torch.Tensor, Optional[torch.Tensor], Optional[torch.Tensor]],
+        Tuple[torch.Tensor, torch.Tensor, torch.Tensor, Optional[torch.Tensor]],
+    ]:
         B = z_t.size(0)
         dev = z_t.device
         if thoughts is None:
             thoughts = torch.zeros(B, self.K, self.thought_size, device=dev)
         if self.use_plasticity and P_t is None:
             P_t = self.plasticity.init_trace(B, dev)
+
+        # Surprise calculation from predictive future latent error if predicted_latent given
+        if surprise_t is None:
+            if predicted_latent is not None:
+                surprise_t = self.compute_surprise(predicted_latent, z_t)
+            else:
+                surprise_t = torch.zeros(B, 1, device=dev)
 
         if self.ablate_surprise:
             eff_surprise = torch.zeros_like(surprise_t)
@@ -354,70 +361,35 @@ class PredictiveThoughtletModel(nn.Module):
         else:
             logits = base_logits
 
-        return logits, thoughts_new, e_t, P_t, delta_P
+        self.last_P_t = P_t
+        self.last_delta_P = delta_P
+
+        if return_delta:
+            return logits, thoughts_new, e_t, P_t, delta_P
+        return logits, thoughts_new, e_t, P_t
 
     def predict_next_latent(self, thoughts: torch.Tensor, action: torch.Tensor) -> torch.Tensor:
         B = thoughts.size(0)
         flat_state = thoughts.reshape(B, -1)
         return self.predictor(flat_state, action)
 
-    def forward_sequence(
+    def forward(
         self,
-        all_z: torch.Tensor,
-        prev_actions: torch.Tensor,
-        actions: torch.Tensor,
-        ss_rate: float = 0.0,
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """Vectorized sequence forward pass across all T steps for parallel thoughtlets.
-
-        Args:
-            all_z: [B, T, latent_dim] encoded observations
-            prev_actions: [B, T] antecedent actions
-            actions: [B, T] ground-truth actions for current steps
-            ss_rate: scheduled sampling probability in [0, 1]
-
-        Returns:
-            all_logits: [B, T, ACTION_CLASSES] action logits
-            all_z_hat: [B, T - 1, latent_dim] predicted next latents
-            final_surprise: [B, 1] final surprise norm
-        """
-        B, T, _ = all_z.shape
-        dev = all_z.device
-        thoughts = torch.zeros(B, self.K, self.thought_size, device=dev)
-        P_t = self.plasticity.init_trace(B, dev) if self.use_plasticity else None
-        curr_prev_act = prev_actions[:, 0]
-        surprise = torch.zeros(B, 1, device=dev)
-
-        logits_list = []
-        z_hat_list = []
-
-        for t in range(T):
-            z_t = all_z[:, t]
-            logits, thoughts, e_t, P_t, _ = self.forward_step(z_t, curr_prev_act, surprise, thoughts, P_t)
-            logits_list.append(logits)
-
-            if t < T - 1:
-                z_hat = self.predict_next_latent(thoughts, actions[:, t])
-                z_hat_list.append(z_hat)
-                z_next_true = all_z[:, t + 1].detach()
-                surprise = torch.norm(z_hat.detach() - z_next_true, dim=-1, keepdim=True)
-
-                if ss_rate > 0.0:
-                    use_pred = (torch.rand(B, device=dev) < ss_rate)
-                    curr_prev_act = torch.where(use_pred, logits.detach().argmax(dim=-1), actions[:, t])
-                else:
-                    curr_prev_act = actions[:, t]
-
-        all_logits = torch.stack(logits_list, dim=1)
-        all_z_hat = torch.stack(z_hat_list, dim=1) if z_hat_list else torch.empty(B, 0, self.latent_dim, device=dev)
-        return all_logits, all_z_hat, surprise
+        frames: torch.Tensor,
+        prev_action: torch.Tensor,
+        thoughts: Optional[torch.Tensor] = None,
+        P_t: Optional[torch.Tensor] = None,
+        surprise: Optional[torch.Tensor] = None,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        z_t = self.encode_observation(frames)
+        step_res = self.forward_step(z_t, prev_action, surprise_t=surprise, thoughts=thoughts, P_t=P_t, return_delta=False)
+        return step_res[0], step_res[1]
 
 
 __all__ = [
     "SurpriseEncoder",
     "FutureLatentPredictor",
     "FastPlasticityModule",
-    "ReactiveModel",
     "PredictiveGRUModel",
     "PredictiveThoughtletModel",
     "LATENT_DIM",

@@ -134,3 +134,32 @@ def get_goal_distance(env: KeysDoorsEnv) -> Optional[int]:
 
     dist = _bfs_distances(goal, valid_maze)
     return dist.get(player)
+
+
+class SingleStepPerturbation:
+    """Forces an incorrect step at injection tick."""
+
+    def __init__(self, inject_tick: Optional[int] = 25, seed: int = 42):
+        self.mode = "single"
+        self.inject_tick = inject_tick
+        self.seed = seed
+
+
+class BurstPerturbation:
+    """Forces a multi-step random deviation."""
+
+    def __init__(self, burst_len: int = 3, inject_tick: Optional[int] = 25, seed: int = 42):
+        self.mode = "burst"
+        self.burst_len = burst_len
+        self.inject_tick = inject_tick
+        self.seed = seed
+
+
+class SlipPerturbation:
+    """Drops the attempted action into Idle (movement failure)."""
+
+    def __init__(self, inject_tick: Optional[int] = 25, seed: int = 42):
+        self.mode = "slip"
+        self.inject_tick = inject_tick
+        self.seed = seed
+

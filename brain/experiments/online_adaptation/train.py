@@ -59,6 +59,8 @@ def train_model(
     resume: bool = False,
     resume_from: Optional[str | Path] = None,
     telemetry: Optional[Any] = None,
+    compile_model: bool = False,
+    use_amp: bool = False,
 ) -> Tuple[nn.Module, Dict]:
     torch.manual_seed(seed)
     np.random.seed(seed)
@@ -128,6 +130,13 @@ def train_model(
             print(f"  [{model_type.upper()}] Training already complete ({step} >= {total_steps} steps).")
             return model, {"history": history}
 
+    if compile_model and device.type == "cuda":
+        try:
+            model = torch.compile(model, mode="reduce-overhead")
+            print(f"  [{model_type.upper()}] torch.compile(model, mode='reduce-overhead') activated.")
+        except Exception as e:
+            print(f"  [{model_type.upper()}] Warning: torch.compile failed: {e}. Running uncompiled.")
+
     start_step = step
     t0 = time.time()
     train_iter = iter(train_loader)
@@ -150,8 +159,14 @@ def train_model(
             frames_flat = frames.reshape(B * T, 4, 3, 16, 16)
             actions_flat = actions.reshape(B * T)
 
-            logits = model(frames_flat)
-            loss = act_criterion(logits, actions_flat)
+            if use_amp and device.type == "cuda":
+                with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
+                    logits = model(frames_flat)
+                    loss = act_criterion(logits, actions_flat)
+            else:
+                logits = model(frames_flat)
+                loss = act_criterion(logits, actions_flat)
+
             pred_loss_val = 0.0
             surprise_val = 0.0
 
@@ -164,60 +179,39 @@ def train_model(
 
         else:
             all_frames_flat = frames.reshape(B * T, 4, 3, 16, 16)
-            all_z = model.encode_observation(all_frames_flat).reshape(B, T, -1)
-
             ss_rate = min(0.5, (step / max(0.5 * total_steps, 1)) * 0.5)
 
-            total_act_loss = 0.0
-            total_pred_loss = 0.0
-
-            recurrent_state = None
-            P_t = None
-            curr_prev_act = prev_actions[:, 0]
-            surprise = torch.zeros(B, 1, device=device)
-
-            for t in range(T):
-                z_t = all_z[:, t]
-                if model_type == "gru":
-                    logits, recurrent_state, e_t, P_t, _ = model.forward_step(
-                        z_t, curr_prev_act, surprise, recurrent_state, P_t
+            if use_amp and device.type == "cuda":
+                with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
+                    all_z = model.encode_observation(all_frames_flat).reshape(B, T, -1)
+                    all_logits, all_z_hat, surprise = model.forward_sequence(
+                        all_z, prev_actions, actions, ss_rate=ss_rate
                     )
+                    loss_act = act_criterion(all_logits.reshape(B * T, -1), actions.reshape(B * T))
+                    if all_z_hat.shape[1] > 0:
+                        loss_pred = pred_criterion(all_z_hat, all_z[:, 1:].detach())
+                    else:
+                        loss_pred = torch.tensor(0.0, device=device)
+                    loss = loss_act + pred_weight * loss_pred
+            else:
+                all_z = model.encode_observation(all_frames_flat).reshape(B, T, -1)
+                all_logits, all_z_hat, surprise = model.forward_sequence(
+                    all_z, prev_actions, actions, ss_rate=ss_rate
+                )
+                loss_act = act_criterion(all_logits.reshape(B * T, -1), actions.reshape(B * T))
+                if all_z_hat.shape[1] > 0:
+                    loss_pred = pred_criterion(all_z_hat, all_z[:, 1:].detach())
                 else:
-                    logits, recurrent_state, e_t, P_t, _ = model.forward_step(
-                        z_t, curr_prev_act, surprise, recurrent_state, P_t
-                    )
-
-                loss_act = act_criterion(logits, actions[:, t])
-                total_act_loss = total_act_loss + loss_act
-
-                if t < T - 1:
-                    z_hat_next = model.predict_next_latent(recurrent_state, actions[:, t])
-                    z_next_true = all_z[:, t + 1].detach()
-                    loss_pred = pred_criterion(z_hat_next, z_next_true)
-                    total_pred_loss = total_pred_loss + loss_pred
-
-                    with torch.no_grad():
-                        surprise = torch.norm(z_hat_next.detach() - z_next_true, dim=-1, keepdim=True)
-                else:
-                    surprise = torch.zeros(B, 1, device=device)
-
-                if np.random.rand() < ss_rate:
-                    curr_prev_act = logits.detach().argmax(dim=-1)
-                else:
-                    curr_prev_act = actions[:, t]
-
-            total_act_loss = total_act_loss / T
-            total_pred_loss = total_pred_loss / max(T - 1, 1)
-
-            loss = total_act_loss + pred_weight * total_pred_loss
+                    loss_pred = torch.tensor(0.0, device=device)
+                loss = loss_act + pred_weight * loss_pred
 
             optimizer.zero_grad()
             loss.backward()
             nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optimizer.step()
 
-            act_loss_val = total_act_loss.item()
-            pred_loss_val = total_pred_loss.item()
+            act_loss_val = loss_act.item()
+            pred_loss_val = loss_pred.item()
             surprise_val = surprise.mean().item()
 
         step += 1
@@ -255,12 +249,13 @@ def train_model(
             })
 
             # Save latest checkpoint for resumption
+            raw_model = getattr(model, "_orig_mod", model)
             checkpoint_state = {
                 "model_type": model_type,
                 "seed": seed,
                 "step": step,
                 "total_steps": total_steps,
-                "model_state_dict": model.state_dict(),
+                "model_state_dict": raw_model.state_dict(),
                 "optimizer_state_dict": optimizer.state_dict(),
                 "history": history,
                 "git_commit": get_git_commit(),
@@ -279,15 +274,18 @@ def train_model(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", type=str, required=True, choices=["reactive", "gru", "thoughtlet"])
+    parser.add_argument("--model", type=str, required=True, choices=["reactive", "gru", "thoughtlet", "plastic_thoughtlet"])
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--steps", type=int, default=1500)
+    parser.add_argument("--batch_size", type=int, default=16)
     parser.add_argument("--corpus_dir", type=str, default="brain/datasets/hidden_rule_corpus_v1")
     parser.add_argument("--output_dir", type=str, default="brain/runs/online_adaptation/checkpoints")
     parser.add_argument("--device", type=str, default="auto")
     parser.add_argument("--save_every", type=int, default=250)
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--resume_from", type=str, default=None)
+    parser.add_argument("--compile", action="store_true", help="Compile model with torch.compile")
+    parser.add_argument("--use_amp", action="store_true", help="Enable bfloat16 automatic mixed precision")
 
     args = parser.parse_args()
     train_model(
@@ -295,9 +293,13 @@ if __name__ == "__main__":
         corpus_dir=args.corpus_dir,
         seed=args.seed,
         total_steps=args.steps,
+        batch_size=args.batch_size,
         output_dir=args.output_dir,
         device_str=args.device,
         save_every=args.save_every,
         resume=args.resume,
         resume_from=args.resume_from,
+        compile_model=args.compile,
+        use_amp=args.use_amp,
     )
+

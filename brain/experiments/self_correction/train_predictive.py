@@ -30,7 +30,7 @@ sys.path.insert(0, str(_REPO_ROOT / "experiments"))
 
 from irene_brain.device import resolve_device, get_hardware_summary
 from memory_benchmark.dataset import KeysDoorsSequenceDataset, collate_sequences
-from self_correction.predictive_models import (
+from self_correction.models import (
     PredictiveGRUModel,
     PredictiveThoughtletModel,
 )
@@ -154,7 +154,8 @@ def train_predictive_model(
 
         for t in range(T):
             z_t = all_z[:, t]
-            logits, h, e_t, P_t = model.forward_step(z_t, curr_prev_act, surprise, h, P_t)
+            step_out = model.forward_step(z_t, curr_prev_act, surprise, h, P_t)
+            logits, h, e_t, P_t = step_out[0], step_out[1], step_out[2], step_out[3]
 
             loss_act = act_criterion(logits, actions[:, t])
             total_act_loss = total_act_loss + loss_act
@@ -168,7 +169,7 @@ def train_predictive_model(
                 total_pred_loss = total_pred_loss + loss_pred
 
                 with torch.no_grad():
-                    surprise = torch.norm(z_hat_next.detach() - z_next_true, dim=-1, keepdim=True)
+                    surprise = model.compute_surprise(z_hat_next.detach(), z_next_true)
             else:
                 surprise = torch.zeros(B, 1, device=device)
 

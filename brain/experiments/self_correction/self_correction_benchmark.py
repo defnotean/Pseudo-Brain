@@ -41,7 +41,7 @@ from irene_brain.environments.keys_doors import KeysDoorsEnv
 from memory_benchmark.expert import control_for_action
 from memory_benchmark.models import make_model, N_FRAMES
 from self_correction.perturbations import PerturbationEngine, get_goal_distance
-from self_correction.predictive_models import PredictiveGRUModel, PredictiveThoughtletModel
+from self_correction.models import PredictiveGRUModel, PredictiveThoughtletModel
 
 
 def evaluate_predictive_episode(
@@ -87,14 +87,18 @@ def evaluate_predictive_episode(
 
             # 2. Check prediction error from previous tick foresight
             if predicted_next_z is not None:
-                err = torch.norm(predicted_next_z - z_t, dim=-1, keepdim=True)
+                if hasattr(model, "compute_surprise"):
+                    err = model.compute_surprise(predicted_next_z, z_t)
+                else:
+                    err = torch.norm(predicted_next_z - z_t, dim=-1, keepdim=True)
                 surprise = err
                 surprises.append(float(err.item()))
             else:
                 surprise = torch.zeros(1, 1, device=device)
 
             # 3. Step forward through recurrent & surprise channels
-            logits, h, e_t, P_t = model.forward_step(z_t, prev_act_tensor, surprise, h, P_t)
+            step_out = model.forward_step(z_t, prev_act_tensor, surprise, h, P_t)
+            logits, h, e_t, P_t = step_out[0], step_out[1], step_out[2], step_out[3]
 
             # 4. Model proposed action
             proposed_act = int(logits[0].argmax().item())

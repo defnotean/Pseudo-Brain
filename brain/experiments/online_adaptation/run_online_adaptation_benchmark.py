@@ -93,20 +93,25 @@ def evaluate_single_session(
     step_count = 0
     t0 = time.perf_counter()
 
+    # Pre-encode initial observation to eliminate redundant encoding per tick
+    z_t = None
+    if model_type != "reactive":
+        init_stacked = np.stack(frame_history[-N_FRAMES:], axis=0).transpose(0, 3, 1, 2)
+        init_tensor = torch.from_numpy(init_stacked).float().unsqueeze(0).to(device) / 255.0
+        with torch.no_grad():
+            z_t = model.encode_observation(init_tensor)
+
     while not done:
         step_count += 1
-
-        # Build stacked frame: [1, 4, 3, 16, 16]
-        stacked = np.stack(frame_history[-N_FRAMES:], axis=0).transpose(0, 3, 1, 2)
-        frames_tensor = torch.from_numpy(stacked).float().unsqueeze(0).to(device) / 255.0
         prev_act_tensor = torch.tensor([prev_action], dtype=torch.long, device=device)
 
         with torch.no_grad():
             if model_type == "reactive":
+                stacked = np.stack(frame_history[-N_FRAMES:], axis=0).transpose(0, 3, 1, 2)
+                frames_tensor = torch.from_numpy(stacked).float().unsqueeze(0).to(device) / 255.0
                 logits = model(frames_tensor)
                 action = int(logits.argmax(dim=-1).item())
             else:
-                z_t = model.encode_observation(frames_tensor)
                 if model_type == "gru":
                     logits, recurrent_state, e_t, P_t, delta_P = model.forward_step(
                         z_t=z_t,
@@ -137,7 +142,7 @@ def evaluate_single_session(
         ctrl = CTRL_MAP.get(action, CTRL_MAP[0])
         outcome = env.step(ctrl)
 
-        # Compute next latent and surprise
+        # Update frame history
         next_raw = np.frombuffer(outcome.observation.rgb.pixels, dtype=np.uint8).reshape(16, 16, 3)
         frame_history.append(next_raw)
 
@@ -149,6 +154,7 @@ def evaluate_single_session(
                 err = torch.norm(z_hat - z_true_next, dim=-1, keepdim=True)
                 surprise = err
                 surprises.append(float(err.item()))
+                z_t = z_true_next  # Recycle: avoids re-encoding identical frame next tick
 
         prev_action = action
         if outcome.terminated or outcome.truncated:
@@ -165,6 +171,148 @@ def evaluate_single_session(
         "mean_delta_p": float(np.mean(delta_p_norms)) if delta_p_norms else 0.0,
         "mean_surprise": float(np.mean(surprises)) if surprises else 0.0,
     }
+
+
+def evaluate_sessions_batched(
+    model: torch.nn.Module,
+    model_type: str,
+    seeds: List[int],
+    device: torch.device,
+    rule_schedule: Optional[List[Tuple[Rule, int]]] = None,
+    use_plasticity: bool = False,
+    ablate_surprise: bool = False,
+) -> List[Dict]:
+    """Evaluates multiple test sessions concurrently with batched model inference.
+    Replaces N serial sessions with a single batched runner (batch_size = len(seeds)).
+    """
+    N = len(seeds)
+    if N == 0:
+        return []
+
+    envs = [HiddenRuleEnv(rule_schedule=rule_schedule) for _ in range(N)]
+    obs_list = [envs[i].reset(seed=seeds[i]) for i in range(N)]
+    frame_histories = [[np.frombuffer(obs.rgb.pixels, dtype=np.uint8).reshape(16, 16, 3)] * N_FRAMES for obs in obs_list]
+
+    if hasattr(model, "use_plasticity"):
+        model.use_plasticity = use_plasticity
+    if hasattr(model, "ablate_surprise"):
+        model.ablate_surprise = ablate_surprise
+
+    recurrent_state = None
+    P_t = None
+    prev_actions = torch.zeros(N, dtype=torch.long, device=device)
+    surprise = torch.zeros(N, 1, device=device)
+
+    # Pre-encode initial observation
+    if model_type != "reactive":
+        stacked_init = np.stack([
+            np.stack(h[-N_FRAMES:], axis=0).transpose(0, 3, 1, 2)
+            for h in frame_histories
+        ], axis=0)
+        frames_tensor = torch.from_numpy(stacked_init).float().to(device) / 255.0
+        with torch.no_grad():
+            z_t = model.encode_observation(frames_tensor)
+    else:
+        z_t = None
+
+    dones = [False] * N
+    step_counts = [0] * N
+    latencies = [[] for _ in range(N)]
+    p_norms = [[] for _ in range(N)]
+    delta_p_norms = [[] for _ in range(N)]
+    surprises = [[] for _ in range(N)]
+
+    while not all(dones):
+        t0 = time.perf_counter()
+
+        with torch.no_grad():
+            if model_type == "reactive":
+                stacked = np.stack([
+                    np.stack(h[-N_FRAMES:], axis=0).transpose(0, 3, 1, 2)
+                    for h in frame_histories
+                ], axis=0)
+                frames_tensor = torch.from_numpy(stacked).float().to(device) / 255.0
+                logits = model(frames_tensor)
+                actions = logits.argmax(dim=-1).cpu().tolist()
+            else:
+                if model_type == "gru":
+                    logits, recurrent_state, e_t, P_t, delta_P = model.forward_step(
+                        z_t=z_t,
+                        prev_action=prev_actions,
+                        surprise_t=surprise,
+                        h=recurrent_state,
+                        P_t=P_t,
+                    )
+                else:
+                    logits, recurrent_state, e_t, P_t, delta_P = model.forward_step(
+                        z_t=z_t,
+                        prev_action=prev_actions,
+                        surprise_t=surprise,
+                        thoughts=recurrent_state,
+                        P_t=P_t,
+                    )
+                actions = logits.argmax(dim=-1).cpu().tolist()
+                actions_tensor = torch.tensor(actions, dtype=torch.long, device=device)
+                z_hat = model.predict_next_latent(recurrent_state, actions_tensor)
+
+                if P_t is not None:
+                    p_norm_vals = torch.norm(P_t, dim=-1).cpu().tolist()
+                    for i in range(N):
+                        if not dones[i]:
+                            p_norms[i].append(p_norm_vals[i])
+                if delta_P is not None:
+                    dp_norm_vals = torch.norm(delta_P, dim=-1).cpu().tolist()
+                    for i in range(N):
+                        if not dones[i]:
+                            delta_p_norms[i].append(dp_norm_vals[i])
+
+        # Step environments
+        for i in range(N):
+            if not dones[i]:
+                step_counts[i] += 1
+                ctrl = CTRL_MAP.get(actions[i], CTRL_MAP[0])
+                outcome = envs[i].step(ctrl)
+                next_raw = np.frombuffer(outcome.observation.rgb.pixels, dtype=np.uint8).reshape(16, 16, 3)
+                frame_histories[i].append(next_raw)
+                if outcome.terminated or outcome.truncated:
+                    dones[i] = True
+
+        # Next observation encoding & surprise
+        if model_type != "reactive":
+            next_stacked = np.stack([
+                np.stack(h[-N_FRAMES:], axis=0).transpose(0, 3, 1, 2)
+                for h in frame_histories
+            ], axis=0)
+            next_tensor = torch.from_numpy(next_stacked).float().to(device) / 255.0
+            with torch.no_grad():
+                z_true_next = model.encode_observation(next_tensor)
+                err = torch.norm(z_hat - z_true_next, dim=-1, keepdim=True)
+                surprise = err
+                z_t = z_true_next
+
+            surp_vals = err.squeeze(-1).cpu().tolist()
+            for i in range(N):
+                if not dones[i]:
+                    surprises[i].append(surp_vals[i])
+
+        prev_actions = torch.tensor(actions, dtype=torch.long, device=device)
+
+        step_elapsed = time.perf_counter() - t0
+        for i in range(N):
+            if not dones[i]:
+                latencies[i].append(step_elapsed * 1000.0)
+
+    results = []
+    for i in range(N):
+        results.append({
+            "trial_outcomes": envs[i].trial_outcomes,
+            "total_steps": step_counts[i],
+            "latency_ms": float(np.mean(latencies[i])) if latencies[i] else 0.0,
+            "mean_p_norm": float(np.mean(p_norms[i])) if p_norms[i] else 0.0,
+            "mean_delta_p": float(np.mean(delta_p_norms[i])) if delta_p_norms[i] else 0.0,
+            "mean_surprise": float(np.mean(surprises[i])) if surprises[i] else 0.0,
+        })
+    return results
 
 
 def run_benchmark(
