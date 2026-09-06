@@ -304,6 +304,33 @@ def run_single_experiment(
     return final_payload
 
 
+def _run_batch_worker(args: dict) -> dict:
+    m = args["model"]
+    s = args["seed"]
+    try:
+        res = run_single_experiment(
+            experiment=args["experiment"],
+            model_name=m,
+            seed=s,
+            steps=args["steps"],
+            batch_size=args["batch_size"],
+            device_str=args["device_str"],
+            output_dir=args["output_dir"],
+            data_dir=args["data_dir"],
+            resume=args["resume"],
+            auto_eval=args["auto_eval"],
+            webhook_url=args["webhook_url"],
+            use_wandb=args["use_wandb"],
+            compile_model=args["compile_model"],
+            use_amp=args["use_amp"],
+        )
+        return {"success": True, "result": res}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"success": False, "model": m, "seed": s, "error": str(e)}
+
+
 def run_batch(
     experiment: str,
     models: List[str],
@@ -346,34 +373,30 @@ def run_batch(
         import multiprocessing as mp
 
         print(f"Parallel Execution: Active ({parallel_jobs} concurrent workers)")
-        tasks = [(m, s) for m in models for s in seeds]
         ctx = mp.get_context("spawn")
-
-        def _worker(args_tuple):
-            m, s = args_tuple
-            try:
-                res = run_single_experiment(
-                    experiment=experiment,
-                    model_name=m,
-                    seed=s,
-                    steps=steps,
-                    batch_size=batch_size,
-                    device_str=device_str,
-                    output_dir=output_dir,
-                    data_dir=data_dir,
-                    resume=resume,
-                    auto_eval=auto_eval,
-                    webhook_url=webhook_url,
-                    use_wandb=use_wandb,
-                    compile_model=compile_model,
-                    use_amp=use_amp,
-                )
-                return {"success": True, "result": res}
-            except Exception as e:
-                return {"success": False, "model": m, "seed": s, "error": str(e)}
+        task_args = [
+            {
+                "experiment": experiment,
+                "model": m,
+                "seed": s,
+                "steps": steps,
+                "batch_size": batch_size,
+                "device_str": device_str,
+                "output_dir": output_dir,
+                "data_dir": data_dir,
+                "resume": resume,
+                "auto_eval": auto_eval,
+                "webhook_url": webhook_url,
+                "use_wandb": use_wandb,
+                "compile_model": compile_model,
+                "use_amp": use_amp,
+            }
+            for m in models
+            for s in seeds
+        ]
 
         with concurrent.futures.ProcessPoolExecutor(max_workers=parallel_jobs, mp_context=ctx) as executor:
-            future_to_task = {executor.submit(_worker, t): t for t in tasks}
+            future_to_task = {executor.submit(_run_batch_worker, arg): (arg["model"], arg["seed"]) for arg in task_args}
             for future in concurrent.futures.as_completed(future_to_task):
                 m, s = future_to_task[future]
                 try:
