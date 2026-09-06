@@ -94,8 +94,11 @@ def train_model(
     total_steps: int = 3000,
     batch_size: int = 16,
     lr: float = 5e-4,
-    device_str: str = "cpu",
+    device_str: str = "auto",
     output_dir: Optional[str | Path] = None,
+    save_every: int = 250,
+    resume: bool = False,
+    resume_from: Optional[str | Path] = None,
 ) -> Tuple[nn.Module, Dict]:
     # Set seed
     torch.manual_seed(seed)
@@ -126,11 +129,43 @@ def train_model(
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
     criterion = nn.CrossEntropyLoss(label_smoothing=0.05)
 
+    out_path = Path(output_dir) if output_dir else Path("brain/runs/memory_benchmark/checkpoints")
+    out_path.mkdir(parents=True, exist_ok=True)
+    ckpt_file = out_path / f"{model_type}_seed_{seed}.pt"
+    latest_file = out_path / f"{model_type}_seed_{seed}_latest.pt"
+
     step = 0
+    history = []
+
+    target_resume = None
+    if resume_from:
+        target_resume = Path(resume_from)
+    elif resume:
+        if latest_file.exists():
+            target_resume = latest_file
+        elif ckpt_file.exists():
+            target_resume = ckpt_file
+
+    if target_resume and target_resume.exists():
+        ckpt_data = torch.load(target_resume, map_location="cpu")
+        model.load_state_dict(ckpt_data["model_state_dict"])
+        model.to(device)
+        if "optimizer_state_dict" in ckpt_data and ckpt_data["optimizer_state_dict"] is not None:
+            optimizer.load_state_dict(ckpt_data["optimizer_state_dict"])
+            for state in optimizer.state.values():
+                for k, v in state.items():
+                    if isinstance(v, torch.Tensor):
+                        state[k] = v.to(device)
+        step = ckpt_data.get("step", 0)
+        history = ckpt_data.get("history", [])
+        print(f"  [{model_type.upper()}] Successfully resumed at step {step}/{total_steps}")
+        if step >= total_steps:
+            print(f"  [{model_type.upper()}] Training already complete ({step} >= {total_steps} steps).")
+            return model, {"history": history, "device": str(device)}
+
+    start_step = step
     t0 = time.time()
     train_iter = iter(train_loader)
-
-    history = []
 
     while step < total_steps:
         try:
@@ -192,18 +227,21 @@ def train_model(
                 "elapsed_s": elapsed,
             })
 
-    if output_dir is not None:
-        out_path = Path(output_dir)
-        out_path.mkdir(parents=True, exist_ok=True)
-        ckpt_file = out_path / f"{model_type}_seed_{seed}.pt"
-        torch.save({
-            "model_type": model_type,
-            "seed": seed,
-            "model_state_dict": model.state_dict(),
-            "history": history,
-            "total_steps": total_steps,
-        }, ckpt_file)
-        print(f"Saved checkpoint to {ckpt_file}")
+            # Save periodic latest checkpoint
+            checkpoint_state = {
+                "model_type": model_type,
+                "seed": seed,
+                "step": step,
+                "total_steps": total_steps,
+                "model_state_dict": model.state_dict(),
+                "optimizer_state_dict": optimizer.state_dict(),
+                "history": history,
+                "device": str(device),
+            }
+            torch.save(checkpoint_state, latest_file)
+            if step == total_steps:
+                torch.save(checkpoint_state, ckpt_file)
+                print(f"Saved final checkpoint to {ckpt_file}")
 
     return model, {"history": history, "device": str(device)}
 
@@ -214,9 +252,12 @@ def main():
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--steps", type=int, default=2000)
     parser.add_argument("--batch_size", type=int, default=16)
-    parser.add_argument("--device", type=str, default="cpu")
+    parser.add_argument("--device", type=str, default="auto")
+    parser.add_argument("--save_every", type=int, default=250)
     parser.add_argument("--corpus_dir", type=str, default="brain/datasets/keys_doors_corpus_v1")
     parser.add_argument("--output_dir", type=str, default="brain/runs/memory_benchmark/checkpoints")
+    parser.add_argument("--resume", action="store_true")
+    parser.add_argument("--resume_from", type=str, default=None)
 
     args = parser.parse_args()
     train_model(
@@ -227,6 +268,9 @@ def main():
         batch_size=args.batch_size,
         device_str=args.device,
         output_dir=args.output_dir,
+        save_every=args.save_every,
+        resume=args.resume,
+        resume_from=args.resume_from,
     )
 
 

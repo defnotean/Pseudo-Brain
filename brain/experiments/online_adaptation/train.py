@@ -1,4 +1,4 @@
-﻿"""Training pipeline for Predictive Recurrent Models with Surprise Feedback.
+"""Training pipeline for Rapid Online Adaptation benchmark models.
 
 Jointly trains:
 1. Primary action loss (CrossEntropy with scheduled sampling)
@@ -6,7 +6,7 @@ Jointly trains:
 
 Features:
 - Automatic device resolution (CUDA on Colab / DGX, CPU fallback)
-- Resumable checkpoints with optimizer state and step count
+- Resumable checkpoints with optimizer state, scheduler, and step count
 - Unattended training with ETA and periodic disk persistence
 """
 from __future__ import annotations
@@ -29,10 +29,12 @@ sys.path.insert(0, str(_REPO_ROOT / "src"))
 sys.path.insert(0, str(_REPO_ROOT / "experiments"))
 
 from irene_brain.device import resolve_device, get_hardware_summary
-from memory_benchmark.dataset import KeysDoorsSequenceDataset, collate_sequences
-from self_correction.predictive_models import (
+from online_adaptation.dataset import HiddenRuleSequenceDataset, collate_sequences
+from online_adaptation.models import (
+    ReactiveModel,
     PredictiveGRUModel,
     PredictiveThoughtletModel,
+    ACTION_CLASSES,
 )
 
 
@@ -43,15 +45,14 @@ def get_git_commit() -> str:
         return "unknown"
 
 
-def train_predictive_model(
+def train_model(
     model_type: str,
     corpus_dir: str | Path,
     seed: int = 42,
-    total_steps: int = 2000,
+    total_steps: int = 1500,
     batch_size: int = 16,
     lr: float = 5e-4,
     pred_weight: float = 0.5,
-    use_plasticity: bool = False,
     device_str: str = "auto",
     output_dir: Optional[str | Path] = None,
     save_every: int = 250,
@@ -64,37 +65,38 @@ def train_predictive_model(
 
     hw = get_hardware_summary()
     dev_name = hw["gpu_name"] if hw["cuda_available"] else "CPU"
-    print(f"[PREDICTIVE_{model_type.upper()}] Starting training on {dev_name} (plasticity={use_plasticity}, seed={seed}, steps={total_steps})...")
+    print(f"[{model_type.upper()}] Starting training on {dev_name} (device={device}, seed={seed}, steps={total_steps})...")
 
     corpus_path = Path(corpus_dir)
-    train_ds = KeysDoorsSequenceDataset(corpus_path / "train", seq_len=32)
-    dev_ds = KeysDoorsSequenceDataset(corpus_path / "dev", seq_len=32)
+    train_ds = HiddenRuleSequenceDataset(corpus_path / "train", seq_len=32)
+    dev_ds = HiddenRuleSequenceDataset(corpus_path / "dev", seq_len=32)
 
     train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, drop_last=True, collate_fn=collate_sequences)
     dev_loader = DataLoader(dev_ds, batch_size=batch_size, shuffle=False, collate_fn=collate_sequences)
 
-    if model_type == "gru":
-        model = PredictiveGRUModel(use_plasticity=use_plasticity).to(device)
+    if model_type == "reactive":
+        model = ReactiveModel().to(device)
+    elif model_type == "gru":
+        model = PredictiveGRUModel(use_plasticity=True).to(device)
     elif model_type == "thoughtlet":
-        model = PredictiveThoughtletModel(use_plasticity=use_plasticity).to(device)
+        model = PredictiveThoughtletModel(use_plasticity=True).to(device)
     else:
-        raise ValueError(f"Unknown predictive model type: {model_type}")
+        raise ValueError(f"Unknown model_type: {model_type}")
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
     act_criterion = nn.CrossEntropyLoss(label_smoothing=0.05)
     pred_criterion = nn.MSELoss()
 
-    out_path = Path(output_dir) if output_dir else Path("brain/runs/self_correction/checkpoints")
+    out_path = Path(output_dir) if output_dir else Path("brain/runs/online_adaptation/checkpoints")
     out_path.mkdir(parents=True, exist_ok=True)
 
-    plast_tag = "_plastic" if use_plasticity else ""
-    ckpt_file = out_path / f"predictive_{model_type}{plast_tag}_seed_{seed}.pt"
-    latest_file = out_path / f"predictive_{model_type}{plast_tag}_seed_{seed}_latest.pt"
+    ckpt_file = out_path / f"{model_type}_seed_{seed}.pt"
+    latest_file = out_path / f"{model_type}_seed_{seed}_latest.pt"
 
     step = 0
     history = []
 
-    # Handle resumption
+    # Handle checkpoint resumption
     target_resume = None
     if resume_from:
         target_resume = Path(resume_from)
@@ -116,9 +118,9 @@ def train_predictive_model(
                         state[k] = v.to(device)
         step = ckpt_data.get("step", 0)
         history = ckpt_data.get("history", [])
-        print(f"  [PREDICTIVE_{model_type.upper()}] Successfully resumed at step {step}/{total_steps}")
+        print(f"  [{model_type.upper()}] Successfully resumed at step {step}/{total_steps}")
         if step >= total_steps:
-            print(f"  [PREDICTIVE_{model_type.upper()}] Training already complete ({step} >= {total_steps} steps).")
+            print(f"  [{model_type.upper()}] Training already complete ({step} >= {total_steps} steps).")
             return model, {"history": history}
 
     start_step = step
@@ -133,61 +135,89 @@ def train_predictive_model(
             batch = next(train_iter)
 
         model.train()
-        frames = batch["frames"].to(device)         # [B, T, N_FRAMES, 3, 16, 16]
-        actions = batch["actions"].to(device)       # [B, T]
+        frames = batch["frames"].to(device)        # [B, T, 4, 3, 16, 16]
+        actions = batch["actions"].to(device)      # [B, T]
         prev_actions = batch["prev_actions"].to(device)
 
         B, T = frames.shape[:2]
-        ss_rate = min(0.6, (step / max(0.5 * total_steps, 1)) * 0.6)
 
-        all_frames_flat = frames.reshape(B * T, 4, 3, 16, 16)
-        all_z = model.encode_observation(all_frames_flat).reshape(B, T, -1)
+        if model_type == "reactive":
+            frames_flat = frames.reshape(B * T, 4, 3, 16, 16)
+            actions_flat = actions.reshape(B * T)
 
-        total_act_loss = 0.0
-        total_pred_loss = 0.0
+            logits = model(frames_flat)
+            loss = act_criterion(logits, actions_flat)
+            pred_loss_val = 0.0
+            surprise_val = 0.0
 
-        h = None
-        P_t = None
-        curr_prev_act = prev_actions[:, 0]
-        surprise = torch.zeros(B, 1, device=device)
+            optimizer.zero_grad()
+            loss.backward()
+            nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+            optimizer.step()
 
-        for t in range(T):
-            z_t = all_z[:, t]
-            logits, h, e_t, P_t = model.forward_step(z_t, curr_prev_act, surprise, h, P_t)
+            act_loss_val = loss.item()
 
-            loss_act = act_criterion(logits, actions[:, t])
-            total_act_loss = total_act_loss + loss_act
+        else:
+            all_frames_flat = frames.reshape(B * T, 4, 3, 16, 16)
+            all_z = model.encode_observation(all_frames_flat).reshape(B, T, -1)
 
-            # Predict next latent
-            if t < T - 1:
-                z_hat_next = model.predict_next_latent(h, actions[:, t])
-                z_next_true = all_z[:, t + 1].detach()
+            ss_rate = min(0.5, (step / max(0.5 * total_steps, 1)) * 0.5)
 
-                loss_pred = pred_criterion(z_hat_next, z_next_true)
-                total_pred_loss = total_pred_loss + loss_pred
+            total_act_loss = 0.0
+            total_pred_loss = 0.0
 
-                with torch.no_grad():
-                    surprise = torch.norm(z_hat_next.detach() - z_next_true, dim=-1, keepdim=True)
-            else:
-                surprise = torch.zeros(B, 1, device=device)
+            recurrent_state = None
+            P_t = None
+            curr_prev_act = prev_actions[:, 0]
+            surprise = torch.zeros(B, 1, device=device)
 
-            if np.random.rand() < ss_rate:
-                curr_prev_act = logits.detach().argmax(dim=-1)
-            else:
-                curr_prev_act = actions[:, t]
+            for t in range(T):
+                z_t = all_z[:, t]
+                if model_type == "gru":
+                    logits, recurrent_state, e_t, P_t, _ = model.forward_step(
+                        z_t, curr_prev_act, surprise, recurrent_state, P_t
+                    )
+                else:
+                    logits, recurrent_state, e_t, P_t, _ = model.forward_step(
+                        z_t, curr_prev_act, surprise, recurrent_state, P_t
+                    )
 
-        total_act_loss = total_act_loss / T
-        total_pred_loss = total_pred_loss / max(T - 1, 1)
+                loss_act = act_criterion(logits, actions[:, t])
+                total_act_loss = total_act_loss + loss_act
 
-        loss = total_act_loss + pred_weight * total_pred_loss
+                if t < T - 1:
+                    z_hat_next = model.predict_next_latent(recurrent_state, actions[:, t])
+                    z_next_true = all_z[:, t + 1].detach()
+                    loss_pred = pred_criterion(z_hat_next, z_next_true)
+                    total_pred_loss = total_pred_loss + loss_pred
 
-        optimizer.zero_grad()
-        loss.backward()
-        nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-        optimizer.step()
+                    with torch.no_grad():
+                        surprise = torch.norm(z_hat_next.detach() - z_next_true, dim=-1, keepdim=True)
+                else:
+                    surprise = torch.zeros(B, 1, device=device)
+
+                if np.random.rand() < ss_rate:
+                    curr_prev_act = logits.detach().argmax(dim=-1)
+                else:
+                    curr_prev_act = actions[:, t]
+
+            total_act_loss = total_act_loss / T
+            total_pred_loss = total_pred_loss / max(T - 1, 1)
+
+            loss = total_act_loss + pred_weight * total_pred_loss
+
+            optimizer.zero_grad()
+            loss.backward()
+            nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+            optimizer.step()
+
+            act_loss_val = total_act_loss.item()
+            pred_loss_val = total_pred_loss.item()
+            surprise_val = surprise.mean().item()
 
         step += 1
 
+        # Periodic logging and checkpoint persistence
         if step % save_every == 0 or step == total_steps:
             elapsed = time.time() - t0
             steps_done = step - start_step
@@ -196,62 +226,62 @@ def train_predictive_model(
             eta_m, eta_sec = int(eta_s // 60), int(eta_s % 60)
 
             print(
-                f"  [PREDICTIVE_{model_type.upper()}] Step {step:4d}/{total_steps:4d} | "
-                f"Act Loss: {total_act_loss.item():.4f} | "
-                f"Pred Loss: {total_pred_loss.item():.4f} | "
-                f"Mean Surprise: {surprise.mean().item():.3f} | "
+                f"  [{model_type.upper()}] Step {step:4d}/{total_steps:4d} | "
+                f"Act Loss: {act_loss_val:.4f} | "
+                f"Pred Loss: {pred_loss_val:.4f} | "
+                f"Surprise: {surprise_val:.3f} | "
                 f"Elapsed: {elapsed:.1f}s | "
                 f"ETA: {eta_m}m{eta_sec:02d}s"
             )
             history.append({
                 "step": step,
-                "act_loss": float(total_act_loss.item()),
-                "pred_loss": float(total_pred_loss.item()),
-                "mean_surprise": float(surprise.mean().item()),
+                "act_loss": float(act_loss_val),
+                "pred_loss": float(pred_loss_val),
+                "surprise": float(surprise_val),
                 "elapsed_s": elapsed,
             })
 
+            # Save latest checkpoint for resumption
             checkpoint_state = {
                 "model_type": model_type,
                 "seed": seed,
                 "step": step,
                 "total_steps": total_steps,
-                "use_plasticity": use_plasticity,
                 "model_state_dict": model.state_dict(),
                 "optimizer_state_dict": optimizer.state_dict(),
                 "history": history,
                 "git_commit": get_git_commit(),
                 "timestamp": time.time(),
                 "device": str(device),
+                "lr": lr,
+                "batch_size": batch_size,
             }
             torch.save(checkpoint_state, latest_file)
             if step == total_steps:
                 torch.save(checkpoint_state, ckpt_file)
-                print(f"  [PREDICTIVE_{model_type.upper()}] Saved final checkpoint to {ckpt_file}")
+                print(f"  [{model_type.upper()}] Final checkpoint saved to {ckpt_file}")
 
     return model, {"history": history}
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", type=str, required=True, choices=["gru", "thoughtlet"])
+    parser.add_argument("--model", type=str, required=True, choices=["reactive", "gru", "thoughtlet"])
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--steps", type=int, default=1000)
-    parser.add_argument("--plasticity", action="store_true")
-    parser.add_argument("--corpus_dir", type=str, default="brain/datasets/keys_doors_corpus_v1")
-    parser.add_argument("--output_dir", type=str, default="brain/runs/self_correction/checkpoints")
+    parser.add_argument("--steps", type=int, default=1500)
+    parser.add_argument("--corpus_dir", type=str, default="brain/datasets/hidden_rule_corpus_v1")
+    parser.add_argument("--output_dir", type=str, default="brain/runs/online_adaptation/checkpoints")
     parser.add_argument("--device", type=str, default="auto")
     parser.add_argument("--save_every", type=int, default=250)
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--resume_from", type=str, default=None)
 
     args = parser.parse_args()
-    train_predictive_model(
+    train_model(
         model_type=args.model,
         corpus_dir=args.corpus_dir,
         seed=args.seed,
         total_steps=args.steps,
-        use_plasticity=args.plasticity,
         output_dir=args.output_dir,
         device_str=args.device,
         save_every=args.save_every,
