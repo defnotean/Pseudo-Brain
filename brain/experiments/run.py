@@ -491,6 +491,7 @@ def main():
     parser.add_argument("--resume", action="store_true", help="Resume from checkpoint if available")
     parser.add_argument("--no_eval", action="store_true", help="Skip automatic evaluation")
     parser.add_argument("--webhook", type=str, default=None, help="Webhook URL for Discord/Slack alerts")
+    parser.add_argument("--wandb", action="store_true", help="Enable Weights & Biases telemetry")
     parser.add_argument("--compile", action="store_true", help="Compile model with torch.compile")
     parser.add_argument("--use_amp", action="store_true", help="Enable bfloat16 automatic mixed precision")
     parser.add_argument("--parallel_jobs", type=int, default=1, help="Concurrent jobs for batch execution")
