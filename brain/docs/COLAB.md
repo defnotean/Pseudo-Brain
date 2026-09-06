@@ -1,6 +1,8 @@
-﻿# Google Colab Remote Training & Experimentation Guide
+# Google Colab Remote Training & Experimentation Guide
 
-This guide details how to run Pseudo-Brain experiments on **Google Colab** using premium GPU compute (NVIDIA A100, V100, L4, T4) with persistent Google Drive storage and unattended background execution.
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/defnotean/Pseudo-Brain/blob/main/notebooks/pseudobrain_colab_training.ipynb)
+
+This guide details how to run Pseudo-Brain experiments on **Google Colab** using premium GPU compute (NVIDIA A100, V100, L4, T4) with persistent Google Drive storage, unattended background execution, automated remote dispatch via CLI, and live real-time local monitoring.
 
 ---
 
@@ -141,3 +143,73 @@ All results appear under:
 1. **Google Drive Desktop**: If Google Drive is installed locally, results will sync automatically to your local file explorer.
 2. **Web Download**: In Google Drive web UI, right-click `PseudoBrain/runs/<experiment>` and select **Download**.
 3. **Colab File Browser**: In Colab left sidebar, navigate to `drive/MyDrive/PseudoBrain/runs/` and download any artifact.
+
+---
+
+## 7. Automated CLI Remote Dispatch (`scripts/colab_dispatch.py`)
+
+For a completely browserless workflow, Pseudo-Brain provides a unified dispatch bridge using Google's official `google-colab-cli`:
+
+### A. One-Time Setup
+```bash
+# Install / verify google-colab-cli (bridges via WSL on Windows automatically)
+python scripts/colab_dispatch.py install
+
+# Authenticate with your Google AI Ultra account
+python scripts/colab_dispatch.py login
+```
+
+### B. Launch Remote Experiment on Colab GPU
+Dispatch directly to an NVIDIA A100 GPU (or L4 / T4):
+```bash
+python scripts/colab_dispatch.py run \
+  --experiment online_adaptation \
+  --models thoughtlet plastic_thoughtlet \
+  --gpu A100 \
+  --steps 1500
+```
+This automatically:
+1. Provisions a fresh remote Colab container with the requested GPU.
+2. Clones or syncs the Pseudo-Brain repository.
+3. Mounts Google Drive (`MyDrive/PseudoBrain/runs`).
+4. Executes the unified runner and streams stdout/stderr live to your terminal.
+5. Shuts down the runtime upon completion to conserve your Google AI Ultra compute units (or pass `--keep` to retain it).
+
+### C. Session Management
+```bash
+# Check running sessions
+python scripts/colab_dispatch.py status
+
+# Terminate active session
+python scripts/colab_dispatch.py stop
+```
+
+---
+
+## 8. Real-Time Telemetry, Live Terminal Watcher & Alerts
+
+### A. Live Local Terminal Watcher
+While training runs remotely on Google Colab, you can watch live progress, loss curves, rates, and GPU memory from your local terminal:
+```bash
+# Monitor active runs via Google Drive Desktop:
+python -m brain.experiments.monitor --path "G:\My Drive\PseudoBrain\runs"
+
+# Or one-shot status check:
+python -m brain.experiments.monitor --once
+```
+
+### B. Webhook Notifications (Discord / Slack)
+Pass `--webhook <url>` to receive instant mobile and desktop alerts when:
+- 🚀 Training starts (with GPU model and run parameters)
+- ⏳ Progress reaches milestones (25%, 50%, 75% with ETA and loss)
+- ✅ Benchmark completes (with full evaluation accuracy table)
+- ❌ Any unhandled error occurs (with full traceback)
+
+Example:
+```bash
+python scripts/colab_dispatch.py run \
+  --experiment online_adaptation \
+  --models thoughtlet \
+  --webhook "https://discord.com/api/webhooks/..."
+```
+

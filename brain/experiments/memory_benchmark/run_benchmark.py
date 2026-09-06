@@ -144,4 +144,106 @@ def run_benchmark(
     return all_results
 
 if __name__ == "__main__":
-    run_benchmark(seeds=[42], steps=1000, test_episodes=25)
+    parser = argparse.ArgumentParser(description="Run memory benchmark suite")
+    parser.add_argument("--steps", type=int, default=1000)
+    parser.add_argument("--seeds", type=int, nargs="+", default=[42])
+    parser.add_argument("--models", type=str, nargs="+", default=["reactive", "gru", "thoughtlet"])
+    parser.add_argument("--episodes", type=int, default=25)
+    parser.add_argument("--output_dir", type=str, default="brain/runs/memory_benchmark")
+
+    args = parser.parse_args()
+
+    # Pass selected models to run_benchmark
+    def _run():
+        out_path = Path(args.output_dir)
+        out_path.mkdir(parents=True, exist_ok=True)
+        ckpt_dir = out_path / "checkpoints"
+        ckpt_dir.mkdir(parents=True, exist_ok=True)
+
+        models_to_test = args.models
+        seeds = args.seeds
+        steps = args.steps
+        test_episodes = args.episodes
+        all_results = {}
+
+        print("=" * 70)
+        print("STARTING PSEUDO-BRAIN MEMORY BENCHMARK")
+        print(f"Models: {models_to_test}")
+        print(f"Seeds: {seeds} | Training Steps: {steps} | Test Episodes: {test_episodes}")
+        print("=" * 70)
+
+        for m in models_to_test:
+            all_results[m] = {}
+            for s in seeds:
+                print(f"\n>>> [1/2] Training {m.upper()} (Seed {s})")
+                t_start = time.time()
+                model, train_info = train_model(
+                    model_type=m,
+                    corpus_dir=_REPO_ROOT / "datasets" / "keys_doors_corpus_v1",
+                    seed=s,
+                    total_steps=steps,
+                    batch_size=16,
+                    device_str="cpu",
+                    output_dir=ckpt_dir,
+                )
+                t_train = time.time() - t_start
+
+                print(f"\n>>> [2/2] Evaluating {m.upper()} (Seed {s}) on {test_episodes} TEST episodes")
+                eval_res = evaluate_model_on_split(
+                    model=model,
+                    start_seed=3000,
+                    n_episodes=test_episodes,
+                    max_ticks=300,
+                    device=torch.device("cpu"),
+                )
+
+                param_info = count_parameters(model)
+
+                all_results[m][s] = {
+                    "train_time_s": t_train,
+                    "parameters": param_info["total"],
+                    "key_rate": eval_res["key_rate"],
+                    "door_rate": eval_res["door_rate"],
+                    "success_rate": eval_res["success_rate"],
+                    "key_to_door_rate": eval_res["key_to_door_rate"],
+                    "key_count": eval_res["key_count"],
+                    "door_count": eval_res["door_count"],
+                    "target_count": eval_res["target_count"],
+                    "val_loss": train_info["history"][-1]["val_loss"] if train_info["history"] else None,
+                    "val_acc": train_info["history"][-1]["val_acc"] if train_info["history"] else None,
+                }
+
+                print(f"  Summary for {m} (seed {s}):")
+                print(f"    Key Rate        : {eval_res['key_rate']*100:.1f}%")
+                print(f"    Door Rate       : {eval_res['door_rate']*100:.1f}%")
+                print(f"    Success Rate    : {eval_res['success_rate']*100:.1f}%")
+                print(f"    Key -> Door Conv: {eval_res['key_to_door_rate']*100:.1f}%")
+
+        # Save summary JSON
+        summary_file = out_path / f"memory_benchmark_results_{steps}steps.json"
+        with open(summary_file, "w") as f:
+            json.dump(all_results, f, indent=2)
+        print(f"\nSaved raw results to {summary_file}")
+
+        # Generate Markdown Report
+        report_file = out_path / f"BENCHMARK_REPORT_{steps}steps.md"
+        with open(report_file, "w") as f:
+            f.write(f"# KeysDoors Memory Benchmark ({steps} Steps)\n\n")
+            f.write("## 1. Performance Comparison Table\n\n")
+            f.write("| Model | Parameters | Val Acc | Key Rate | Door Rate | Target Success | Key->Door Conv |\n")
+            f.write("|---|---|---|---|---|---|---|\n")
+
+            for m in models_to_test:
+                seed_res = [all_results[m][s] for s in seeds]
+                avg_params = seed_res[0]["parameters"]
+                avg_val_acc = sum(r["val_acc"] for r in seed_res) / len(seed_res)
+                avg_key = sum(r["key_rate"] for r in seed_res) / len(seed_res) * 100
+                avg_door = sum(r["door_rate"] for r in seed_res) / len(seed_res) * 100
+                avg_succ = sum(r["success_rate"] for r in seed_res) / len(seed_res) * 100
+                avg_conv = sum(r["key_to_door_rate"] for r in seed_res) / len(seed_res) * 100
+
+                f.write(f"| **{m}** | {avg_params:,} | {avg_val_acc:.3f} | {avg_key:.1f}% | {avg_door:.1f}% | {avg_succ:.1f}% | {avg_conv:.1f}% |\n")
+
+        print(f"Generated benchmark report at {report_file}")
+
+    _run()

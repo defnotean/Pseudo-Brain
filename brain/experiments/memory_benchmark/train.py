@@ -99,6 +99,7 @@ def train_model(
     save_every: int = 250,
     resume: bool = False,
     resume_from: Optional[str | Path] = None,
+    telemetry: Optional[Any] = None,
 ) -> Tuple[nn.Module, Dict]:
     # Set seed
     torch.manual_seed(seed)
@@ -208,6 +209,12 @@ def train_model(
         optimizer.step()
 
         step += 1
+
+        if telemetry is not None:
+            telemetry.log_step(
+                step=step,
+                act_loss=seq_loss.item(),
+            )
 
         if step % 250 == 0 or step == total_steps:
             val_metrics = evaluate_split(model, dev_loader, device)

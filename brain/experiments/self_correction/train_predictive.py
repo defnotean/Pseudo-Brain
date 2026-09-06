@@ -1,4 +1,4 @@
-﻿"""Training pipeline for Predictive Recurrent Models with Surprise Feedback.
+"""Training pipeline for Predictive Recurrent Models with Surprise Feedback.
 
 Jointly trains:
 1. Primary action loss (CrossEntropy with scheduled sampling)
@@ -57,6 +57,7 @@ def train_predictive_model(
     save_every: int = 250,
     resume: bool = False,
     resume_from: Optional[str | Path] = None,
+    telemetry: Optional[Any] = None,
 ) -> Tuple[nn.Module, Dict]:
     torch.manual_seed(seed)
     np.random.seed(seed)
@@ -187,6 +188,14 @@ def train_predictive_model(
         optimizer.step()
 
         step += 1
+
+        if telemetry is not None:
+            telemetry.log_step(
+                step=step,
+                act_loss=total_act_loss.item(),
+                pred_loss=total_pred_loss.item(),
+                surprise=surprise.mean().item(),
+            )
 
         if step % save_every == 0 or step == total_steps:
             elapsed = time.time() - t0

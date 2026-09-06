@@ -38,6 +38,7 @@ sys.path.insert(0, str(_BRAIN_DIR))
 sys.path.insert(0, str(_REPO_ROOT))
 
 from irene_brain.device import resolve_device, get_hardware_summary, format_hardware_summary
+from telemetry import TelemetryLogger
 
 
 def get_git_commit() -> str:
@@ -82,6 +83,8 @@ def run_single_experiment(
     data_dir: Path,
     resume: bool = False,
     auto_eval: bool = True,
+    webhook_url: Optional[str] = None,
+    use_wandb: bool = False,
 ) -> Dict[str, Any]:
     """Executes training and evaluation for a single (model, seed) pair."""
     exp_dir = output_dir / experiment / f"{model_name}_seed_{seed}"
@@ -114,137 +117,161 @@ def run_single_experiment(
     with open(meta_file, "w", encoding="utf-8") as f:
         json.dump(meta, f, indent=2)
 
+    # Initialize live telemetry engine
+    telemetry = TelemetryLogger(
+        run_dir=exp_dir,
+        experiment=experiment,
+        model_name=model_name,
+        seed=seed,
+        total_steps=steps,
+        webhook_url=webhook_url,
+        use_wandb=use_wandb,
+    )
+
     t0 = time.time()
 
-    # 1. Training Phase
-    if experiment == "online_adaptation":
-        from online_adaptation.train import train_model
-
-        # Map model name
-        actual_model = "thoughtlet" if "thoughtlet" in model_name else model_name
-        model, train_info = train_model(
-            model_type=actual_model,
-            corpus_dir=corpus_path,
-            seed=seed,
-            total_steps=steps,
-            batch_size=batch_size,
-            device_str=device_str,
-            output_dir=exp_dir,
-            save_every=min(250, steps // 2 if steps > 2 else steps),
-            resume=resume,
-        )
-
-    elif experiment == "self_correction":
-        from self_correction.train_predictive import train_predictive_model
-
-        use_plast = "plastic" in model_name
-        actual_model = "thoughtlet" if "thoughtlet" in model_name else "gru"
-        model, train_info = train_predictive_model(
-            model_type=actual_model,
-            corpus_dir=corpus_path,
-            seed=seed,
-            total_steps=steps,
-            batch_size=batch_size,
-            use_plasticity=use_plast,
-            device_str=device_str,
-            output_dir=exp_dir,
-            save_every=min(250, steps // 2 if steps > 2 else steps),
-            resume=resume,
-        )
-
-    elif experiment == "memory_benchmark":
-        from memory_benchmark.train import train_model
-
-        actual_model = model_name
-        model, train_info = train_model(
-            model_type=actual_model,
-            corpus_dir=corpus_path,
-            seed=seed,
-            total_steps=steps,
-            batch_size=batch_size,
-            device_str=device_str,
-            output_dir=exp_dir,
-            save_every=min(250, steps // 2 if steps > 2 else steps),
-            resume=resume,
-        )
-
-    train_elapsed = time.time() - t0
-
-    # 2. Evaluation Phase
-    eval_results = {}
-    if auto_eval:
-        print(f"[{model_name.upper()} | Seed {seed}] Running automated evaluation...")
-        device = resolve_device(device_str)
-
+    try:
+        # 1. Training Phase
         if experiment == "online_adaptation":
-            from online_adaptation.run_online_adaptation_benchmark import evaluate_single_session
-            from online_adaptation.hidden_rule_env import HiddenRuleEnv, Rule
+            from online_adaptation.train import train_model
 
-            test_schedule = [(Rule.RULE_A, 10), (Rule.RULE_B, 10), (Rule.RULE_A, 10)]
-            use_plast = "plastic" in model_name
-            ablate_surp = "no_surprise" in model_name
-
-            accuracies = []
-            latencies = []
-            for s_idx in range(10):  # 10 test sessions for quick single-run eval
-                env = HiddenRuleEnv(rule_schedule=test_schedule)
-                sess = evaluate_single_session(
-                    model=model,
-                    model_type=actual_model,
-                    env=env,
-                    seed=seed * 1000 + s_idx,
-                    device=device,
-                    use_plasticity=use_plast,
-                    ablate_surprise=ablate_surp,
-                )
-                latencies.append(sess["latency_ms"])
-                correct_vec = [1.0 if t["correct"] else 0.0 for t in sess["trial_outcomes"]]
-                accuracies.append(correct_vec)
-
-            acc_matrix = np.array(accuracies)
-            mean_acc = np.mean(acc_matrix, axis=0) * 100.0
-            eval_results = {
-                "t1_acc": float(mean_acc[0]),
-                "t2_acc": float(mean_acc[1]),
-                "t10_acc": float(mean_acc[9]),
-                "t11_acc": float(mean_acc[10]),
-                "t12_acc": float(mean_acc[11]),
-                "t20_acc": float(mean_acc[19]),
-                "t30_acc": float(mean_acc[29]),
-                "mean_latency_ms": float(np.mean(latencies)),
-            }
-
-        elif experiment == "memory_benchmark":
-            from memory_benchmark.eval import evaluate_model_on_split
-            eval_res = evaluate_model_on_split(
-                model=model,
-                start_seed=3000,
-                n_episodes=15,
-                max_ticks=300,
-                device=device,
+            # Map model name
+            actual_model = "thoughtlet" if "thoughtlet" in model_name else model_name
+            model, train_info = train_model(
+                model_type=actual_model,
+                corpus_dir=corpus_path,
+                seed=seed,
+                total_steps=steps,
+                batch_size=batch_size,
+                device_str=device_str,
+                output_dir=exp_dir,
+                save_every=min(250, steps // 2 if steps > 2 else steps),
+                resume=resume,
+                telemetry=telemetry,
             )
-            eval_results = {
-                "key_rate": eval_res["key_rate"],
-                "door_rate": eval_res["door_rate"],
-                "success_rate": eval_res["success_rate"],
-                "key_to_door_rate": eval_res["key_to_door_rate"],
-            }
 
         elif experiment == "self_correction":
-            from self_correction.diagnostic_eval import evaluate_perturbation_diagnostics
-            from self_correction.perturbations import SingleStepPerturbation
-            diag = evaluate_perturbation_diagnostics(
-                model=model,
-                perturbation=SingleStepPerturbation(),
-                n_episodes=15,
-                start_seed=3000,
-                device=device,
+            from self_correction.train_predictive import train_predictive_model
+
+            use_plast = "plastic" in model_name
+            actual_model = "thoughtlet" if "thoughtlet" in model_name else "gru"
+            model, train_info = train_predictive_model(
+                model_type=actual_model,
+                corpus_dir=corpus_path,
+                seed=seed,
+                total_steps=steps,
+                batch_size=batch_size,
+                use_plasticity=use_plast,
+                device_str=device_str,
+                output_dir=exp_dir,
+                save_every=min(250, steps // 2 if steps > 2 else steps),
+                resume=resume,
+                telemetry=telemetry,
             )
-            eval_results = {
-                "recovery_rate": diag["recovery_rate"],
-                "mean_recovery_steps": diag["mean_recovery_steps"],
-                "failure_rate": diag["failure_rate"],
-            }
+
+        elif experiment == "memory_benchmark":
+            from memory_benchmark.train import train_model
+
+            actual_model = model_name
+            model, train_info = train_model(
+                model_type=actual_model,
+                corpus_dir=corpus_path,
+                seed=seed,
+                total_steps=steps,
+                batch_size=batch_size,
+                device_str=device_str,
+                output_dir=exp_dir,
+                save_every=min(250, steps // 2 if steps > 2 else steps),
+                resume=resume,
+                telemetry=telemetry,
+            )
+
+        train_elapsed = time.time() - t0
+
+        # 2. Evaluation Phase
+        eval_results = {}
+        if auto_eval:
+            print(f"[{model_name.upper()} | Seed {seed}] Running automated evaluation...")
+            device = resolve_device(device_str)
+
+            if experiment == "online_adaptation":
+                from online_adaptation.run_online_adaptation_benchmark import evaluate_single_session
+                from online_adaptation.hidden_rule_env import HiddenRuleEnv, Rule
+
+                test_schedule = [(Rule.RULE_A, 10), (Rule.RULE_B, 10), (Rule.RULE_A, 10)]
+                use_plast = "plastic" in model_name
+                ablate_surp = "no_surprise" in model_name
+
+                accuracies = []
+                latencies = []
+                for s_idx in range(10):  # 10 test sessions for quick single-run eval
+                    env = HiddenRuleEnv(rule_schedule=test_schedule)
+                    sess = evaluate_single_session(
+                        model=model,
+                        model_type=actual_model,
+                        env=env,
+                        seed=seed * 1000 + s_idx,
+                        device=device,
+                        use_plasticity=use_plast,
+                        ablate_surprise=ablate_surp,
+                    )
+                    latencies.append(sess["latency_ms"])
+                    correct_vec = [1.0 if t["correct"] else 0.0 for t in sess["trial_outcomes"]]
+                    accuracies.append(correct_vec)
+
+                acc_matrix = np.array(accuracies)
+                mean_acc = np.mean(acc_matrix, axis=0) * 100.0
+                eval_results = {
+                    "t1_acc": float(mean_acc[0]),
+                    "t2_acc": float(mean_acc[1]),
+                    "t10_acc": float(mean_acc[9]),
+                    "t11_acc": float(mean_acc[10]),
+                    "t12_acc": float(mean_acc[11]),
+                    "t20_acc": float(mean_acc[19]),
+                    "t30_acc": float(mean_acc[29]),
+                    "mean_latency_ms": float(np.mean(latencies)),
+                }
+
+            elif experiment == "memory_benchmark":
+                from memory_benchmark.eval import evaluate_model_on_split
+                eval_res = evaluate_model_on_split(
+                    model=model,
+                    start_seed=3000,
+                    n_episodes=15,
+                    max_ticks=300,
+                    device=device,
+                )
+                eval_results = {
+                    "key_rate": eval_res["key_rate"],
+                    "door_rate": eval_res["door_rate"],
+                    "success_rate": eval_res["success_rate"],
+                    "key_to_door_rate": eval_res["key_to_door_rate"],
+                }
+
+            elif experiment == "self_correction":
+                from self_correction.diagnostic_eval import evaluate_perturbation_diagnostics
+                from self_correction.perturbations import SingleStepPerturbation
+                diag = evaluate_perturbation_diagnostics(
+                    model=model,
+                    perturbation=SingleStepPerturbation(),
+                    n_episodes=15,
+                    start_seed=3000,
+                    device=device,
+                )
+                eval_results = {
+                    "recovery_rate": diag["recovery_rate"],
+                    "mean_recovery_steps": diag["mean_recovery_steps"],
+                    "failure_rate": diag["failure_rate"],
+                }
+
+    except Exception as e:
+        telemetry.log_failure(str(e))
+        meta["status"] = "failed"
+        meta["error"] = str(e)
+        meta["end_time"] = time.time()
+        with open(meta_file, "w", encoding="utf-8") as f:
+            json.dump(meta, f, indent=2)
+        raise e
 
     total_elapsed = time.time() - t0
 
@@ -266,6 +293,9 @@ def run_single_experiment(
     with open(eval_file, "w", encoding="utf-8") as f:
         json.dump(final_payload, f, indent=2)
 
+    # Telemetry completion alert
+    telemetry.log_completion(eval_results=eval_results)
+
     print(f"[{model_name.upper()} | Seed {seed}] Completed in {total_elapsed:.1f}s. Results saved to {eval_file}")
     return final_payload
 
@@ -281,6 +311,8 @@ def run_batch(
     data_dir: Path,
     resume: bool = False,
     auto_eval: bool = True,
+    webhook_url: Optional[str] = None,
+    use_wandb: bool = False,
 ):
     """Iterates through all (model, seed) combinations, handling errors and aggregating results."""
     print("=" * 70)
@@ -290,6 +322,10 @@ def run_batch(
     print(f"Seeds: {seeds}")
     print(f"Steps: {steps} | Device: {device_str}")
     print(f"Output Directory: {output_dir.resolve()}")
+    if webhook_url:
+        print("Telemetry: Webhook notifications active")
+    if use_wandb:
+        print("Telemetry: Weights & Biases logging active")
     print("=" * 70)
 
     results = []
@@ -310,6 +346,8 @@ def run_batch(
                     data_dir=data_dir,
                     resume=resume,
                     auto_eval=auto_eval,
+                    webhook_url=webhook_url,
+                    use_wandb=use_wandb,
                 )
                 results.append(res)
             except Exception as e:
@@ -394,6 +432,8 @@ def main():
     )
     parser.add_argument("--resume", action="store_true", help="Resume from checkpoint if available")
     parser.add_argument("--no_eval", action="store_true", help="Skip automatic evaluation")
+    parser.add_argument("--webhook", type=str, default=None, help="Webhook URL for Discord/Slack alerts")
+    parser.add_argument("--wandb", action="store_true", help="Enable Weights & Biases telemetry")
 
     args = parser.parse_args()
 
@@ -430,6 +470,8 @@ def main():
         data_dir=Path(args.data_dir),
         resume=args.resume,
         auto_eval=not args.no_eval,
+        webhook_url=args.webhook,
+        use_wandb=args.wandb,
     )
 
 

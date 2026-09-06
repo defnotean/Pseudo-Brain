@@ -58,6 +58,7 @@ def train_model(
     save_every: int = 250,
     resume: bool = False,
     resume_from: Optional[str | Path] = None,
+    telemetry: Optional[Any] = None,
 ) -> Tuple[nn.Module, Dict]:
     torch.manual_seed(seed)
     np.random.seed(seed)
@@ -216,6 +217,14 @@ def train_model(
             surprise_val = surprise.mean().item()
 
         step += 1
+
+        if telemetry is not None:
+            telemetry.log_step(
+                step=step,
+                act_loss=act_loss_val,
+                pred_loss=pred_loss_val,
+                surprise=surprise_val,
+            )
 
         # Periodic logging and checkpoint persistence
         if step % save_every == 0 or step == total_steps:
