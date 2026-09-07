@@ -113,6 +113,8 @@ class AgentCognitiveCore(nn.Module):
         h_prev: Optional[torch.Tensor],
         P_t: torch.Tensor,
         consequence_surprise: torch.Tensor,
+        last_action: Optional[int] = None,
+        last_success: Optional[bool] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, float]:
         """Runs a single recurrent cognitive step.
 
@@ -143,12 +145,29 @@ class AgentCognitiveCore(nn.Module):
         delta_P = gate * torch.tanh(self.p_modulator(torch.cat([h_next, consequence_surprise], dim=-1)))
         P_next = effective_decay * P_t + self.lr * delta_P
 
+        # Inhibition of Return & Subgoal Progression:
+        # Actively penalize repeating an action that failed, and discount immediate re-execution of completed action
+        if last_action is not None:
+            if last_success is False:
+                suppression = torch.zeros_like(P_next)
+                suppression[0, last_action] = -4.0 * float(consequence_surprise.item() + 1.0)
+                P_next = P_next + suppression
+            elif last_success is True:
+                discount = torch.zeros_like(P_next)
+                discount[0, last_action] = -1.2
+                P_next = P_next + discount
+
         # Combined Policy Logits
         base_logits = self.policy_head(h_next)
         logits = base_logits + self.scale * P_next
 
         gate_val = float(g_t.mean().item())
         return logits, h_next, P_next, gate_val
+
+    def set_tool_bias(self, tool_idx: int, bias: float) -> None:
+        """Adjusts the baseline logit bias for a specific tool."""
+        with torch.no_grad():
+            self.policy_head.bias[tool_idx] += bias
 
     def predict_future(self, h: torch.Tensor, action: int) -> Tuple[torch.Tensor, float]:
         a_vec = torch.zeros(1, self.n_tools, device=h.device)
@@ -187,12 +206,25 @@ class PseudoBrainAgent:
             nn.GELU(),
         ).to(self.device)
 
-    def _encode_observation(self, text: str) -> torch.Tensor:
+    def _encode_observation(
+        self,
+        text: str,
+        last_tool_idx: Optional[int] = None,
+        last_success: Optional[bool] = None,
+        last_reward: float = 0.0,
+    ) -> torch.Tensor:
+        import zlib
         words = text.strip().split() if text else ["<empty>"]
-        hashes = [hash(w) % 64 for w in words[:16]]
+        hashes = [int(zlib.crc32(w.lower().encode("utf-8")) & 0xFFFFFFFF) % 60 for w in words[:16]]
         vec = torch.zeros(1, 64, device=self.device)
         for h in hashes:
             vec[0, h] += 1.0
+
+        if last_tool_idx is not None and 0 <= last_tool_idx < 60:
+            vec[0, last_tool_idx] += 2.0
+        if last_success is not None:
+            vec[0, 61] = 2.0 if last_success else -2.0
+        vec[0, 62] = float(np.clip(last_reward, -2.0, 2.0))
         return self.obs_encoder(vec)
 
     def run_task(
@@ -200,6 +232,8 @@ class PseudoBrainAgent:
         goal: GoalSpecification,
         max_steps: int = 15,
         default_args: Optional[Dict[str, Dict[str, Any]]] = None,
+        arg_provider: Optional[Callable[[int, str, List[AgentStepLog], GoalSpecification], Dict[str, Any]]] = None,
+        action_selector: Optional[Callable[[torch.Tensor, List[AgentStepLog]], int]] = None,
     ) -> AgentTaskReport:
         """Executes the autonomous cognitive loop on the given goal."""
         default_args = default_args or {}
@@ -213,9 +247,12 @@ class PseudoBrainAgent:
         logs: List[AgentStepLog] = []
         cum_reward = 0.0
         complete = False
+        last_action_idx: Optional[int] = None
+        last_success: Optional[bool] = None
+        last_reward = 0.0
 
         for step in range(1, max_steps + 1):
-            # 1. Thought / Planning / Policy forward step
+            # 1. Thought / Planning / Policy forward step with outcome history
             with torch.no_grad():
                 logits, h_t, P_t, gate_val = self.core.forward_step(
                     obs_emb=obs_emb,
@@ -223,14 +260,22 @@ class PseudoBrainAgent:
                     h_prev=h_t,
                     P_t=P_t,
                     consequence_surprise=consequence_surprise,
+                    last_action=last_action_idx,
+                    last_success=last_success,
                 )
-                action_idx = int(logits.argmax(dim=-1).item())
+                if action_selector is not None:
+                    action_idx = action_selector(logits, logs)
+                else:
+                    action_idx = int(logits.argmax(dim=-1).item())
                 _, r_hat = self.core.predict_future(h_t, action_idx)
 
-            # 2. Select & execute tool
+            # 2. Select & execute tool with dynamic or default arguments
             tool = self.registry.get_by_index(action_idx)
             tool_name = tool.name
-            args = default_args.get(tool_name, {})
+            if arg_provider is not None:
+                args = arg_provider(step, tool_name, logs, goal)
+            else:
+                args = default_args.get(tool_name, {})
 
             tool_res = tool.execute(**args)
             r_true = tool_res.reward
@@ -242,7 +287,16 @@ class PseudoBrainAgent:
 
             # 4. Update observation embedding
             obs_snippet = tool_res.output[:80] if tool_res.output else (tool_res.error or "")[:80]
-            obs_emb = self._encode_observation(tool_res.output + " " + (tool_res.error or ""))
+            obs_emb = self._encode_observation(
+                text=tool_res.output + " " + (tool_res.error or ""),
+                last_tool_idx=action_idx,
+                last_success=tool_res.success,
+                last_reward=r_true,
+            )
+
+            last_action_idx = action_idx
+            last_success = tool_res.success
+            last_reward = r_true
 
             # 5. Log telemetry
             p_norm = float(P_t.norm().item())
