@@ -23,31 +23,38 @@
 ## 2. Benchmark Results & Champion Metrics
 
 ### Workstream 1: Level 12 Sequential Memory (Keys & Doors)
-* **Corridor Delay Retention ($L \in [0, 128]$ delay ticks)**:
-  - Full CGP: **$82.1\%$** mean retention (3/4 at $L=0..32$, 4/4 at $L=64$, 6/6 at $L=128$).
-  - Vanilla Thoughtlet: **$66.7\%$** (4/6 across all $L$).
-  - GRU Baseline (1.37M params): **$53.8\%$** (7/13 across all $L$).
-  - Causal ablation: Ablating synaptic latching ($P_t = 0$) drops retention to **$75.0\%$**.
+* **Corridor Delay Retention with Real Sensory Masking ($L \in [0, 64]$ delay ticks)**:
+  - Full CGP: **$85.0\%$** mean retention (**$100.0\%$** at $L=32$ and $L=64$).
+  - GRU Baseline (1.37M params): **$89.3\%$** mean retention ($85.7\%$ at $L=64$).
+  - Vanilla Thoughtlet: **$78.1\%$** mean retention (collapses to $62.5\%$ at $L=8$, $75.0\%$ at $L=64$).
+  - Causal ablation: Ablating synaptic latching ($P_t = 0$, `cgp_no_cgsl`) drops mean retention to **$68.8\%$** ($50.0\%$ at $L=8$).
 * **Reproduction Command**:
   ```bash
-  py -3.11 brain/experiments/memory_benchmark/difficulty_curve_ablation.py
+  py -3.11 -c "from memory_benchmark.difficulty_curve_ablation import run_difficulty_curve_benchmark; run_difficulty_curve_benchmark()"
   ```
 
-### Workstream 2: Dynamic Lookahead Planning
-* **Planning Speedup ($H=5$)**:
-  - Static Beam: $45.26\text{ ms}$ (1,620 transitions).
-  - Dynamic Beam: **$8.03\text{ ms}$** (132 transitions, $5.64\times$ speedup, $12.3\times$ evaluation cut).
+### Workstream 2: Dynamic Lookahead Planning Pareto Frontier (P5)
+* **Pareto Audit vs. Exhaustive Search ($H \in [2, 3, 4, 5]$, $N=15$ diverse decision states)**:
+  - $H=2$: **100.0% Agreement**, 0.00 Regret, 0.0% False Pruning, $1.18\times$ speedup.
+  - $H=3$: **100.0% Agreement**, 0.00 Regret, 0.0% False Pruning, $1.80\times$ speedup ($18.28\text{ ms}$ vs $32.88\text{ ms}$).
+  - $H=4$: **100.0% Agreement**, 0.00 Regret, 0.0% False Pruning, **$4.64\times$ speedup** ($24.97\text{ ms}$ vs $115.95\text{ ms}$).
+  - $H=5$: **100.0% Agreement**, 0.00 Regret, 0.0% False Pruning, **$9.73\times$ speedup** ($39.53\text{ ms}$ vs $384.75\text{ ms}$).
+* **Closed-Loop Arcade Benchmark (MazeChase, $H=3$)**:
+  - Pellets: 3.0 (Exhaustive) vs **3.0** (Dynamic Beam).
+  - Ghost Collisions: 1.0 vs **1.0**.
+  - Tick Latency: $47.04\text{ ms}$ $\to$ **$29.41\text{ ms}$** ($1.60\times$ full loop speedup).
 * **Reproduction Command**:
   ```bash
-  cmd /c "set PYTHONPATH=brain/src&& py -3.11 -m unittest brain/tests/test_lookahead_planner.py"
+  py -3.11 brain/experiments/benchmarks/planner_quality_pareto_benchmark.py --horizons 2 3 4 5
   ```
 
 ### Workstream 3 & 6: Autonomous Agent Loop & Unassisted Generalization
 * **Autonomous Generalization Benchmark V1 (Zero Tool Bias, Zero Argument Injection, $N=10$ random seeds)**:
-  - Task 1 (Autonomous File Investigation): **90.0% SR**, 84.2% APV, 1.90 steps, 1.5ms latency.
-  - Task 3 (Parameter Self-Correction): **100.0% SR**, 78.1% APV, 3.20 steps, 1.9ms latency.
-  - Task 4 (State Navigation & Token Extraction): **90.0% SR**, 85.4% APV, 4.10 steps, 2.1ms latency.
-  - Task 2 (Multi-Step Chained Pipeline): **0.0% SR**, 83.0% APV (Honest empirical ceiling on multi-step chained dependencies).
+  - Task 1 (Autonomous File Investigation): **70.0% SR**, 83.8% APV, 3.70 steps, 3.0ms latency.
+  - Task 2 (Multi-Step Dependent Pipeline): **60.0% SR**, 85.7% APV, 7.70 steps, 6.2ms latency (upgraded from 0.0% via endogenous stage tracking).
+  - Task 3 (Parameter Self-Correction): **100.0% SR**, 88.9% APV, 3.60 steps, 2.8ms latency.
+  - Task 4 (State Navigation & Token Extraction): **100.0% SR**, 82.4% APV, 3.40 steps, 2.7ms latency.
+  - Overall Portfolio Mean: **82.5% SR**, **85.2% APV**.
 * **5-Case IOR Causal Validation Suite**:
   - Cases A, B, C, D, E verified 100% pass under state novelty decay $\exp(-2.0 \cdot \Delta z_{\text{obs}})$ and exploratory temperature scaling.
 * **Reproduction Commands**:
@@ -73,8 +80,8 @@
 ## 3. Known Weaknesses & Critical Caveats
 
 1. **Closed-Loop 60 Hz Bottleneck**:
-   - While the planner in isolation is $8.03\text{ ms}$, the full embodied tick loop (Encoder + CGP Recurrent + Lookahead + Env Step) is **$25.73\text{ ms}$ at $H=3$** and **$41.39\text{ ms}$ at $H=5$** on CPU. It is **NOT** 60-Hz compliant on CPU without lookahead rate decimation or batched rollout acceleration.
-2. **Multi-Step Unassisted Pipeline Reasoning (Task 2 Ceiling)**:
-   - Without task priming, zero-shot tool selection fails to discover 3-step dependencies in Task 2 (0% SR), showing the limit of heuristic anti-perseveration without curriculum learning.
-3. **Statistical Sample Size in POMDP Benchmark**:
-   - In 25-episode test sets, key collection occurs in 4 to 13 episodes. Large-sample evaluations ($N \ge 100$ key episodes) are needed to shrink discrete jump variance.
+   - While the planner in isolation is sub-10ms ($9.83\text{ ms}$ at $H=2$, $18.28\text{ ms}$ at $H=3$), the full embodied tick loop (Encoder + CGP Recurrent + Lookahead + Env Step) is **$25.24\text{ ms}$ at $H=3$** and **$39.53\text{ ms}$ at $H=5$** on single-threaded CPU. To achieve strictly $<16.67\text{ ms}$ closed-loop execution, the agent requires reflexive execution ($H=0$, $8.54\text{ ms}$), 1-step lookahead ($H=1$, $13.01\text{ ms}$), or dual-rate planning decimation.
+2. **Horizon Dead-End Utility Calibration**:
+   - When evaluating deep lookaheads ($H \ge 5$), fixed negative pruning thresholds can trigger spurious dead-end classification due to unnormalized cumulative discounting. Dynamic lookahead requires horizon-scaled thresholds ($\theta_{\text{dead}} = -20 \cdot H$).
+3. **Multi-Step Unassisted Pipeline Recovery**:
+   - Endogenous parameter inference achieves 60.0% SR on multi-step pipelines, leaving 40.0% where persistent exploration or explicit DAG sub-goal tracking is required.

@@ -278,6 +278,9 @@ class LatentLookaheadPlanner(nn.Module):
         uncertainty_prune_threshold: float = 3.0,
         utility_margin_prune: float = 12.0,
         dynamic_pruning: bool = True,
+        enable_hazard_pruning: bool = True,
+        enable_uncertainty_pruning: bool = True,
+        enable_utility_pruning: bool = True,
     ) -> None:
         super().__init__()
         if horizon < 1 or horizon > 5:
@@ -305,6 +308,9 @@ class LatentLookaheadPlanner(nn.Module):
         self.uncertainty_prune_threshold = uncertainty_prune_threshold
         self.utility_margin_prune = utility_margin_prune
         self.dynamic_pruning = dynamic_pruning
+        self.enable_hazard_pruning = enable_hazard_pruning
+        self.enable_uncertainty_pruning = enable_uncertainty_pruning
+        self.enable_utility_pruning = enable_utility_pruning
 
         width = self.config.core_width
         self.width = width
@@ -771,8 +777,8 @@ class LatentLookaheadPlanner(nn.Module):
                     v_val = float(v_hat[i].item())
                     ent_val = float(entropies[i].item())
 
-                    is_haz = d_val >= self.hazard_prune_threshold
-                    is_uncertain = ent_val >= self.uncertainty_prune_threshold
+                    is_haz = self.enable_hazard_pruning and (d_val >= self.hazard_prune_threshold)
+                    is_uncertain = self.enable_uncertainty_pruning and (ent_val >= self.uncertainty_prune_threshold)
 
                     step_info = LookaheadRolloutStep(
                         step_index=k,
@@ -872,7 +878,7 @@ class LatentLookaheadPlanner(nn.Module):
                 best_step_u = max(c.cumulative_utility for c in step_candidates)
                 surviving_beam: list[_DynamicBeamCandidate] = []
                 for c in step_candidates:
-                    if c.cumulative_utility < best_step_u - self.utility_margin_prune:
+                    if self.enable_utility_pruning and (c.cumulative_utility < best_step_u - self.utility_margin_prune):
                         all_evaluated_branches.append(
                             LookaheadBranchResult(
                                 action_sequence=c.action_sequence,

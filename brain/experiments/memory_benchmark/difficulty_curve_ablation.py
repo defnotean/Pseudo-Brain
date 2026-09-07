@@ -31,7 +31,11 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_REPO_ROOT / "src"))
 sys.path.insert(0, str(_REPO_ROOT / "experiments"))
 
+from dataclasses import replace
+import math
+
 from irene_brain.environments.keys_doors import KeysDoorsEnv
+from irene_brain.types import GenericControl, HidKey, RgbFrame
 from memory_benchmark.expert import control_for_action
 from memory_benchmark.models import make_model, N_FRAMES, PredictiveCGPThoughtletModel, ThoughtletModel, GRUModel
 
@@ -46,39 +50,93 @@ class ConstantSalienceGate(nn.Module):
 
 
 class CorridorDelayKeysDoorsEnv(KeysDoorsEnv):
-    """KeysDoorsEnv with parameterized corridor delay after key pickup.
+    """KeysDoorsEnv with genuine corridor delay and observation masking after key pickup.
 
     When the key is collected, the player is placed in a corridor delay phase of length L ticks.
-    During these L ticks, observations show hallway tiles with changing sensory noise,
-    and no door/key/target visual is available (pure memory retention challenge).
+    During these L ticks:
+    - Observations mask the door and target, showing only maze hallway tiles with subtle sensory variation.
+    - Door opening is inhibited until the corridor delay horizon L is satisfied.
+    - Tests the causal role of Cognitive Input Gating (CIG) and Consequence-Gated Synaptic Latching (CGSL).
     """
 
     def __init__(self, corridor_delay: int = 0, **kwargs: Any):
         super().__init__(**kwargs)
         self.corridor_delay = corridor_delay
         self._delay_counter = 0
-        self._key_just_collected = False
         self._delay_active = False
 
     def reset(self, seed: int = 0) -> Any:
         self._delay_counter = 0
-        self._key_just_collected = False
         self._delay_active = False
         return super().reset(seed=seed)
 
+    def _mask_rgb_observation(self, rgb_frame: RgbFrame) -> RgbFrame:
+        if not (self._delay_active and self._delay_counter > 0):
+            return rgb_frame
+
+        pixels = bytearray(rgb_frame.pixels)
+        grid_size = self.GRID_SIZE
+
+        # Mask door cell as regular background corridor
+        door_offset = (self._door_y * grid_size + self._door_x) * 3
+        door_bg = self._BACKGROUND_EVEN if (self._door_x + self._door_y) % 2 == 0 else self._BACKGROUND_ODD
+        pixels[door_offset : door_offset + 3] = bytes(door_bg)
+
+        # Mask target cell as regular background corridor
+        target_offset = (self._target_y * grid_size + self._target_x) * 3
+        target_bg = self._BACKGROUND_EVEN if (self._target_x + self._target_y) % 2 == 0 else self._BACKGROUND_ODD
+        pixels[target_offset : target_offset + 3] = bytes(target_bg)
+
+        # Apply deterministic corridor sensory variation
+        noise = int(10.0 * math.sin(self._delay_counter * 0.4))
+        for (mx, my) in self._maze:
+            if (mx, my) != (self._player_x, self._player_y):
+                off = (my * grid_size + mx) * 3
+                r = min(255, max(0, pixels[off] + noise))
+                g = min(255, max(0, pixels[off + 1] + noise))
+                b = min(255, max(0, pixels[off + 2] + noise))
+                pixels[off : off + 3] = bytes((r, g, b))
+
+        return RgbFrame(width=grid_size, height=grid_size, pixels=bytes(pixels))
+
     def step(self, control: Any) -> Any:
-        outcome = super().step(control)
-
-        # Detect key collection event
-        if "key_collected" in outcome.events or (self._has_key and not self._key_just_collected and self.corridor_delay > 0):
-            if not self._delay_active and self._delay_counter == 0:
-                self._delay_active = True
-                self._delay_counter = self.corridor_delay
-
+        # If delay is active, intercept movement onto door
         if self._delay_active and self._delay_counter > 0:
+            applied_mask = self._mask_from_control(control)
+            horizontal = int(bool(applied_mask & self._KEY_BITS[int(HidKey.D)])) - int(
+                bool(applied_mask & self._KEY_BITS[int(HidKey.A)])
+            )
+            vertical = int(bool(applied_mask & self._KEY_BITS[int(HidKey.S)])) - int(
+                bool(applied_mask & self._KEY_BITS[int(HidKey.W)])
+            )
+            candidate = (
+                min(self.GRID_SIZE - 1, max(0, self._player_x + horizontal)),
+                min(self.GRID_SIZE - 1, max(0, self._player_y + vertical)),
+            )
+            # If stepping onto closed door during delay, inhibit movement (acts as wall)
+            if candidate == (self._door_x, self._door_y) and not self._door_open:
+                control = GenericControl(keys_down=())
+
+            outcome = super().step(control)
             self._delay_counter -= 1
             if self._delay_counter == 0:
                 self._delay_active = False
+        else:
+            prev_has_key = self._has_key
+            outcome = super().step(control)
+            # Check for initial key collection event
+            if "key_collected" in outcome.events or (self._has_key and not prev_has_key):
+                if self.corridor_delay > 0:
+                    self._delay_active = True
+                    self._delay_counter = self.corridor_delay
+
+        # Apply observation masking during delay
+        if self._delay_active and self._delay_counter > 0:
+            masked_rgb = self._mask_rgb_observation(outcome.observation.rgb)
+            outcome = replace(
+                outcome,
+                observation=replace(outcome.observation, rgb=masked_rgb),
+            )
 
         return outcome
 

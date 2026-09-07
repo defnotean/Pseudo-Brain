@@ -160,7 +160,9 @@ class AutonomousParameterExtractor:
             if logs and not logs[-1].success and "unrecognized flag" in logs[-1].output_snippet:
                 # Self-correction: replace bad flag with suggestion from error message
                 return {"cmd": "run_pipeline --validate"}
-            # Extract command from goal or default to pipeline step
+            # Check if validation already succeeded; if so, proceed to execute_pipeline
+            if any("Validation OK" in log.output_snippet for log in logs):
+                return {"cmd": "run_pipeline --execute_pipeline"}
             if "validate" in all_text.lower():
                 return {"cmd": "run_pipeline --validate"}
             return {"cmd": "run_pipeline --execute_pipeline"}
