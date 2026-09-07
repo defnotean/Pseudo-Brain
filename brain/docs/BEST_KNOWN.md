@@ -1,7 +1,7 @@
 # Pseudo-Brain: BEST_KNOWN State
 
 **Last Updated:** 2026-09-07  
-**Champion Git Commit:** `157265b`  
+**Champion Git Commit:** `ea3883e`  
 **Active Branch:** `defnotean/pseudo-brain`  
 **Hardware Baselines:**
 - Local: Windows 11 AMD CPU / DirectML
@@ -16,7 +16,7 @@
 | **Recurrent Core** | Consequence-Gated Plasticity (`PlasticBrainCell`) | 279,982 | $\le 2.0\text{ ms}$ | **$1.50\text{ ms}$** (CPU) | **VALIDATED** (Decoupled consequence surprise $\delta_{\text{consequence}}$) |
 | **Thought Routing** | Sub-Quadratic Clustered Router (`BlockSparseClusteredThoughtRouter`) | 148,608 | $\le 1.5\text{ ms}$ | **$1.30\text{ ms}$** ($K=64$) | **VALIDATED** ($\mathcal{O}(K^{1.5} W)$, $2.38\times$ FLOP reduction at $K=512$) |
 | **Lookahead Planner** | Dynamic Beam Search ($H=5, B=6$) | N/A (Latent unroll) | $\le 16.67\text{ ms}$ | **$8.03\text{ ms}$** (CPU) | **VALIDATED** (Isolated microbenchmark) |
-| **Agent Infrastructure**| Contextual IOR (`PseudoBrainAgent`) | Parameterized | Dynamic | Interactive (<50ms) | **VALIDATED** (5-Case Causal Suite + Unassisted V1 Benchmark) |
+| **Agent Infrastructure**| Contextual IOR (`PseudoBrainAgent`) | Parameterized | Dynamic | Interactive (<50ms) | **VALIDATED** (5-Case Causal Suite + Procedural DAG Ladder) |
 
 ---
 
@@ -28,6 +28,9 @@
   - GRU Baseline (1.37M params): **$89.3\%$** mean retention ($85.7\%$ at $L=64$).
   - Vanilla Thoughtlet: **$78.1\%$** mean retention (collapses to $62.5\%$ at $L=8$, $75.0\%$ at $L=64$).
   - Causal ablation: Ablating synaptic latching ($P_t = 0$, `cgp_no_cgsl`) drops mean retention to **$68.8\%$** ($50.0\%$ at $L=8$).
+* **Critical Observability Finding**:
+  - In standard unmasked `KeysDoorsEnv`, birds-eye 16x16 visibility allows feedforward reactive models to achieve **$81.0\%$ Key $\to$ Door conversion** with zero recurrent memory by detecting key absence directly from the pixel frame.
+  - Working memory retention is only tested when partial observability is enforced (via observation masking in `CorridorDelayKeysDoorsEnv` or Chebyshev fog-of-war in `OcclusionEnv`).
 * **Reproduction Command**:
   ```bash
   py -3.11 -c "from memory_benchmark.difficulty_curve_ablation import run_difficulty_curve_benchmark; run_difficulty_curve_benchmark()"
