@@ -353,14 +353,40 @@ class BrainCellCore(nn.Module):
 
     def __init__(
         self,
-        input_size: int,
-        thought_size: int,
+        input_size: int = 512,
+        thought_size: int = 48,
         rank: int | None = None,
+        proj_dim: int | None = None,
+        tier: str | None = None,
+        num_deep_layers: int = 3,
     ) -> None:
         super().__init__()
+        self.tier = tier
+
+        # Tier-specific architectural scaling laws
+        if tier == "tier2":
+            # Law 1 (Slot Width Clamping): W=64, K=128 slots (32 KB state memory)
+            thought_size = 64
+            # Law 2 (Factorized Deep Projections): W=64 -> rank r=32 -> proj_dim=4096 (~50M capacity)
+            rank = 32
+            proj_dim = 4096
+            input_size = 4096 if input_size in (48, 256, 512) else input_size
+
         self.input_size = input_size
         self.thought_size = thought_size
         self.rank = rank
+        self.proj_dim = proj_dim
+        self.num_deep_layers = num_deep_layers
+
+        # Law 2: Deep projection parameter core delivering Tier 2 ~50M capacity
+        if tier == "tier2" and proj_dim is not None and proj_dim > 0:
+            deep_layers: list[nn.Module] = []
+            for _ in range(num_deep_layers):
+                deep_layers.append(nn.Linear(proj_dim, proj_dim))
+                deep_layers.append(nn.GELU())
+            self.deep_proj: nn.Module | None = nn.Sequential(*deep_layers)
+        else:
+            self.deep_proj = None
 
         # Input projections (proj_dim -> thought_size): dense or factorized low-rank
         if rank is not None and rank > 0:
@@ -381,8 +407,25 @@ class BrainCellCore(nn.Module):
         self.eval_count: int = 0
         self.total_flops: int = 0
 
+    def state_bytes(self, K: int = 128, bytes_per_element: int = 4) -> int:
+        """Calculate recurrent state memory footprint in bytes.
+
+        Law 1 Contract: W=64, K=128 slots -> 128 * 64 * 4 = 32,768 bytes (32 KB).
+        """
+        return K * self.thought_size * bytes_per_element
+
+    def count_parameters(self) -> dict[str, int]:
+        """Count total and trainable parameters of BrainCellCore."""
+        total = sum(p.numel() for p in self.parameters())
+        trainable = sum(p.numel() for p in self.parameters() if p.requires_grad)
+        return {"total": total, "trainable": trainable}
+
     def flops_per_slot(self) -> int:
         """Calculate the theoretical FLOPs evaluated per active slot."""
+        flops_deep = 0
+        if self.deep_proj is not None and self.proj_dim is not None:
+            flops_deep = self.num_deep_layers * 2 * (self.proj_dim * self.proj_dim)
+
         if self.rank is not None and self.rank > 0:
             flops_input = 3 * 2 * (self.input_size * self.rank + self.rank * self.thought_size)
         else:
@@ -394,7 +437,7 @@ class BrainCellCore(nn.Module):
             + 4 * self.thought_size  # tanh (~4 flops)
             + 4 * self.thought_size  # blend: (1-z)*n + z*thought
         )
-        return flops_input + flops_hidden + flops_pointwise
+        return flops_deep + flops_input + flops_hidden + flops_pointwise
 
     def reset_telemetry(self) -> None:
         """Reset evaluation slot count and FLOP tracking telemetry."""
@@ -412,9 +455,10 @@ class BrainCellCore(nn.Module):
         self.eval_count += batch_slots
         self.total_flops += batch_slots * self.flops_per_slot()
 
-        r = torch.sigmoid(self.W_ir(x) + self.W_hr(thought))
-        z = torch.sigmoid(self.W_iz(x) + self.W_hz(thought))
-        n = torch.tanh(self.W_in(x) + r * self.W_hn(thought))
+        x_eff = self.deep_proj(x) if self.deep_proj is not None else x
+        r = torch.sigmoid(self.W_ir(x_eff) + self.W_hr(thought))
+        z = torch.sigmoid(self.W_iz(x_eff) + self.W_hz(thought))
+        n = torch.tanh(self.W_in(x_eff) + r * self.W_hn(thought))
         return (1.0 - z) * n + z * thought
 
     def forward_conditional(
@@ -506,17 +550,22 @@ class BrainCell(nn.Module):
     def __init__(
         self,
         *,
-        width: int,
-        heads: int,
-        routed_neighbors: int,
-        blocks: int,
+        width: int = 64,
+        heads: int = 8,
+        routed_neighbors: int = 4,
+        blocks: int = 2,
         dense_routing: bool = False,
         use_cgp: bool = False,
         plastic_decay: float = 0.999,
         plastic_lr: float = 0.25,
         plastic_dim: int | None = None,
+        tier: str | None = None,
     ) -> None:
         super().__init__()
+        self.tier = tier
+        if tier == "tier2":
+            width = 64
+            heads = 8
         self.width = width
         self.use_cgp = bool(use_cgp)
         self.blocks = nn.ModuleList(

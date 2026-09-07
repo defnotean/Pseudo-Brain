@@ -1,0 +1,193 @@
+{
+  "benchmark": "Tier 1 Conditional Recurrence Capacity Benchmark",
+  "date": "2026-09-07",
+  "thought_size": 48,
+  "proj_dim": 512,
+  "rank": 16,
+  "epsilon_dormant": 0.05,
+  "event_driven_sparsity": true,
+  "threads_evaluated": [
+    16,
+    32,
+    64,
+    128
+  ],
+  "grid": {
+    "K_16": {
+      "K": 16,
+      "params": 75971,
+      "dense": {
+        "forward_ms": 142.53803749943472,
+        "tick_us_mean": 182.80035076457986,
+        "tick_us_p50": 140.45121173351117,
+        "tick_us_p90": 290.74368542664075,
+        "flops_per_tick": 1095936.0,
+        "total_flops": 6838640640,
+        "active_slot_fraction": 1.0,
+        "overall_accuracy": 68.28125,
+        "retention_accuracy": 92.96875,
+        "isolation_accuracy": 76.953125,
+        "recovery_accuracy": 60.9375,
+        "dependency_accuracy": 33.59375,
+        "compound_cognitive_score": 43.59612464904785
+      },
+      "conditional": {
+        "forward_ms": 216.18383750046632,
+        "tick_us_mean": 276.53668918799684,
+        "tick_us_p50": 155.23170573080353,
+        "tick_us_p90": 681.6578061238479,
+        "flops_per_tick": 68496.0,
+        "total_flops": 427415040,
+        "active_slot_fraction": 0.0625,
+        "overall_accuracy": 68.59375,
+        "retention_accuracy": 94.53125,
+        "isolation_accuracy": 77.34375,
+        "recovery_accuracy": 60.9375,
+        "dependency_accuracy": 32.8125,
+        "compound_cognitive_score": 44.55385208129883
+      },
+      "speedup_tick": 0.661034712252259,
+      "speedup_forward": 0.6593371602034184,
+      "flop_reduction_pct": 93.75,
+      "accuracy_delta": {
+        "recovery": 0.0,
+        "isolation": 0.390625,
+        "retention": 1.5625,
+        "dependency": -0.78125,
+        "compound": 0.9577274322509766
+      }
+    },
+    "K_32": {
+      "K": 32,
+      "params": 75971,
+      "dense": {
+        "forward_ms": 161.40557500057184,
+        "tick_us_mean": 155.1976682697806,
+        "tick_us_p50": 148.5502884599135,
+        "tick_us_p90": 183.25839423281508,
+        "flops_per_tick": 2191872.0,
+        "total_flops": 18236375040,
+        "active_slot_fraction": 1.0,
+        "overall_accuracy": 46.5625,
+        "retention_accuracy": 75.0,
+        "isolation_accuracy": 57.03125,
+        "recovery_accuracy": 22.65625,
+        "dependency_accuracy": 21.09375,
+        "compound_cognitive_score": 9.69085693359375
+      },
+      "conditional": {
+        "forward_ms": 129.34981250009514,
+        "tick_us_mean": 124.37481971162994,
+        "tick_us_p50": 119.43956730577226,
+        "tick_us_p90": 151.0767403848289,
+        "flops_per_tick": 68496.0,
+        "total_flops": 569886720,
+        "active_slot_fraction": 0.03125,
+        "overall_accuracy": 46.40625,
+        "retention_accuracy": 75.0,
+        "isolation_accuracy": 57.8125,
+        "recovery_accuracy": 21.875,
+        "dependency_accuracy": 19.53125,
+        "compound_cognitive_score": 9.48486328125
+      },
+      "speedup_tick": 1.2478222571869062,
+      "speedup_forward": 1.2478222571869064,
+      "flop_reduction_pct": 96.875,
+      "accuracy_delta": {
+        "recovery": -0.78125,
+        "isolation": 0.78125,
+        "retention": 0.0,
+        "dependency": -1.5625,
+        "compound": -0.20599365234375
+      }
+    },
+    "K_64": {
+      "K": 64,
+      "params": 75971,
+      "dense": {
+        "forward_ms": 408.52575000008073,
+        "tick_us_mean": 263.2253543814953,
+        "tick_us_p50": 258.4072164946641,
+        "tick_us_p90": 299.3821069580496,
+        "flops_per_tick": 4383744.0,
+        "total_flops": 54428565504,
+        "active_slot_fraction": 1.0,
+        "overall_accuracy": 33.4375,
+        "retention_accuracy": 41.40625,
+        "isolation_accuracy": 39.453125,
+        "recovery_accuracy": 23.4375,
+        "dependency_accuracy": 23.4375,
+        "compound_cognitive_score": 3.069698628510838
+      },
+      "conditional": {
+        "forward_ms": 228.62731249961143,
+        "tick_us_mean": 147.31141269304862,
+        "tick_us_p50": 145.72483891613246,
+        "tick_us_p90": 177.654317011373,
+        "flops_per_tick": 68496.0,
+        "total_flops": 850446336,
+        "active_slot_fraction": 0.015625,
+        "overall_accuracy": 32.8125,
+        "retention_accuracy": 41.40625,
+        "isolation_accuracy": 39.0625,
+        "recovery_accuracy": 24.21875,
+        "dependency_accuracy": 20.3125,
+        "compound_cognitive_score": 3.917217254638672
+      },
+      "speedup_tick": 1.7868632821407766,
+      "speedup_forward": 1.7868632821407768,
+      "flop_reduction_pct": 98.4375,
+      "accuracy_delta": {
+        "recovery": 0.78125,
+        "isolation": -0.390625,
+        "retention": 0.0,
+        "dependency": -3.125,
+        "compound": 0.847518626127834
+      }
+    },
+    "K_128": {
+      "K": 128,
+      "params": 75971,
+      "dense": {
+        "forward_ms": 507.55865000019185,
+        "tick_us_mean": 197.17794121222505,
+        "tick_us_p50": 193.85613354106624,
+        "tick_us_p90": 209.3681754656375,
+        "flops_per_tick": 8767488.0,
+        "total_flops": 180540112896,
+        "active_slot_fraction": 1.0,
+        "overall_accuracy": 22.03125,
+        "retention_accuracy": 21.09375,
+        "isolation_accuracy": 21.875,
+        "recovery_accuracy": 20.3125,
+        "dependency_accuracy": 25.0,
+        "compound_cognitive_score": 0.19276051287297138
+      },
+      "conditional": {
+        "forward_ms": 312.02976249960557,
+        "tick_us_mean": 121.23027546932497,
+        "tick_us_p50": 121.06826475119531,
+        "tick_us_p90": 131.96512492708237,
+        "flops_per_tick": 68496.0,
+        "total_flops": 1410469632,
+        "active_slot_fraction": 0.0078125,
+        "overall_accuracy": 21.875,
+        "retention_accuracy": 20.3125,
+        "isolation_accuracy": 22.65625,
+        "recovery_accuracy": 20.3125,
+        "dependency_accuracy": 23.4375,
+        "compound_cognitive_score": 0.2886093311878386
+      },
+      "speedup_tick": 1.6264744136634186,
+      "speedup_forward": 1.6266353758508323,
+      "flop_reduction_pct": 99.21875,
+      "accuracy_delta": {
+        "recovery": 0.0,
+        "isolation": 0.78125,
+        "retention": -0.78125,
+        "dependency": -1.5625,
+        "compound": 0.09584881831486722
+      }
+    }
+  }
+}

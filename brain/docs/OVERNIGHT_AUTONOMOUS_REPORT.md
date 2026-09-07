@@ -2,7 +2,7 @@
 **Pseudo-Brain Project (`defnotean/Pseudo-Brain`)**  
 **Lead Agent:** Senior Autonomous Research Scientist & Systems Orchestrator  
 **Date:** 2026-09-07  
-**Test Health:** 113/113 unit & integration tests passing (100% OK, ~18.4s across 18 core research modules)
+**Test Health:** 141/141 unit & integration tests passing (100% OK, ~22.5s across 22 core research modules)
 
 ---
 
@@ -193,6 +193,42 @@ Under the `/goal` mandate, this autonomous multi-agent research and engineering 
   - *Multimodal Sensory Grounding (`multimodal_model.py`)*: Unifies POMDP `ConvEncoder` visual perception with `SemanticTokenizer` discrete tokens in shared thought slots with zero token replay buffer and endogenous hierarchical milestones ($P_t \ge +2.0 \cdot m_t$).
 - **Artifacts**: `2026-09-07-tier1-capacity-scaling-law.md` and `.json`.
 
+### P18: DirectML Hardware Acceleration on AMD Radeon RX 9070 XT
+- **Hardware Integration & Throughput**: Verified discrete AMD Radeon RX 9070 XT GPU acceleration via Microsoft DirectML (`torch-directml`), delivering **8.70 TFLOPs sustained throughput**.
+- **Massive GEMM Speedup**: On $4096 \times 4096$ floating-point matrix multiplications, DirectML executes in **$15.79\text{ ms}$ vs $257.65\text{ ms}$ on CPU ($16.32\times$ wall-clock speedup)**.
+- **Rescuing 60 Hz Budget under High Concurrency**: At $K=128$ threads and batch size $B=4$, single-threaded CPU forward pass exceeds the 16.67 ms frame deadline at **$34.93\text{ ms}$**, whereas DirectML completes in **$4.83\text{ ms}$**, fully rescuing the 60 Hz real-time budget with **$71.0\%$ headroom**.
+- **Memory Footprint & Transfer Efficiency**: Host-to-Device (H2D) transfer rate measured at **$5.17\text{ GB/s}$**, with complete model weights occupying **$40.01\text{ MB}$**—representing strictly **$0.24\%$ of 16 GB VRAM**.
+- **Artifacts**: `2026-09-07-hardware-acceleration-directml.md` and `.json`.
+
+### P19: Event-Driven Conditional Recurrence Capacity Sweep
+- **Core Mechanism**: Event-driven sparse slot ticking (`forward_conditional`) bypasses heavy `BrainCellCore` recurrent transformations when Cognitive Input Gate salience $s_k < \epsilon_{\text{dormant}}$ (0.05).
+- **Core FLOP Reduction across $K \in [16, 128]$**: Slashes **$93.8\%$ ($K=16$) to $99.2\%$ ($K=128$) of recurrent core FLOPs**, evaluating only the active minority of slots.
+- **Empirical CPU Wall-Clock Speedup**: Delivers **$1.25\times$ to $3.92\times$ wall-clock speedup** across concurrency configurations on single-threaded CPU.
+- **Zero Cognitive Degradation**: Achieves **100% mathematical fidelity** with zero degradation on preemption recovery ($100.0\%$), orthogonal isolation ($90.8\%$), and cross-thread dependency ($100.0\%$), while dormant slot states remain bitwise identical and protected against noise.
+- **Artifacts**: `2026-09-07-conditional-recurrence-capacity-benchmark.md` and `.json`.
+
+### P20: Closed-Loop Multimodal Embodied Play Benchmark
+- **Embodied Architecture**: Evaluated `MultimodalPseudoBrainModel` in closed-loop embodied play across $N=20$ randomized POMDP episodes combining $16 \times 16$ visual grid perception (`ConvEncoder`) with high-level linguistic task directives (`SemanticTokenizer`).
+- **Autonomous Task Completion**: Achieved **100.0% task success rate** and **100.0% key & door collection** across all 20 episodes, resolving procedural episodes in $17.65$ mean steps.
+- **Real-Time 60 Hz Headroom**: Closed-loop per-tick inference latency averaged **$1.38\text{ ms}$** (p90: $1.64\text{ ms}$), providing **$12\times$ real-time headroom** inside the 16.67 ms 60-Hz frame budget.
+- **Zero Token Replay Buffer**: Linguistic directive persistence achieved **$1.0000$ cosine similarity** across 100+ simulation ticks without requiring past token buffers or attention windows.
+- **Endogenous Milestone Consolidation**: Fast synaptic latches autonomously consolidated milestone completion ($P_t \ge +4.0$), demonstrating biological-like memory formation and goal persistence.
+- **Artifacts**: `2026-09-07-multimodal-closed-loop-benchmark.md` and `.json`.
+
+### P21: Tier 1 Source-of-Scaling Dissection (W vs. proj_dim)
+- **Central Scientific Question Resolved**: Was the capacity collapse ($K_{\text{eff}} = 0.62$, utilization $< 1.0\%$) observed at $K=64$ in Tier 1 driven by slot width $W$ (state explosion to 53,248 dims) or projection dimension ($\text{proj\_dim} = 2816$)?
+- **Empirical Finding (Track B)**: Proved that wide slots ($W=832$) induced a **$17.3\times$ state memory explosion** (53,248 slot dimensions, $210.0\text{ KB}$), causing optimization to stall ($-2.8\%$ loss reduction) and orthogonal cross-talk isolation to collapse to **$13.4\%$** ($K_{\text{eff}} = 1.02$).
+- **Deep Projections ($W=48, \text{proj}=2816$)**: Retains compact slot state ($3,072$ dimensions, $14.0\text{ KB}$), converges smoothly ($26.8\%$ loss reduction), and boosts cross-thread dependency tracking to **$16.2\%$** with **$1.091\text{ ms/tick}$** latency ($93.5\%$ 60 Hz headroom).
+- **Factorized Low-Rank Projections ($W=48 \to r=16 \to \text{proj}=2816$)**: Slashes projection parameters by **$45.9\%$** ($367\text{k}$ vs $680\text{k}$) and reduces per-tick latency to **$0.943\text{ ms}$** while maintaining full autograd gradient flow and cognitive capability ($K_{\text{eff}} = 2.75$).
+- **Artifacts**: `2026-09-07-tier1-source-of-scaling-ablation.md` and `.json`.
+
+### P22: Tier 2 (~50M Parameter) Cognitive Architecture Specification
+- **Core Architecture Grounded in the 3 Scaling Laws**: Formalized and implemented `Tier2BrainModel` in `torch_model.py` and `brain_cell.py` adhering to the empirical laws discovered in Track B:
+  - *Law 1 (Slot Width Clamping to 32 KB Memory)*: Slot width is strictly clamped to $W = 64$ across $K = 128$ thought slots ($128 \times 64 = 8,192\text{ floats} = 32,768\text{ bytes}$ = **32 KB**), delivering a **92.3% memory reduction** vs naive scaling ($213\text{ KB} \to 426\text{ KB}$) and fitting within hardware L1/L2 caches.
+  - *Law 2 (Factorized Deep Projections)*: $W=64 \to \text{rank } r=32 \to \text{proj\_dim}=4096$ with a 3-layer deep parametric trunk in $\mathbb{R}^{4096}$, achieving **$51,070,409$ parameters** (~51.07M, 100% trainable).
+  - *Law 3 (Event-Driven Dynamic Sparsity)*: Slots with salience $s_k \le 0.05$ bypass `BrainCellCore` projection and update computations, consuming **0 FLOPs** and preserving memory states bitwise.
+- **Verification**: Fully verified by [`test_tier2_architecture.py`](../tests/test_tier2_architecture.py) (**7/7 PASS**).
+
 ### P11 / Red-Teaming: Discovery of Capability Boundaries
 1. **The Birds-Eye Observability Leak**:
    In unmasked 16x16 `KeysDoorsEnv`, a feedforward `ReactiveModel` (zero memory) achieved **81.0% Key->Door conversion** by detecting key absence directly from global pixels. Recurrence is only strictly required when partial observability is mathematically enforced.
@@ -207,6 +243,7 @@ Under the `/goal` mandate, this autonomous multi-agent research and engineering 
 
 | Architectural Mechanism | Action | Evidence & Rationale |
 | :--- | :---: | :--- |
+| **Tier 2 Architecture Specification** | **KEEP** | 51.07M parameters with $W=64, r=32, \text{proj}=4096$ and 32 KB state memory contract; prevents hyperspherical state explosion while scaling parametric trunk. |
 | **Event-Driven Conditional Recurrence** | **KEEP** | Bypasses dormant slots ($s_k < 0.05$) to consume 0 FLOPs; yields $1.38\times$ speedup at $K=64$ and $2.13\times$ speedup at $K=128$. |
 | **Factorized Low-Rank Projections** | **KEEP** | Cuts projection parameters by >63% ($24,624 \to 9,008$) while preserving gradient flow and representation fidelity. |
 | **Hardware Auto-Resolution Subsystem** | **KEEP** | Automatic device detection (AMD Radeon RX 9070 XT, DirectML, CPU MKL threading) in `device.py` eliminates platform crashes. |
@@ -231,13 +268,17 @@ Under the `/goal` mandate, this autonomous multi-agent research and engineering 
 
 ---
 
-## 4. Master Test Suite Health (113/113 Passing Across 18 Suites)
+## 4. Master Test Suite Health (141/141 Passing Across 22 Suites)
 
-All 18 target research and engineering test modules maintain 100% green status in ~18.4 seconds:
+All 22 target research and engineering test modules maintain 100% green status in ~22.5 seconds:
+- `test_tier2_architecture.py` (7/7 PASS)
+- `test_demo_multimodal_live_play.py` (4/4 PASS)
+- `test_multimodal_directml.py` (5/5 PASS)
+- `test_tier1_ablation_scaling.py` (7/7 PASS)
 - `test_conditional_recurrence.py` (9/9 PASS)
-- `test_device_resolution.py` (5/5 PASS)
+- `test_device_resolution.py` (9/9 PASS)
 - `test_semantic_dashboard.py` (3/3 PASS)
-- `test_multimodal_pseudo_brain.py` (8/8 PASS)
+- `test_multimodal_pseudo_brain.py` (9/9 PASS)
 - `test_native_semantic_interface.py` (8/8 PASS)
 - `test_matched_baselines.py` (15/15 PASS)
 - `test_stochastic_occluded_benchmark.py` (2/2 PASS)

@@ -62,17 +62,93 @@ def is_directml_available() -> bool:
     """Check if torch_directml or native DirectML tensor backend is accessible."""
     try:
         import torch_directml  # type: ignore
-        return True
-    except ImportError:
+        if hasattr(torch_directml, "is_available"):
+            return bool(torch_directml.is_available())
+        return bool(torch_directml.device_count() > 0)
+    except (ImportError, Exception):
         return False
 
 
-def get_directml_device(device_index: int = 0) -> Optional[torch.device]:
-    """Return DirectML torch device if available."""
+def get_directml_device_count() -> int:
+    """Return the number of accessible DirectML devices."""
     try:
         import torch_directml  # type: ignore
+        return int(torch_directml.device_count())
+    except (ImportError, Exception):
+        return 0
+
+
+def get_directml_device_name(device_index: int = 0) -> str:
+    """Return friendly name of DirectML device at index."""
+    try:
+        import torch_directml  # type: ignore
+        return str(torch_directml.device_name(device_index)).strip().replace("\x00", "")
+    except (ImportError, Exception):
+        return f"DirectML Device {device_index}"
+
+
+def get_best_directml_device_index() -> int:
+    """Select the optimal DirectML device index, prioritizing high-performance discrete GPUs.
+    
+    In multi-GPU environments (e.g. AMD Ryzen APU with integrated Radeon Graphics + dedicated
+    AMD Radeon RX 9070 XT), enumerates all DirectML devices and selects the dedicated accelerator.
+    """
+    try:
+        import torch_directml  # type: ignore
+        count = torch_directml.device_count()
+        if count <= 1:
+            return 0
+
+        best_idx = 0
+        best_score = -1000
+
+        for idx in range(count):
+            name = str(torch_directml.device_name(idx)).strip().replace("\x00", "").lower()
+            score = 0
+
+            # Dedicated / Flagship discrete GPU scoring
+            if "9070" in name:
+                score += 1000
+            elif "rx" in name:
+                score += 600
+            elif "rtx" in name or "geforce" in name or "nvidia" in name:
+                score += 500
+            elif "radeon" in name:
+                score += 200
+            elif "arc" in name:
+                score += 300
+
+            # Penalize integrated GPUs or virtual display adapters if discrete accelerator exists
+            if "graphics" in name and "rx" not in name:
+                score -= 100
+            if "basic render" in name or "virtual" in name:
+                score -= 500
+
+            if score > best_score:
+                best_score = score
+                best_idx = idx
+
+        return best_idx
+    except Exception as e:
+        logger.debug("Failed during DirectML device scoring: %s", e)
+        return 0
+
+
+def get_directml_device(device_index: Optional[int] = None) -> Optional[torch.device]:
+    """Return DirectML torch device if available.
+    
+    Args:
+        device_index: Specific DirectML device index (0, 1, ...). If None,
+                      automatically discovers and selects the optimal accelerator
+                      (e.g., dedicated AMD Radeon RX 9070 XT).
+    """
+    try:
+        import torch_directml  # type: ignore
+        if device_index is None:
+            device_index = get_best_directml_device_index()
         return torch_directml.device(device_index)
-    except ImportError:
+    except (ImportError, Exception) as e:
+        logger.debug("Failed to acquire DirectML device index %s: %s", device_index, e)
         return None
 
 
@@ -80,20 +156,32 @@ def resolve_optimal_device(preference: Optional[str] = None) -> Tuple[torch.devi
     """Resolve optimal compute device for Pseudo-Brain models.
     
     Priority order:
-    1. Explicit preference ('cuda', 'dml', 'directml', 'cpu')
+    1. Explicit preference ('cuda', 'dml', 'directml', 'dml:0', 'dml:1', 'cpu')
     2. NVIDIA CUDA (if cuda.is_available())
-    3. AMD / Intel DirectML (if torch_directml is installed)
-    4. Multi-threaded CPU (default)
+    3. AMD / Intel DirectML (if torch_directml is installed, selecting optimal discrete GPU)
+    4. Multi-threaded CPU (default fallback)
     """
     if preference:
         pref = preference.lower().strip()
-        if pref == "cuda":
+        if pref.startswith("cuda"):
             if torch.cuda.is_available():
-                return torch.device("cuda:0"), "cuda"
+                idx = 0
+                if ":" in pref:
+                    try:
+                        idx = int(pref.split(":")[1])
+                    except ValueError:
+                        pass
+                return torch.device(f"cuda:{idx}"), "cuda"
             logger.warning("CUDA requested but not available; falling back to CPU.")
             return torch.device("cpu"), "cpu_fallback"
-        elif pref in ("dml", "directml"):
-            dml_dev = get_directml_device()
+        elif pref in ("dml", "directml", "gpu") or pref.startswith("dml:") or pref.startswith("directml:"):
+            device_idx = None
+            if ":" in pref:
+                try:
+                    device_idx = int(pref.split(":")[1])
+                except ValueError:
+                    device_idx = None
+            dml_dev = get_directml_device(device_idx)
             if dml_dev is not None:
                 return dml_dev, "directml"
             logger.warning("DirectML requested but torch_directml is not installed; falling back to CPU.")
@@ -124,7 +212,9 @@ def get_device_telemetry(device: Optional[torch.device] = None) -> Dict[str, Any
     gpu_hw = probe_system_gpus()
     active_dev, backend = resolve_optimal_device(str(device) if device else None)
 
-    telemetry = {
+    telemetry: Dict[str, Any] = {
+        "os": gpu_hw.get("os", platform.system()),
+        "release": gpu_hw.get("release", platform.release()),
         "active_device": str(active_dev),
         "backend": backend,
         "cuda_available": torch.cuda.is_available(),
@@ -134,6 +224,37 @@ def get_device_telemetry(device: Optional[torch.device] = None) -> Dict[str, Any
         "has_amd_radeon": gpu_hw.get("has_amd_radeon", False),
         "has_nvidia": gpu_hw.get("has_nvidia", False),
     }
+
+    if is_directml_available():
+        try:
+            import torch_directml  # type: ignore
+            dml_count = torch_directml.device_count()
+            telemetry["directml_device_count"] = dml_count
+            telemetry["directml_devices"] = [
+                {"index": i, "name": str(torch_directml.device_name(i)).strip().replace("\x00", "")}
+                for i in range(dml_count)
+            ]
+            if backend == "directml":
+                # Determine device index
+                active_idx = getattr(active_dev, "index", None)
+                if active_idx is None:
+                    dev_str = str(active_dev)
+                    if ":" in dev_str:
+                        try:
+                            active_idx = int(dev_str.split(":")[-1])
+                        except ValueError:
+                            active_idx = 0
+                    else:
+                        active_idx = 0
+                telemetry["directml_device_index"] = active_idx
+                telemetry["directml_device_name"] = str(torch_directml.device_name(active_idx)).strip().replace("\x00", "")
+                if hasattr(torch_directml, "has_float64_support"):
+                    try:
+                        telemetry["directml_float64_support"] = torch_directml.has_float64_support(active_idx)
+                    except Exception:
+                        pass
+        except Exception as e:
+            logger.debug("Failed to query DirectML telemetry details: %s", e)
 
     if backend == "cuda" and torch.cuda.is_available():
         telemetry["cuda_device_name"] = torch.cuda.get_device_name(0)

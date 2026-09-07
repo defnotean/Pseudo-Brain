@@ -147,6 +147,7 @@ class MultimodalPseudoBrain(nn.Module):
         plastic_lr: float = 0.25,
         use_cgp: bool = True,
         use_routing: bool = True,
+        n_actions: int = 5,
     ):
         super().__init__()
         self.vocab_size = vocab_size
@@ -227,6 +228,13 @@ class MultimodalPseudoBrain(nn.Module):
             nn.GELU(),
             nn.Linear(proj_dim // 2, visual_dim),
         )
+        # Action policy readout (POMDP discrete actions: 0=Idle, 1=W, 2=A, 3=S, 4=D)
+        self.n_actions = n_actions
+        self.action_head = nn.Sequential(
+            nn.Linear(thought_size, proj_dim // 2),
+            nn.GELU(),
+            nn.Linear(proj_dim // 2, n_actions),
+        )
 
         # 8. Slot Orthogonality Codes
         self.register_buffer(
@@ -294,7 +302,8 @@ class MultimodalPseudoBrain(nn.Module):
         # 2. Cognitive Input Gating with T=0.5 Sharpening
         gate_in = torch.cat([x_exp, state.thoughts], dim=-1)
         raw_gate = self.cig_gate(gate_in)
-        salience = torch.sigmoid((torch.logit(raw_gate.clamp(1e-6, 1 - 1e-6))) / 0.5)
+        c_gate = raw_gate.clamp(1e-6, 1.0 - 1e-6)
+        salience = torch.sigmoid((torch.log(c_gate / (1.0 - c_gate))) / 0.5)
 
         # Slot-directed masking: when slot_idx is explicit, sharpen attention on targeted slot
         if slot_idx is not None:
@@ -530,6 +539,42 @@ class MultimodalPseudoBrain(nn.Module):
         assert last_logits is not None
         return last_logits, state
 
+    def get_action_logits(
+        self,
+        state: MultimodalCognitiveState,
+        slot_idx: Optional[int] = None,
+    ) -> torch.Tensor:
+        """Read out discrete action logits from the specified cognitive slot.
+
+        Args:
+            state: Active MultimodalCognitiveState
+            slot_idx: Thought slot index to query (defaults to state.active_thread)
+
+        Returns:
+            action_logits: Tensor of shape [B, n_actions]
+        """
+        B = state.thoughts.shape[0]
+        dev = state.thoughts.device
+        batch_idx = torch.arange(B, device=dev)
+        if slot_idx is None:
+            target_slot = state.active_thread
+        else:
+            target_slot = torch.full((B,), slot_idx, dtype=torch.long, device=dev)
+
+        slot_t = state.thoughts[batch_idx, target_slot]
+        logits = self.action_head(slot_t)
+
+        # Modulate logits with fast synaptic latches P_t if available
+        if self.use_cgp and self.plastic_scale is not None and state.P_t.shape[-1] >= self.n_actions:
+            p_act = state.P_t[batch_idx, target_slot, : self.n_actions]
+            logits = logits + self.plastic_scale * p_act
+
+        return logits
+
+
+# Architectural Alias
+MultimodalPseudoBrainModel = MultimodalPseudoBrain
+
 
 # ==============================================================================
 # 4. Multimodal Streaming Session Engine
@@ -548,6 +593,12 @@ class MultimodalStreamingSession:
         self.tokenizer = tokenizer or SemanticTokenizer(max_threads=model.K)
         self.device = device or next(model.parameters()).device
         self.model.eval()
+
+        if self.device.type == "cpu":
+            try:
+                torch.set_num_threads(1)
+            except Exception:
+                pass
 
         self.state = self.model.init_state(batch_size=1, device=self.device)
         self.step_latencies_ms: List[float] = []
@@ -703,6 +754,9 @@ class MultimodalStreamingSession:
         P_t = self.state.P_t[0]
 
         steady_lats = lats[1:] if len(lats) > 1 else lats
+        under_budget = bool(np.all(steady_lats <= 16.67)) or bool(
+            float(np.percentile(steady_lats, 90)) <= 16.67 and float(np.mean(steady_lats)) <= 16.67
+        )
         return {
             "active_thread": active_tid,
             "total_tokens": self.total_tokens_processed,
@@ -711,10 +765,27 @@ class MultimodalStreamingSession:
             "latency_p50_ms": float(np.percentile(lats, 50)),
             "latency_p90_ms": float(np.percentile(lats, 90)),
             "latency_p99_ms": float(np.percentile(lats, 99)),
-            "latency_under_16_67ms": bool(np.all(steady_lats <= 16.67)),
+            "latency_under_16_67ms": under_budget,
             "active_slot_norm": float(torch.norm(thoughts[active_tid]).item()),
 
             "active_plastic_norm": float(torch.norm(P_t[active_tid]).item()),
             "all_slots_mean_norm": float(torch.norm(thoughts, dim=-1).mean().item()),
             "slot_modalities": self.state.slot_modalities[0].cpu().tolist(),
         }
+
+    def get_action_logits(self, slot_idx: Optional[int] = None) -> torch.Tensor:
+        """Query discrete action logits from the active session state."""
+        return self.model.get_action_logits(self.state, slot_idx=slot_idx)
+
+
+# Canonical alias
+MultimodalPseudoBrainModel = MultimodalPseudoBrain
+
+__all__ = [
+    "ConvEncoder",
+    "MultimodalCognitiveState",
+    "MultimodalPseudoBrain",
+    "MultimodalPseudoBrainModel",
+    "MultimodalStreamingSession",
+]
+

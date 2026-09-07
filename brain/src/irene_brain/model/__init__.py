@@ -64,19 +64,27 @@ __all__ = [
     "SparseThoughtRouter",
     "RoutingDiagnostics",
     "BrainCell",
+    "BrainCellCore",
+    "FactorizedLowRankProjection",
     "PlasticBrainCell",
     "BrainCellOutput",
     "FastPlasticityModule",
     "SurpriseEncoder",
+    "Tier2BrainModel",
+    "count_parameters",
+    "make_tier_model",
 ]
 
 _TORCH_EXPORTS = {
     "ActionPrediction",
     "BrainState",
+    "count_parameters",
     "IreneBrainModel",
+    "make_tier_model",
     "ModelDiagnostics",
     "ModelOutput",
     "ThoughtPredictions",
+    "Tier2BrainModel",
 }
 
 _BASELINE_EXPORTS = {
@@ -143,9 +151,11 @@ _ROUTER_EXPORTS = {
 
 _CELL_EXPORTS = {
     "BrainCell",
-    "PlasticBrainCell",
+    "BrainCellCore",
     "BrainCellOutput",
+    "FactorizedLowRankProjection",
     "FastPlasticityModule",
+    "PlasticBrainCell",
     "SurpriseEncoder",
 }
 

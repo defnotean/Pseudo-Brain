@@ -505,6 +505,49 @@ class TestMultimodalPseudoBrain(unittest.TestCase):
         self.assertEqual(slot1_state.shape, (32,))
         self.assertGreater(float(slot1_state.norm().item()), 0.0)
 
+    # =========================================================================
+    # Part 5: Track C Closed-Loop Multimodal Embodied Play
+    # =========================================================================
+
+    def test_closed_loop_multimodal_embodied_episode(self):
+        """Verify closed-loop episode execution with POMDP, zero token replay buffer, and milestone latching."""
+        from irene_brain.semantic.multimodal_model import MultimodalPseudoBrainModel
+        from memory_benchmark.difficulty_curve_ablation import CorridorDelayKeysDoorsEnv
+        from semantic_benchmark.multimodal_closed_loop_benchmark import run_single_episode
+
+        tokenizer = SemanticTokenizer(max_threads=4)
+        model = MultimodalPseudoBrainModel(
+            vocab_size=tokenizer.vocab_size,
+            K=4,
+            thought_size=32,
+            embed_dim=32,
+            proj_dim=64,
+            visual_dim=64,
+            num_visual_tokens=4,
+            n_actions=5,
+        )
+
+        env = CorridorDelayKeysDoorsEnv(corridor_delay=4)
+        ep = run_single_episode(
+            model=model,
+            tokenizer=tokenizer,
+            env=env,
+            seed=1000,
+            episode_idx=0,
+            directive="retrieve key, ignore hallway hazard, unlock blue door",
+            device=torch.device("cpu"),
+        )
+
+        self.assertTrue(ep.success, "Closed-loop multimodal episode must succeed.")
+        self.assertTrue(ep.key_collected, "Key must be acquired.")
+        self.assertTrue(ep.door_unlocked, "Door must be unlocked.")
+        self.assertTrue(ep.target_collected, "Target must be collected.")
+        self.assertGreaterEqual(ep.prereq_latch_at_milestone, 4.0, "Prerequisite latch must consolidate (>= 4.0).")
+        self.assertTrue(ep.latch_consolidated, "Latch consolidated flag must be True.")
+        self.assertGreaterEqual(ep.slot0_persistence_mean, 0.99, "Slot 0 directive must persist without replay buffer.")
+        self.assertTrue(ep.latency_under_16_67ms, "Per-tick latency must satisfy 60Hz real-time SLA.")
+
 
 if __name__ == "__main__":
     unittest.main()
+

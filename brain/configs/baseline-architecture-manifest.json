@@ -39,19 +39,19 @@
     }
   },
   "implementation": {
-    "source_bundle_sha256": "ffe46621e110e857e5f62cc11a70591fbe679c4a9858786ed87be5cee4cfe7ff",
+    "source_bundle_sha256": "d4f353e157f379208bed2ee9cc4847f99f7c1bcf33ca04675612d08d20f87cc3",
     "source_files": {
       "src/irene_brain/model/actuator.py": "f6c7f9e5031a753e406744e715a7f8045b8503020cd6052fbc2fa05e66bceba4",
       "src/irene_brain/model/baselines.py": "fa3b5af56c7628426ac5314605039dfa92bc970a251271ea5c7466af9ef15e41",
-      "src/irene_brain/model/brain_cell.py": "1f28859e245b5fa709aa96578d2c6f928c381fb21142131632f789474a3a58eb",
+      "src/irene_brain/model/brain_cell.py": "eba673df1e2182af3e22b62e7ffba2189d5b91ab455a613436f9c5d2c15bf6f9",
       "src/irene_brain/model/sensory.py": "bbdb3282f531de8917b2b7bfdd8b2a43e8344f1bf09f99c1254bccaa819ce58b",
-      "src/irene_brain/model/spec.py": "cb233409b00c739c347f83aa641e75aa8317cce9ebc974741709ca66a69718c3",
-      "src/irene_brain/model/torch_model.py": "a00facc70ebf8eec813a79ba70a701daec121e2572feb370dc62a3f7910ac321",
+      "src/irene_brain/model/spec.py": "c0d913fd98e6378c4b561a857a7983a0d6af1b5585028b545b85bf49b1108eac",
+      "src/irene_brain/model/torch_model.py": "756a67834d25eaf5d8a12373688c8c21b9bc5bd2f0d9bd326d069f187c179b53",
       "src/irene_brain/training/factory.py": "da0c97218dc49bedbbeb7ecfd3dc2c3fdaffdc7578a7162356cbdb9451e910a5",
       "src/irene_brain/training/objective.py": "90b2bf33b9905b83900cd71e8ae78a82a788d542ab35e51cb34a54c512c2c775"
     }
   },
-  "manifest_sha256": "9de0194109e008a6e87223e9f9309261eb6d47f2d0fcb09bf5f1aa9553457a41",
+  "manifest_sha256": "b3f65db3fd41fae6b5fb86d8a52db6ff40714f95f631d827eba245ace597fec4",
   "reference_variant_id": "irene.thought_field.routed.v1",
   "schema_version": 1,
   "variants": [

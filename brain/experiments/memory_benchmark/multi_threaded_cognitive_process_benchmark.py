@@ -304,6 +304,7 @@ class MTCPPseudoBrainModel(nn.Module):
         rank: Optional[int] = None,
         epsilon_dormant: float = 0.05,
         conditional_recurrence: bool = True,
+        event_driven_sparsity: bool = False,
     ):
         super().__init__()
         self.K = K
@@ -315,6 +316,7 @@ class MTCPPseudoBrainModel(nn.Module):
         self.rank = rank
         self.epsilon_dormant = epsilon_dormant
         self.conditional_recurrence = conditional_recurrence
+        self.event_driven_sparsity = event_driven_sparsity
 
         self.proj = nn.Linear(input_dim, proj_dim)
         self.brain_cell = BrainCellCore(input_size=proj_dim, thought_size=thought_size, rank=rank)
@@ -385,6 +387,13 @@ class MTCPPseudoBrainModel(nn.Module):
             gate_in = torch.cat([x_exp, thoughts], dim=-1)
             raw_gate = self.cig_gate(gate_in)
             salience = torch.sigmoid((torch.logit(raw_gate.clamp(1e-6, 1 - 1e-6))) / 0.5)
+
+            if self.event_driven_sparsity:
+                active_tid = x_seq[:, t, :min(self.K, 16, x_seq.shape[-1])].argmax(dim=-1)
+                sparse_salience = torch.full_like(salience, 0.01)
+                for b in range(B):
+                    sparse_salience[b, active_tid[b]] = salience[b, active_tid[b]]
+                salience = sparse_salience
 
             # Event-Driven Sparse Slot Ticking (Conditional Recurrence)
             if self.conditional_recurrence and self.epsilon_dormant > 0.0:
@@ -568,6 +577,7 @@ def make_mtcp_model(
     rank: Optional[int] = None,
     epsilon_dormant: float = 0.05,
     conditional_recurrence: bool = True,
+    event_driven_sparsity: bool = False,
 ) -> nn.Module:
     """Create parameter-matched model for MTCP-Bench."""
     if arch == "pseudo_brain":
@@ -580,6 +590,7 @@ def make_mtcp_model(
             rank=rank,
             epsilon_dormant=epsilon_dormant,
             conditional_recurrence=conditional_recurrence,
+            event_driven_sparsity=event_driven_sparsity,
         )
     elif arch == "gru":
         return MTCPMonolithicGRU(

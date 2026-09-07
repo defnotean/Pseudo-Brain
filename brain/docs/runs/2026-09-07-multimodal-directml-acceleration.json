@@ -1,0 +1,709 @@
+{
+  "timestamp": "2026-09-07 14:53:00",
+  "telemetry": {
+    "os": "Windows",
+    "release": "10",
+    "active_device": "privateuseone:1",
+    "backend": "directml",
+    "cuda_available": false,
+    "directml_available": true,
+    "cpu_threads": 8,
+    "system_gpus": [
+      {
+        "name": "Meta Virtual Monitor",
+        "ram_bytes": null,
+        "driver": "5.3.57.114"
+      },
+      {
+        "name": "AMD Radeon RX 9070 XT",
+        "ram_bytes": 4293918720,
+        "driver": "32.0.31041.1004"
+      },
+      {
+        "name": "AMD Radeon(TM) Graphics",
+        "ram_bytes": 536870912,
+        "driver": "32.0.21045.5002"
+      }
+    ],
+    "has_amd_radeon": true,
+    "has_nvidia": false,
+    "directml_device_count": 2,
+    "directml_devices": [
+      {
+        "index": 0,
+        "name": "AMD Radeon(TM) Graphics"
+      },
+      {
+        "index": 1,
+        "name": "AMD Radeon RX 9070 XT"
+      }
+    ],
+    "directml_device_index": 1,
+    "directml_device_name": "AMD Radeon RX 9070 XT",
+    "directml_float64_support": true
+  },
+  "model_memory": {
+    "parameter_count": 184232,
+    "parameter_mb": 0.703,
+    "vram_total_mb": 16384.0,
+    "vram_occupancy_pct": 0.00429,
+    "state_footprints": [
+      {
+        "batch_size": 1,
+        "state_bytes": 26248,
+        "state_kb": 25.63,
+        "state_mb": 0.025
+      },
+      {
+        "batch_size": 4,
+        "state_bytes": 104992,
+        "state_kb": 102.53,
+        "state_mb": 0.1001
+      },
+      {
+        "batch_size": 16,
+        "state_bytes": 419968,
+        "state_kb": 410.12,
+        "state_mb": 0.4005
+      }
+    ]
+  },
+  "sequence_benchmarks": {
+    "horizon_1": {
+      "1": {
+        "batch_size": 1,
+        "directml": {
+          "batch_size": 1,
+          "horizon_id": "horizon_1",
+          "total_ticks": 12,
+          "sequence_latency_ms": {
+            "mean": 70.508,
+            "median": 71.877,
+            "p90": 73.486,
+            "p99": 74.314,
+            "min": 63.772,
+            "max": 74.428,
+            "std": 2.94
+          },
+          "per_tick_latency_ms": {
+            "mean": 5.876,
+            "median": 5.99,
+            "p90": 6.124,
+            "p99": 6.193,
+            "min": 5.314,
+            "max": 6.202
+          },
+          "meets_60hz": true,
+          "throughput_ticks_per_sec": 170.2
+        },
+        "total_ticks": 12,
+        "cpu": {
+          "batch_size": 1,
+          "horizon_id": "horizon_1",
+          "total_ticks": 12,
+          "sequence_latency_ms": {
+            "mean": 13.247,
+            "median": 10.645,
+            "p90": 18.567,
+            "p99": 26.991,
+            "min": 9.727,
+            "max": 27.927,
+            "std": 6.521
+          },
+          "per_tick_latency_ms": {
+            "mean": 1.104,
+            "median": 0.887,
+            "p90": 1.547,
+            "p99": 2.249,
+            "min": 0.811,
+            "max": 2.327
+          },
+          "meets_60hz": true,
+          "throughput_ticks_per_sec": 905.9
+        },
+        "speedup_vs_cpu": 0.19
+      },
+      "4": {
+        "batch_size": 4,
+        "directml": {
+          "batch_size": 4,
+          "horizon_id": "horizon_1",
+          "total_ticks": 12,
+          "sequence_latency_ms": {
+            "mean": 66.926,
+            "median": 66.6,
+            "p90": 69.644,
+            "p99": 73.637,
+            "min": 62.611,
+            "max": 74.215,
+            "std": 2.958
+          },
+          "per_tick_latency_ms": {
+            "mean": 5.577,
+            "median": 5.55,
+            "p90": 5.804,
+            "p99": 6.136,
+            "min": 5.218,
+            "max": 6.185
+          },
+          "meets_60hz": true,
+          "throughput_ticks_per_sec": 717.2
+        },
+        "total_ticks": 12,
+        "cpu": {
+          "batch_size": 4,
+          "horizon_id": "horizon_1",
+          "total_ticks": 12,
+          "sequence_latency_ms": {
+            "mean": 14.281,
+            "median": 12.752,
+            "p90": 18.666,
+            "p99": 19.627,
+            "min": 10.705,
+            "max": 19.733,
+            "std": 3.332
+          },
+          "per_tick_latency_ms": {
+            "mean": 1.19,
+            "median": 1.063,
+            "p90": 1.555,
+            "p99": 1.636,
+            "min": 0.892,
+            "max": 1.644
+          },
+          "meets_60hz": true,
+          "throughput_ticks_per_sec": 3361.1
+        },
+        "speedup_vs_cpu": 0.21
+      },
+      "16": {
+        "batch_size": 16,
+        "directml": {
+          "batch_size": 16,
+          "horizon_id": "horizon_1",
+          "total_ticks": 12,
+          "sequence_latency_ms": {
+            "mean": 68.744,
+            "median": 66.205,
+            "p90": 80.771,
+            "p99": 92.053,
+            "min": 57.811,
+            "max": 93.473,
+            "std": 10.106
+          },
+          "per_tick_latency_ms": {
+            "mean": 5.729,
+            "median": 5.517,
+            "p90": 6.731,
+            "p99": 7.671,
+            "min": 4.818,
+            "max": 7.789
+          },
+          "meets_60hz": true,
+          "throughput_ticks_per_sec": 2793.0
+        },
+        "total_ticks": 12,
+        "cpu": {
+          "batch_size": 16,
+          "horizon_id": "horizon_1",
+          "total_ticks": 12,
+          "sequence_latency_ms": {
+            "mean": 27.447,
+            "median": 29.897,
+            "p90": 34.732,
+            "p99": 40.222,
+            "min": 15.216,
+            "max": 40.832,
+            "std": 8.698
+          },
+          "per_tick_latency_ms": {
+            "mean": 2.287,
+            "median": 2.491,
+            "p90": 2.894,
+            "p99": 3.352,
+            "min": 1.268,
+            "max": 3.403
+          },
+          "meets_60hz": true,
+          "throughput_ticks_per_sec": 6995.3
+        },
+        "speedup_vs_cpu": 0.4
+      }
+    },
+    "horizon_2": {
+      "1": {
+        "batch_size": 1,
+        "directml": {
+          "batch_size": 1,
+          "horizon_id": "horizon_2",
+          "total_ticks": 28,
+          "sequence_latency_ms": {
+            "mean": 159.251,
+            "median": 157.65,
+            "p90": 165.254,
+            "p99": 167.693,
+            "min": 150.377,
+            "max": 168.063,
+            "std": 4.764
+          },
+          "per_tick_latency_ms": {
+            "mean": 5.688,
+            "median": 5.63,
+            "p90": 5.902,
+            "p99": 5.989,
+            "min": 5.371,
+            "max": 6.002
+          },
+          "meets_60hz": true,
+          "throughput_ticks_per_sec": 175.8
+        },
+        "total_ticks": 28,
+        "cpu": {
+          "batch_size": 1,
+          "horizon_id": "horizon_2",
+          "total_ticks": 28,
+          "sequence_latency_ms": {
+            "mean": 24.024,
+            "median": 23.756,
+            "p90": 26.123,
+            "p99": 27.738,
+            "min": 22.024,
+            "max": 27.918,
+            "std": 1.98
+          },
+          "per_tick_latency_ms": {
+            "mean": 0.858,
+            "median": 0.848,
+            "p90": 0.933,
+            "p99": 0.991,
+            "min": 0.787,
+            "max": 0.997
+          },
+          "meets_60hz": true,
+          "throughput_ticks_per_sec": 1165.5
+        },
+        "speedup_vs_cpu": 0.15
+      },
+      "4": {
+        "batch_size": 4,
+        "directml": {
+          "batch_size": 4,
+          "horizon_id": "horizon_2",
+          "total_ticks": 28,
+          "sequence_latency_ms": {
+            "mean": 147.834,
+            "median": 147.382,
+            "p90": 153.681,
+            "p99": 155.695,
+            "min": 138.317,
+            "max": 155.958,
+            "std": 5.131
+          },
+          "per_tick_latency_ms": {
+            "mean": 5.28,
+            "median": 5.264,
+            "p90": 5.489,
+            "p99": 5.561,
+            "min": 4.94,
+            "max": 5.57
+          },
+          "meets_60hz": true,
+          "throughput_ticks_per_sec": 757.6
+        },
+        "total_ticks": 28,
+        "cpu": {
+          "batch_size": 4,
+          "horizon_id": "horizon_2",
+          "total_ticks": 28,
+          "sequence_latency_ms": {
+            "mean": 34.235,
+            "median": 31.028,
+            "p90": 43.772,
+            "p99": 43.898,
+            "min": 26.914,
+            "max": 43.912,
+            "std": 7.139
+          },
+          "per_tick_latency_ms": {
+            "mean": 1.223,
+            "median": 1.108,
+            "p90": 1.563,
+            "p99": 1.568,
+            "min": 0.961,
+            "max": 1.568
+          },
+          "meets_60hz": true,
+          "throughput_ticks_per_sec": 3271.5
+        },
+        "speedup_vs_cpu": 0.23
+      },
+      "16": {
+        "batch_size": 16,
+        "directml": {
+          "batch_size": 16,
+          "horizon_id": "horizon_2",
+          "total_ticks": 28,
+          "sequence_latency_ms": {
+            "mean": 171.271,
+            "median": 155.835,
+            "p90": 204.993,
+            "p99": 255.549,
+            "min": 143.323,
+            "max": 263.296,
+            "std": 33.111
+          },
+          "per_tick_latency_ms": {
+            "mean": 6.117,
+            "median": 5.566,
+            "p90": 7.321,
+            "p99": 9.127,
+            "min": 5.119,
+            "max": 9.403
+          },
+          "meets_60hz": true,
+          "throughput_ticks_per_sec": 2615.7
+        },
+        "total_ticks": 28,
+        "cpu": {
+          "batch_size": 16,
+          "horizon_id": "horizon_2",
+          "total_ticks": 28,
+          "sequence_latency_ms": {
+            "mean": 46.934,
+            "median": 39.122,
+            "p90": 63.809,
+            "p99": 75.305,
+            "min": 36.795,
+            "max": 76.583,
+            "std": 14.613
+          },
+          "per_tick_latency_ms": {
+            "mean": 1.676,
+            "median": 1.397,
+            "p90": 2.279,
+            "p99": 2.689,
+            "min": 1.314,
+            "max": 2.735
+          },
+          "meets_60hz": true,
+          "throughput_ticks_per_sec": 9545.2
+        },
+        "speedup_vs_cpu": 0.27
+      }
+    },
+    "horizon_3": {
+      "1": {
+        "batch_size": 1,
+        "directml": {
+          "batch_size": 1,
+          "horizon_id": "horizon_3",
+          "total_ticks": 40,
+          "sequence_latency_ms": {
+            "mean": 209.785,
+            "median": 209.864,
+            "p90": 215.281,
+            "p99": 217.12,
+            "min": 201.092,
+            "max": 217.351,
+            "std": 4.922
+          },
+          "per_tick_latency_ms": {
+            "mean": 5.245,
+            "median": 5.247,
+            "p90": 5.382,
+            "p99": 5.428,
+            "min": 5.027,
+            "max": 5.434
+          },
+          "meets_60hz": true,
+          "throughput_ticks_per_sec": 190.7
+        },
+        "total_ticks": 40,
+        "cpu": {
+          "batch_size": 1,
+          "horizon_id": "horizon_3",
+          "total_ticks": 40,
+          "sequence_latency_ms": {
+            "mean": 38.399,
+            "median": 37.077,
+            "p90": 42.308,
+            "p99": 47.133,
+            "min": 33.561,
+            "max": 47.669,
+            "std": 4.411
+          },
+          "per_tick_latency_ms": {
+            "mean": 0.96,
+            "median": 0.927,
+            "p90": 1.058,
+            "p99": 1.178,
+            "min": 0.839,
+            "max": 1.192
+          },
+          "meets_60hz": true,
+          "throughput_ticks_per_sec": 1041.7
+        },
+        "speedup_vs_cpu": 0.18
+      },
+      "4": {
+        "batch_size": 4,
+        "directml": {
+          "batch_size": 4,
+          "horizon_id": "horizon_3",
+          "total_ticks": 40,
+          "sequence_latency_ms": {
+            "mean": 230.835,
+            "median": 229.704,
+            "p90": 239.56,
+            "p99": 244.339,
+            "min": 221.634,
+            "max": 244.642,
+            "std": 6.302
+          },
+          "per_tick_latency_ms": {
+            "mean": 5.771,
+            "median": 5.743,
+            "p90": 5.989,
+            "p99": 6.108,
+            "min": 5.541,
+            "max": 6.116
+          },
+          "meets_60hz": true,
+          "throughput_ticks_per_sec": 693.1
+        },
+        "total_ticks": 40,
+        "cpu": {
+          "batch_size": 4,
+          "horizon_id": "horizon_3",
+          "total_ticks": 40,
+          "sequence_latency_ms": {
+            "mean": 72.395,
+            "median": 69.236,
+            "p90": 96.549,
+            "p99": 115.367,
+            "min": 50.695,
+            "max": 117.458,
+            "std": 23.184
+          },
+          "per_tick_latency_ms": {
+            "mean": 1.81,
+            "median": 1.731,
+            "p90": 2.414,
+            "p99": 2.884,
+            "min": 1.267,
+            "max": 2.936
+          },
+          "meets_60hz": true,
+          "throughput_ticks_per_sec": 2210.1
+        },
+        "speedup_vs_cpu": 0.31
+      },
+      "16": {
+        "batch_size": 16,
+        "directml": {
+          "batch_size": 16,
+          "horizon_id": "horizon_3",
+          "total_ticks": 40,
+          "sequence_latency_ms": {
+            "mean": 274.466,
+            "median": 255.157,
+            "p90": 361.032,
+            "p99": 434.864,
+            "min": 205.516,
+            "max": 444.135,
+            "std": 68.417
+          },
+          "per_tick_latency_ms": {
+            "mean": 6.862,
+            "median": 6.379,
+            "p90": 9.026,
+            "p99": 10.872,
+            "min": 5.138,
+            "max": 11.103
+          },
+          "meets_60hz": true,
+          "throughput_ticks_per_sec": 2331.8
+        },
+        "total_ticks": 40,
+        "cpu": {
+          "batch_size": 16,
+          "horizon_id": "horizon_3",
+          "total_ticks": 40,
+          "sequence_latency_ms": {
+            "mean": 58.613,
+            "median": 58.497,
+            "p90": 65.506,
+            "p99": 68.299,
+            "min": 50.513,
+            "max": 68.609,
+            "std": 5.955
+          },
+          "per_tick_latency_ms": {
+            "mean": 1.465,
+            "median": 1.462,
+            "p90": 1.638,
+            "p99": 1.707,
+            "min": 1.263,
+            "max": 1.715
+          },
+          "meets_60hz": true,
+          "throughput_ticks_per_sec": 10919.1
+        },
+        "speedup_vs_cpu": 0.21
+      }
+    }
+  },
+  "component_benchmarks": {
+    "1": {
+      "batch_size": 1,
+      "directml": {
+        "batch_size": 1,
+        "visual_encoder_ms": {
+          "mean": 1.069,
+          "median": 1.092,
+          "p90": 1.177
+        },
+        "recurrent_step_ms": {
+          "mean": 6.731,
+          "median": 5.087,
+          "p90": 7.803
+        },
+        "action_readout_ms": {
+          "mean": 1.189,
+          "median": 1.164,
+          "p90": 1.281
+        }
+      },
+      "cpu": {
+        "batch_size": 1,
+        "visual_encoder_ms": {
+          "mean": 0.727,
+          "median": 0.415,
+          "p90": 1.394
+        },
+        "recurrent_step_ms": {
+          "mean": 0.735,
+          "median": 0.662,
+          "p90": 0.904
+        },
+        "action_readout_ms": {
+          "mean": 0.093,
+          "median": 0.09,
+          "p90": 0.098
+        }
+      }
+    },
+    "4": {
+      "batch_size": 4,
+      "directml": {
+        "batch_size": 4,
+        "visual_encoder_ms": {
+          "mean": 1.047,
+          "median": 1.041,
+          "p90": 1.125
+        },
+        "recurrent_step_ms": {
+          "mean": 6.45,
+          "median": 6.337,
+          "p90": 7.506
+        },
+        "action_readout_ms": {
+          "mean": 1.407,
+          "median": 1.408,
+          "p90": 1.516
+        }
+      },
+      "cpu": {
+        "batch_size": 4,
+        "visual_encoder_ms": {
+          "mean": 0.841,
+          "median": 0.811,
+          "p90": 0.969
+        },
+        "recurrent_step_ms": {
+          "mean": 1.0,
+          "median": 0.986,
+          "p90": 1.048
+        },
+        "action_readout_ms": {
+          "mean": 0.145,
+          "median": 0.161,
+          "p90": 0.177
+        }
+      }
+    },
+    "16": {
+      "batch_size": 16,
+      "directml": {
+        "batch_size": 16,
+        "visual_encoder_ms": {
+          "mean": 1.106,
+          "median": 1.088,
+          "p90": 1.251
+        },
+        "recurrent_step_ms": {
+          "mean": 5.548,
+          "median": 5.559,
+          "p90": 6.189
+        },
+        "action_readout_ms": {
+          "mean": 1.349,
+          "median": 1.273,
+          "p90": 1.534
+        }
+      },
+      "cpu": {
+        "batch_size": 16,
+        "visual_encoder_ms": {
+          "mean": 1.423,
+          "median": 1.424,
+          "p90": 1.49
+        },
+        "recurrent_step_ms": {
+          "mean": 1.165,
+          "median": 1.146,
+          "p90": 1.317
+        },
+        "action_readout_ms": {
+          "mean": 0.329,
+          "median": 0.217,
+          "p90": 0.616
+        }
+      }
+    }
+  },
+  "transfer_benchmarks": {
+    "transfer_measurements": [
+      {
+        "batch_size": 1,
+        "image_bytes": 49152,
+        "image_kb": 48.0,
+        "h2d_latency_ms": 0.6558,
+        "h2d_bandwidth_gb_s": 0.07,
+        "d2h_latency_ms": 0.1701,
+        "d2h_bandwidth_gb_s": 0.27,
+        "action_d2h_latency_ms": 0.1136
+      },
+      {
+        "batch_size": 4,
+        "image_bytes": 196608,
+        "image_kb": 192.0,
+        "h2d_latency_ms": 0.153,
+        "h2d_bandwidth_gb_s": 1.2,
+        "d2h_latency_ms": 0.1075,
+        "d2h_bandwidth_gb_s": 1.7,
+        "action_d2h_latency_ms": 0.1138
+      },
+      {
+        "batch_size": 16,
+        "image_bytes": 786432,
+        "image_kb": 768.0,
+        "h2d_latency_ms": 0.2476,
+        "h2d_bandwidth_gb_s": 2.96,
+        "d2h_latency_ms": 0.1856,
+        "d2h_bandwidth_gb_s": 3.95,
+        "action_d2h_latency_ms": 0.1135
+      }
+    ]
+  }
+}

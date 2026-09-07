@@ -36,6 +36,10 @@ This experiment answers the central scaling question for Pseudo-Brain:
 | | **Pseudo-Brain Tier 1** | **10,488,371** | **2.15** | **1.7%** | 13.1% | 12.8% | 13.8% | 820.65 ms | EXCEEDED |
 | | Monolithic GRU Tier 1 | 10,096,478 | 2.00 | 1.6% | 12.5% | 12.5% | 13.8% | 12.18 ms | MET |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| **K=256** | **Pseudo-Brain Tier 0** | **130,243** | **6.16** | **2.4%** | 18.3% | 13.1% | 15.4% | 71.86 ms | EXCEEDED |
+| | **Pseudo-Brain Tier 1** | **10,488,371** | **3.32** | **1.3%** | 11.9% | 10.9% | 12.5% | 2654.99 ms | EXCEEDED |
+| | Monolithic GRU Tier 1 | 10,096,478 | 2.72 | 1.1% | 10.0% | 10.6% | 7.5% | 20.22 ms | EXCEEDED |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 
 ---
 ## 3. Scaling Efficiency & Delta Analysis
@@ -47,6 +51,7 @@ This experiment answers the central scaling question for Pseudo-Brain:
 | 32 | 27.27 | 2.47 | **-24.80** | -2.3939 | 7.60 | 0.04 |
 | 64 | 57.87 | 0.62 | **-57.25** | -5.5267 | 6.44 | 0.00 |
 | 128 | 18.29 | 2.15 | **-16.14** | -1.5584 | 0.81 | 0.00 |
+| 256 | 6.16 | 3.32 | **-2.84** | -0.2742 | 0.09 | 0.00 |
 
 ---
 ## 4. Mechanistic Interpretation & Epistemic Verdict

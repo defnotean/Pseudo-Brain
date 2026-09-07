@@ -281,6 +281,31 @@ class ThoughtFieldConfig:
             retrieved_entries_per_thoughtlet=2,
         )
 
+    @classmethod
+    def tier2(cls, **kwargs: object) -> ThoughtFieldConfig:
+        """Return Tier 2 (~50M parameter) configuration obeying the Three Architectural Laws:
+        - Law 1 (Slot Width Clamping): Slot width bounded at W=64, K=128 slots (32 KB state memory).
+        - Law 2 (Factorized Deep Projections): W=64 -> rank r=32 -> proj_dim=4096.
+        - Law 3 (Event-Driven Dynamic Sparsity): epsilon_dormant=0.05.
+        """
+        defaults: dict[str, object] = {
+            "core_width": 64,
+            "thoughtlets": 128,
+            "registers_per_thoughtlet": 1,
+            "sensor_tokens": 16,
+            "belief_tokens": 8,
+            "working_memory_tokens": 4,
+            "goal_context_tokens": 2,
+            "cognitive_cycles": 1,
+            "brain_cell_blocks": 2,
+            "attention_heads": 8,
+            "routed_neighbors": 4,
+            "episodic_memory_entries": 128,
+            "retrieved_entries_per_thoughtlet": 1,
+        }
+        defaults.update(kwargs)
+        return cls(**defaults)
+
     @property
     def attention_contract(self) -> AttentionContract:
         return AttentionContract.thesis_default(

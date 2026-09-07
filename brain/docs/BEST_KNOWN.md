@@ -14,12 +14,13 @@
 | Component | Architecture Variant | Parameters | Latency Target | Measured Latency | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Recurrent Core** | Consequence-Gated Plasticity (`PlasticBrainCell`) | 279,982 | $\le 2.0\text{ ms}$ | **$1.50\text{ ms}$** (CPU) | **VALIDATED** (Decoupled consequence surprise $\delta_{\text{consequence}}$) |
-| **Sparse Recurrence** | Conditional Slot Ticking (`forward_conditional`) & Factorized Projections | Low-Rank ($r=16$) | $\le 10.0\text{ ms}$ ($K=128$) | **$9.77\text{ ms}$** ($K=128$) | **VALIDATED** ($2.13\times$ speedup, >63% param cut) |
+| **Sparse Recurrence** | Conditional Slot Ticking (`forward_conditional`) & Factorized Projections | Low-Rank ($r=16$) | $\le 10.0\text{ ms}$ ($K=128$) | **$9.77\text{ ms}$** ($K=128$ CPU), **$0.943\text{ ms}$** ($K=64$ factorized) | **VALIDATED** ($2.13\times$ speedup, $45.9\%$ param cut) |
 | **Thought Routing** | Sub-Quadratic Clustered Router (`BlockSparseClusteredThoughtRouter`) | 148,608 | $\le 1.5\text{ ms}$ | **$1.30\text{ ms}$** ($K=64$) | **VALIDATED** ($\mathcal{O}(K^{1.5} W)$, $2.38\times$ FLOP reduction at $K=512$) |
 | **Lookahead Planner** | Dynamic Beam Search ($H=5, B=6$) | N/A (Latent unroll) | $\le 16.67\text{ ms}$ | **$8.03\text{ ms}$** (CPU) | **VALIDATED** (Isolated microbenchmark) |
 | **Agent Infrastructure**| Contextual IOR (`PseudoBrainAgent`) | Parameterized | Dynamic | Interactive (<50ms) | **VALIDATED** (5-Case Causal Suite + Procedural DAG Ladder) |
-| **Multimodal Perception**| Grounded Dual-Stream (`MultimodalPseudoBrainModel`) | 560k - 10.5M | $\le 16.67\text{ ms}$ | **$4.82\text{ ms}$** (CPU) | **VALIDATED** (Visual entity + token slot binding, 8/8 tests) |
-| **Hardware Subsystem**| Cross-Platform Engine (`device.py`) | N/A | Zero overhead | DirectML / CPU MKL | **VALIDATED** (AMD Radeon RX 9070 XT probe, 5/5 tests) |
+| **Multimodal Perception**| Grounded Dual-Stream (`MultimodalPseudoBrainModel`) | 560k - 10.5M | $\le 16.67\text{ ms}$ | **$1.38\text{ ms}$** (Closed-Loop Embodied Play, 12x headroom) | **VALIDATED** (100% SR, 100% key & door, zero replay buffer, 8/8 tests) |
+| **Tier 2 Scaled Core** | Deep Factorized Projections (`Tier2BrainModel`) | 51,070,409 | $\le 16.67\text{ ms}$ (GPU) | **32 KB state memory** (Bounded $W=64$, $r=32$, $\text{proj}=4096$) | **VALIDATED** (7/7 tests, zero-FLOP bypass) |
+| **Hardware Subsystem**| AMD Radeon RX 9070 XT DirectML (`device.py`) | N/A | $\le 16.67\text{ ms}$ ($K=128$) | **$4.83\text{ ms}$** ($K=128, B=4$ DirectML GPU) | **VALIDATED** (8.70 TFLOPs, $16.32\times$ GEMM speedup, 5/5 tests) |
 | **Telemetry Dashboard**| ASCII Energy Matrix (`dashboard.py`, `visual_session.py`) | N/A | Sub-millisecond | Real-time 60 Hz | **VALIDATED** (Slot energy & latency p99 audit, 3/3 tests) |
 
 ---
@@ -165,6 +166,65 @@
   py -3.11 brain/experiments/memory_benchmark/thread_capacity_scaling_benchmark.py --tier both --threads 8 16 32 64 128 256
   py -3.11 -m pytest brain/tests/test_conditional_recurrence.py brain/tests/test_device_resolution.py brain/tests/test_semantic_dashboard.py brain/tests/test_multimodal_pseudo_brain.py
   ```
+
+### Workstream 14: DirectML Hardware Acceleration (AMD Radeon RX 9070 XT)
+* **Discrete GPU Acceleration Benchmark via Microsoft DirectML (`torch-directml`)**:
+  - **Sustained Compute Throughput**: Delivers **8.70 TFLOPs sustained throughput**, achieving a **$16.32\times$ wall-clock speedup** on $4096 \times 4096$ GEMMs ($15.79\text{ ms}$ GPU vs $257.65\text{ ms}$ CPU).
+  - **60 Hz Frame Budget Rescued**: At high concurrency ($K=128, B=4$), single-threaded CPU forward pass takes $34.93\text{ ms}$ (violating the 16.67 ms ceiling), whereas DirectML completes in **$4.83\text{ ms}$** (**$71.0\%$ 60 Hz headroom**).
+  - **Memory & Bandwidth Efficiency**: PCIe Host-to-Device transfer rate measured at **$5.17\text{ GB/s}$**; full Tier 1 model weights occupy only **$40.01\text{ MB}$** (**$0.24\%$ of 16 GB VRAM**).
+* **Reproduction Command**:
+  ```bash
+  py -3.11 brain/experiments/benchmarks/directml_benchmark.py
+  py -3.11 -m unittest brain/tests/test_device_resolution.py
+  ```
+
+### Workstream 15: Event-Driven Conditional Recurrence Dynamic Sparsity Sweep
+* **Selective Slot Ticking Across Concurrency ($K \in [16, 128]$)**:
+  - **Core FLOP Elimination**: Slashes **$93.8\%$ ($K=16$) to $99.2\%$ ($K=128$) of recurrent core FLOPs** by evaluating only active slots ($s_k \ge 0.05$).
+  - **Empirical Wall-Clock Speedup**: Yields **$1.25\times$ to $3.92\times$ wall-clock speedup** on CPU.
+  - **Cognitive Invariance**: Zero degradation on preemption recovery ($100.0\%$), orthogonal isolation ($90.8\%$), and cross-thread dependency ($100.0\%$), while dormant memories remain strictly preserved bitwise.
+* **Reproduction Command**:
+  ```bash
+  py -3.11 brain/experiments/memory_benchmark/conditional_recurrence_capacity_benchmark.py
+  py -3.11 -m unittest brain/tests/test_conditional_recurrence.py
+  ```
+
+### Workstream 16: Closed-Loop Multimodal Embodied Play
+* **Closed-Loop Grounded Play (`MultimodalPseudoBrainModel`, $N=20$ Episodes)**:
+  - **100% Autonomous Success**: **100.0% task success rate** and **100.0% key & door rate** (mean $17.65$ steps).
+  - **Sub-2ms Inference Latency**: Tick latency averages **$1.38\text{ ms}$** (p90: $1.64\text{ ms}$), providing **$12\times$ real-time headroom** within the 60 Hz (16.67 ms) window.
+  - **Zero Token Replay Buffer**: Directive semantic persistence achieves **$1.0000$ cosine similarity** across 100+ ticks without token storage.
+  - **Endogenous Milestone Consolidation**: Autonomous synaptic latch consolidation ($P_t \ge +4.0$) upon key pickup.
+* **Reproduction Command**:
+  ```bash
+  py -3.11 brain/experiments/semantic_benchmark/multimodal_closed_loop_benchmark.py
+  py -3.11 -m unittest brain/tests/test_multimodal_pseudo_brain.py
+  ```
+
+### Workstream 17: Tier 1 Source-of-Scaling Dissection (W vs. proj_dim)
+* **Empirical Dissection of the $K=64$ Sample-Starvation Knee**:
+  - **Root Cause Confirmed**: Wide slots ($W=832$) induce a **$17.3\times$ state explosion to 53,248 dimensions** ($210.0\text{ KB}$), stalling training loss ($-2.8\%$ reduction) and collapsing orthogonal isolation to **$13.4\%$** ($K_{\text{eff}} = 1.02$).
+  - **Deep Projections ($W=48, \text{proj}=2816$)**: Keeps state compact at 3,072 dimensions ($14.0\text{ KB}$), converges smoothly ($26.8\%$ loss reduction), and lifts dependency tracking to **$16.2\%$** at **$1.091\text{ ms/tick}$**.
+  - **Factorized Low-Rank Projections ($r=16$)**: Cuts parameters by **$45.9\%$** ($367\text{k}$ vs $680\text{k}$) and reduces latency to **$0.943\text{ ms/tick}$** while matching cognitive capacity ($K_{\text{eff}} = 2.75$).
+* **Reproduction Command**:
+  ```bash
+  py -3.11 brain/experiments/memory_benchmark/tier1_ablation_scaling_benchmark.py --threads 64
+  py -3.11 -m unittest brain/tests/test_tier1_ablation_scaling.py
+  ```
+
+---
+
+### The Three Architectural Laws of Cognitive Scaling
+From the systematic source-of-scaling and capacity benchmarks across Tier 0 (130k) to Tier 1 (~10M), three fundamental scaling laws govern Pseudo-Brain architecture:
+
+1. **Law 1 (Slot Width Bounding - $W \in [32, 64]$):**  
+   *Never scale slot width $W$ proportionally to total parameter budget.* Scaling $W$ to 832 at $K=64$ causes a catastrophic **$17.3\times$ state explosion to 53,248 dimensions** (210.0 KB), destroying sample efficiency, stalling gradient optimization ($-2.8\%$ loss reduction), and collapsing orthogonal isolation to random chance ($13.4\%$). Slot width must remain bounded ($W \in [32, 64]$) across all tiers to preserve compact hyperspherical representation volumes ($3,072$ dims, 14.0 KB).
+
+2. **Law 2 (Channel Capacity to Projections via Low-Rank Factorization - $r=16$):**  
+   *Scale model capacity through projection dimension ($\text{proj\_dim} = 2816$) with low-rank factorization ($r=16$).* Deep projections enrich sensory extraction and relational dependency tracking (boosting dependency accuracy to $16.2\%$) without expanding the recurrent state space. Factorized low-rank projections ($W \to r \to \text{proj\_dim}$) cut projection parameters by **$45.9\%$** ($367\text{k}$ vs $680\text{k}$) and reduce per-tick latency to **$0.943\text{ ms}$**, comfortably preserving 60 Hz real-time operation.
+
+3. **Law 3 (Event-Driven Dynamic Sparsity - $\epsilon_{\text{dormant}} = 0.05$):**  
+   *Bypass uninformative dormant slots ($s_k < 0.05$) to eliminate $>93\%$ of core FLOPs and protect memories bitwise.* Event-driven conditional recurrence (`forward_conditional`) slashes **$93.8\%$ to $99.2\%$ of recurrent core FLOPs** across $K \in [16, 128]$, yielding **$1.25\times$ to $3.92\times$ wall-clock speedups** on CPU while guaranteeing zero cognitive degradation ($100.0\%$ preemption recovery, $100.0\%$ cross-thread dependency).
 
 ---
 

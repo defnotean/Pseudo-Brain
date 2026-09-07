@@ -768,6 +768,80 @@
           "train_time_sec": 30.99,
           "eff_per_param": 2.1130537243786712e-07
         }
+      },
+      "K_256": {
+        "pseudo_brain": {
+          "overall_accuracy": 11.375,
+          "retention_accuracy": 10.625,
+          "interference_accuracy": 10.9375,
+          "cross_talk_error": 89.0625,
+          "recovery_accuracy": 11.875,
+          "dependency_accuracy": 12.5,
+          "latency_ms_mean": 2654.99479375,
+          "compound_cognitive_score": 0.0013800048828125,
+          "K": 256,
+          "K_eff": 3.32,
+          "utilization": 1.3,
+          "state_bytes": 860160,
+          "params": 10488371,
+          "arch_label": "Pseudo-Brain CGP (TIER1)",
+          "train_time_sec": 8260.17,
+          "eff_per_param": 3.1701777139653046e-07
+        },
+        "gru": {
+          "overall_accuracy": 10.25,
+          "retention_accuracy": 12.5,
+          "interference_accuracy": 10.625,
+          "cross_talk_error": 89.375,
+          "recovery_accuracy": 10.0,
+          "dependency_accuracy": 7.5,
+          "latency_ms_mean": 20.216945000000003,
+          "compound_cognitive_score": 0.10951132206176552,
+          "K": 256,
+          "K_eff": 2.72,
+          "utilization": 1.06,
+          "state_bytes": 8160,
+          "params": 10096478,
+          "arch_label": "Monolithic GRU (TIER1)",
+          "train_time_sec": 60.34,
+          "eff_per_param": 2.694008742454547e-07
+        },
+        "diagonal_ssm": {
+          "overall_accuracy": 13.125,
+          "retention_accuracy": 11.875,
+          "interference_accuracy": 12.5,
+          "cross_talk_error": 87.5,
+          "recovery_accuracy": 16.25,
+          "dependency_accuracy": 12.5,
+          "latency_ms_mean": 13.983554999999999,
+          "compound_cognitive_score": 0.24121093749999997,
+          "K": 256,
+          "K_eff": 5.2,
+          "utilization": 2.03,
+          "state_bytes": 13800,
+          "params": 10084933,
+          "arch_label": "Modern Diagonal SSM (TIER1)",
+          "train_time_sec": 59.46,
+          "eff_per_param": 5.156206788880006e-07
+        },
+        "linear_attention": {
+          "overall_accuracy": 11.875,
+          "retention_accuracy": 8.75,
+          "interference_accuracy": 10.625,
+          "cross_talk_error": 89.375,
+          "recovery_accuracy": 17.5,
+          "dependency_accuracy": 11.875,
+          "latency_ms_mean": 11.905592500000001,
+          "compound_cognitive_score": 0.1626953125,
+          "K": 256,
+          "K_eff": 4.76,
+          "utilization": 1.86,
+          "state_bytes": 20320,
+          "params": 10186679,
+          "arch_label": "Recurrent Linear Attention (TIER1)",
+          "train_time_sec": 89.37,
+          "eff_per_param": 4.672769211634135e-07
+        }
       }
     },
     "knees": {
@@ -830,6 +904,17 @@
       "tier0_lat_eff": 0.81,
       "tier1_lat_eff": 0.0,
       "delta_Keff_per_Mparam": -1.5584
+    },
+    "K_256": {
+      "K": 256,
+      "tier0_Keff": 6.16,
+      "tier1_Keff": 3.32,
+      "delta_Keff": -2.84,
+      "tier0_latency": 71.85533333333335,
+      "tier1_latency": 2654.99479375,
+      "tier0_lat_eff": 0.09,
+      "tier1_lat_eff": 0.0,
+      "delta_Keff_per_Mparam": -0.2742
     }
   }
 }

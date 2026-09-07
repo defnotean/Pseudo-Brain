@@ -14,6 +14,7 @@ from .multimodal_model import (
     ConvEncoder,
     MultimodalCognitiveState,
     MultimodalPseudoBrain,
+    MultimodalPseudoBrainModel,
     MultimodalStreamingSession,
 )
 
@@ -29,6 +30,7 @@ __all__ = [
     "ConvEncoder",
     "MultimodalCognitiveState",
     "MultimodalPseudoBrain",
+    "MultimodalPseudoBrainModel",
     "MultimodalStreamingSession",
 ]
 

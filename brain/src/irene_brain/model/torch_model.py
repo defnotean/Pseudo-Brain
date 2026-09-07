@@ -28,9 +28,22 @@ from .topological_goal import (
     TopologicalGoalFieldHead,
     TopologicalGoalPrediction,
 )
-from .brain_cell import BrainCell, ContinuousTimeBlend, ResidualCrossAttention
+from .brain_cell import (
+    BrainCell,
+    BrainCellCore,
+    ContinuousTimeBlend,
+    FactorizedLowRankProjection,
+    ResidualCrossAttention,
+)
 from .sensory import PixelEncoder
 from .spec import ThoughtFieldConfig
+
+
+def count_parameters(model: nn.Module) -> dict[str, int]:
+    """Count total and trainable parameters of a PyTorch module."""
+    total = sum(p.numel() for p in model.parameters())
+    trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    return {"total": total, "trainable": trainable}
 
 
 _THOUGHT_IDENTITY_SEED = 0x1A2B3C4D
@@ -249,8 +262,12 @@ class IreneBrainModel(nn.Module):
         plan_steps: int = 3,
         enable_adaptive_cognition: bool = False,
         use_cgp: bool = False,
+        tier: str | None = None,
     ) -> None:
         super().__init__()
+        self.tier = tier
+        if tier == "tier2" and config is None:
+            config = ThoughtFieldConfig.tier2()
         self.config = config if config is not None else ThoughtFieldConfig.smoke()
         self.enable_adaptive_cognition = enable_adaptive_cognition
         self.use_cgp = bool(use_cgp or getattr(self.config, "use_cgp", False))
@@ -854,13 +871,172 @@ class IreneBrainModel(nn.Module):
         )
 
 
+class Tier2BrainModel(nn.Module):
+    """Tier 2 (~50M Parameter) Pseudo-Brain Model.
+
+    Specifies and implements the Three Architectural Laws of Cognitive Scaling:
+    1. Law 1 (Slot Width Clamping): Slot width bounded at W=64, K=128 slots.
+       Total recurrent state is K*W = 8,192 floats (32 KB state memory, avoiding the
+       53k state explosion seen when W was 832).
+    2. Law 2 (Factorized Deep Projections): Input and hidden projections factorized:
+       W=64 -> rank r=32 -> proj_dim=4096 (delivers the parametric capacity of Tier 2
+       ~50M without parameter or compute explosion).
+    3. Law 3 (Event-Driven Dynamic Sparsity): Slot evaluation bypassed when
+       Cognitive Input Gate salience s_k < epsilon_dormant (0.05).
+    """
+
+    def __init__(
+        self,
+        input_dim: int = 64,
+        K: int = 128,
+        thought_size: int = 64,
+        rank: int = 32,
+        proj_dim: int = 4096,
+        num_values: int = 8,
+        epsilon_dormant: float = 0.05,
+        conditional_recurrence: bool = True,
+        tier: str = "tier2",
+        num_deep_layers: int = 3,
+    ) -> None:
+        super().__init__()
+        self.tier = tier
+        self.K = K
+        self.thought_size = thought_size
+        self.rank = rank
+        self.proj_dim = proj_dim
+        self.input_dim = input_dim
+        self.num_values = num_values
+        self.epsilon_dormant = epsilon_dormant
+        self.conditional_recurrence = conditional_recurrence
+
+        # Sensory/Input Projection to proj_dim
+        self.input_proj = nn.Linear(input_dim, proj_dim)
+
+        # Law 2: Factorized Deep Projections Core (~50M parameters)
+        self.brain_cell = BrainCellCore(
+            input_size=proj_dim,
+            thought_size=thought_size,
+            rank=rank,
+            proj_dim=proj_dim,
+            tier=tier,
+            num_deep_layers=num_deep_layers,
+        )
+
+        # Cognitive Input Gate (CIG)
+        self.cig_gate = nn.Sequential(
+            nn.Linear(proj_dim + thought_size, 1),
+            nn.Sigmoid(),
+        )
+
+        # Thread-Targeted Factorized Readout Head (W=64 -> r=32 -> proj_dim // 4 -> num_values)
+        self.slot_head = nn.Sequential(
+            FactorizedLowRankProjection(thought_size, proj_dim // 4, rank=rank),
+            nn.GELU(),
+            nn.Linear(proj_dim // 4, num_values),
+        )
+
+        # Deterministic Thought Slot Identity Codes
+        self.register_buffer(
+            "slot_identities",
+            deterministic_thought_identity_codes(thoughtlets=K, width=thought_size),
+            persistent=False,
+        )
+
+    def state_bytes(self, bytes_per_element: int = 4) -> int:
+        """Law 1 Contract: Returns exact recurrent state memory footprint in bytes (32 KB)."""
+        return self.K * self.thought_size * bytes_per_element
+
+    def count_parameters(self) -> dict[str, int]:
+        """Return total and trainable parameter counts."""
+        return count_parameters(self)
+
+    def initial_state(self, batch_size: int, device: torch.device | str = "cpu") -> Tensor:
+        """Generate initial recurrent state tensor [B, K, W]."""
+        dev = torch.device(device)
+        return self.slot_identities.to(device=dev).unsqueeze(0).expand(batch_size, -1, -1).clone()
+
+    def forward(
+        self,
+        x_seq: Tensor,
+        active_thread_id: Tensor | None = None,
+    ) -> Tensor:
+        """Run recurrent forward unroll across time steps.
+
+        Args:
+            x_seq: [B, T, input_dim] or [B, input_dim] input sensory tensor.
+            active_thread_id: optional [B, T] or [B] indicating addressed thread.
+        """
+        if x_seq.dim() == 2:
+            x_seq = x_seq.unsqueeze(1)
+
+        B, T, D = x_seq.shape
+        dev = x_seq.device
+
+        x_proj = self.input_proj(x_seq)  # [B, T, proj_dim]
+        thoughts = self.slot_identities.to(device=dev).unsqueeze(0).expand(B, -1, -1).clone()
+        logits_list = []
+
+        for t in range(T):
+            x_in = x_proj[:, t]  # [B, proj_dim]
+            x_exp = x_in.unsqueeze(1).expand(-1, self.K, -1)  # [B, K, proj_dim]
+
+            # CIG Gate
+            gate_in = torch.cat([x_exp, thoughts], dim=-1)
+            salience = self.cig_gate(gate_in)
+
+            # Law 3: Event-Driven Dynamic Sparsity
+            if self.conditional_recurrence and self.epsilon_dormant > 0.0:
+                thoughts, _ = self.brain_cell.forward_conditional(
+                    thoughts=thoughts,
+                    x=x_exp,
+                    salience=salience,
+                    epsilon_dormant=self.epsilon_dormant,
+                )
+            else:
+                t_flat = thoughts.reshape(B * self.K, self.thought_size)
+                x_flat = x_exp.reshape(B * self.K, -1)
+                new_t = self.brain_cell(t_flat, x_flat).reshape(B, self.K, self.thought_size)
+                thoughts = (1.0 - salience) * thoughts + salience * new_t
+
+            # Readout on queried slot
+            if active_thread_id is not None:
+                tid = active_thread_id[:, t] if active_thread_id.dim() > 1 else active_thread_id
+                batch_idx = torch.arange(B, device=dev)
+                queried_slot = thoughts[batch_idx, tid]
+            else:
+                queried_slot = thoughts[:, 0]
+
+            logits = self.slot_head(queried_slot)
+            logits_list.append(logits)
+
+        out = torch.stack(logits_list, dim=1)
+        if out.shape[1] == 1:
+            return out.squeeze(1)
+        return out
+
+
+def make_tier_model(tier: str = "tier2", **kwargs: object) -> nn.Module:
+    """Factory creating parameter-matched models for Tier 0, Tier 1, or Tier 2."""
+    if tier == "tier2":
+        return Tier2BrainModel(tier=tier, **kwargs)
+    elif tier == "tier1":
+        return IreneBrainModel(tier=tier, **kwargs)
+    elif tier == "tier0":
+        return IreneBrainModel(tier=tier, **kwargs)
+    else:
+        return Tier2BrainModel(tier=tier, **kwargs)
+
+
 __all__ = [
     "ActionPrediction",
     "BrainState",
+    "count_parameters",
     "deterministic_thought_identity_codes",
     "IreneBrainModel",
     "LatentRewardHead",
+    "make_tier_model",
     "ModelDiagnostics",
     "ModelOutput",
     "ThoughtPredictions",
+    "Tier2BrainModel",
 ]
