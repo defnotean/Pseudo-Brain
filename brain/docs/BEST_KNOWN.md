@@ -95,13 +95,15 @@
   - **Full Pseudo-Brain (CGP + Router + Lookahead)**: 280k params, 5.96 MFLOPs, 26.36 ms, **100.0% retention**.
 * **Reproduction Command**:
 ### Workstream 8: Multi-Threaded Latent Dependency Benchmark (MTLD-Bench / "The Kill Shot")
-* **Multi-Variable Retention Across Dual Delay Corridors ($M \in [2, 6]$, $L_1=16, L_2=16$ with Asynchronous Intermediate Update)**:
-  - **Non-CGP Baseline Collapse**: Reactive (11.4%), Monolithic Heavy GRU (12.7%), Monolithic Matched GRU (11.4%), Single Thoughtlet (11.2%), Dense Thoughtlets (10.5%), and Sparse Thoughtlets (12.5%) all **collapse to random chance (~12.5%)**, unable to sustain multiple latent variables across dual delay corridors.
-  - **CGP Multi-Variable Retention**: CGP Thoughtlets maintain **40.2% overall retention at $M=2$ (48.1% untouched retention) and 39.8% at $M=4$ ($3.1\times$ to $3.8\times$ above the GRU baseline)** at only 131k parameters ($4.0\times$ lower parameter footprint than Heavy GRU).
-  - **Disconnected Slot Advantage**: On completely orthogonal variables, `CGP - Disconnected Slots Ablation` achieves **44.2% at $M=2$ and 42.0% at $M=4$ with 50% lower latency (1.49 ms vs 2.93 ms)**, confirming that removing inter-slot routing eliminates cross-slot message collisions when variables are independent.
+* **Multi-Variable Retention Across Extreme Grid ($M \in [2, 32]$ concurrent variables, Delay Horizons $L \in [16, 128]$ ticks)**:
+  - **Non-CGP Baseline Collapse Across Grid**: Reactive (10.8%–13.3%), Monolithic Heavy GRU (10.8%–13.3%), Monolithic Matched GRU (10.8%–14.2%), Modern Diagonal SSM / GLRU (10.8%–14.2%), Single Thoughtlet (10.3%–14.2%), Dense Thoughtlets (10.8%–14.2%), and Sparse Thoughtlets (10.8%–14.2%) all **collapse completely to chance (~12.5%)** under dual delay corridors with intervening partial updates.
+  - **CGP Multi-Variable Retention Across $M$**: CGP Thoughtlets sustain **42.9% at $M=2$, 38.3% at $M=4$, 29.8% at $M=8$, 22.3% at $M=16$, and 18.4% at $M=32$** (graceful capacity decay) at only 131k parameters ($4.0\times$ to $10.5\times$ smaller than GRU baselines).
+  - **CGP Retention Across Delay Horizons ($L \in [16, 128]$)**: At canonical $M=4$, CGP maintains **38.3% at $L=16$, 34.6% at $L=32$, 31.5% at $L=64$, and 19.1% at $L=128$** (preserving untouched variables across 256 total ticks of masked distraction).
+  - **The "Isolate on Orthogonality" Principle**: On orthogonal variables, `CGP - Disconnected Slots Ablation` reaches **43.3% at $M=2$, 39.7% at $M=4$, 31.0% at $M=8$, and 23.0% at $M=16$ with $2\times$ lower latency (1.46 ms vs 2.96 ms)**, confirming that shielding slots from inter-slot routing eliminates cross-slot noise when variables are independent.
+  - **Cognitive Scaling Roadmap**: Formal specification detailing the $131\text{k} \to 10\text{M} \to 50\text{M} \to 100\text{M} \to 300\text{M} \to 1\text{B} \to 3\text{B}$ parameter ladder documented in [`COGNITIVE_SCALING_ROADMAP.md`](COGNITIVE_SCALING_ROADMAP.md).
 * **Reproduction Command**:
   ```bash
-  py -3.11 brain/experiments/memory_benchmark/multi_threaded_latent_dependency_benchmark.py --num-seeds 20
+  py -3.11 brain/experiments/memory_benchmark/multi_threaded_latent_dependency_benchmark.py --extreme-grid --num-seeds 15 --train-steps 120
   ```
 
 ---

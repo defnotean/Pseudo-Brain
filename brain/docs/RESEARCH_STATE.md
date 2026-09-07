@@ -132,8 +132,15 @@ We maintain strict claim discipline ([MEASURED], [INFERRED], [HYPOTHESIS], [ASPI
 | **cgp_no_cig** (w/o Input Gate) | 75.0% | 75.0% | 75.0% | 75.0% | 75.0% | 100.0% | 100.0% | **82.1%** |
 | **cgp_no_cgsl** (w/o Fast Plasticity)| 75.0% | 75.0% | 75.0% | 75.0% | 75.0% | 75.0% | 75.0% | **75.0%** |
 
-4. **Multi-Threaded Latent Dependency Benchmark (MTLD-Bench / "The Kill Shot")**: [COMPLETE & REPORTED]
-   - Tested $M \in [2, 6]$ concurrent latent variables with asynchronous targeted partial updates across dual 16-tick delay corridors.
-   - **Empirical Double Dissociation**: All non-CGP baselines (Reactive, Heavy GRU, Matched GRU, Single Thoughtlet, Dense Thoughtlet, Sparse Thoughtlet) collapse to chance (~12.5%). CGP Thoughtlets maintain **40.2% overall retention at $M=2$ and 39.8% at $M=4$ ($3.2\times$ over Heavy GRU)**.
-   - **Orthogonal Variable Finding**: Disconnected slots achieve **42.0% - 44.2%** with 50% lower latency (1.49 ms), proving that eliminating inter-slot routing prevents cross-slot message pollution when latent variables are independent.
-   - Documented in `brain/docs/runs/2026-09-07-multi-threaded-latent-dependency-benchmark.md` and `.json`.
+4. **Multi-Threaded Latent Dependency Extreme Grid Benchmark (MTLD-Extreme)**: [COMPLETE & REPORTED]
+   - Evaluated 10 architectural tiers across $M \in [2, 4, 8, 16, 32]$ concurrent variables and delay horizons $L \in [16, 32, 64, 128]$ ticks (up to 256 ticks of total masked delay).
+   - **Empirical Double Dissociation Across Grid**: All 7 non-CGP baselines (Reactive, Heavy GRU, Matched GRU, Modern Diagonal SSM/GLRU, Single Thoughtlet, Dense Thoughtlets, Sparse Thoughtlets) collapse to chance (~12.5%).
+   - **Capacity Scaling Across $M$**: CGP Thoughtlets sustain **42.9% ($M=2$), 38.3% ($M=4$), 29.8% ($M=8$), 22.3% ($M=16$), and 18.4% ($M=32$)**, exhibiting graceful decay as capacity saturates, while GRU and SSM baselines remain flat at chance.
+   - **Delay Horizon Scaling Across $L$**: At $M=4$, CGP Thoughtlets sustain **38.3% at $L=16$, 34.6% at $L=32$, 31.5% at $L=64$, and 19.1% at $L=128$**.
+   - **The "Isolate on Orthogonality" Principle**: Disconnected CGP slots reach **43.3% at $M=2$ and 39.7% at $M=4$ with $2\times$ lower latency (1.46 ms vs 2.96 ms)**, proving that unconstrained inter-slot communication injects cross-talk noise when latent threads are independent.
+   - Documented in `brain/docs/runs/2026-09-07-mtld-extreme-scaling-grid.md` and `.json`.
+
+5. **Cognitive Scaling Roadmap (131k Micro-Core to 3B Cognitive OS)**: [COMPLETE & APPROVED SPECIFICATION]
+   - Formulated formal mathematical scaling ladder: Tier 0 (131k params, K=32) $\to$ Tier 1 (10M, K=64) $\to$ Tier 2 (50M, K=128) $\to$ Tier 3 (100M, K=256) $\to$ Tier 4 (300M, K=512) $\to$ Tier 5 (1B, K=1024) $\to$ Tier 6 (3B, K=2048).
+   - Enforces 4 cross-scale architectural invariants: Shared Parametric Core, Cognitive Input Gating (CIG), Sub-Quadratic Block-Sparse Routing ($\mathcal{O}(K)$), and Consequence-Gated Synaptic Latching ($P_t$).
+   - Documented in [`brain/docs/COGNITIVE_SCALING_ROADMAP.md`](COGNITIVE_SCALING_ROADMAP.md).

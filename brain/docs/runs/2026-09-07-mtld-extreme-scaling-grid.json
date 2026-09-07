@@ -1,0 +1,921 @@
+{
+  "m_sweep": [
+    2,
+    4,
+    8,
+    16,
+    32
+  ],
+  "delay_sweep": [
+    16,
+    32,
+    64,
+    128
+  ],
+  "num_eval_seeds": 15,
+  "train_steps": 120,
+  "architectures": {
+    "reactive": {
+      "name": "Reactive Baseline (Feedforward)",
+      "total_params": 50568,
+      "trainable_params": 50568,
+      "state_dim": 0,
+      "flops_canonical": 4114432
+    },
+    "gru_heavy": {
+      "name": "Monolithic Heavy GRU (H=384, 1.37M)",
+      "total_params": 521480,
+      "trainable_params": 521480,
+      "state_dim": 384,
+      "flops_canonical": 42571776
+    },
+    "gru_matched": {
+      "name": "Monolithic Matched GRU (~280k params)",
+      "total_params": 199880,
+      "trainable_params": 199880,
+      "state_dim": 94,
+      "flops_canonical": 16280280
+    },
+    "glru_diagonal": {
+      "name": "Modern Diagonal SSM (GLRU/S4D)",
+      "total_params": 150920,
+      "trainable_params": 150920,
+      "state_dim": 384,
+      "flops_canonical": 12306560
+    },
+    "single_thoughtlet": {
+      "name": "Single Thoughtlet (K=1, W=80)",
+      "total_params": 170984,
+      "trainable_params": 170984,
+      "state_dim": 80,
+      "flops_canonical": 13917696
+    },
+    "dense_thoughtlet": {
+      "name": "Dense Thoughtlets (K=32, W=12)",
+      "total_params": 127756,
+      "trainable_params": 127756,
+      "state_dim": 384,
+      "flops_canonical": 38415360
+    },
+    "sparse_thoughtlet": {
+      "name": "Sparse Thoughtlets (K=32, Top-4)",
+      "total_params": 127408,
+      "trainable_params": 127408,
+      "state_dim": 384,
+      "flops_canonical": 36148224
+    },
+    "cgp_thoughtlet": {
+      "name": "CGP Thoughtlets (CIG + CGSL P_t)",
+      "total_params": 131239,
+      "trainable_params": 131239,
+      "state_dim": 384,
+      "flops_canonical": 36968224
+    },
+    "cgp_shuffled_ablation": {
+      "name": "CGP - Shuffled Slots Ablation",
+      "total_params": 131239,
+      "trainable_params": 131239,
+      "state_dim": 384,
+      "flops_canonical": 36968224
+    },
+    "cgp_disconnected_ablation": {
+      "name": "CGP - Disconnected Slots Ablation",
+      "total_params": 131239,
+      "trainable_params": 131239,
+      "state_dim": 384,
+      "flops_canonical": 36968224
+    }
+  },
+  "m_capacity_scaling": {
+    "2": {
+      "reactive": {
+        "overall_retention_accuracy": 13.333333333333334,
+        "untouched_retention_accuracy": 12.916666666666668,
+        "cross_talk_error_rate": 87.08333333333333,
+        "updated_retention_accuracy": 13.750000000000002,
+        "latency_ms_mean": 0.021397500000000003,
+        "latency_ms_p90": 0.02206625,
+        "efficiency_score": 6.637463769479374
+      },
+      "gru_heavy": {
+        "overall_retention_accuracy": 13.333333333333334,
+        "untouched_retention_accuracy": 12.916666666666668,
+        "cross_talk_error_rate": 87.08333333333333,
+        "updated_retention_accuracy": 13.750000000000002,
+        "latency_ms_mean": 0.3647416666666666,
+        "latency_ms_p90": 0.38768125000000003,
+        "efficiency_score": 0.0036492705426827998
+      },
+      "gru_matched": {
+        "overall_retention_accuracy": 14.166666666666666,
+        "untouched_retention_accuracy": 16.666666666666664,
+        "cross_talk_error_rate": 83.33333333333334,
+        "updated_retention_accuracy": 11.666666666666666,
+        "latency_ms_mean": 0.27579708333333325,
+        "latency_ms_p90": 0.30035125,
+        "efficiency_score": 0.03498315094194411
+      },
+      "glru_diagonal": {
+        "overall_retention_accuracy": 14.166666666666666,
+        "untouched_retention_accuracy": 16.666666666666664,
+        "cross_talk_error_rate": 83.33333333333334,
+        "updated_retention_accuracy": 11.666666666666666,
+        "latency_ms_mean": 0.19406458333333335,
+        "latency_ms_p90": 0.20024875,
+        "efficiency_score": 0.08710639685094032
+      },
+      "single_thoughtlet": {
+        "overall_retention_accuracy": 14.166666666666666,
+        "untouched_retention_accuracy": 16.25,
+        "cross_talk_error_rate": 83.75,
+        "updated_retention_accuracy": 12.083333333333334,
+        "latency_ms_mean": 0.3837929166666667,
+        "latency_ms_p90": 0.40926375,
+        "efficiency_score": 0.034376371157084244
+      },
+      "dense_thoughtlet": {
+        "overall_retention_accuracy": 14.166666666666666,
+        "untouched_retention_accuracy": 16.666666666666664,
+        "cross_talk_error_rate": 83.33333333333334,
+        "updated_retention_accuracy": 11.666666666666666,
+        "latency_ms_mean": 1.7130458333333334,
+        "latency_ms_p90": 1.8302875,
+        "efficiency_score": 0.003734432445594858
+      },
+      "sparse_thoughtlet": {
+        "overall_retention_accuracy": 14.166666666666666,
+        "untouched_retention_accuracy": 16.666666666666664,
+        "cross_talk_error_rate": 83.33333333333334,
+        "updated_retention_accuracy": 11.666666666666666,
+        "latency_ms_mean": 2.2508508333333332,
+        "latency_ms_p90": 2.3408937499999998,
+        "efficiency_score": 0.003028652356336892
+      },
+      "cgp_thoughtlet": {
+        "overall_retention_accuracy": 42.916666666666664,
+        "untouched_retention_accuracy": 53.333333333333336,
+        "cross_talk_error_rate": 46.666666666666664,
+        "updated_retention_accuracy": 32.5,
+        "latency_ms_mean": 2.9563858333333335,
+        "latency_ms_p90": 3.101075,
+        "efficiency_score": 0.0066310988076637364
+      },
+      "cgp_shuffled_ablation": {
+        "overall_retention_accuracy": 39.58333333333333,
+        "untouched_retention_accuracy": 59.583333333333336,
+        "cross_talk_error_rate": 40.416666666666664,
+        "updated_retention_accuracy": 19.583333333333332,
+        "latency_ms_mean": 2.8678500000000002,
+        "latency_ms_p90": 3.0097675,
+        "efficiency_score": 0.006304876152339045
+      },
+      "cgp_disconnected_ablation": {
+        "overall_retention_accuracy": 43.333333333333336,
+        "untouched_retention_accuracy": 56.25,
+        "cross_talk_error_rate": 43.75,
+        "updated_retention_accuracy": 30.416666666666664,
+        "latency_ms_mean": 1.4637324999999997,
+        "latency_ms_p90": 1.55869375,
+        "efficiency_score": 0.013523247937738812
+      }
+    },
+    "4": {
+      "reactive": {
+        "overall_retention_accuracy": 10.833333333333334,
+        "untouched_retention_accuracy": 11.527777777777779,
+        "cross_talk_error_rate": 88.47222222222223,
+        "updated_retention_accuracy": 8.75,
+        "latency_ms_mean": 0.023259166666666668,
+        "latency_ms_p90": 0.026664999999999998,
+        "efficiency_score": 8.954519375774066
+      },
+      "gru_heavy": {
+        "overall_retention_accuracy": 10.833333333333334,
+        "untouched_retention_accuracy": 11.25,
+        "cross_talk_error_rate": 88.75,
+        "updated_retention_accuracy": 9.583333333333334,
+        "latency_ms_mean": 0.4074941666666667,
+        "latency_ms_p90": 0.42626375,
+        "efficiency_score": 0.0047900635608175155
+      },
+      "gru_matched": {
+        "overall_retention_accuracy": 11.354166666666666,
+        "untouched_retention_accuracy": 12.36111111111111,
+        "cross_talk_error_rate": 87.63888888888889,
+        "updated_retention_accuracy": 8.333333333333332,
+        "latency_ms_mean": 0.3098508333333333,
+        "latency_ms_p90": 0.3371875,
+        "efficiency_score": 0.045043422008430825
+      },
+      "glru_diagonal": {
+        "overall_retention_accuracy": 11.354166666666666,
+        "untouched_retention_accuracy": 12.36111111111111,
+        "cross_talk_error_rate": 87.63888888888889,
+        "updated_retention_accuracy": 8.333333333333332,
+        "latency_ms_mean": 0.20908541666666663,
+        "latency_ms_p90": 0.22109875,
+        "efficiency_score": 0.11695210517920843
+      },
+      "single_thoughtlet": {
+        "overall_retention_accuracy": 10.3125,
+        "untouched_retention_accuracy": 10.972222222222221,
+        "cross_talk_error_rate": 89.02777777777777,
+        "updated_retention_accuracy": 8.333333333333332,
+        "latency_ms_mean": 0.4230725000000001,
+        "latency_ms_p90": 0.44993,
+        "efficiency_score": 0.04097192199646787
+      },
+      "dense_thoughtlet": {
+        "overall_retention_accuracy": 11.354166666666666,
+        "untouched_retention_accuracy": 12.36111111111111,
+        "cross_talk_error_rate": 87.63888888888889,
+        "updated_retention_accuracy": 8.333333333333332,
+        "latency_ms_mean": 1.9140237499999997,
+        "latency_ms_p90": 2.05463125,
+        "efficiency_score": 0.0048348357051500425
+      },
+      "sparse_thoughtlet": {
+        "overall_retention_accuracy": 11.354166666666666,
+        "untouched_retention_accuracy": 12.36111111111111,
+        "cross_talk_error_rate": 87.63888888888889,
+        "updated_retention_accuracy": 8.333333333333332,
+        "latency_ms_mean": 2.5115366666666668,
+        "latency_ms_p90": 2.65079625,
+        "efficiency_score": 0.003926377660537091
+      },
+      "cgp_thoughtlet": {
+        "overall_retention_accuracy": 38.333333333333336,
+        "untouched_retention_accuracy": 37.916666666666664,
+        "cross_talk_error_rate": 62.083333333333336,
+        "updated_retention_accuracy": 39.58333333333333,
+        "latency_ms_mean": 3.2200650000000004,
+        "latency_ms_p90": 3.34395125,
+        "efficiency_score": 0.00981477705579764
+      },
+      "cgp_shuffled_ablation": {
+        "overall_retention_accuracy": 37.916666666666664,
+        "untouched_retention_accuracy": 39.30555555555556,
+        "cross_talk_error_rate": 60.69444444444444,
+        "updated_retention_accuracy": 33.75,
+        "latency_ms_mean": 3.1908433333333335,
+        "latency_ms_p90": 3.33092125,
+        "efficiency_score": 0.009797001194732454
+      },
+      "cgp_disconnected_ablation": {
+        "overall_retention_accuracy": 39.6875,
+        "untouched_retention_accuracy": 39.72222222222222,
+        "cross_talk_error_rate": 60.27777777777778,
+        "updated_retention_accuracy": 39.58333333333333,
+        "latency_ms_mean": 1.6250720833333334,
+        "latency_ms_p90": 1.7070925000000001,
+        "efficiency_score": 0.020134905917407707
+      }
+    },
+    "8": {
+      "reactive": {
+        "overall_retention_accuracy": 12.916666666666668,
+        "untouched_retention_accuracy": 12.678571428571427,
+        "cross_talk_error_rate": 87.32142857142857,
+        "updated_retention_accuracy": 14.583333333333334,
+        "latency_ms_mean": 0.02423041666666666,
+        "latency_ms_p90": 0.025097500000000002,
+        "efficiency_score": 17.150692764252206
+      },
+      "gru_heavy": {
+        "overall_retention_accuracy": 12.864583333333332,
+        "untouched_retention_accuracy": 12.738095238095237,
+        "cross_talk_error_rate": 87.26190476190476,
+        "updated_retention_accuracy": 13.750000000000002,
+        "latency_ms_mean": 0.48521250000000005,
+        "latency_ms_p90": 0.50228375,
+        "efficiency_score": 0.007994330198569896
+      },
+      "gru_matched": {
+        "overall_retention_accuracy": 13.750000000000002,
+        "untouched_retention_accuracy": 13.63095238095238,
+        "cross_talk_error_rate": 86.36904761904762,
+        "updated_retention_accuracy": 14.583333333333334,
+        "latency_ms_mean": 0.3666945833333333,
+        "latency_ms_p90": 0.39002125,
+        "efficiency_score": 0.07713380514051305
+      },
+      "glru_diagonal": {
+        "overall_retention_accuracy": 13.697916666666668,
+        "untouched_retention_accuracy": 13.571428571428571,
+        "cross_talk_error_rate": 86.42857142857143,
+        "updated_retention_accuracy": 14.583333333333334,
+        "latency_ms_mean": 0.24749458333333335,
+        "latency_ms_p90": 0.25893625000000003,
+        "efficiency_score": 0.19947253875379317
+      },
+      "single_thoughtlet": {
+        "overall_retention_accuracy": 12.291666666666666,
+        "untouched_retention_accuracy": 12.023809523809524,
+        "cross_talk_error_rate": 87.97619047619048,
+        "updated_retention_accuracy": 14.166666666666666,
+        "latency_ms_mean": 0.5009283333333332,
+        "latency_ms_p90": 0.52707625,
+        "efficiency_score": 0.06902241050396536
+      },
+      "dense_thoughtlet": {
+        "overall_retention_accuracy": 13.697916666666668,
+        "untouched_retention_accuracy": 13.571428571428571,
+        "cross_talk_error_rate": 86.42857142857143,
+        "updated_retention_accuracy": 14.583333333333334,
+        "latency_ms_mean": 2.3046145833333336,
+        "latency_ms_p90": 2.34725,
+        "efficiency_score": 0.008106768374682785
+      },
+      "sparse_thoughtlet": {
+        "overall_retention_accuracy": 13.697916666666668,
+        "untouched_retention_accuracy": 13.571428571428571,
+        "cross_talk_error_rate": 86.42857142857143,
+        "updated_retention_accuracy": 14.583333333333334,
+        "latency_ms_mean": 2.9405733333333335,
+        "latency_ms_p90": 2.9979175,
+        "efficiency_score": 0.006770435511297439
+      },
+      "cgp_thoughtlet": {
+        "overall_retention_accuracy": 29.791666666666668,
+        "untouched_retention_accuracy": 28.392857142857142,
+        "cross_talk_error_rate": 71.60714285714286,
+        "updated_retention_accuracy": 39.58333333333333,
+        "latency_ms_mean": 3.7993416666666664,
+        "latency_ms_p90": 3.9550787499999998,
+        "efficiency_score": 0.010818641101931002
+      },
+      "cgp_shuffled_ablation": {
+        "overall_retention_accuracy": 29.6875,
+        "untouched_retention_accuracy": 28.809523809523807,
+        "cross_talk_error_rate": 71.19047619047619,
+        "updated_retention_accuracy": 35.833333333333336,
+        "latency_ms_mean": 3.78238625,
+        "latency_ms_p90": 3.92435625,
+        "efficiency_score": 0.010829141163426918
+      },
+      "cgp_disconnected_ablation": {
+        "overall_retention_accuracy": 30.989583333333332,
+        "untouched_retention_accuracy": 28.095238095238095,
+        "cross_talk_error_rate": 71.9047619047619,
+        "updated_retention_accuracy": 51.24999999999999,
+        "latency_ms_mean": 1.9299083333333333,
+        "latency_ms_p90": 2.0574025,
+        "efficiency_score": 0.02215467174796159
+      }
+    },
+    "16": {
+      "reactive": {
+        "overall_retention_accuracy": 12.395833333333334,
+        "untouched_retention_accuracy": 12.5,
+        "cross_talk_error_rate": 87.5,
+        "updated_retention_accuracy": 10.833333333333334,
+        "latency_ms_mean": 0.03048916666666666,
+        "latency_ms_p90": 0.033209999999999996,
+        "efficiency_score": 19.721275058577007
+      },
+      "gru_heavy": {
+        "overall_retention_accuracy": 12.291666666666666,
+        "untouched_retention_accuracy": 12.416666666666666,
+        "cross_talk_error_rate": 87.58333333333333,
+        "updated_retention_accuracy": 10.416666666666668,
+        "latency_ms_mean": 0.6458558333333333,
+        "latency_ms_p90": 0.66974375,
+        "efficiency_score": 0.008651795494802066
+      },
+      "gru_matched": {
+        "overall_retention_accuracy": 12.291666666666666,
+        "untouched_retention_accuracy": 12.305555555555555,
+        "cross_talk_error_rate": 87.69444444444444,
+        "updated_retention_accuracy": 12.083333333333334,
+        "latency_ms_mean": 0.4707679166666666,
+        "latency_ms_p90": 0.51475125,
+        "efficiency_score": 0.08097728072383759
+      },
+      "glru_diagonal": {
+        "overall_retention_accuracy": 12.317708333333334,
+        "untouched_retention_accuracy": 12.333333333333334,
+        "cross_talk_error_rate": 87.66666666666667,
+        "updated_retention_accuracy": 12.083333333333334,
+        "latency_ms_mean": 0.3280612500000001,
+        "latency_ms_p90": 0.34661875,
+        "efficiency_score": 0.20402434572630207
+      },
+      "single_thoughtlet": {
+        "overall_retention_accuracy": 12.161458333333334,
+        "untouched_retention_accuracy": 12.083333333333334,
+        "cross_talk_error_rate": 87.91666666666667,
+        "updated_retention_accuracy": 13.333333333333334,
+        "latency_ms_mean": 0.6448975,
+        "latency_ms_p90": 0.7050887499999999,
+        "efficiency_score": 0.07997654281057795
+      },
+      "dense_thoughtlet": {
+        "overall_retention_accuracy": 12.317708333333334,
+        "untouched_retention_accuracy": 12.333333333333334,
+        "cross_talk_error_rate": 87.66666666666667,
+        "updated_retention_accuracy": 12.083333333333334,
+        "latency_ms_mean": 3.0390066666666664,
+        "latency_ms_p90": 3.20889625,
+        "efficiency_score": 0.00833494106143921
+      },
+      "sparse_thoughtlet": {
+        "overall_retention_accuracy": 12.239583333333332,
+        "untouched_retention_accuracy": 12.25,
+        "cross_talk_error_rate": 87.75,
+        "updated_retention_accuracy": 12.083333333333334,
+        "latency_ms_mean": 3.7879750000000008,
+        "latency_ms_p90": 3.875545,
+        "efficiency_score": 0.007080539485682966
+      },
+      "cgp_thoughtlet": {
+        "overall_retention_accuracy": 22.291666666666668,
+        "untouched_retention_accuracy": 21.36111111111111,
+        "cross_talk_error_rate": 78.63888888888889,
+        "updated_retention_accuracy": 36.25,
+        "latency_ms_mean": 4.974185833333334,
+        "latency_ms_p90": 5.13902625,
+        "efficiency_score": 0.009322223634865116
+      },
+      "cgp_shuffled_ablation": {
+        "overall_retention_accuracy": 21.875,
+        "untouched_retention_accuracy": 21.22222222222222,
+        "cross_talk_error_rate": 78.77777777777777,
+        "updated_retention_accuracy": 31.666666666666664,
+        "latency_ms_mean": 5.005555000000001,
+        "latency_ms_p90": 5.16899125,
+        "efficiency_score": 0.009090647277173526
+      },
+      "cgp_disconnected_ablation": {
+        "overall_retention_accuracy": 23.020833333333332,
+        "untouched_retention_accuracy": 21.63888888888889,
+        "cross_talk_error_rate": 78.36111111111111,
+        "updated_retention_accuracy": 43.75,
+        "latency_ms_mean": 2.5002833333333334,
+        "latency_ms_p90": 2.62495,
+        "efficiency_score": 0.01915273491834698
+      }
+    },
+    "32": {
+      "reactive": {
+        "overall_retention_accuracy": 12.890625,
+        "untouched_retention_accuracy": 12.903225806451612,
+        "cross_talk_error_rate": 87.09677419354838,
+        "updated_retention_accuracy": 12.5,
+        "latency_ms_mean": 0.04282291666666667,
+        "latency_ms_p90": 0.04640875,
+        "efficiency_score": 19.569249268880096
+      },
+      "gru_heavy": {
+        "overall_retention_accuracy": 12.760416666666666,
+        "untouched_retention_accuracy": 12.782258064516128,
+        "cross_talk_error_rate": 87.21774193548387,
+        "updated_retention_accuracy": 12.083333333333334,
+        "latency_ms_mean": 0.9606937500000001,
+        "latency_ms_p90": 1.00197,
+        "efficiency_score": 0.008092497350927654
+      },
+      "gru_matched": {
+        "overall_retention_accuracy": 12.864583333333332,
+        "untouched_retention_accuracy": 12.903225806451612,
+        "cross_talk_error_rate": 87.09677419354838,
+        "updated_retention_accuracy": 11.666666666666666,
+        "latency_ms_mean": 0.7348545833333334,
+        "latency_ms_p90": 0.77427,
+        "efficiency_score": 0.0727654479747644
+      },
+      "glru_diagonal": {
+        "overall_retention_accuracy": 12.903645833333332,
+        "untouched_retention_accuracy": 12.93010752688172,
+        "cross_talk_error_rate": 87.06989247311827,
+        "updated_retention_accuracy": 12.083333333333334,
+        "latency_ms_mean": 0.5157979166666666,
+        "latency_ms_p90": 0.53434,
+        "efficiency_score": 0.18218452372814
+      },
+      "single_thoughtlet": {
+        "overall_retention_accuracy": 12.981770833333334,
+        "untouched_retention_accuracy": 12.956989247311828,
+        "cross_talk_error_rate": 87.04301075268818,
+        "updated_retention_accuracy": 13.750000000000002,
+        "latency_ms_mean": 0.9787066666666665,
+        "latency_ms_p90": 1.0260125,
+        "efficiency_score": 0.07539120304891239
+      },
+      "dense_thoughtlet": {
+        "overall_retention_accuracy": 12.916666666666668,
+        "untouched_retention_accuracy": 12.943548387096774,
+        "cross_talk_error_rate": 87.05645161290323,
+        "updated_retention_accuracy": 12.083333333333334,
+        "latency_ms_mean": 4.577025833333333,
+        "latency_ms_p90": 4.72806125,
+        "efficiency_score": 0.007777552943008198
+      },
+      "sparse_thoughtlet": {
+        "overall_retention_accuracy": 12.9296875,
+        "untouched_retention_accuracy": 12.956989247311828,
+        "cross_talk_error_rate": 87.04301075268818,
+        "updated_retention_accuracy": 12.083333333333334,
+        "latency_ms_mean": 5.4461450000000005,
+        "latency_ms_p90": 5.6584325,
+        "efficiency_score": 0.006972319276045037
+      },
+      "cgp_thoughtlet": {
+        "overall_retention_accuracy": 18.4375,
+        "untouched_retention_accuracy": 18.037634408602152,
+        "cross_talk_error_rate": 81.96236559139786,
+        "updated_retention_accuracy": 30.833333333333336,
+        "latency_ms_mean": 7.433700833333333,
+        "latency_ms_p90": 7.6744475,
+        "efficiency_score": 0.006914607859038755
+      },
+      "cgp_shuffled_ablation": {
+        "overall_retention_accuracy": 17.3046875,
+        "untouched_retention_accuracy": 16.922043010752688,
+        "cross_talk_error_rate": 83.07795698924731,
+        "updated_retention_accuracy": 29.166666666666668,
+        "latency_ms_mean": 7.303750833333335,
+        "latency_ms_p90": 7.605245,
+        "efficiency_score": 0.006605237125771824
+      },
+      "cgp_disconnected_ablation": {
+        "overall_retention_accuracy": 18.138020833333332,
+        "untouched_retention_accuracy": 17.526881720430108,
+        "cross_talk_error_rate": 82.47311827956989,
+        "updated_retention_accuracy": 37.083333333333336,
+        "latency_ms_mean": 3.7798337500000003,
+        "latency_ms_p90": 3.9078275,
+        "efficiency_score": 0.01337789549749371
+      }
+    }
+  },
+  "delay_horizon_scaling": {
+    "16": {
+      "reactive": {
+        "overall_retention_accuracy": 10.833333333333334,
+        "untouched_retention_accuracy": 11.527777777777779,
+        "cross_talk_error_rate": 88.47222222222223,
+        "updated_retention_accuracy": 8.75,
+        "latency_ms_mean": 0.021394166666666662,
+        "latency_ms_p90": 0.022535,
+        "efficiency_score": 9.735114334017451
+      },
+      "gru_heavy": {
+        "overall_retention_accuracy": 10.833333333333334,
+        "untouched_retention_accuracy": 11.25,
+        "cross_talk_error_rate": 88.75,
+        "updated_retention_accuracy": 9.583333333333334,
+        "latency_ms_mean": 0.404735,
+        "latency_ms_p90": 0.42048,
+        "efficiency_score": 0.004822718467628695
+      },
+      "gru_matched": {
+        "overall_retention_accuracy": 11.354166666666666,
+        "untouched_retention_accuracy": 12.36111111111111,
+        "cross_talk_error_rate": 87.63888888888889,
+        "updated_retention_accuracy": 8.333333333333332,
+        "latency_ms_mean": 0.3174849999999999,
+        "latency_ms_p90": 0.34040125,
+        "efficiency_score": 0.043960318898522144
+      },
+      "glru_diagonal": {
+        "overall_retention_accuracy": 11.354166666666666,
+        "untouched_retention_accuracy": 12.36111111111111,
+        "cross_talk_error_rate": 87.63888888888889,
+        "updated_retention_accuracy": 8.333333333333332,
+        "latency_ms_mean": 0.2085529166666667,
+        "latency_ms_p90": 0.22869875,
+        "efficiency_score": 0.11725072002000425
+      },
+      "single_thoughtlet": {
+        "overall_retention_accuracy": 10.3125,
+        "untouched_retention_accuracy": 10.972222222222221,
+        "cross_talk_error_rate": 89.02777777777777,
+        "updated_retention_accuracy": 8.333333333333332,
+        "latency_ms_mean": 0.42059124999999997,
+        "latency_ms_p90": 0.44885375,
+        "efficiency_score": 0.041213633114932036
+      },
+      "dense_thoughtlet": {
+        "overall_retention_accuracy": 11.354166666666666,
+        "untouched_retention_accuracy": 12.36111111111111,
+        "cross_talk_error_rate": 87.63888888888889,
+        "updated_retention_accuracy": 8.333333333333332,
+        "latency_ms_mean": 1.9441541666666668,
+        "latency_ms_p90": 2.03014625,
+        "efficiency_score": 0.004759905631800553
+      },
+      "sparse_thoughtlet": {
+        "overall_retention_accuracy": 11.354166666666666,
+        "untouched_retention_accuracy": 12.36111111111111,
+        "cross_talk_error_rate": 87.63888888888889,
+        "updated_retention_accuracy": 8.333333333333332,
+        "latency_ms_mean": 2.5240083333333336,
+        "latency_ms_p90": 2.59896875,
+        "efficiency_score": 0.003906976586165441
+      },
+      "cgp_thoughtlet": {
+        "overall_retention_accuracy": 38.333333333333336,
+        "untouched_retention_accuracy": 37.916666666666664,
+        "cross_talk_error_rate": 62.083333333333336,
+        "updated_retention_accuracy": 39.58333333333333,
+        "latency_ms_mean": 3.264000416666667,
+        "latency_ms_p90": 3.3556049999999997,
+        "efficiency_score": 0.00968266422969779
+      },
+      "cgp_shuffled_ablation": {
+        "overall_retention_accuracy": 37.916666666666664,
+        "untouched_retention_accuracy": 39.58333333333333,
+        "cross_talk_error_rate": 60.41666666666667,
+        "updated_retention_accuracy": 32.916666666666664,
+        "latency_ms_mean": 3.257458333333333,
+        "latency_ms_p90": 3.38338125,
+        "efficiency_score": 0.009596652589223424
+      },
+      "cgp_disconnected_ablation": {
+        "overall_retention_accuracy": 39.6875,
+        "untouched_retention_accuracy": 39.72222222222222,
+        "cross_talk_error_rate": 60.27777777777778,
+        "updated_retention_accuracy": 39.58333333333333,
+        "latency_ms_mean": 1.5656233333333336,
+        "latency_ms_p90": 1.61627,
+        "efficiency_score": 0.020899454428325078
+      }
+    },
+    "32": {
+      "reactive": {
+        "overall_retention_accuracy": 12.1875,
+        "untouched_retention_accuracy": 13.61111111111111,
+        "cross_talk_error_rate": 86.38888888888889,
+        "updated_retention_accuracy": 7.916666666666666,
+        "latency_ms_mean": 0.033299166666666664,
+        "latency_ms_p90": 0.03572125,
+        "efficiency_score": 3.9519968078443872
+      },
+      "gru_heavy": {
+        "overall_retention_accuracy": 11.354166666666666,
+        "untouched_retention_accuracy": 12.36111111111111,
+        "cross_talk_error_rate": 87.63888888888889,
+        "updated_retention_accuracy": 8.333333333333332,
+        "latency_ms_mean": 0.7189670833333334,
+        "latency_ms_p90": 0.75647375,
+        "efficiency_score": 0.0015981142359475075
+      },
+      "gru_matched": {
+        "overall_retention_accuracy": 12.1875,
+        "untouched_retention_accuracy": 13.750000000000002,
+        "cross_talk_error_rate": 86.25,
+        "updated_retention_accuracy": 7.5,
+        "latency_ms_mean": 0.56505625,
+        "latency_ms_p90": 0.59548875,
+        "efficiency_score": 0.014890618016846144
+      },
+      "glru_diagonal": {
+        "overall_retention_accuracy": 12.1875,
+        "untouched_retention_accuracy": 13.750000000000002,
+        "cross_talk_error_rate": 86.25,
+        "updated_retention_accuracy": 7.5,
+        "latency_ms_mean": 0.3869875,
+        "latency_ms_p90": 0.40224,
+        "efficiency_score": 0.03809388000961288
+      },
+      "single_thoughtlet": {
+        "overall_retention_accuracy": 11.5625,
+        "untouched_retention_accuracy": 11.944444444444445,
+        "cross_talk_error_rate": 88.05555555555556,
+        "updated_retention_accuracy": 10.416666666666668,
+        "latency_ms_mean": 0.7459608333333333,
+        "latency_ms_p90": 0.78659875,
+        "efficiency_score": 0.014633017412374421
+      },
+      "dense_thoughtlet": {
+        "overall_retention_accuracy": 12.1875,
+        "untouched_retention_accuracy": 13.750000000000002,
+        "cross_talk_error_rate": 86.25,
+        "updated_retention_accuracy": 7.5,
+        "latency_ms_mean": 3.4160674999999996,
+        "latency_ms_p90": 3.56331125,
+        "efficiency_score": 0.0016331382849985616
+      },
+      "sparse_thoughtlet": {
+        "overall_retention_accuracy": 12.1875,
+        "untouched_retention_accuracy": 13.750000000000002,
+        "cross_talk_error_rate": 86.25,
+        "updated_retention_accuracy": 7.5,
+        "latency_ms_mean": 4.1505350000000005,
+        "latency_ms_p90": 4.346007500000001,
+        "efficiency_score": 0.0014323457803332971
+      },
+      "cgp_thoughtlet": {
+        "overall_retention_accuracy": 34.583333333333336,
+        "untouched_retention_accuracy": 32.083333333333336,
+        "cross_talk_error_rate": 67.91666666666666,
+        "updated_retention_accuracy": 42.083333333333336,
+        "latency_ms_mean": 5.605458749999999,
+        "latency_ms_p90": 5.92969,
+        "efficiency_score": 0.0028568351325203765
+      },
+      "cgp_shuffled_ablation": {
+        "overall_retention_accuracy": 35.208333333333336,
+        "untouched_retention_accuracy": 39.166666666666664,
+        "cross_talk_error_rate": 60.833333333333336,
+        "updated_retention_accuracy": 23.333333333333332,
+        "latency_ms_mean": 5.69066875,
+        "latency_ms_p90": 5.832705,
+        "efficiency_score": 0.002864914392881195
+      },
+      "cgp_disconnected_ablation": {
+        "overall_retention_accuracy": 35.3125,
+        "untouched_retention_accuracy": 35.41666666666667,
+        "cross_talk_error_rate": 64.58333333333333,
+        "updated_retention_accuracy": 35.0,
+        "latency_ms_mean": 2.8583675,
+        "latency_ms_p90": 2.98164875,
+        "efficiency_score": 0.005720577693273399
+      }
+    },
+    "64": {
+      "reactive": {
+        "overall_retention_accuracy": 10.833333333333334,
+        "untouched_retention_accuracy": 10.555555555555555,
+        "cross_talk_error_rate": 89.44444444444444,
+        "updated_retention_accuracy": 11.666666666666666,
+        "latency_ms_mean": 0.05802250000000001,
+        "latency_ms_p90": 0.060375,
+        "efficiency_score": 1.0742448580477082
+      },
+      "gru_heavy": {
+        "overall_retention_accuracy": 11.875,
+        "untouched_retention_accuracy": 11.805555555555555,
+        "cross_talk_error_rate": 88.19444444444444,
+        "updated_retention_accuracy": 12.083333333333334,
+        "latency_ms_mean": 1.3711304166666667,
+        "latency_ms_p90": 1.39617,
+        "efficiency_score": 0.0004670019659144989
+      },
+      "gru_matched": {
+        "overall_retention_accuracy": 10.833333333333334,
+        "untouched_retention_accuracy": 10.277777777777777,
+        "cross_talk_error_rate": 89.72222222222223,
+        "updated_retention_accuracy": 12.5,
+        "latency_ms_mean": 1.0426725,
+        "latency_ms_p90": 1.0796425,
+        "efficiency_score": 0.003822137064268092
+      },
+      "glru_diagonal": {
+        "overall_retention_accuracy": 10.833333333333334,
+        "untouched_retention_accuracy": 10.277777777777777,
+        "cross_talk_error_rate": 89.72222222222223,
+        "updated_retention_accuracy": 12.5,
+        "latency_ms_mean": 0.73146625,
+        "latency_ms_p90": 0.76251,
+        "efficiency_score": 0.009545696557383982
+      },
+      "single_thoughtlet": {
+        "overall_retention_accuracy": 11.25,
+        "untouched_retention_accuracy": 11.527777777777779,
+        "cross_talk_error_rate": 88.47222222222223,
+        "updated_retention_accuracy": 10.416666666666668,
+        "latency_ms_mean": 1.41317,
+        "latency_ms_p90": 1.4692,
+        "efficiency_score": 0.004004594764203419
+      },
+      "dense_thoughtlet": {
+        "overall_retention_accuracy": 10.833333333333334,
+        "untouched_retention_accuracy": 10.277777777777777,
+        "cross_talk_error_rate": 89.72222222222223,
+        "updated_retention_accuracy": 12.5,
+        "latency_ms_mean": 6.48966625,
+        "latency_ms_p90": 6.68934125,
+        "efficiency_score": 0.0004071709745723975
+      },
+      "sparse_thoughtlet": {
+        "overall_retention_accuracy": 10.833333333333334,
+        "untouched_retention_accuracy": 10.277777777777777,
+        "cross_talk_error_rate": 89.72222222222223,
+        "updated_retention_accuracy": 12.5,
+        "latency_ms_mean": 7.460765416666667,
+        "latency_ms_p90": 8.12071,
+        "efficiency_score": 0.0003774142892717376
+      },
+      "cgp_thoughtlet": {
+        "overall_retention_accuracy": 31.458333333333332,
+        "untouched_retention_accuracy": 33.19444444444444,
+        "cross_talk_error_rate": 66.80555555555556,
+        "updated_retention_accuracy": 26.25,
+        "latency_ms_mean": 10.645474583333336,
+        "latency_ms_p90": 11.109507500000001,
+        "efficiency_score": 0.0007291257965038164
+      },
+      "cgp_shuffled_ablation": {
+        "overall_retention_accuracy": 34.791666666666664,
+        "untouched_retention_accuracy": 39.166666666666664,
+        "cross_talk_error_rate": 60.833333333333336,
+        "updated_retention_accuracy": 21.666666666666668,
+        "latency_ms_mean": 10.507884166666667,
+        "latency_ms_p90": 10.820863750000001,
+        "efficiency_score": 0.0008169429671457304
+      },
+      "cgp_disconnected_ablation": {
+        "overall_retention_accuracy": 23.645833333333332,
+        "untouched_retention_accuracy": 23.194444444444446,
+        "cross_talk_error_rate": 76.80555555555556,
+        "updated_retention_accuracy": 25.0,
+        "latency_ms_mean": 5.2989475,
+        "latency_ms_p90": 5.49008,
+        "efficiency_score": 0.0011010240076037526
+      }
+    },
+    "128": {
+      "reactive": {
+        "overall_retention_accuracy": 11.770833333333334,
+        "untouched_retention_accuracy": 11.25,
+        "cross_talk_error_rate": 88.75,
+        "updated_retention_accuracy": 13.333333333333334,
+        "latency_ms_mean": 0.1488058333333333,
+        "latency_ms_p90": 0.132575,
+        "efficiency_score": 0.23528788282975444
+      },
+      "gru_heavy": {
+        "overall_retention_accuracy": 11.041666666666666,
+        "untouched_retention_accuracy": 10.833333333333334,
+        "cross_talk_error_rate": 89.16666666666667,
+        "updated_retention_accuracy": 11.666666666666666,
+        "latency_ms_mean": 2.8140191666666667,
+        "latency_ms_p90": 3.0152025,
+        "efficiency_score": 0.00010938206799999744
+      },
+      "gru_matched": {
+        "overall_retention_accuracy": 12.083333333333334,
+        "untouched_retention_accuracy": 12.083333333333334,
+        "cross_talk_error_rate": 87.91666666666667,
+        "updated_retention_accuracy": 12.083333333333334,
+        "latency_ms_mean": 2.0297395833333334,
+        "latency_ms_p90": 2.11838625,
+        "efficiency_score": 0.0011321740549834868
+      },
+      "glru_diagonal": {
+        "overall_retention_accuracy": 12.083333333333334,
+        "untouched_retention_accuracy": 12.083333333333334,
+        "cross_talk_error_rate": 87.91666666666667,
+        "updated_retention_accuracy": 12.083333333333334,
+        "latency_ms_mean": 1.3712004166666665,
+        "latency_ms_p90": 1.4366475,
+        "efficiency_score": 0.0029362993150092932
+      },
+      "single_thoughtlet": {
+        "overall_retention_accuracy": 12.5,
+        "untouched_retention_accuracy": 12.222222222222221,
+        "cross_talk_error_rate": 87.77777777777777,
+        "updated_retention_accuracy": 13.333333333333334,
+        "latency_ms_mean": 2.714229583333333,
+        "latency_ms_p90": 2.85330375,
+        "efficiency_score": 0.0011976739086836082
+      },
+      "dense_thoughtlet": {
+        "overall_retention_accuracy": 12.083333333333334,
+        "untouched_retention_accuracy": 12.083333333333334,
+        "cross_talk_error_rate": 87.91666666666667,
+        "updated_retention_accuracy": 12.083333333333334,
+        "latency_ms_mean": 12.757235416666667,
+        "latency_ms_p90": 13.288723749999999,
+        "efficiency_score": 0.00011943784180671586
+      },
+      "sparse_thoughtlet": {
+        "overall_retention_accuracy": 12.083333333333334,
+        "untouched_retention_accuracy": 12.083333333333334,
+        "cross_talk_error_rate": 87.91666666666667,
+        "updated_retention_accuracy": 12.083333333333334,
+        "latency_ms_mean": 13.989326666666667,
+        "latency_ms_p90": 14.359945,
+        "efficiency_score": 0.00011606579635375706
+      },
+      "cgp_thoughtlet": {
+        "overall_retention_accuracy": 19.0625,
+        "untouched_retention_accuracy": 21.38888888888889,
+        "cross_talk_error_rate": 78.61111111111111,
+        "updated_retention_accuracy": 12.083333333333334,
+        "latency_ms_mean": 20.579281666666667,
+        "latency_ms_p90": 21.00304125,
+        "efficiency_score": 0.00011815609243166441
+      },
+      "cgp_shuffled_ablation": {
+        "overall_retention_accuracy": 27.500000000000004,
+        "untouched_retention_accuracy": 29.583333333333332,
+        "cross_talk_error_rate": 70.41666666666667,
+        "updated_retention_accuracy": 21.25,
+        "latency_ms_mean": 20.30006666666667,
+        "latency_ms_p90": 20.8309875,
+        "efficiency_score": 0.00017279919072944868
+      },
+      "cgp_disconnected_ablation": {
+        "overall_retention_accuracy": 14.6875,
+        "untouched_retention_accuracy": 15.277777777777779,
+        "cross_talk_error_rate": 84.72222222222223,
+        "updated_retention_accuracy": 12.916666666666668,
+        "latency_ms_mean": 10.155559583333334,
+        "latency_ms_p90": 10.523215,
+        "efficiency_score": 0.0001844805121492749
+      }
+    }
+  }
+}

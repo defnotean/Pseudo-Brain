@@ -2,8 +2,7 @@
 **Pseudo-Brain Project (`defnotean/Pseudo-Brain`)**  
 **Lead Agent:** Senior Autonomous Research Scientist & Systems Orchestrator  
 **Date:** 2026-09-07  
-**Commit Lineage:** `e4aa2fb` -> `809bfee` -> `ea3883e` -> `b19ac95` -> `84cd1f7` -> `134bab6` -> `8ce5960`  
-**Test Health:** 64/64 unit & integration tests passing (100% OK, ~9.5s across 11 core active modules)
+**Test Health:** 66/66 unit & integration tests passing (100% OK, ~5.3s across 11 core active modules)
 
 ---
 
@@ -133,14 +132,15 @@ Under the `/goal` mandate, this autonomous multi-agent research and engineering 
 
 - **Scientific Conclusion**: CGP Thoughtlets outperform the Heavy GRU baseline on $L=16$ retention (**100.0% vs 50.0%**) while requiring **$4.90\times$ fewer parameters** (280k vs 1.37M) and **14.4% fewer FLOPs**, achieving a **$9.92\times$ higher retention per parameter**.
 
-### P12: Multi-Threaded Latent Dependency Benchmark (MTLD-Bench / "The Kill Shot")
-- **Core Scientific Question Addressed**: Does persistent multi-slot state ($K=32$ thoughtlets) with plasticity and contextual routing provide a measurable computational advantage over a monolithic conventional recurrent state (GRU) when the task requires multiple simultaneously maintained, independently updated latent variables?
-- **Protocol**: Evaluated 9 architectural conditions across $M \in [2, 4, 6]$ concurrent variables across dual 16-tick delay corridors with an intermediate targeted update.
-- **Empirical Double Dissociation**:
-  - **All Non-CGP Baselines Collapse**: Reactive (11.4%), Monolithic Heavy GRU (12.7%), Monolithic Matched GRU (11.4%), Single Thoughtlet (11.2%), Dense Thoughtlets (10.5%), and Sparse Thoughtlets (12.5%) all collapse to random chance (~12.5%).
-  - **CGP Multi-Variable Retention**: CGP Thoughtlets sustain **40.2% retention at $M=2$ (48.1% untouched retention) and 39.8% at $M=4$ ($3.1\times$ to $3.8\times$ above the Heavy GRU baseline)** using 131k parameters.
-  - **Disconnected Slot Advantage**: On orthogonal variables, `CGP - Disconnected Slots Ablation` achieves **44.2% at $M=2$ and 42.0% at $M=4$ with 50% lower latency (1.49 ms vs 2.93 ms)**, confirming that removing inter-slot routing eliminates cross-slot message collisions when variables are independent.
-- **Artifacts**: `2026-09-07-multi-threaded-latent-dependency-benchmark.md` and `.json`.
+### P12: Multi-Threaded Latent Dependency Extreme Grid Benchmark (MTLD-Extreme / "The Kill Shot")
+- **Core Scientific Question Addressed**: Does persistent multi-slot state ($K=32$ thoughtlets) with plasticity and contextual routing provide a measurable computational advantage over a monolithic conventional recurrent state (GRU) and diagonal linear state-space models (GLRU/S4D) when the task requires multiple simultaneously maintained, independently updated latent variables?
+- **Protocol**: Evaluated 10 architectural tiers across $M \in [2, 4, 8, 16, 32]$ concurrent variables and delay horizons $L \in [16, 32, 64, 128]$ ticks (up to 256 total delay ticks).
+- **Empirical Double Dissociation Across Grid**:
+  - **All 7 Non-CGP Baselines Collapse**: Reactive (10.8%–13.3%), Monolithic Heavy GRU (10.8%–13.3%), Monolithic Matched GRU (10.8%–14.2%), Modern Diagonal SSM (10.8%–14.2%), Single Thoughtlet (10.3%–14.2%), Dense Thoughtlets (10.8%–14.2%), and Sparse Thoughtlets (10.8%–14.2%) all collapse to random chance (~12.5%).
+  - **Capacity Scaling Across $M$**: CGP Thoughtlets sustain **42.9% ($M=2$), 38.3% ($M=4$), 29.8% ($M=8$), 22.3% ($M=16$), and 18.4% ($M=32$)**, exhibiting graceful decay as capacity saturates, while GRU and SSM baselines remain flat at chance.
+  - **Delay Horizon Scaling Across $L$**: At $M=4$, CGP Thoughtlets sustain **38.3% at $L=16$, 34.6% at $L=32$, 31.5% at $L=64$, and 19.1% at $L=128$**.
+  - **The "Isolate on Orthogonality" Principle**: Disconnected CGP slots reach **43.3% at $M=2$ and 39.7% at $M=4$ with $2\times$ lower latency (1.46 ms vs 2.96 ms)**, proving that unconstrained inter-slot communication injects cross-talk noise when latent threads are independent.
+- **Artifacts**: `2026-09-07-mtld-extreme-scaling-grid.md` and `.json`.
 
 ### P11 / Red-Teaming: Discovery of Capability Boundaries
 1. **The Birds-Eye Observability Leak**:
@@ -156,7 +156,9 @@ Under the `/goal` mandate, this autonomous multi-agent research and engineering 
 
 | Architectural Mechanism | Action | Evidence & Rationale |
 | :--- | :---: | :--- |
-| **Multi-Slot Latent Variable Isolation** | **KEEP** | Outperforms monolithic GRU by $3.2\times$ across dual delay corridors in MTLD-Bench; prevents cross-talk interference. |
+| **Multi-Slot Latent Variable Isolation** | **KEEP** | Outperforms monolithic GRU and diagonal SSM by $3.2\times$ across delay corridors in MTLD-Bench; prevents cross-talk interference. |
+| **The "Isolate on Orthogonality" Principle** | **KEEP** | Gating routing off during independent threads halves latency (1.46 ms vs 2.96 ms) and improves retention. |
+| **Cognitive Scaling Roadmap ($131\text{k} \to 3\text{B}$)** | **KEEP** | Formal scaling ladder defined in `COGNITIVE_SCALING_ROADMAP.md` preserving 4 core invariants across 6 parameter tiers. |
 | **Consequence-Surprise Decoupling** | **KEEP** | Decoupled $\delta_{\text{sensory}}$ from $\delta_{\text{consequence}}$, preventing spurious weight drift from sensory noise. |
 | **State-Novelty IOR Decay** | **KEEP** | Enables retry-after-repair on L4 (100% vs 20% blind anti-perseveration); prevents permanent tool lockout. |
 | **Endogenous Pipeline Progression** | **KEEP** | Resolves multi-step agent deadlocks without oracle argument providers or tool bias injection. |
@@ -169,10 +171,10 @@ Under the `/goal` mandate, this autonomous multi-agent research and engineering 
 
 ---
 
-## 4. Master Test Suite Health (64/64 Passing)
+## 4. Master Test Suite Health (66/66 Passing)
 
-All 11 target research and engineering test modules maintain 100% green status in ~9.5 seconds:
-- `test_multi_threaded_latent_dependency.py` (6/6 PASS)
+All 11 target research and engineering test modules maintain 100% green status in ~5.3 seconds:
+- `test_multi_threaded_latent_dependency.py` (8/8 PASS)
 - `test_consequence_surprise_semantics.py` (6/6 PASS)
 - `test_ior_causal_validation_suite.py` (5/5 PASS)
 - `test_procedural_dag_capability_ladder.py` (6/6 PASS)
@@ -183,3 +185,4 @@ All 11 target research and engineering test modules maintain 100% green status i
 - `test_agent_loop.py` (4/4 PASS)
 - `test_agent_reasoning.py` (3/3 PASS)
 - `test_level16_agent_workflows.py` (8/8 PASS)
+

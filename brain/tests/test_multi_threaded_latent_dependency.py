@@ -119,6 +119,44 @@ class MultiThreadedLatentDependencyTests(unittest.TestCase):
         diff = torch.norm(out_standard[:, 15:] - out_shuffled[:, 15:])
         self.assertGreater(float(diff), 1e-3, "Slot shuffling failed to alter post-shuffle representation")
 
+    def test_diagonal_glru_model(self):
+        """Verify modern diagonal SSM / GLRU forward pass and parameter budget."""
+        glru = make_mtld_model("glru_diagonal")
+        p_glru = count_params(glru)["total"]
+        self.assertGreater(p_glru, 100_000)
+        self.assertLess(p_glru, 250_000)
+
+        obs_b, _, _ = build_batch(self.env, batch_size=4, seed=42)
+        out = glru(obs_b)
+        self.assertEqual(out.shape, (4, 25, 8))
+        self.assertFalse(torch.isnan(out).any())
+
+    def test_extreme_dimensions_generation(self):
+        """Verify M=32 variables and L=128 delay corridors generate valid episodes and batches."""
+        extreme_env = MultiThreadedLatentDependencyEnv(
+            num_variables=32,
+            num_values=8,
+            delay_1=128,
+            delay_2=128,
+            num_updates=2,
+            input_dim=64,
+        )
+        rng = np.random.RandomState(42)
+        ep = extreme_env.generate_episode(rng)
+
+        # 32 enroll + 128 delay1 + 2 update + 128 delay2 + 32 query = 322 steps
+        self.assertEqual(len(ep), 322)
+        query_steps = [s for s in ep if s.is_query]
+        self.assertEqual(len(query_steps), 32)
+        self.assertEqual(sum(1 for s in query_steps if s.is_updated_var), 2)
+        self.assertEqual(sum(1 for s in query_steps if s.is_untouched_var), 30)
+
+        obs_b, tgt_b, _ = build_batch(extreme_env, batch_size=2, seed=99)
+        self.assertEqual(obs_b.shape, (2, 322, 64))
+        self.assertEqual(tgt_b.shape, (2, 322))
+        self.assertFalse(torch.isnan(obs_b).any())
+
+
     def test_deterministic_reproducibility(self):
         """Verify identical evaluation runs on identical seeds yield bit-for-bit identical results."""
         m = make_mtld_model("cgp_thoughtlet")
@@ -132,3 +170,5 @@ class MultiThreadedLatentDependencyTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
