@@ -135,21 +135,50 @@ def train_conversational_calibration(
 def main():
     parser = argparse.ArgumentParser(description="Pseudo-Brain Native Conversational Streaming CLI")
     parser.add_argument("--scripted", action="store_true", help="Run automated scripted multi-turn test")
-    parser.add_argument("--train-steps", type=int, default=140, help="Initial curriculum training steps")
+    parser.add_argument("--train-steps", type=int, default=140, help="Initial curriculum training steps (if no checkpoint)")
     parser.add_argument("--threads", type=int, default=16, help="Number of concurrent cognitive thought slots")
+    parser.add_argument("--tier", type=str, default="tier0", choices=["tier0", "tier2"], help="Model parameter tier")
+    parser.add_argument("--checkpoint", type=str, default=None, help="Path to trained checkpoint (.pt)")
+    parser.add_argument("--device", type=str, default="cpu", help="Compute device (cpu, directml)")
     args = parser.parse_args()
 
-    device = torch.device("cpu")
+    # Device selection
+    if args.device.lower() in ("directml", "dml", "gpu"):
+        try:
+            from irene_brain.device import get_directml_device
+            device = get_directml_device() or torch.device("cpu")
+        except Exception:
+            device = torch.device("cpu")
+    else:
+        device = torch.device("cpu")
+
     tokenizer = SemanticTokenizer(max_threads=args.threads)
-    model = make_semantic_model("pseudo_brain", vocab_size=tokenizer.vocab_size, K=args.threads)
 
-    print("Initializing Pseudo-Brain Native Semantic Engine...")
-    generator = LanguageCurriculumGenerator(tokenizer=tokenizer, max_threads=args.threads)
+    if args.checkpoint and Path(args.checkpoint).exists():
+        print(f"Loading checkpoint from {args.checkpoint} onto {device}...")
+        ckpt = torch.load(args.checkpoint, map_location=device)
+        cfg = ckpt.get("config", {})
+        tier_type = "pseudo_brain_tier2" if (cfg.get("tier") == "tier2" or args.tier == "tier2") else "pseudo_brain"
+        model = make_semantic_model(
+            tier_type,
+            vocab_size=cfg.get("vocab_size", tokenizer.vocab_size),
+            K=cfg.get("K", args.threads),
+            proj_dim=cfg.get("proj_dim", 2048 if tier_type == "pseudo_brain_tier2" else 128),
+            rank=cfg.get("rank", 32),
+            num_deep_layers=cfg.get("num_deep_layers", 2),
+        ).to(device)
+        model.load_state_dict(ckpt["model_state_dict"])
+        print(f"Loaded {ckpt.get('parameters', 0):,} parameter model successfully.")
+    else:
+        model_type = "pseudo_brain_tier2" if args.tier == "tier2" else "pseudo_brain"
+        model = make_semantic_model(model_type, vocab_size=tokenizer.vocab_size, K=args.threads).to(device)
 
-    if args.train_steps > 0:
-        print(f"Fast curriculum calibration ({args.train_steps} steps)...")
-        train_conversational_calibration(model, generator, num_steps=args.train_steps, device=device)
+        if args.train_steps > 0:
+            print(f"Fast curriculum calibration ({args.train_steps} steps)...")
+            generator = LanguageCurriculumGenerator(tokenizer=tokenizer, max_threads=args.threads)
+            train_conversational_calibration(model, generator, num_steps=args.train_steps, device=device)
 
+    model.eval()
     session = StreamingCognitiveSession(model=model, tokenizer=tokenizer, device=device)
 
     if args.scripted:
@@ -158,9 +187,9 @@ def main():
 
     print("\n" + "=" * 70)
     print("PSEUDO-BRAIN NATIVE CONVERSATIONAL CLI")
-    print(f"Running on {args.threads} Persistent Cognitive Slots. Single-Threaded CPU.")
+    print(f"Tier: {args.tier.upper()} | Compute: {device} | Thought Slots: {args.threads}")
     print("Notice: No conversation history replay buffer is used. State persists in recurrent slots.")
-    print("Type 'exit' or 'quit' to end session.")
+    print("Commands: '/thread <id>' to switch cognitive thread; 'exit' or 'quit' to end.")
     print("=" * 70)
 
     cur_thread = 0

@@ -1,0 +1,55 @@
+{
+  "device_name": "AMD Radeon RX 9070 XT",
+  "parameters": 34756005,
+  "state_bytes": 4096,
+  "state_kb": 4.0,
+  "turns_evaluated": 5,
+  "zero_replay_verified": true,
+  "latency_mean_ms": 3.3808864864534662,
+  "latency_p90_ms": 3.5761199993430637,
+  "latency_p99_ms": 3.9756080003280636,
+  "throughput_tok_sec": 295.7804126245585,
+  "sub_16_67ms_compliant": true,
+  "turn_results": [
+    {
+      "turn": 1,
+      "thread_id": 0,
+      "prompt": "[THREAD:0]Hello! What is your name? [RESP]",
+      "response": "\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd",
+      "mean_step_ms": 3.3581624993530568,
+      "tokens_this_turn": 44
+    },
+    {
+      "turn": 2,
+      "thread_id": 0,
+      "prompt": "[THREAD:0]Remember that project Alpha is due on Friday. [RESP]",
+      "response": "\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd",
+      "mean_step_ms": 3.2128000011653057,
+      "tokens_this_turn": 64
+    },
+    {
+      "turn": 3,
+      "thread_id": 1,
+      "prompt": "[THREAD:1]Preemption: How does photosynthesis work? [RESP]",
+      "response": "\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd",
+      "mean_step_ms": 3.2723125009397336,
+      "tokens_this_turn": 60
+    },
+    {
+      "turn": 4,
+      "thread_id": 0,
+      "prompt": "[THREAD:0]When is project Alpha due? [RESP]",
+      "response": "\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd",
+      "mean_step_ms": 3.2056062486844894,
+      "tokens_this_turn": 45
+    },
+    {
+      "turn": 5,
+      "thread_id": 1,
+      "prompt": "[THREAD:1]Continue discussing plants. [RESP]",
+      "response": "\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd",
+      "mean_step_ms": 3.224331250294199,
+      "tokens_this_turn": 46
+    }
+  ]
+}

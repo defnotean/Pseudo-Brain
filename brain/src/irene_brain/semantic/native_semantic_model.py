@@ -44,13 +44,30 @@ class NativeSemanticPseudoBrain(nn.Module):
         plastic_lr: float = 0.25,
         use_cgp: bool = True,
         use_routing: bool = True,
+        tier: Optional[str] = None,
+        rank: Optional[int] = None,
+        num_deep_layers: int = 3,
+        conditional_recurrence: bool = False,
+        epsilon_dormant: float = 0.05,
     ):
         super().__init__()
+        self.tier = tier
+        if tier == "tier2":
+            # Apply Law 1 (Bounded W=64) & Law 2 (Rank r=32, Proj_dim=4096)
+            thought_size = 64
+            rank = 32 if rank is None else rank
+            proj_dim = 4096 if proj_dim == 128 else proj_dim
+            embed_dim = 128 if embed_dim == 64 else embed_dim
+
         self.vocab_size = vocab_size
         self.K = K
         self.thought_size = thought_size
         self.embed_dim = embed_dim
         self.proj_dim = proj_dim
+        self.rank = rank
+        self.num_deep_layers = num_deep_layers
+        self.conditional_recurrence = conditional_recurrence
+        self.epsilon_dormant = epsilon_dormant
         self.plastic_decay = plastic_decay
         self.plastic_lr = plastic_lr
         self.use_cgp = use_cgp
@@ -61,7 +78,14 @@ class NativeSemanticPseudoBrain(nn.Module):
         self.proj = nn.Linear(embed_dim, proj_dim)
 
         # 2. Shared Recurrent Core across K thought slots
-        self.brain_cell = BrainCellCore(input_size=proj_dim, thought_size=thought_size)
+        self.brain_cell = BrainCellCore(
+            input_size=proj_dim,
+            thought_size=thought_size,
+            rank=rank,
+            proj_dim=proj_dim,
+            tier=tier,
+            num_deep_layers=num_deep_layers,
+        )
 
         # 3. Cognitive Input Gating with T=0.5 sharpening
         self.cig_gate = nn.Sequential(
@@ -102,10 +126,11 @@ class NativeSemanticPseudoBrain(nn.Module):
             self.surprise_encoder = None
 
         # 6. Thread-Targeted Semantic Readout Head
+        head_hidden = max(64, min(proj_dim // 2, 512))
         self.slot_head = nn.Sequential(
-            nn.Linear(thought_size, proj_dim // 2),
+            nn.Linear(thought_size, head_hidden),
             nn.GELU(),
-            nn.Linear(proj_dim // 2, vocab_size),
+            nn.Linear(head_hidden, vocab_size),
         )
 
         # 7. Slot Orthogonality Codes
@@ -114,6 +139,16 @@ class NativeSemanticPseudoBrain(nn.Module):
             deterministic_thought_identity_codes(thoughtlets=K, width=thought_size),
             persistent=False,
         )
+
+    def count_parameters(self) -> Dict[str, int]:
+        """Count total and trainable parameters."""
+        total = sum(p.numel() for p in self.parameters())
+        trainable = sum(p.numel() for p in self.parameters() if p.requires_grad)
+        return {"total": total, "trainable": trainable}
+
+    def state_bytes(self, bytes_per_element: int = 4) -> int:
+        """Law 1 Recurrent State Footprint: K * W * 4 bytes."""
+        return self.K * self.thought_size * bytes_per_element
 
     def init_state(self, batch_size: int, device: torch.device) -> SemanticCognitiveState:
         """Initialize zero/identity state for streaming."""
@@ -163,12 +198,33 @@ class NativeSemanticPseudoBrain(nn.Module):
         # 3. Cognitive Input Gating with T=0.5 Sharpening
         gate_in = torch.cat([x_exp, state.thoughts], dim=-1)
         raw_gate = self.cig_gate(gate_in)
-        salience = torch.sigmoid((torch.logit(raw_gate.clamp(1e-4, 1.0 - 1e-4))) / 0.5)
+        clamped_gate = raw_gate.clamp(1e-4, 1.0 - 1e-4)
+        logit_gate = torch.log(clamped_gate / (1.0 - clamped_gate))
+        salience = torch.sigmoid(logit_gate / 0.5)
 
-        # 4. Recurrent Core Update
-        t_flat = state.thoughts.reshape(B * self.K, self.thought_size)
-        x_flat = x_exp.reshape(B * self.K, -1)
-        new_t = self.brain_cell(t_flat, x_flat).reshape(B, self.K, self.thought_size)
+        # 4. Recurrent Core Update (with optional event-driven conditional recurrence)
+        if self.conditional_recurrence:
+            active_mask = (salience.squeeze(-1) >= self.epsilon_dormant).any(dim=0)
+            if not active_mask.any():
+                new_t = state.thoughts
+            elif active_mask.all():
+                t_flat = state.thoughts.reshape(B * self.K, self.thought_size)
+                x_flat = x_exp.reshape(B * self.K, -1)
+                new_t = self.brain_cell(t_flat, x_flat).reshape(B, self.K, self.thought_size)
+            else:
+                active_indices = torch.where(active_mask)[0]
+                n_act = len(active_indices)
+                t_active = state.thoughts[:, active_indices, :]
+                x_active = x_exp[:, active_indices, :]
+                t_flat = t_active.reshape(B * n_act, self.thought_size)
+                x_flat = x_active.reshape(B * n_act, -1)
+                new_act = self.brain_cell(t_flat, x_flat).reshape(B, n_act, self.thought_size)
+                new_t = state.thoughts.clone()
+                new_t[:, active_indices, :] = new_act
+        else:
+            t_flat = state.thoughts.reshape(B * self.K, self.thought_size)
+            x_flat = x_exp.reshape(B * self.K, -1)
+            new_t = self.brain_cell(t_flat, x_flat).reshape(B, self.K, self.thought_size)
 
         # 5. Routing between slots
         if self.use_routing and self.router is not None and allow_routing:
@@ -355,6 +411,7 @@ def make_semantic_model(
     thought_size: int = 32,
     embed_dim: int = 64,
     proj_dim: int = 128,
+    **kwargs: Any,
 ) -> nn.Module:
     """Factory creating parameter-calibrated semantic models."""
     if model_type == "pseudo_brain":
@@ -366,6 +423,20 @@ def make_semantic_model(
             proj_dim=proj_dim,
             use_cgp=True,
             use_routing=True,
+            **kwargs,
+        )
+    elif model_type in ("pseudo_brain_tier2", "tier2"):
+        return NativeSemanticPseudoBrain(
+            vocab_size=vocab_size,
+            K=kwargs.get("K", K),
+            thought_size=64,
+            tier="tier2",
+            proj_dim=kwargs.get("proj_dim", 4096),
+            rank=kwargs.get("rank", 32),
+            num_deep_layers=kwargs.get("num_deep_layers", 3),
+            use_cgp=True,
+            use_routing=True,
+            conditional_recurrence=kwargs.get("conditional_recurrence", True),
         )
     elif model_type == "pseudo_brain_no_cgp":
         return NativeSemanticPseudoBrain(
@@ -376,6 +447,7 @@ def make_semantic_model(
             proj_dim=proj_dim,
             use_cgp=False,
             use_routing=True,
+            **kwargs,
         )
     elif model_type == "pseudo_brain_no_threads":
         # Monolithic single-slot Pseudo-Brain: K=1, thought_size = K * thought_size
@@ -387,6 +459,7 @@ def make_semantic_model(
             proj_dim=proj_dim,
             use_cgp=True,
             use_routing=False,
+            **kwargs,
         )
     elif model_type == "gru":
         return MonolithicGRULanguageModel(

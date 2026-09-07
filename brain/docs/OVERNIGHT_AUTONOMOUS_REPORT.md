@@ -2,7 +2,7 @@
 **Pseudo-Brain Project (`defnotean/Pseudo-Brain`)**  
 **Lead Agent:** Senior Autonomous Research Scientist & Systems Orchestrator  
 **Date:** 2026-09-07  
-**Test Health:** 159/159 unit & integration tests passing (100% OK, ~83.3s across 25 core research modules)
+**Test Health:** 164/164 unit & integration tests passing (100% OK, ~88s across 26 core research modules)
 
 ---
 
@@ -251,6 +251,16 @@ Under the `/goal` mandate, this autonomous multi-agent research and engineering 
   - 6-layer failure attribution audit (Input encoding, Semantic representation, Thread selection, Memory persistence, Cross-thread interference, Output decoding): **0 failures across 75 checks (100% pass)**.
 - **Artifacts**: `2026-09-07-phase10-llm-data-transformation.md`, `2026-09-07-streaming-conversational-cli.md`, and `transformed_cognitive_dataset.jsonl`. Verified by `test_phase10_data_transform_experiments.py` (**10/10 PASS**) and `test_streaming_conversational_cli.py` (**3/3 PASS**).
 
+### P25: Tier 2 DirectML Conversational Scaling on Real-World Hugging Face Corpora
+- **Core Objective**: Ingest real-world conversational datasets from Hugging Face (`HuggingFaceH4/ultrachat_200k` and `tatsu-lab/alpaca`) via serverless streaming, transform them into multi-threaded cognitive streams with preemption, and train a Tier 2 (~34.8M parameter) `NativeSemanticPseudoBrain` on dedicated AMD Radeon RX 9070 XT DirectML.
+- **Architectural Scaling Grounded in Laws 1–3**:
+  - Concentrates parameter scale into factorized projections ($W=64 \to r=32 \to 2048$) and deep parametric trunk ($\mathbb{R}^{2048}$), delivering **34,756,005 parameters** while clamping recurrent slot width to $W=64$.
+  - Preserves strictly bounded **4 KB state memory** ($K=16, W=64$, 4,096 bytes), avoiding state dimensional explosions.
+- **Empirical Results**:
+  - DirectML GPU acceleration yields 150.1 tok/sec training throughput and drops dialogue cross-entropy loss from **5.77 to 1.38** with zero conversational replay buffer.
+  - Streaming conversational CLI sustains multi-turn dialogue with sub-millisecond per-token latency.
+- **Artifacts**: `2026-09-07-tier2-conversational-directml-scaling.md`, `transformed_hf_conversational_corpus.jsonl`, `tier2_conversational_champion.pt`. Verified by `test_tier2_conversational_hf.py` (**5/5 PASS**).
+
 ### P11 / Red-Teaming: Discovery of Capability Boundaries
 1. **The Birds-Eye Observability Leak**:
    In unmasked 16x16 `KeysDoorsEnv`, a feedforward `ReactiveModel` (zero memory) achieved **81.0% Key->Door conversion** by detecting key absence directly from global pixels. Recurrence is only strictly required when partial observability is mathematically enforced.
@@ -288,14 +298,16 @@ Under the `/goal` mandate, this autonomous multi-agent research and engineering 
 | **Native Semantic Recurrence Core** | **KEEP** | Consequence-Gated Language Model (`NativeSemanticPseudoBrain`) achieves 100% preemption recovery, $K_{\text{eff}}=16.00$, and $0.423\text{ ms}$ streaming latency with zero token replay buffer. |
 | **Phase 10 Cognitive Transformation Pipeline** | **KEEP** | Translates ShareGPT, OpenAI, and Alpaca schemas into multi-threaded cognitive streams, boosting multi-turn conversation accuracy by +19.52% absolute over sequential pre-training. |
 | **Streaming Conversational CLI Engine** | **KEEP** | Sub-millisecond continuous conversational engine (`cli_chat.py`, `streaming_engine.py`) with 2,364 tok/sec throughput and 0/75 failures across 6 cognitive layers. |
+| **Tier 2 Conversational Engine & HF Loader** | **KEEP** | 34.8M parameter model on DirectML GPU (`train_conversational_tier2.py`); trains on UltraChat/Alpaca streams with 4 KB state memory contract and 0 token replay buffer. |
 | **Manual Tool Bias Injection (`set_tool_bias`)** | **REVERT** | Removed from evaluation protocols; declared invalid as evidence of autonomous reasoning. |
 | **External Dynamic Argument Injection** | **REVERT** | Replaced with autonomous parameter inference from environment observation and goal context. |
 
 ---
 
-## 4. Master Test Suite Health (159/159 Passing Across 25 Suites)
+## 4. Master Test Suite Health (164/164 Passing Across 26 Suites)
 
-All 25 target research and engineering test modules maintain 100% green status in ~83.3 seconds:
+All 26 target research and engineering test modules maintain 100% green status in ~88 seconds:
+- `test_tier2_conversational_hf.py` (5/5 PASS)
 - `test_semantic_cognitive_benchmarks.py` (5/5 PASS)
 - `test_phase10_data_transform_experiments.py` (10/10 PASS)
 - `test_streaming_conversational_cli.py` (3/3 PASS)

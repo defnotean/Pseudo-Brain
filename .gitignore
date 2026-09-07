@@ -15,6 +15,7 @@ brain/logs/
 brain/checkpoints/
 brain/artifacts/
 brain/datasets/
+brain/data/
 *.pt
 *.pth
 *.ckpt
