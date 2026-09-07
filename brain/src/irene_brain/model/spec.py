@@ -209,6 +209,10 @@ class ThoughtFieldConfig:
     episodic_memory_entries: int = 512
     retrieved_entries_per_thoughtlet: int = 2
     actuator: ActuatorQuerySpec = ActuatorQuerySpec()
+    dense_routing: bool = False
+    use_cgp: bool = False
+    plastic_decay: float = 0.999
+    plastic_lr: float = 0.25
 
     def __post_init__(self) -> None:
         if isinstance(self.schema_version, bool) or not isinstance(self.schema_version, int):
@@ -241,6 +245,12 @@ class ThoughtFieldConfig:
             raise ValueError("retrieval count cannot exceed episodic memory capacity")
         if not isinstance(self.actuator, ActuatorQuerySpec):
             raise ValueError("actuator must be an ActuatorQuerySpec")
+        _exact_bool(self.dense_routing, name="dense_routing")
+        _exact_bool(self.use_cgp, name="use_cgp")
+        if self.plastic_decay <= 0.0 or self.plastic_decay > 1.0:
+            raise ValueError("plastic_decay must be in (0, 1]")
+        if self.plastic_lr < 0.0:
+            raise ValueError("plastic_lr must be nonnegative")
 
     @classmethod
     def thesis_mvp(cls) -> ThoughtFieldConfig:

@@ -61,6 +61,13 @@ __all__ = [
     "CounterfactualBranchOutput",
     "TopologicalGoalFieldHead",
     "TopologicalGoalPrediction",
+    "SparseThoughtRouter",
+    "RoutingDiagnostics",
+    "BrainCell",
+    "PlasticBrainCell",
+    "BrainCellOutput",
+    "FastPlasticityModule",
+    "SurpriseEncoder",
 ]
 
 _TORCH_EXPORTS = {
@@ -129,11 +136,30 @@ _TOPO_EXPORTS = {
     "TopologicalGoalPrediction",
 }
 
+_ROUTER_EXPORTS = {
+    "SparseThoughtRouter",
+    "RoutingDiagnostics",
+}
+
+_CELL_EXPORTS = {
+    "BrainCell",
+    "PlasticBrainCell",
+    "BrainCellOutput",
+    "FastPlasticityModule",
+    "SurpriseEncoder",
+}
+
 
 def __getattr__(name: str) -> Any:
+    if name in _CELL_EXPORTS:
+        cell = import_module(f"{__name__}.brain_cell")
+        return getattr(cell, name)
     if name in _TORCH_EXPORTS:
         torch_model = import_module(f"{__name__}.torch_model")
         return getattr(torch_model, name)
+    if name in _ROUTER_EXPORTS:
+        router = import_module(f"{__name__}.sparse_thought_router")
+        return getattr(router, name)
     if name in _BASELINE_EXPORTS:
         baselines = import_module(f"{__name__}.baselines")
         return getattr(baselines, name)

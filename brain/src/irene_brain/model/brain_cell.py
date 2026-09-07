@@ -10,10 +10,7 @@ from torch import Tensor, nn
 from torch.nn import functional as F
 
 
-@dataclass(frozen=True, slots=True)
-class RoutingDiagnostics:
-    indices: Tensor
-    weights: Tensor
+from .sparse_thought_router import RoutingDiagnostics, SparseThoughtRouter
 
 
 class ContinuousTimeBlend(nn.Module):
@@ -77,10 +74,24 @@ class StructuredBrainBlock(nn.Module):
         self.belief_blend = ContinuousTimeBlend(width)
         self.thought_blend = ContinuousTimeBlend(width)
         self.memory_blend = ContinuousTimeBlend(width)
-        self.route_query = nn.Linear(width, width, bias=False)
-        self.route_key = nn.Linear(width, width, bias=False)
-        self.route_value = nn.Linear(width, width, bias=False)
+        self.router = SparseThoughtRouter(
+            width=width,
+            routed_neighbors=routed_neighbors,
+            dense_routing=dense_routing,
+        )
         self.utility = nn.Linear(width, 1)
+
+    @property
+    def route_query(self) -> nn.Linear:
+        return self.router.route_query
+
+    @property
+    def route_key(self) -> nn.Linear:
+        return self.router.route_key
+
+    @property
+    def route_value(self) -> nn.Linear:
+        return self.router.route_value
 
     def _route(
         self,
@@ -88,51 +99,7 @@ class StructuredBrainBlock(nn.Module):
         *,
         allow_routing: bool,
     ) -> tuple[Tensor, RoutingDiagnostics]:
-        batch, thoughtlets, width = summaries.shape
-        if not allow_routing:
-            empty_indices = torch.empty(
-                batch,
-                thoughtlets,
-                0,
-                device=summaries.device,
-                dtype=torch.long,
-            )
-            empty_weights = summaries.new_empty((batch, thoughtlets, 0))
-            return torch.zeros_like(summaries), RoutingDiagnostics(empty_indices, empty_weights)
-
-        query = self.route_query(summaries)
-        key = self.route_key(summaries)
-        scores = torch.matmul(query, key.transpose(-1, -2)) / math.sqrt(width)
-        diagonal = torch.eye(thoughtlets, device=summaries.device, dtype=torch.bool)
-        scores = scores.masked_fill(diagonal.unsqueeze(0), torch.finfo(scores.dtype).min)
-        projected = self.route_value(summaries)
-        if self.dense_routing:
-            # Unrestricted all-to-all communication: every other slot is a
-            # routing target with its softmax weight, no sparse top-k.
-            base = torch.arange(thoughtlets, device=summaries.device)
-            off_diagonal = base.unsqueeze(0).expand(thoughtlets, thoughtlets)
-            off_diagonal = off_diagonal[~diagonal].reshape(thoughtlets, thoughtlets - 1)
-            indices = off_diagonal.unsqueeze(0).expand(batch, thoughtlets, thoughtlets - 1)
-            weights = torch.gather(torch.softmax(scores, dim=-1), 2, indices)
-            selected = torch.gather(
-                projected.unsqueeze(1).expand(batch, thoughtlets, thoughtlets, width),
-                2,
-                indices.unsqueeze(-1).expand(batch, thoughtlets, thoughtlets - 1, width),
-            )
-            message = torch.sum(selected * weights.unsqueeze(-1), dim=2)
-            return message, RoutingDiagnostics(indices, weights)
-
-        values, indices = torch.topk(scores, k=self.routed_neighbors, dim=-1)
-        weights = torch.softmax(values, dim=-1)
-
-        candidates = projected.unsqueeze(1).expand(batch, thoughtlets, thoughtlets, width)
-        selected = torch.gather(
-            candidates,
-            2,
-            indices.unsqueeze(-1).expand(batch, thoughtlets, self.routed_neighbors, width),
-        )
-        message = torch.sum(selected * weights.unsqueeze(-1), dim=2)
-        return message, RoutingDiagnostics(indices, weights)
+        return self.router(summaries, allow_routing=allow_routing)
 
     @staticmethod
     def _repeat_per_thoughtlet(tokens: Tensor, thoughtlets: int) -> Tensor:
@@ -245,6 +212,99 @@ class StructuredBrainBlock(nn.Module):
         return belief, working_memory, thoughts, routing
 
 
+class BrainCellOutput(tuple):
+    """4-tuple subclass (belief, working_memory, thoughts, routing) carrying episodic plasticity attributes.
+
+    Provides 100% backward compatibility with existing (belief, working_memory, thoughts, routing)
+    unpackings while exposing .plastic_weights and .P_t for Consequence-Gated Plasticity.
+    """
+
+    plastic_weights: Tensor | None
+    P_t: Tensor | None
+
+    def __new__(
+        cls,
+        belief: Tensor,
+        working_memory: Tensor,
+        thoughts: Tensor,
+        routing: tuple[RoutingDiagnostics, ...],
+        plastic_weights: Tensor | None = None,
+    ) -> BrainCellOutput:
+        inst = super().__new__(cls, (belief, working_memory, thoughts, routing))
+        inst.plastic_weights = plastic_weights
+        inst.P_t = plastic_weights
+        return inst
+
+
+class SurpriseEncoder(nn.Module):
+    """Embeds scalar prediction error distance into a compact surprise representation."""
+
+    def __init__(self, out_dim: int = 16) -> None:
+        super().__init__()
+        self.fc = nn.Sequential(
+            nn.Linear(1, out_dim),
+            nn.SiLU(),
+            nn.Linear(out_dim, out_dim),
+        )
+        with torch.no_grad():
+            nn.init.uniform_(self.fc[0].weight, 0.2, 0.6)
+            nn.init.zeros_(self.fc[0].bias)
+            nn.init.uniform_(self.fc[2].weight, 0.2, 0.6)
+            nn.init.zeros_(self.fc[2].bias)
+
+    def forward(self, error: Tensor) -> Tensor:
+        if error.dim() == 1:
+            error = error.unsqueeze(-1)
+        return self.fc(error)
+
+
+class FastPlasticityModule(nn.Module):
+    """Fast episodic state adaptation (P_t) for Irene BrainCell.
+
+    Updates online during gameplay without backprop:
+        P_{t+1} = gamma * P_t + eta * gate * tanh(W [state, surprise])
+    """
+
+    def __init__(
+        self,
+        *,
+        state_dim: int,
+        plastic_dim: int,
+        surprise_dim: int = 16,
+        decay: float = 0.999,
+        lr: float = 0.25,
+    ) -> None:
+        super().__init__()
+        self.decay = decay
+        self.lr = lr
+        self.state_dim = state_dim
+        self.plastic_dim = plastic_dim
+        self.modulator = nn.Linear(state_dim + surprise_dim, plastic_dim)
+        self.surprise_gate = nn.Sequential(
+            nn.Linear(surprise_dim, 1),
+            nn.Sigmoid(),
+        )
+        with torch.no_grad():
+            nn.init.uniform_(self.surprise_gate[0].weight, 0.2, 0.5)
+            nn.init.constant_(self.surprise_gate[0].bias, -2.0)
+        self.scale = nn.Parameter(torch.tensor(1.5))
+
+    def init_trace(self, batch_size: int, device: torch.device, dtype: torch.dtype = torch.float32) -> Tensor:
+        return torch.zeros(batch_size, self.plastic_dim, device=device, dtype=dtype)
+
+    def update(
+        self,
+        P_t: Tensor,
+        state: Tensor,
+        surprise: Tensor,
+    ) -> tuple[Tensor, Tensor, Tensor]:
+        mag = torch.tanh(torch.norm(surprise, dim=-1, keepdim=True))
+        gate = self.surprise_gate(surprise) * mag
+        delta = gate * torch.tanh(self.modulator(torch.cat([state, surprise], dim=-1)))
+        P_next = self.decay * P_t + self.lr * delta
+        return P_next, delta, gate
+
+
 class BrainCell(nn.Module):
     """A stack of blocks; this one instance is tied across cognitive cycles."""
 
@@ -256,8 +316,14 @@ class BrainCell(nn.Module):
         routed_neighbors: int,
         blocks: int,
         dense_routing: bool = False,
+        use_cgp: bool = False,
+        plastic_decay: float = 0.999,
+        plastic_lr: float = 0.25,
+        plastic_dim: int | None = None,
     ) -> None:
         super().__init__()
+        self.width = width
+        self.use_cgp = bool(use_cgp)
         self.blocks = nn.ModuleList(
             StructuredBrainBlock(
                 width=width,
@@ -267,6 +333,34 @@ class BrainCell(nn.Module):
             )
             for _ in range(blocks)
         )
+        if self.use_cgp:
+            p_dim = plastic_dim if plastic_dim is not None else width
+            self.plastic_dim = p_dim
+            self.surprise_encoder = SurpriseEncoder(out_dim=16)
+            self.plasticity = FastPlasticityModule(
+                state_dim=width,
+                plastic_dim=p_dim,
+                surprise_dim=16,
+                decay=plastic_decay,
+                lr=plastic_lr,
+            )
+            self.cognitive_gate = nn.Sequential(
+                nn.Linear(width * 2 + 16, width),
+                nn.Sigmoid(),
+            )
+            with torch.no_grad():
+                if hasattr(self.cognitive_gate[0], "bias") and self.cognitive_gate[0].bias is not None:
+                    self.cognitive_gate[0].bias.fill_(1.0)
+            self.plastic_proj = nn.Linear(p_dim, width)
+            with torch.no_grad():
+                nn.init.zeros_(self.plastic_proj.weight)
+                nn.init.zeros_(self.plastic_proj.bias)
+        else:
+            self.plastic_dim = None
+            self.surprise_encoder = None
+            self.plasticity = None
+            self.cognitive_gate = None
+            self.plastic_proj = None
 
     def forward(
         self,
@@ -281,13 +375,19 @@ class BrainCell(nn.Module):
         elapsed_seconds: Tensor,
         allow_routing: bool,
         allow_workspace_writes: bool = True,
-    ) -> tuple[Tensor, Tensor, Tensor, tuple[RoutingDiagnostics, ...]]:
+        plastic_weights: Tensor | None = None,
+        surprise: Tensor | None = None,
+    ) -> BrainCellOutput:
         routing: list[RoutingDiagnostics] = []
+        cur_belief = belief
+        cur_memory = working_memory
+        cur_thoughts = thoughts
+
         for block in self.blocks:
-            belief, working_memory, thoughts, block_routing = block(
-                belief=belief,
-                working_memory=working_memory,
-                thoughts=thoughts,
+            cur_belief, cur_memory, cur_thoughts, block_routing = block(
+                belief=cur_belief,
+                working_memory=cur_memory,
+                thoughts=cur_thoughts,
                 sensors=sensors,
                 action_time_tokens=action_time_tokens,
                 goal_context=goal_context,
@@ -299,7 +399,77 @@ class BrainCell(nn.Module):
             routing.append(block_routing)
         if not routing:
             raise RuntimeError("BrainCell must contain at least one block")
-        return belief, working_memory, thoughts, tuple(routing)
+
+        next_plastic_weights = plastic_weights
+        if (
+            self.use_cgp
+            and self.plasticity is not None
+            and self.cognitive_gate is not None
+            and self.plastic_proj is not None
+            and self.surprise_encoder is not None
+        ):
+            B = thoughts.shape[0]
+            dev = thoughts.device
+            dtype = thoughts.dtype
+            if plastic_weights is None:
+                plastic_weights = self.plasticity.init_trace(B, dev, dtype)
+            if surprise is None:
+                surprise = thoughts.new_zeros(B, 1)
+            surprise_emb = self.surprise_encoder(surprise)
+
+            # Cognitive input gating: prevent blank/corridor diffusion
+            thought_summary = cur_thoughts.mean(dim=(1, 2))  # [B, width]
+            sensor_summary = sensors.mean(dim=1)  # [B, width]
+            gate_in = torch.cat([thought_summary, sensor_summary, surprise_emb], dim=-1)
+            raw_salience = self.cognitive_gate(gate_in).unsqueeze(1).unsqueeze(2)  # [B, 1, 1, width]
+            surprise_scale = torch.tanh(torch.norm(surprise, dim=-1, keepdim=True)).unsqueeze(1).unsqueeze(2)
+            salience = raw_salience * surprise_scale
+            cur_thoughts = (1.0 - salience) * thoughts + salience * cur_thoughts
+
+            # Fast episodic plasticity update
+            state_feat = cur_thoughts.mean(dim=(1, 2))
+            next_plastic_weights, delta, _ = self.plasticity.update(plastic_weights, state_feat, surprise_emb)
+
+            # Integrate episodic plasticity delta into working memory and thoughts upon consequence surprise
+            plastic_injection = self.plastic_proj(delta)
+            cur_thoughts = cur_thoughts + 0.1 * self.plasticity.scale * plastic_injection.unsqueeze(1).unsqueeze(2)
+            cur_memory = cur_memory + 0.1 * self.plasticity.scale * plastic_injection.unsqueeze(1)
+
+        return BrainCellOutput(
+            cur_belief,
+            cur_memory,
+            cur_thoughts,
+            tuple(routing),
+            next_plastic_weights,
+        )
+
+
+class PlasticBrainCell(BrainCell):
+    """Dedicated Consequence-Gated Plasticity BrainCell with use_cgp=True."""
+
+    def __init__(
+        self,
+        *,
+        width: int,
+        heads: int,
+        routed_neighbors: int,
+        blocks: int,
+        dense_routing: bool = False,
+        plastic_decay: float = 0.999,
+        plastic_lr: float = 0.25,
+        plastic_dim: int | None = None,
+    ) -> None:
+        super().__init__(
+            width=width,
+            heads=heads,
+            routed_neighbors=routed_neighbors,
+            blocks=blocks,
+            dense_routing=dense_routing,
+            use_cgp=True,
+            plastic_decay=plastic_decay,
+            plastic_lr=plastic_lr,
+            plastic_dim=plastic_dim,
+        )
 
 
 class EnsembleMemberBlock(nn.Module):
@@ -681,3 +851,21 @@ class MonolithicRecurrentCell(nn.Module):
         if not routing:
             raise RuntimeError("MonolithicRecurrentCell must contain at least one block")
         return belief, working_memory, thoughts, tuple(routing)
+
+
+__all__ = [
+    "BrainCell",
+    "BrainCellOutput",
+    "ContinuousTimeBlend",
+    "EnsembleBrainCell",
+    "EnsembleMemberBlock",
+    "FastPlasticityModule",
+    "MonolithicRecurrentBlock",
+    "MonolithicRecurrentCell",
+    "PlasticBrainCell",
+    "ResidualCrossAttention",
+    "RoutingDiagnostics",
+    "StructuredBrainBlock",
+    "SurpriseEncoder",
+    "TransformerCarryCell",
+]

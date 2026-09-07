@@ -66,6 +66,13 @@ class BrainState:
     thoughts: Tensor
     goal_context: Tensor
     thought_age_seconds: Tensor
+    plastic_weights: Tensor | None = None
+    prev_latent_pred: Tensor | None = None
+    prev_reward_pred: Tensor | None = None
+
+    @property
+    def P_t(self) -> Tensor | None:
+        return self.plastic_weights
 
     def detach(self) -> BrainState:
         return replace(
@@ -75,6 +82,9 @@ class BrainState:
             thoughts=self.thoughts.detach(),
             goal_context=self.goal_context.detach(),
             thought_age_seconds=self.thought_age_seconds.detach(),
+            plastic_weights=self.plastic_weights.detach() if self.plastic_weights is not None else None,
+            prev_latent_pred=self.prev_latent_pred.detach() if self.prev_latent_pred is not None else None,
+            prev_reward_pred=self.prev_reward_pred.detach() if self.prev_reward_pred is not None else None,
         )
 
     def to(self, *args: object, **kwargs: object) -> BrainState:
@@ -85,6 +95,9 @@ class BrainState:
             thoughts=self.thoughts.to(*args, **kwargs),
             goal_context=self.goal_context.to(*args, **kwargs),
             thought_age_seconds=self.thought_age_seconds.to(*args, **kwargs),
+            plastic_weights=self.plastic_weights.to(*args, **kwargs) if self.plastic_weights is not None else None,
+            prev_latent_pred=self.prev_latent_pred.to(*args, **kwargs) if self.prev_latent_pred is not None else None,
+            prev_reward_pred=self.prev_reward_pred.to(*args, **kwargs) if self.prev_reward_pred is not None else None,
         )
 
 
@@ -117,6 +130,8 @@ class ModelDiagnostics:
     halting_probabilities: tuple[Tensor, ...] = ()
     counterfactual_predictions: dict[int, CounterfactualBranchOutput] | None = None
     topological_goal_predictions: TopologicalGoalPrediction | None = None
+    plastic_weights: Tensor | None = None
+    surprise: Tensor | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -164,6 +179,33 @@ class ThoughtPredictionHead(nn.Module):
         )
 
 
+class LatentRewardHead(nn.Module):
+    """Predicts intermediate reward / consequence value from thought representations."""
+
+    def __init__(self, *, width: int, hidden_width: int | None = None) -> None:
+        super().__init__()
+        hidden = hidden_width if hidden_width is not None else width
+        self.net = nn.Sequential(
+            nn.LayerNorm(width),
+            nn.Linear(width, hidden),
+            nn.SiLU(),
+            nn.Linear(hidden, 1),
+        )
+        self._reset_parameters()
+
+    def _reset_parameters(self) -> None:
+        for m in self.net:
+            if isinstance(m, nn.Linear):
+                nn.init.trunc_normal_(m.weight, std=0.02)
+                if m.bias is not None:
+                    nn.init.zeros_(m.bias)
+
+    def forward(self, thought_summary: Tensor, action_feature: Tensor | None = None) -> Tensor:
+        """Compute predicted scalar reward."""
+        features = thought_summary if action_feature is None else thought_summary + action_feature
+        return self.net(features).squeeze(-1)
+
+
 class IreneBrainModel(nn.Module):
     """Streaming one-checkpoint model with persistent parallel thoughtlets.
 
@@ -181,6 +223,10 @@ class IreneBrainModel(nn.Module):
             heads=self.config.attention_heads,
             routed_neighbors=self.config.routed_neighbors,
             blocks=self.config.brain_cell_blocks,
+            dense_routing=getattr(self.config, "dense_routing", False),
+            use_cgp=self.use_cgp,
+            plastic_decay=getattr(self.config, "plastic_decay", 0.999),
+            plastic_lr=getattr(self.config, "plastic_lr", 0.25),
         )
 
     def _communication_policy(self, cycle: int) -> tuple[bool, bool]:
@@ -195,10 +241,12 @@ class IreneBrainModel(nn.Module):
         input_resolution: tuple[int, int] = (32, 32),
         plan_steps: int = 3,
         enable_adaptive_cognition: bool = False,
+        use_cgp: bool = False,
     ) -> None:
         super().__init__()
         self.config = config if config is not None else ThoughtFieldConfig.smoke()
         self.enable_adaptive_cognition = enable_adaptive_cognition
+        self.use_cgp = bool(use_cgp or getattr(self.config, "use_cgp", False))
         if (
             not isinstance(input_resolution, tuple)
             or len(input_resolution) != 2
@@ -282,6 +330,31 @@ class IreneBrainModel(nn.Module):
             self.counterfactual_foresight_head = None
             self.topological_goal_head = None
             self.halting_controller = None
+
+        if self.use_cgp:
+            self.reward_head = LatentRewardHead(width=width)
+            self.latent_predictor = nn.Sequential(
+                nn.Linear(width * 2, width),
+                nn.SiLU(),
+                nn.Linear(width, width),
+            )
+            with torch.no_grad():
+                nn.init.zeros_(self.latent_predictor[2].weight)
+                nn.init.zeros_(self.latent_predictor[2].bias)
+            num_buttons = (
+                self.config.actuator.keyboard_keys
+                + self.config.actuator.mouse_buttons
+                + self.config.actuator.gamepad_buttons
+            )
+            self.plastic_action_projection = nn.Linear(width, num_buttons)
+            with torch.no_grad():
+                nn.init.zeros_(self.plastic_action_projection.weight)
+                nn.init.zeros_(self.plastic_action_projection.bias)
+        else:
+            self.reward_head = None
+            self.latent_predictor = None
+            self.plastic_action_projection = None
+
         self._reset_parameters()
 
     def _reset_parameters(self) -> None:
@@ -344,6 +417,15 @@ class IreneBrainModel(nn.Module):
             self.config.core_width,
         )
         noise = self.noise_projection(thought_noise).unsqueeze(2)
+        p_weights = None
+        prev_latent = None
+        prev_rew = None
+        if self.use_cgp:
+            width = self.config.core_width
+            p_dim = getattr(self.brain_cell, "plastic_dim", width) or width
+            p_weights = torch.zeros(batch_size, p_dim, device=actual_device, dtype=actual_dtype)
+            prev_latent = torch.zeros(batch_size, width, device=actual_device, dtype=actual_dtype)
+            prev_rew = torch.zeros(batch_size, device=actual_device, dtype=actual_dtype)
         return BrainState(
             belief=self.initial_belief.to(device=actual_device, dtype=actual_dtype).expand(
                 batch_size, -1, -1
@@ -363,6 +445,9 @@ class IreneBrainModel(nn.Module):
                 device=actual_device,
                 dtype=actual_dtype,
             ),
+            plastic_weights=p_weights,
+            prev_latent_pred=prev_latent,
+            prev_reward_pred=prev_rew,
         )
 
     def _validate_state(
@@ -389,6 +474,17 @@ class IreneBrainModel(nn.Module):
                 raise ValueError(f"state.{name} must be on {device}")
             if tensor.dtype != dtype:
                 raise ValueError(f"state.{name} must use dtype {dtype}")
+        if state.plastic_weights is not None:
+            if not isinstance(state.plastic_weights, Tensor):
+                raise ValueError("state.plastic_weights must be a Tensor")
+            if state.plastic_weights.shape[0] != batch:
+                raise ValueError(
+                    f"state.plastic_weights batch size mismatch: expected {batch}, got {state.plastic_weights.shape[0]}"
+                )
+            if state.plastic_weights.device != device:
+                raise ValueError(f"state.plastic_weights must be on {device}")
+            if state.plastic_weights.dtype != dtype:
+                raise ValueError(f"state.plastic_weights must use dtype {dtype}")
 
     def _normalize_elapsed(self, elapsed_seconds: Tensor, *, batch: int, pixels: Tensor) -> Tensor:
         if elapsed_seconds.ndim == 1:
@@ -451,6 +547,7 @@ class IreneBrainModel(nn.Module):
         elapsed_seconds: Tensor,
         thought_age_seconds: Tensor,
         thought_noise: Tensor | None,
+        surprise: Tensor | None = None,
     ) -> tuple[Tensor, Tensor, Tensor]:
         batch, thoughtlets, registers, width = thoughts.shape
         seeds = self._seed_thoughts(
@@ -474,6 +571,13 @@ class IreneBrainModel(nn.Module):
         else:
             lifecycle_logits = self.thought_predictions.lifecycle(thoughts.mean(dim=2))
             expire_probability = torch.softmax(lifecycle_logits, dim=-1)[..., 2:3]
+            if self.use_cgp and surprise is not None:
+                # Consequence-gated persistence: thoughts only expire under consequence surprise.
+                # During corridor traversal or blank occlusions, surprise ~ 0, preserving thoughts.
+                gate = torch.tanh(surprise)
+                if gate.ndim == 2:
+                    gate = gate.unsqueeze(1)
+                expire_probability = expire_probability * gate
             keep = 1.0 - expire_probability
             refreshed = keep.unsqueeze(-1) * thoughts + (1.0 - keep.unsqueeze(-1)) * seeds
             elapsed = elapsed_seconds.expand(batch, thoughtlets)
@@ -521,6 +625,20 @@ class IreneBrainModel(nn.Module):
             dtype=pixels.dtype,
         )
 
+        cur_plastic_weights = state.plastic_weights if state is not None else None
+        surprise_tensor = None
+        if self.use_cgp and self.reward_head is not None:
+            thought_summary = state.thoughts.mean(dim=(1, 2))
+            r_pred = self.reward_head(thought_summary)
+            prev_r = state.prev_reward_pred if (state is not None and state.prev_reward_pred is not None) else r_pred.detach()
+            delta_r = torch.abs(r_pred - prev_r)
+
+            prev_z = state.prev_latent_pred if (state is not None and state.prev_latent_pred is not None) else thought_summary.detach()
+            z_err = torch.norm(thought_summary - prev_z, dim=-1)
+
+            surprise_val = delta_r + 0.5 * z_err
+            surprise_tensor = surprise_val.unsqueeze(-1)
+
         sensors = self.pixel_encoder(pixels)
         control_token = self.control_encoder(previous_control).unsqueeze(1)
         time_input = torch.log1p(elapsed * 1_000.0)
@@ -540,6 +658,7 @@ class IreneBrainModel(nn.Module):
             elapsed_seconds=elapsed,
             thought_age_seconds=state.thought_age_seconds,
             thought_noise=thought_noise,
+            surprise=surprise_tensor,
         )
         working_memory = state.working_memory
         goal_context = state.goal_context
@@ -567,12 +686,14 @@ class IreneBrainModel(nn.Module):
                 goal_context=goal_context,
             )
         ]
+
         routing_indices: list[Tensor] = []
         routing_weights: list[Tensor] = []
         halting_probabilities: list[Tensor] = []
+
         for cycle in range(cycles):
             allow_routing, allow_workspace_writes = self._communication_policy(cycle)
-            belief, working_memory, thoughts, cycle_routing = self.brain_cell(
+            cell_out = self.brain_cell(
                 belief=belief,
                 working_memory=working_memory,
                 thoughts=thoughts,
@@ -583,7 +704,11 @@ class IreneBrainModel(nn.Module):
                 elapsed_seconds=elapsed,
                 allow_routing=allow_routing,
                 allow_workspace_writes=allow_workspace_writes,
+                plastic_weights=cur_plastic_weights,
+                surprise=surprise_tensor,
             )
+            belief, working_memory, thoughts, cycle_routing = cell_out
+            cur_plastic_weights = getattr(cell_out, "plastic_weights", cur_plastic_weights)
             routing_indices.extend(routing.indices for routing in cycle_routing)
             routing_weights.extend(routing.weights for routing in cycle_routing)
             if self.halting_controller is not None:
@@ -600,12 +725,23 @@ class IreneBrainModel(nn.Module):
                 )
             )
 
+        next_latent_pred = None
+        next_reward_pred = None
+        if self.use_cgp and self.reward_head is not None and self.latent_predictor is not None:
+            post_summary = thoughts.mean(dim=(1, 2))
+            next_reward_pred = self.reward_head(post_summary).detach()
+            pred_in = torch.cat([post_summary, control_token.squeeze(1)], dim=-1)
+            next_latent_pred = (post_summary + self.latent_predictor(pred_in)).detach()
+
         next_state = BrainState(
             belief=belief,
             working_memory=working_memory,
             thoughts=thoughts,
             goal_context=goal_context,
             thought_age_seconds=thought_ages,
+            plastic_weights=cur_plastic_weights,
+            prev_latent_pred=next_latent_pred,
+            prev_reward_pred=next_reward_pred,
         )
         world = self.thought_predictions(thoughts, sensors, belief)
         future_trajectories = (
@@ -627,6 +763,15 @@ class IreneBrainModel(nn.Module):
         normalized = F.normalize(summaries, dim=-1, eps=1e-6)
         similarity = torch.matmul(normalized, normalized.transpose(-1, -2))
         value = self.value_per_thought(summaries).mean(dim=1).squeeze(-1)
+
+        final_action = exits[-1]
+        if self.use_cgp and self.plastic_action_projection is not None and cur_plastic_weights is not None:
+            plastic_bias = self.plastic_action_projection(cur_plastic_weights)
+            final_action = replace(
+                final_action,
+                button_logits=final_action.button_logits + plastic_bias,
+            )
+
         diagnostics = ModelDiagnostics(
             routing_indices=tuple(routing_indices),
             routing_weights=tuple(routing_weights),
@@ -640,9 +785,11 @@ class IreneBrainModel(nn.Module):
             halting_probabilities=tuple(halting_probabilities),
             counterfactual_predictions=counterfactual_preds,
             topological_goal_predictions=topo_preds,
+            plastic_weights=cur_plastic_weights,
+            surprise=surprise_tensor,
         )
         return ModelOutput(
-            action=exits[-1],
+            action=final_action,
             anytime_actions=tuple(exits),
             value=value,
             world=world,
@@ -656,6 +803,7 @@ __all__ = [
     "BrainState",
     "deterministic_thought_identity_codes",
     "IreneBrainModel",
+    "LatentRewardHead",
     "ModelDiagnostics",
     "ModelOutput",
     "ThoughtPredictions",
