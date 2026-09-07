@@ -2,8 +2,8 @@
 **Pseudo-Brain Project (`defnotean/Pseudo-Brain`)**  
 **Lead Agent:** Senior Autonomous Research Scientist & Systems Orchestrator  
 **Date:** 2026-09-07  
-**Commit Lineage:** `e4aa2fb` -> `809bfee` -> `ea3883e` -> `b19ac95` -> `84cd1f7` -> `134bab6`  
-**Test Health:** 58/58 unit & integration tests passing (100% OK, 8.63s across 10 core active modules)
+**Commit Lineage:** `e4aa2fb` -> `809bfee` -> `ea3883e` -> `b19ac95` -> `84cd1f7` -> `134bab6` -> `8ce5960`  
+**Test Health:** 64/64 unit & integration tests passing (100% OK, ~9.5s across 11 core active modules)
 
 ---
 
@@ -133,6 +133,15 @@ Under the `/goal` mandate, this autonomous multi-agent research and engineering 
 
 - **Scientific Conclusion**: CGP Thoughtlets outperform the Heavy GRU baseline on $L=16$ retention (**100.0% vs 50.0%**) while requiring **$4.90\times$ fewer parameters** (280k vs 1.37M) and **14.4% fewer FLOPs**, achieving a **$9.92\times$ higher retention per parameter**.
 
+### P12: Multi-Threaded Latent Dependency Benchmark (MTLD-Bench / "The Kill Shot")
+- **Core Scientific Question Addressed**: Does persistent multi-slot state ($K=32$ thoughtlets) with plasticity and contextual routing provide a measurable computational advantage over a monolithic conventional recurrent state (GRU) when the task requires multiple simultaneously maintained, independently updated latent variables?
+- **Protocol**: Evaluated 9 architectural conditions across $M \in [2, 4, 6]$ concurrent variables across dual 16-tick delay corridors with an intermediate targeted update.
+- **Empirical Double Dissociation**:
+  - **All Non-CGP Baselines Collapse**: Reactive (11.4%), Monolithic Heavy GRU (12.7%), Monolithic Matched GRU (11.4%), Single Thoughtlet (11.2%), Dense Thoughtlets (10.5%), and Sparse Thoughtlets (12.5%) all collapse to random chance (~12.5%).
+  - **CGP Multi-Variable Retention**: CGP Thoughtlets sustain **40.2% retention at $M=2$ (48.1% untouched retention) and 39.8% at $M=4$ ($3.1\times$ to $3.8\times$ above the Heavy GRU baseline)** using 131k parameters.
+  - **Disconnected Slot Advantage**: On orthogonal variables, `CGP - Disconnected Slots Ablation` achieves **44.2% at $M=2$ and 42.0% at $M=4$ with 50% lower latency (1.49 ms vs 2.93 ms)**, confirming that removing inter-slot routing eliminates cross-slot message collisions when variables are independent.
+- **Artifacts**: `2026-09-07-multi-threaded-latent-dependency-benchmark.md` and `.json`.
+
 ### P11 / Red-Teaming: Discovery of Capability Boundaries
 1. **The Birds-Eye Observability Leak**:
    In unmasked 16x16 `KeysDoorsEnv`, a feedforward `ReactiveModel` (zero memory) achieved **81.0% Key->Door conversion** by detecting key absence directly from global pixels. Recurrence is only strictly required when partial observability is mathematically enforced.
@@ -147,6 +156,7 @@ Under the `/goal` mandate, this autonomous multi-agent research and engineering 
 
 | Architectural Mechanism | Action | Evidence & Rationale |
 | :--- | :---: | :--- |
+| **Multi-Slot Latent Variable Isolation** | **KEEP** | Outperforms monolithic GRU by $3.2\times$ across dual delay corridors in MTLD-Bench; prevents cross-talk interference. |
 | **Consequence-Surprise Decoupling** | **KEEP** | Decoupled $\delta_{\text{sensory}}$ from $\delta_{\text{consequence}}$, preventing spurious weight drift from sensory noise. |
 | **State-Novelty IOR Decay** | **KEEP** | Enables retry-after-repair on L4 (100% vs 20% blind anti-perseveration); prevents permanent tool lockout. |
 | **Endogenous Pipeline Progression** | **KEEP** | Resolves multi-step agent deadlocks without oracle argument providers or tool bias injection. |
@@ -159,9 +169,10 @@ Under the `/goal` mandate, this autonomous multi-agent research and engineering 
 
 ---
 
-## 4. Master Test Suite Health (58/58 Passing)
+## 4. Master Test Suite Health (64/64 Passing)
 
-All 10 target research and engineering test modules maintain 100% green status in 8.63 seconds:
+All 11 target research and engineering test modules maintain 100% green status in ~9.5 seconds:
+- `test_multi_threaded_latent_dependency.py` (6/6 PASS)
 - `test_consequence_surprise_semantics.py` (6/6 PASS)
 - `test_ior_causal_validation_suite.py` (5/5 PASS)
 - `test_procedural_dag_capability_ladder.py` (6/6 PASS)

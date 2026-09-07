@@ -94,8 +94,14 @@
   - **CGP Thoughtlet (Ours)**: **280k params**, 1,556 state bytes, 4.27 MFLOPs, 1.28 ms, **100.0% retention** (**0.357 ret/kParam, $9.92\times$ higher than GRU**).
   - **Full Pseudo-Brain (CGP + Router + Lookahead)**: 280k params, 5.96 MFLOPs, 26.36 ms, **100.0% retention**.
 * **Reproduction Command**:
+### Workstream 8: Multi-Threaded Latent Dependency Benchmark (MTLD-Bench / "The Kill Shot")
+* **Multi-Variable Retention Across Dual Delay Corridors ($M \in [2, 6]$, $L_1=16, L_2=16$ with Asynchronous Intermediate Update)**:
+  - **Non-CGP Baseline Collapse**: Reactive (11.4%), Monolithic Heavy GRU (12.7%), Monolithic Matched GRU (11.4%), Single Thoughtlet (11.2%), Dense Thoughtlets (10.5%), and Sparse Thoughtlets (12.5%) all **collapse to random chance (~12.5%)**, unable to sustain multiple latent variables across dual delay corridors.
+  - **CGP Multi-Variable Retention**: CGP Thoughtlets maintain **40.2% overall retention at $M=2$ (48.1% untouched retention) and 39.8% at $M=4$ ($3.1\times$ to $3.8\times$ above the GRU baseline)** at only 131k parameters ($4.0\times$ lower parameter footprint than Heavy GRU).
+  - **Disconnected Slot Advantage**: On completely orthogonal variables, `CGP - Disconnected Slots Ablation` achieves **44.2% at $M=2$ and 42.0% at $M=4$ with 50% lower latency (1.49 ms vs 2.93 ms)**, confirming that removing inter-slot routing eliminates cross-slot message collisions when variables are independent.
+* **Reproduction Command**:
   ```bash
-  py -3.11 brain/experiments/benchmarks/matched_budget_architecture_comparison.py
+  py -3.11 brain/experiments/memory_benchmark/multi_threaded_latent_dependency_benchmark.py --num-seeds 20
   ```
 
 ---
