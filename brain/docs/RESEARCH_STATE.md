@@ -74,17 +74,19 @@ We maintain strict claim discipline ([MEASURED], [INFERRED], [HYPOTHESIS], [ASPI
 ---
 
 ### Workstream 3 & 6: Procedural Task DAG Capability Ladder (L1 - L8)
+*Evaluated across $N=25$ random seeds per level (seeds 5000..5024), $\text{max\_steps}=18$, Shuffled Tool Ordering, Zero Tool Biases.*
 
-| Level | Task Benchmark | Blind Anti-Perseveration | PseudoBrainAgent (Contextual IOR) | Mechanistic Finding |
-| :--- | :--- | :--- | :--- | :--- |
-| **L1** | Single Action Invocation | 100.0% | **100.0%** | Parity |
-| **L2** | Fixed Sequence (Linear Tool Chain) | 100.0% | **100.0%** | Parity |
-| **L3** | Branching DAG (State Routing) | 100.0% | **100.0%** | Parity |
-| **L4** | **State-Contingent Retry** | **0.0%** | **100.0%** | **Critical Separation**: Naive IOR permanently suppresses action; PseudoBrain detects repair and resets inhibition |
-| **L5** | Hidden Dependency Extraction | 100.0% | **100.0%** | Parity |
-| **L6** | **Delayed Verification** | **0.0%** | **100.0%** | **Critical Separation**: Robust over observation latency |
-| **L7** | **Stochastic Timeout Recovery** | **0.0%** | **100.0%** | **Critical Separation**: Contextual retry succeeds |
-| **L8** | Novel DAG w/ Distractor Tools | 100.0% | **100.0%** | Parity: Ignores distractors |
+| Level | Task Benchmark | Blind Anti-Perseveration | Uninhibited (No-IOR) | PseudoBrainAgent (Contextual IOR) | Mechanistic Finding |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **L1** | Single Action Invocation | 48.0% (2.2s) | 68.0% (3.2s) | **100.0%** (1.6s) | Baseline tool selection & verification |
+| **L2** | Fixed Sequence (Linear Tool Chain) | 36.0% (2.7s) | 32.0% (3.6s) | **100.0%** (2.7s) | Chained execution without early-exit perseveration |
+| **L3** | Branching DAG (State Routing) | 48.0% (2.6s) | 28.0% (4.2s) | **100.0%** (2.8s) | Dynamic branching conditional on system state |
+| **L4** | **State-Contingent Retry** | **12.0%** (2.8s) | **4.0%** (4.5s) | **100.0%** (3.5s) | **Double Dissociation**: Blind bans failed tool forever; No-IOR perseverates on failure; Contextual IOR resets upon repair |
+| **L5** | Hidden Dependency Extraction | 48.0% (2.3s) | 40.0% (3.7s) | **100.0%** (2.4s) | Dynamic token extraction and authenticated unlock |
+| **L6** | **Delayed Verification** | **0.0%** (2.0s) | 56.0% (3.9s) | **100.0%** (4.0s) | **Critical Separation**: Premature verification failure permanently disables blind agent |
+| **L7** | **Stochastic Timeout Recovery** | **0.0%** (1.0s) | 72.0% (3.2s) | **100.0%** (3.6s) | **Critical Separation**: Adaptive retry overcomes transient 503 errors |
+| **L8** | **Novel DAG w/ Distractor Tools** | **16.0%** (3.1s) | **0.0%** (6.0s) | **68.0%** (12.0s) | **Critical Separation**: Survives corruptions, ignores distractors, completes prerequisite DAG |
+| **Mean** | **Overall Capability Portfolio** | **26.0%** | **37.5%** | **96.0%** | **$3.69\times$ higher SR than blind suppression; $2.56\times$ higher than uninhibited agent** |
 
 ---
 
@@ -95,9 +97,9 @@ We maintain strict claim discipline ([MEASURED], [INFERRED], [HYPOTHESIS], [ASPI
    - Telemetry verified: $\text{memory} \to \text{surprise} \to \text{plasticity} \to \text{dispersion} \to \text{pruning} \to \text{action}$.
    - Documented in `brain/docs/runs/2026-09-07-unified-60hz-embodied-cgp-planner.md`.
 2. **Procedural Task DAG & State-Contingent Retry Benchmark (WS3 / WS6)**: [COMPLETE & REPORTED]
-   - Stress-tested agent reasoning across L1–L8.
-   - Proved contextual failure memory differentiates from hard-coded anti-perseveration on L4, L6, L7.
-   - Documented in `brain/docs/runs/2026-09-07-agent-capability-ladder-results.md`.
+   - Stress-tested agent reasoning across L1–L8 across $N=25$ seeds with shuffled tool order and zero tool bias.
+   - Proved double dissociation: Blind heuristic drops to 12% on L4 and 0% on L6/L7; uninhibited agent drops to 4% on L4 and 0% on L8; PseudoBrainAgent achieves **96.0% mean SR**.
+   - Documented in `brain/docs/runs/2026-09-07-procedural-dag-capability-ladder.md` and `.json`.
 3. **Causal Memory Difficulty Decomposition (WS1)**: [COMPLETE & REPORTED]
    - Swept corridor delay horizons $L \in [0, 4, 8, 16, 32, 64, 128]$ ticks on NVIDIA A100 (`pb-research2`).
    - Results: Full CGP achieved **82.1%** mean retention across delay horizons (vs 66.7% vanilla thoughtlet and 53.8% GRU).

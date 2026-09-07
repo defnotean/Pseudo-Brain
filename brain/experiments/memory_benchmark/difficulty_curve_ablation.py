@@ -336,4 +336,22 @@ def run_difficulty_curve_benchmark(
 
 
 if __name__ == "__main__":
-    run_difficulty_curve_benchmark()
+    parser = argparse.ArgumentParser(description="Memory Difficulty Curve & Causal Ablation Benchmark")
+    parser.add_argument("--episodes", type=int, default=25, help="Episodes per point (default: 25)")
+    parser.add_argument("--start-seed", type=int, default=3000, help="Starting seed (default: 3000)")
+    parser.add_argument(
+        "--horizons",
+        type=str,
+        default="0,8,16,32,64,128",
+        help="Comma-separated delay horizons L (default: '0,8,16,32,64,128')",
+    )
+    parser.add_argument("--device", type=str, default="cpu", help="PyTorch compute device (default: cpu)")
+    args = parser.parse_args()
+
+    parsed_horizons = [int(x.strip()) for x in args.horizons.split(",") if x.strip()]
+    run_difficulty_curve_benchmark(
+        episodes_per_point=args.episodes,
+        start_seed=args.start_seed,
+        delay_horizons=parsed_horizons,
+        device_str=args.device,
+    )

@@ -105,6 +105,7 @@ class AgentCognitiveCore(nn.Module):
 
         # 6. Policy Head
         self.policy_head = nn.Linear(thought_dim, n_tools)
+        nn.init.zeros_(self.policy_head.bias)
 
     def forward_step(
         self,

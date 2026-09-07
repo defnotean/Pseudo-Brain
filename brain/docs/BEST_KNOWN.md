@@ -49,6 +49,11 @@
   ```
 
 ### Workstream 3 & 6: Autonomous Agent Loop & Unassisted Generalization
+* **Procedural Task DAG Capability Ladder Benchmark (WS3 / WS6, N=25 seeds, L1-L8, Shuffled Tools, Zero Bias)**:
+  - Blind Anti-Perseveration: **26.0% Overall SR** (collapses to 12.0% on L4 retry, 0.0% on L6/L7, 16.0% on L8).
+  - Uninhibited Agent (No-IOR): **37.5% Overall SR** (collapses to 4.0% on L4 retry, 0.0% on L8 due to perseveration).
+  - Contextual IOR PseudoBrainAgent: **96.0% Overall SR** (100% on L1-L7, 68.0% on L8, 3.5 steps on L4).
+  - Double Dissociation on L4 proves that state novelty $\Delta z_{\text{obs}}$ decays inhibition to allow retrying previously failed tools after repair.
 * **Autonomous Generalization Benchmark V1 (Zero Tool Bias, Zero Argument Injection, $N=10$ random seeds)**:
   - Task 1 (Autonomous File Investigation): **70.0% SR**, 83.8% APV, 3.70 steps, 3.0ms latency.
   - Task 2 (Multi-Step Dependent Pipeline): **60.0% SR**, 85.7% APV, 7.70 steps, 6.2ms latency (upgraded from 0.0% via endogenous stage tracking).
@@ -59,8 +64,9 @@
   - Cases A, B, C, D, E verified 100% pass under state novelty decay $\exp(-2.0 \cdot \Delta z_{\text{obs}})$ and exploratory temperature scaling.
 * **Reproduction Commands**:
   ```bash
+  py -3.11 brain/experiments/agent_benchmarks/procedural_task_dag_benchmark.py --episodes 25
   py -3.11 brain/experiments/agent_benchmarks/autonomous_generalization_v1.py
-  py -3.11 -m unittest discover -s brain/tests -p "test_ior_causal_validation_suite.py"
+  py -3.11 -m pytest brain/tests/test_procedural_dag_capability_ladder.py brain/tests/test_ior_causal_validation_suite.py
   ```
 
 ### Workstream 5: Sub-Quadratic Thoughtlet Router Scaling (P6)
