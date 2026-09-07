@@ -68,6 +68,7 @@ class KeysDoorsSequenceDataset(Dataset):
         act = self.actions[ep_idx]
         pact = self.prev_actions[ep_idx]
         hk = self.has_key[ep_idx]
+        do = self.door_open[ep_idx]
 
         T = self.seq_len
         # Stack N_FRAMES prior frames for each timestep
@@ -88,6 +89,7 @@ class KeysDoorsSequenceDataset(Dataset):
             "actions": torch.from_numpy(act[t0 : t0 + T].astype(np.int64)),
             "prev_actions": torch.from_numpy(pact[t0 : t0 + T].astype(np.int64)),
             "has_key": torch.from_numpy(hk[t0 : t0 + T].astype(np.uint8)),
+            "door_open": torch.from_numpy(do[t0 : t0 + T].astype(np.uint8)),
         }
 
 
@@ -97,4 +99,5 @@ def collate_sequences(batch: List[Dict[str, torch.Tensor]]) -> Dict[str, torch.T
         "actions": torch.stack([b["actions"] for b in batch]),        # (B, T)
         "prev_actions": torch.stack([b["prev_actions"] for b in batch]),
         "has_key": torch.stack([b["has_key"] for b in batch]),
+        "door_open": torch.stack([b["door_open"] for b in batch]),
     }

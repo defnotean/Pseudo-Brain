@@ -47,7 +47,7 @@ def resolve_device(device_str: str = "auto") -> torch.device:
 
 
 @torch.no_grad()
-def evaluate_split(model: nn.Module, dataloader: DataLoader, device: torch.device, max_batches: int = 40) -> Dict[str, float]:
+def evaluate_split(model: nn.Module, dataloader: DataLoader, device: torch.device, max_batches: int = 15) -> Dict[str, float]:
     model.eval()
     total_loss = 0.0
     total_correct = 0
@@ -134,6 +134,10 @@ def train_model(
     out_path.mkdir(parents=True, exist_ok=True)
     ckpt_file = out_path / f"{model_type}_seed_{seed}.pt"
     latest_file = out_path / f"{model_type}_seed_{seed}_latest.pt"
+    best_file = out_path / f"{model_type}_seed_{seed}_best.pt"
+
+    best_val_loss = float("inf")
+    best_state_dict = None
 
     step = 0
     history = []
@@ -186,24 +190,44 @@ def train_model(
         ss_rate = min(0.6, (step / (0.5 * total_steps)) * 0.6)
 
         optimizer.zero_grad()
-        seq_loss = 0.0
-        h = None
-        curr_prev_act = prev_actions[:, 0]
 
-        for t in range(T):
-            f_t = frames[:, t]
-            logits, h = model(f_t, curr_prev_act, h)
+        if model_type == "cgp_thoughtlet" and hasattr(model, "forward_sequence"):
+            logits, m_logits, z_hat, all_z = model.forward_sequence(
+                frames, prev_actions, actions, ss_rate=ss_rate
+            )
+            act_loss = criterion(logits.reshape(B * T, -1), actions.reshape(B * T))
 
-            loss = criterion(logits, actions[:, t])
-            seq_loss = seq_loss + loss
+            true_hk = batch["has_key"].to(device).float()
+            true_do = batch.get("door_open", torch.zeros_like(true_hk)).to(device).float()
+            true_m = torch.stack([true_hk, true_do], dim=-1)
 
-            # Scheduled sampling for next step's prev_action input
-            if np.random.rand() < ss_rate:
-                curr_prev_act = logits.detach().argmax(dim=-1)
+            milestone_loss = F.binary_cross_entropy_with_logits(m_logits, true_m)
+            if z_hat.size(1) > 1:
+                latent_loss = F.mse_loss(z_hat[:, :-1], all_z[:, 1:].detach())
             else:
-                curr_prev_act = actions[:, t]
+                latent_loss = torch.tensor(0.0, device=device)
 
-        seq_loss = seq_loss / T
+            seq_loss = act_loss + 0.5 * milestone_loss + 0.1 * latent_loss
+        else:
+            seq_loss = 0.0
+            h = None
+            curr_prev_act = prev_actions[:, 0]
+
+            for t in range(T):
+                f_t = frames[:, t]
+                logits, h = model(f_t, curr_prev_act, h)
+
+                loss = criterion(logits, actions[:, t])
+                seq_loss = seq_loss + loss
+
+                # Scheduled sampling for next step's prev_action input
+                if np.random.rand() < ss_rate:
+                    curr_prev_act = logits.detach().argmax(dim=-1)
+                else:
+                    curr_prev_act = actions[:, t]
+
+            seq_loss = seq_loss / T
+
         seq_loss.backward()
         nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
         optimizer.step()
@@ -216,7 +240,7 @@ def train_model(
                 act_loss=seq_loss.item(),
             )
 
-        if step % 250 == 0 or step == total_steps:
+        if step % 500 == 0 or step == total_steps:
             val_metrics = evaluate_split(model, dev_loader, device)
             elapsed = time.time() - t0
             print(
@@ -246,7 +270,18 @@ def train_model(
                 "device": str(device),
             }
             torch.save(checkpoint_state, latest_file)
+
+            if val_metrics["val_loss"] < best_val_loss:
+                best_val_loss = val_metrics["val_loss"]
+                best_state_dict = {k: v.cpu().clone() for k, v in model.state_dict().items()}
+                torch.save(checkpoint_state, best_file)
+                print(f"  * New best validation checkpoint saved (loss: {best_val_loss:.4f})")
+
             if step == total_steps:
+                if best_state_dict is not None:
+                    model.load_state_dict({k: v.to(device) for k, v in best_state_dict.items()})
+                    print(f"  * Restored best validation weights (loss: {best_val_loss:.4f}) for evaluation")
+                    checkpoint_state["model_state_dict"] = model.state_dict()
                 torch.save(checkpoint_state, ckpt_file)
                 print(f"Saved final checkpoint to {ckpt_file}")
 
@@ -255,7 +290,7 @@ def train_model(
 
 def main():
     parser = argparse.ArgumentParser(description="Train memory benchmark model")
-    parser.add_argument("--model", type=str, required=True, choices=["reactive", "gru", "thoughtlet"])
+    parser.add_argument("--model", type=str, required=True, choices=["reactive", "gru", "thoughtlet", "cgp_thoughtlet"])
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--steps", type=int, default=2000)
     parser.add_argument("--batch_size", type=int, default=16)
