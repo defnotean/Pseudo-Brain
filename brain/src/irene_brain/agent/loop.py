@@ -115,6 +115,11 @@ class AgentCognitiveCore(nn.Module):
         consequence_surprise: torch.Tensor,
         last_action: Optional[int] = None,
         last_success: Optional[bool] = None,
+        *,
+        state_novelty: float = 0.0,
+        suppression_decay: float = 1.0,
+        consecutive_failures: int = 0,
+        specific_suppression: Optional[Dict[int, float]] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, float]:
         """Runs a single recurrent cognitive step.
 
@@ -147,10 +152,18 @@ class AgentCognitiveCore(nn.Module):
 
         # Inhibition of Return & Subgoal Progression:
         # Actively penalize repeating an action that failed, and discount immediate re-execution of completed action
-        if last_action is not None:
+        if specific_suppression is not None:
+            suppression = torch.zeros_like(P_next)
+            for act_idx, supp_val in specific_suppression.items():
+                if 0 <= act_idx < self.n_tools:
+                    suppression[0, act_idx] = supp_val
+            P_next = P_next + suppression
+        elif last_action is not None:
             if last_success is False:
+                # State-contingent IOR: decay suppression exponentially if state novelty or repair occurred
+                decay = np.exp(-2.0 * max(0.0, state_novelty)) * max(0.0, suppression_decay)
                 suppression = torch.zeros_like(P_next)
-                suppression[0, last_action] = -4.0 * float(consequence_surprise.item() + 1.0)
+                suppression[0, last_action] = -4.0 * float(consequence_surprise.item() + 1.0) * float(decay)
                 P_next = P_next + suppression
             elif last_success is True:
                 discount = torch.zeros_like(P_next)
@@ -160,6 +173,9 @@ class AgentCognitiveCore(nn.Module):
         # Combined Policy Logits
         base_logits = self.policy_head(h_next)
         logits = base_logits + self.scale * P_next
+        if consecutive_failures >= 2:
+            temperature = 1.0 + 0.3 * min(5, consecutive_failures)
+            logits = logits / temperature
 
         gate_val = float(g_t.mean().item())
         return logits, h_next, P_next, gate_val
@@ -243,6 +259,7 @@ class PseudoBrainAgent:
         P_t = torch.zeros(1, len(self.registry), device=self.device)
         consequence_surprise = torch.zeros(1, 1, device=self.device)
         obs_emb = torch.zeros(1, self.core.obs_dim, device=self.device)
+        last_failure_obs_emb: Optional[torch.Tensor] = None
 
         logs: List[AgentStepLog] = []
         cum_reward = 0.0
@@ -250,8 +267,13 @@ class PseudoBrainAgent:
         last_action_idx: Optional[int] = None
         last_success: Optional[bool] = None
         last_reward = 0.0
+        consecutive_failures = 0
 
         for step in range(1, max_steps + 1):
+            state_novelty = 0.0
+            if last_failure_obs_emb is not None and last_success is False:
+                state_novelty = float(torch.norm(obs_emb - last_failure_obs_emb).item())
+
             # 1. Thought / Planning / Policy forward step with outcome history
             with torch.no_grad():
                 logits, h_t, P_t, gate_val = self.core.forward_step(
@@ -262,6 +284,8 @@ class PseudoBrainAgent:
                     consequence_surprise=consequence_surprise,
                     last_action=last_action_idx,
                     last_success=last_success,
+                    state_novelty=state_novelty,
+                    consecutive_failures=consecutive_failures,
                 )
                 if action_selector is not None:
                     action_idx = action_selector(logits, logs)
@@ -293,6 +317,13 @@ class PseudoBrainAgent:
                 last_success=tool_res.success,
                 last_reward=r_true,
             )
+
+            if tool_res.success is False:
+                consecutive_failures += 1
+                last_failure_obs_emb = obs_emb.clone()
+            else:
+                consecutive_failures = 0
+                last_failure_obs_emb = None
 
             last_action_idx = action_idx
             last_success = tool_res.success

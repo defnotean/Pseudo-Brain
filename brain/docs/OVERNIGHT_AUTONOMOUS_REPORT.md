@@ -34,3 +34,16 @@ In accordance with the project directives:
    $$\text{memory} \to \text{surprise} \to \text{plasticity} \to \text{prediction} \to \text{uncertainty} \to \text{planning} \to \text{action}$$
 2. **Execute Causal Difficulty Curve for Memory (WS1)** across corridor lengths $L \in [0, 4, 8, 16, 32, 64, 128]$ comparing Vanilla, GRU, CGP, CGP w/o CIG, and CGP w/o CGSL.
 3. **Build Procedural Task DAG Capability Ladder (WS3)** to test whether failure recovery is genuine contextual memory or blind anti-perseveration.
+
+---
+
+## 4. Forensic Audit & Reclassification of Level 15/16 Agent Benchmarks (P1)
+
+Following an independent adversarial audit (Agent B):
+* **Audit Finding**: Existing Level 15 and Level 16 benchmarks (`test_agent_reasoning.py`, `test_level16_agent_workflows.py`) rely on external test-fixture assistance:
+  1. Manually primed descending action biases (`set_tool_bias()`) forcing deterministic tool trajectories.
+  2. External dynamic argument injection (`dynamic_arg_provider`), where the test harness authors the bug fixes, test assertions, and shell commands.
+  3. A 60-bucket CRC32 token hash that discards semantic code structure.
+* **Formal Reclassification**: These tests are officially reclassified as **"Workflow Execution & Tool Infrastructure Plumbing Tests"**. They validate tool I/O and process execution, but **do not constitute evidence of autonomous reasoning or code synthesis**.
+* **Action Mandate (P2)**: Autonomous generalization must be evaluated with zero tool bias priming, zero argument providers, and held-out procedurally generated tasks.
+

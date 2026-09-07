@@ -1,52 +1,145 @@
 {
-  "H=3": {
-    "horizon": 3,
-    "mean_total_ms": 25.72830777777778,
-    "p50_total_ms": 25.6344,
-    "p90_total_ms": 26.28847,
-    "p95_total_ms": 26.823859999999996,
-    "p99_total_ms": 27.375352,
+  "Reflexive Only (H=0, cycles=1)": {
+    "name": "Reflexive Only (H=0, cycles=1)",
+    "horizon": 0,
+    "plan_interval": 1,
+    "cognitive_cycles": 1,
+    "mean_total_ms": 8.542153333333333,
+    "p50_total_ms": 8.4004,
+    "p90_total_ms": 9.313740000000001,
+    "p95_total_ms": 9.646994999999997,
+    "p99_total_ms": 10.514857000000003,
     "breakdown_ms": {
-      "encoder": 0.3018511111111111,
-      "recurrent_cgp": 10.48529277777778,
-      "dynamic_planner": 14.642764444444444,
-      "action": 0.012130555555555558,
-      "env_step": 0.19811611111111113
+      "encoder": 0.35745777777777776,
+      "recurrent_cgp": 7.804980555555556,
+      "dynamic_planner": 0.00017111111111111117,
+      "action": 0.023718333333333334,
+      "env_step": 0.24696888888888893
     },
     "cognitive_telemetry": {
-      "thoughtlet_dispersion": 2.3323384126027427,
-      "plastic_trace_norm": 0.9185828814903895,
-      "plasticity_delta_norm": 0.018038277355177948,
-      "branches_expanded": 28.0,
-      "branches_pruned": 4.0,
+      "thoughtlet_dispersion": 2.0352683067321777,
+      "plastic_trace_norm": 0.0,
+      "plasticity_delta_norm": 0.0,
+      "branches_expanded": 0.0,
+      "branches_pruned": 0.0,
       "hazard_prunes": 0.0,
-      "utility_prunes": 4.0
+      "utility_prunes": 0.0
+    },
+    "total_pellets": 7,
+    "60hz_budget_met": true
+  },
+  "Real-Time Lookahead (H=1, cycles=1)": {
+    "name": "Real-Time Lookahead (H=1, cycles=1)",
+    "horizon": 1,
+    "plan_interval": 1,
+    "cognitive_cycles": 1,
+    "mean_total_ms": 13.01050777777778,
+    "p50_total_ms": 12.77935,
+    "p90_total_ms": 14.34474,
+    "p95_total_ms": 14.85548,
+    "p99_total_ms": 16.860157000000008,
+    "breakdown_ms": {
+      "encoder": 0.39823388888888883,
+      "recurrent_cgp": 8.310442777777778,
+      "dynamic_planner": 3.9102816666666667,
+      "action": 0.017190555555555553,
+      "env_step": 0.26308333333333334
+    },
+    "cognitive_telemetry": {
+      "thoughtlet_dispersion": 2.0352683067321777,
+      "plastic_trace_norm": 0.0,
+      "plasticity_delta_norm": 0.0,
+      "branches_expanded": 4.0,
+      "branches_pruned": 0.0,
+      "hazard_prunes": 0.0,
+      "utility_prunes": 0.0
+    },
+    "total_pellets": 12,
+    "60hz_budget_met": true
+  },
+  "Dual-Rate Lookahead (H=3, decim=3, cycles=1)": {
+    "name": "Dual-Rate Lookahead (H=3, decim=3, cycles=1)",
+    "horizon": 3,
+    "plan_interval": 3,
+    "cognitive_cycles": 1,
+    "mean_total_ms": 14.619262222222222,
+    "p50_total_ms": 9.43045,
+    "p90_total_ms": 26.43303,
+    "p95_total_ms": 26.961855,
+    "p99_total_ms": 28.018596,
+    "breakdown_ms": {
+      "encoder": 0.3981566666666666,
+      "recurrent_cgp": 8.224317222222222,
+      "dynamic_planner": 5.601146666666667,
+      "action": 0.017938333333333334,
+      "env_step": 0.26668888888888886
+    },
+    "cognitive_telemetry": {
+      "thoughtlet_dispersion": 2.0352683067321777,
+      "plastic_trace_norm": 0.0,
+      "plasticity_delta_norm": 0.0,
+      "branches_expanded": 24.0,
+      "branches_pruned": 6.0,
+      "hazard_prunes": 0.0,
+      "utility_prunes": 6.0
     },
     "total_pellets": 12,
     "60hz_budget_met": false
   },
-  "H=5": {
-    "horizon": 5,
-    "mean_total_ms": 41.38713722222222,
-    "p50_total_ms": 39.67055,
-    "p90_total_ms": 47.729749999999996,
-    "p95_total_ms": 50.52823499999999,
-    "p99_total_ms": 54.90474600000001,
+  "Continuous Deep Lookahead (H=3, decim=1, cycles=2)": {
+    "name": "Continuous Deep Lookahead (H=3, decim=1, cycles=2)",
+    "horizon": 3,
+    "plan_interval": 1,
+    "cognitive_cycles": 2,
+    "mean_total_ms": 29.923690555555556,
+    "p50_total_ms": 29.652549999999998,
+    "p90_total_ms": 32.383939999999996,
+    "p95_total_ms": 34.039585,
+    "p99_total_ms": 35.974740000000004,
     "breakdown_ms": {
-      "encoder": 0.32358166666666666,
-      "recurrent_cgp": 10.946572777777778,
-      "dynamic_planner": 29.79321277777778,
-      "action": 0.013641666666666668,
-      "env_step": 0.21670944444444445
+      "encoder": 0.44607499999999994,
+      "recurrent_cgp": 12.792176111111111,
+      "dynamic_planner": 16.268196666666668,
+      "action": 0.020276666666666665,
+      "env_step": 0.2797344444444444
     },
     "cognitive_telemetry": {
-      "thoughtlet_dispersion": 2.3323384126027427,
-      "plastic_trace_norm": 0.9185828814903895,
-      "plasticity_delta_norm": 0.018038277355177948,
-      "branches_expanded": 60.0,
-      "branches_pruned": 36.0,
+      "thoughtlet_dispersion": 2.0352683067321777,
+      "plastic_trace_norm": 0.0,
+      "plasticity_delta_norm": 0.0,
+      "branches_expanded": 24.0,
+      "branches_pruned": 6.0,
       "hazard_prunes": 0.0,
-      "utility_prunes": 36.0
+      "utility_prunes": 6.0
+    },
+    "total_pellets": 12,
+    "60hz_budget_met": false
+  },
+  "Continuous Deep Lookahead (H=5, decim=1, cycles=2)": {
+    "name": "Continuous Deep Lookahead (H=5, decim=1, cycles=2)",
+    "horizon": 5,
+    "plan_interval": 1,
+    "cognitive_cycles": 2,
+    "mean_total_ms": 45.271031666666666,
+    "p50_total_ms": 44.72215,
+    "p90_total_ms": 48.25794,
+    "p95_total_ms": 50.25213999999998,
+    "p99_total_ms": 57.290778,
+    "breakdown_ms": {
+      "encoder": 0.4866416666666667,
+      "recurrent_cgp": 13.354632222222222,
+      "dynamic_planner": 30.981707222222223,
+      "action": 0.02277833333333333,
+      "env_step": 0.30014722222222223
+    },
+    "cognitive_telemetry": {
+      "thoughtlet_dispersion": 2.0352683067321777,
+      "plastic_trace_norm": 0.0,
+      "plasticity_delta_norm": 0.0,
+      "branches_expanded": 48.0,
+      "branches_pruned": 30.0,
+      "hazard_prunes": 0.0,
+      "utility_prunes": 30.0
     },
     "total_pellets": 12,
     "60hz_budget_met": false

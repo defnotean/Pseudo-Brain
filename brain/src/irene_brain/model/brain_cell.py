@@ -575,6 +575,7 @@ class EnsembleBrainCell(nn.Module):
         elapsed_seconds: Tensor,
         allow_routing: bool,
         allow_workspace_writes: bool = True,
+        **kwargs: object,
     ) -> tuple[Tensor, Tensor, Tensor, tuple[RoutingDiagnostics, ...]]:
         del action_time_tokens, allow_routing, allow_workspace_writes
         if thoughts.shape[1] % self.members != 0:
@@ -663,6 +664,7 @@ class TransformerCarryCell(nn.Module):
         elapsed_seconds: Tensor,
         allow_routing: bool,
         allow_workspace_writes: bool = True,
+        **kwargs: object,
     ) -> tuple[Tensor, Tensor, Tensor, tuple[RoutingDiagnostics, ...]]:
         del allow_routing, allow_workspace_writes
         batch, thoughtlets, registers, width = thoughts.shape
@@ -833,6 +835,7 @@ class MonolithicRecurrentCell(nn.Module):
         elapsed_seconds: Tensor,
         allow_routing: bool,
         allow_workspace_writes: bool = True,
+        **kwargs: object,
     ) -> tuple[Tensor, Tensor, Tensor, tuple[RoutingDiagnostics, ...]]:
         del allow_routing, allow_workspace_writes
         routing: list[RoutingDiagnostics] = []

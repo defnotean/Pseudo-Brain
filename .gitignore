@@ -25,3 +25,5 @@ brain/datasets/
 *.tar
 *.tgz
 *.zip
+scratch/
+runs/

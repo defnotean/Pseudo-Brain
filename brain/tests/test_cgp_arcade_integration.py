@@ -200,9 +200,10 @@ class CGPArcadeIntegrationTests(unittest.TestCase):
         ctrl = torch.zeros(1, cgp_config.actuator.total_queries)
         elapsed = torch.tensor([[1.0 / 60.0]])
 
-        # Tick 0: Stimulus frame with high salient threat pattern
+        # Tick 0: Stimulus frame with high salient threat pattern (adverse reward consequence)
         stim_pixels = torch.randn(1, 3, 32, 32) * 2.0
-        out0_cgp = model_cgp(stim_pixels, ctrl, elapsed, model_cgp.initial_state(1))
+        threat_reward = torch.tensor([[-1.0]])
+        out0_cgp = model_cgp(stim_pixels, ctrl, elapsed, model_cgp.initial_state(1), actual_reward=threat_reward)
         out0_base = model_base(stim_pixels, ctrl, elapsed, model_base.initial_state(1))
 
         cgp_state = out0_cgp.next_state

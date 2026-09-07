@@ -69,6 +69,7 @@ class BrainState:
     plastic_weights: Tensor | None = None
     prev_latent_pred: Tensor | None = None
     prev_reward_pred: Tensor | None = None
+    prev_outcome_pred: Tensor | None = None
 
     @property
     def P_t(self) -> Tensor | None:
@@ -85,6 +86,7 @@ class BrainState:
             plastic_weights=self.plastic_weights.detach() if self.plastic_weights is not None else None,
             prev_latent_pred=self.prev_latent_pred.detach() if self.prev_latent_pred is not None else None,
             prev_reward_pred=self.prev_reward_pred.detach() if self.prev_reward_pred is not None else None,
+            prev_outcome_pred=self.prev_outcome_pred.detach() if self.prev_outcome_pred is not None else None,
         )
 
     def to(self, *args: object, **kwargs: object) -> BrainState:
@@ -98,6 +100,7 @@ class BrainState:
             plastic_weights=self.plastic_weights.to(*args, **kwargs) if self.plastic_weights is not None else None,
             prev_latent_pred=self.prev_latent_pred.to(*args, **kwargs) if self.prev_latent_pred is not None else None,
             prev_reward_pred=self.prev_reward_pred.to(*args, **kwargs) if self.prev_reward_pred is not None else None,
+            prev_outcome_pred=self.prev_outcome_pred.to(*args, **kwargs) if self.prev_outcome_pred is not None else None,
         )
 
 
@@ -132,6 +135,10 @@ class ModelDiagnostics:
     topological_goal_predictions: TopologicalGoalPrediction | None = None
     plastic_weights: Tensor | None = None
     surprise: Tensor | None = None
+    sensory_surprise: Tensor | None = None
+    consequence_surprise: Tensor | None = None
+    reward_error: Tensor | None = None
+    outcome_error: Tensor | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -448,6 +455,7 @@ class IreneBrainModel(nn.Module):
             plastic_weights=p_weights,
             prev_latent_pred=prev_latent,
             prev_reward_pred=prev_rew,
+            prev_outcome_pred=None,
         )
 
     def _validate_state(
@@ -591,6 +599,8 @@ class IreneBrainModel(nn.Module):
         elapsed_seconds: Tensor,
         state: BrainState | None = None,
         *,
+        actual_reward: Tensor | None = None,
+        actual_outcomes: Tensor | None = None,
         max_cycles: int | None = None,
         thought_noise: Tensor | None = None,
         retrieved_memory: Tensor | None = None,
@@ -626,20 +636,50 @@ class IreneBrainModel(nn.Module):
         )
 
         cur_plastic_weights = state.plastic_weights if state is not None else None
+        sensory_surprise_tensor = None
+        consequence_surprise_tensor = None
         surprise_tensor = None
-        if self.use_cgp and self.reward_head is not None:
-            thought_summary = state.thoughts.mean(dim=(1, 2))
-            r_pred = self.reward_head(thought_summary)
-            prev_r = state.prev_reward_pred if (state is not None and state.prev_reward_pred is not None) else r_pred.detach()
-            delta_r = torch.abs(r_pred - prev_r)
-
-            prev_z = state.prev_latent_pred if (state is not None and state.prev_latent_pred is not None) else thought_summary.detach()
-            z_err = torch.norm(thought_summary - prev_z, dim=-1)
-
-            surprise_val = delta_r + 0.5 * z_err
-            surprise_tensor = surprise_val.unsqueeze(-1)
+        reward_error_tensor = None
+        outcome_error_tensor = None
 
         sensors = self.pixel_encoder(pixels)
+        if self.use_cgp and self.reward_head is not None:
+            sensory_summary = sensors.mean(dim=1)  # [batch, width]
+
+            # 1. Sensory surprise: ||z_t - \hat{z}_{t|t-1}||
+            if state is not None and state.prev_latent_pred is not None:
+                sensory_err = torch.norm(sensory_summary - state.prev_latent_pred, dim=-1, keepdim=True)
+            else:
+                sensory_err = torch.zeros(batch, 1, device=pixels.device, dtype=pixels.dtype)
+            sensory_surprise_tensor = sensory_err
+
+            # 2. Reward prediction error: |r_t - \hat{r}_{t|t-1}|
+            if actual_reward is not None and state is not None and state.prev_reward_pred is not None:
+                rew_target = actual_reward.to(device=pixels.device, dtype=pixels.dtype)
+                if rew_target.ndim == 1:
+                    rew_target = rew_target.unsqueeze(-1)
+                pred_r = state.prev_reward_pred
+                if pred_r.ndim == 1:
+                    pred_r = pred_r.unsqueeze(-1)
+                reward_err = torch.abs(rew_target - pred_r)
+            else:
+                reward_err = torch.zeros(batch, 1, device=pixels.device, dtype=pixels.dtype)
+            reward_error_tensor = reward_err
+
+            # 3. Outcome prediction error: ||m_t - \hat{m}_{t|t-1}||
+            if actual_outcomes is not None and state is not None and state.prev_outcome_pred is not None:
+                outcomes_target = actual_outcomes.to(device=pixels.device, dtype=pixels.dtype)
+                outcome_err = torch.norm(outcomes_target - state.prev_outcome_pred, dim=-1, keepdim=True)
+            else:
+                outcome_err = torch.zeros(batch, 1, device=pixels.device, dtype=pixels.dtype)
+            outcome_error_tensor = outcome_err
+
+            # 4. Consequence surprise: strictly outcome + reward error.
+            # INVARIANT: If reward_err == 0 and outcome_err == 0, consequence surprise == 0!
+            # Pure sensory noise does NOT enter consequence surprise!
+            consequence_surprise_tensor = reward_err + 1.0 * outcome_err
+            surprise_tensor = consequence_surprise_tensor
+
         control_token = self.control_encoder(previous_control).unsqueeze(1)
         time_input = torch.log1p(elapsed * 1_000.0)
         time_token = self.time_encoder(time_input).unsqueeze(1)
@@ -658,7 +698,7 @@ class IreneBrainModel(nn.Module):
             elapsed_seconds=elapsed,
             thought_age_seconds=state.thought_age_seconds,
             thought_noise=thought_noise,
-            surprise=surprise_tensor,
+            surprise=consequence_surprise_tensor,
         )
         working_memory = state.working_memory
         goal_context = state.goal_context
@@ -693,21 +733,23 @@ class IreneBrainModel(nn.Module):
 
         for cycle in range(cycles):
             allow_routing, allow_workspace_writes = self._communication_policy(cycle)
-            cell_out = self.brain_cell(
-                belief=belief,
-                working_memory=working_memory,
-                thoughts=thoughts,
-                sensors=sensors,
-                action_time_tokens=action_time_tokens,
-                goal_context=goal_context,
-                retrieved_memory=retrieved_memory,
-                elapsed_seconds=elapsed,
-                allow_routing=allow_routing,
-                allow_workspace_writes=allow_workspace_writes,
-                plastic_weights=cur_plastic_weights,
-                surprise=surprise_tensor,
-            )
-            belief, working_memory, thoughts, cycle_routing = cell_out
+            cell_kwargs = {
+                "belief": belief,
+                "working_memory": working_memory,
+                "thoughts": thoughts,
+                "sensors": sensors,
+                "action_time_tokens": action_time_tokens,
+                "goal_context": goal_context,
+                "retrieved_memory": retrieved_memory,
+                "elapsed_seconds": elapsed,
+                "allow_routing": allow_routing,
+                "allow_workspace_writes": allow_workspace_writes,
+            }
+            if self.use_cgp:
+                cell_kwargs["plastic_weights"] = cur_plastic_weights
+                cell_kwargs["surprise"] = consequence_surprise_tensor
+            cell_out = self.brain_cell(**cell_kwargs)
+            belief, working_memory, thoughts, cycle_routing = cell_out[:4]
             cur_plastic_weights = getattr(cell_out, "plastic_weights", cur_plastic_weights)
             routing_indices.extend(routing.indices for routing in cycle_routing)
             routing_weights.extend(routing.weights for routing in cycle_routing)
@@ -787,6 +829,10 @@ class IreneBrainModel(nn.Module):
             topological_goal_predictions=topo_preds,
             plastic_weights=cur_plastic_weights,
             surprise=surprise_tensor,
+            sensory_surprise=sensory_surprise_tensor,
+            consequence_surprise=consequence_surprise_tensor,
+            reward_error=reward_error_tensor,
+            outcome_error=outcome_error_tensor,
         )
         return ModelOutput(
             action=final_action,
