@@ -80,6 +80,7 @@ class StreamingCognitiveSession:
         thread_id: Optional[int] = None,
         max_new_tokens: int = 32,
         temperature: float = 0.0,
+        repetition_penalty: float = 1.0,
         stop_on_eos: bool = True,
         stop_on_sep: bool = True,
         allow_routing: bool = False,
@@ -107,10 +108,18 @@ class StreamingCognitiveSession:
             if last_logits is None:
                 break
 
+            curr_logits = last_logits.clone()
+            if repetition_penalty > 1.0 and generated_token_ids:
+                for past_tok in set(generated_token_ids[-8:]):
+                    if curr_logits[past_tok] > 0:
+                        curr_logits[past_tok] /= repetition_penalty
+                    else:
+                        curr_logits[past_tok] *= repetition_penalty
+
             if temperature <= 1e-4:
-                next_tok = int(last_logits.argmax().item())
+                next_tok = int(curr_logits.argmax().item())
             else:
-                probs = F.softmax(last_logits / temperature, dim=-1)
+                probs = F.softmax(curr_logits / temperature, dim=-1)
                 next_tok = int(torch.multinomial(probs, num_samples=1).item())
 
             if stop_on_eos and next_tok == self.tokenizer.eos_id:

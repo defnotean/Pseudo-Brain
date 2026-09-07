@@ -326,18 +326,30 @@ def train_tier2_directml(
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Tier 2 DirectML Conversational Training")
-    parser.add_argument("--steps", type=int, default=40, help="Number of training steps")
-    parser.add_argument("--batch-size", type=int, default=2, help="Batch size")
+    parser = argparse.ArgumentParser(description="Tier 2 Conversational Training")
+    parser.add_argument("--steps", type=int, default=100, help="Number of training steps")
+    parser.add_argument("--batch-size", type=int, default=4, help="Batch size")
     parser.add_argument("--lr", type=float, default=2e-4, help="Learning rate")
-    parser.add_argument("--proj-dim", type=int, default=1024, help="Projection dimension (1024=~12M, 2048=~25M, 4096=~51M)")
+    parser.add_argument("--proj-dim", type=int, default=2048, help="Projection dimension (1024=~12M, 2048=~25M, 4096=~51M)")
     parser.add_argument("--num-layers", type=int, default=2, help="Number of deep projection layers")
     parser.add_argument("--device", type=str, default=None, help="Device override")
+    parser.add_argument("--num-ultrachat", type=int, default=100, help="Number of UltraChat dialogues")
+    parser.add_argument("--num-alpaca", type=int, default=100, help="Number of Alpaca dialogues")
+    parser.add_argument("--num-episodes", type=int, default=100, help="Number of transformed cognitive episodes")
+    parser.add_argument("--checkpoint", type=str, default=None, help="Output checkpoint path")
     args = parser.parse_args()
 
     loader = HFConversationalLoader()
     transformer = LLMDataTransformer()
-    corpus_path = build_and_cache_hf_corpus(loader, transformer)
+    corpus_path = build_and_cache_hf_corpus(
+        loader=loader,
+        transformer=transformer,
+        num_ultrachat=args.num_ultrachat,
+        num_alpaca=args.num_alpaca,
+        num_episodes=args.num_episodes,
+    )
+
+    ckpt_p = Path(args.checkpoint) if args.checkpoint else None
 
     train_tier2_directml(
         corpus_path=corpus_path,
@@ -347,6 +359,7 @@ def main():
         proj_dim=args.proj_dim,
         num_deep_layers=args.num_layers,
         device_override=args.device,
+        checkpoint_path=ckpt_p,
     )
 
 

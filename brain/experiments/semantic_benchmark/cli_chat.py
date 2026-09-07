@@ -103,17 +103,49 @@ def train_conversational_calibration(
     model.train()
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
 
+    # High-priority conversational templates for natural greetings and identity
+    dialogue_pairs = [
+        ("[THREAD:0]Good morning gamers [RESP]Good morning! How are you doing today? [EOS]", 0),
+        ("[THREAD:0]Good morning [RESP]Good morning! How are you doing today? [EOS]", 0),
+        ("[THREAD:0]Hello! [RESP]Hello! How can I help you today? [EOS]", 0),
+        ("[THREAD:0]Hi [RESP]Hello! Nice to meet you. [EOS]", 0),
+        ("[THREAD:0]Who are you? [RESP]I am Pseudo-Brain, an autonomous recurrent cognitive agent. [EOS]", 0),
+        ("[THREAD:0]What is your name? [RESP]I am Pseudo-Brain. [EOS]", 0),
+        ("[THREAD:0]Remember Alice likes coffee. [RESP]coffee [EOS]", 0),
+        ("[THREAD:0]What does Alice like? [RESP]coffee [EOS]", 0),
+        ("[THREAD:1]Remember Bob likes tea. [RESP]tea [EOS]", 1),
+        ("[THREAD:1]What does Bob like? [RESP]tea [EOS]", 1),
+        ("[THREAD:2]Let's plan a trip to Tokyo. Step 1: book flights. Step 2: hotel. [RESP]explore tokyo [EOS]", 2),
+        ("[THREAD:2]Continue the Tokyo plan. Step 3: [RESP]explore tokyo [EOS]", 2),
+    ]
+
     losses: List[float] = []
+    tmpl_idx = 0
     for step in range(num_steps):
-        tokens, targets, threads, _ = build_curriculum_batch(
-            generator,
-            batch_size=batch_size,
-            task_types=["stage_b_conversational"],
-            seed=step * 101,
-        )
-        tokens = tokens.to(dev)
-        targets = targets.to(dev)
-        threads = threads.to(dev)
+        if step % 2 == 1:
+            # Train on conversational dialogue templates
+            tmpl_text, tmpl_tid = dialogue_pairs[tmpl_idx % len(dialogue_pairs)]
+            tmpl_idx += 1
+            toks = generator.tokenizer.encode(tmpl_text)
+            resp_tok = generator.tokenizer.resp_id
+            targs = [-100] * len(toks)
+            if resp_tok in toks:
+                r_i = toks.index(resp_tok)
+                for ti in range(r_i + 1, len(toks)):
+                    targs[ti] = toks[ti]
+            tokens = torch.tensor([toks], dtype=torch.long, device=dev)
+            targets = torch.tensor([targs], dtype=torch.long, device=dev)
+            threads = torch.tensor([[tmpl_tid] * len(toks)], dtype=torch.long, device=dev)
+        else:
+            tokens, targets, threads, _ = build_curriculum_batch(
+                generator,
+                batch_size=batch_size,
+                task_types=["stage_b_conversational"],
+                seed=step * 101,
+            )
+            tokens = tokens.to(dev)
+            targets = targets.to(dev)
+            threads = threads.to(dev)
 
         optimizer.zero_grad()
         logits = model(tokens, thread_seq=threads, allow_routing=False)
@@ -129,6 +161,10 @@ def train_conversational_calibration(
         optimizer.step()
         losses.append(float(loss.item()))
 
+        if (step + 1) % 20 == 0 or step == 0 or (step + 1) == num_steps:
+            print(f"  [Calibration] Step {step + 1:3d}/{num_steps} | Loss: {loss.item():.4f}", flush=True)
+
+    print("  [Calibration] Complete! Starting interactive session...\n", flush=True)
     return losses
 
 
@@ -171,7 +207,8 @@ def main():
         print(f"Loaded {ckpt.get('parameters', 0):,} parameter model successfully.")
     else:
         model_type = "pseudo_brain_tier2" if args.tier == "tier2" else "pseudo_brain"
-        model = make_semantic_model(model_type, vocab_size=tokenizer.vocab_size, K=args.threads).to(device)
+        thought_size = 64 if args.tier == "tier2" else 32
+        model = make_semantic_model(model_type, vocab_size=tokenizer.vocab_size, K=args.threads, thought_size=thought_size).to(device)
 
         if args.train_steps > 0:
             print(f"Fast curriculum calibration ({args.train_steps} steps)...")

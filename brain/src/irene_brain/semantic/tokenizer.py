@@ -13,7 +13,7 @@ from typing import List, Optional, Union
 
 
 class SemanticTokenizer:
-    """Byte-level tokenizer with dedicated cognitive markers."""
+    """Hybrid Subword + Byte-level tokenizer with dedicated cognitive control markers."""
 
     SPECIAL_TOKENS = [
         "[PAD]",
@@ -27,14 +27,15 @@ class SemanticTokenizer:
         "[DEP]",
     ]
 
-    def __init__(self, max_threads: int = 64):
+    def __init__(self, max_threads: int = 64, use_subwords: bool = True):
         self.max_threads = max_threads
+        self.use_subwords = use_subwords
 
-        # Map special tokens: 0 .. N_special - 1
+        # 1. Map special tokens: 0 .. N_special - 1
         self.token_to_id = {tok: idx for idx, tok in enumerate(self.SPECIAL_TOKENS)}
         self.id_to_token = {idx: tok for idx, tok in enumerate(self.SPECIAL_TOKENS)}
 
-        # Thread tokens: [THREAD:0] .. [THREAD:max_threads-1]
+        # 2. Thread tokens: [THREAD:0] .. [THREAD:max_threads-1]
         self.thread_tokens = [f"[THREAD:{i}]" for i in range(max_threads)]
         base_thread_idx = len(self.token_to_id)
         for i, tok in enumerate(self.thread_tokens):
@@ -42,9 +43,41 @@ class SemanticTokenizer:
             self.token_to_id[tok] = idx
             self.id_to_token[idx] = tok
 
-        # Byte tokens: 0 .. 255 mapped after special and thread tokens
+        # 3. Byte tokens: 0 .. 255 mapped after special and thread tokens
         self.byte_offset = len(self.token_to_id)
-        self.vocab_size = self.byte_offset + 256
+        self.byte_end = self.byte_offset + 256
+
+        # 4. Subword tokens (if enabled)
+        self.subword_offset = self.byte_end
+        if self.use_subwords:
+            try:
+                from irene_brain.semantic.vocab import CONVERSATIONAL_SUBWORDS
+            except ImportError:
+                from semantic.vocab import CONVERSATIONAL_SUBWORDS
+
+            clean_subwords = []
+            for sw in CONVERSATIONAL_SUBWORDS:
+                if sw and (len(sw.encode("utf-8")) > 1 or (len(sw) == 1 and ord(sw) < 32)):
+                    if sw not in self.token_to_id:
+                        clean_subwords.append(sw)
+            self.subword_list = sorted(clean_subwords, key=len, reverse=True)
+            for i, sw in enumerate(self.subword_list):
+                idx = self.subword_offset + i
+                self.token_to_id[sw] = idx
+                self.id_to_token[idx] = sw
+            self.vocab_size = self.subword_offset + len(clean_subwords)
+
+            # Fast prefix lookup
+            self.prefix_map = {}
+            for sw in self.subword_list:
+                prefix = sw[:1]
+                if prefix not in self.prefix_map:
+                    self.prefix_map[prefix] = []
+                self.prefix_map[prefix].append(sw)
+        else:
+            self.subword_list = []
+            self.prefix_map = {}
+            self.vocab_size = self.byte_end
 
         # Quick special token IDs
         self.pad_id = self.token_to_id["[PAD]"]
@@ -86,15 +119,12 @@ class SemanticTokenizer:
         if thread_id is not None and not text.startswith("[THREAD:"):
             tokens.append(self.thread_id_to_token_id(thread_id))
 
-        # Check for control tokens in text or parse bytes
-        # Support inline special tokens like [QUERY], [RESP], [THREAD:i]
         i = 0
         n = len(text)
         while i < n:
             if text[i] == "[":
-                # Check for special token match
                 matched = False
-                for spec_tok in self.token_to_id:
+                for spec_tok in self.SPECIAL_TOKENS + self.thread_tokens:
                     if text.startswith(spec_tok, i):
                         tokens.append(self.token_to_id[spec_tok])
                         i += len(spec_tok)
@@ -102,6 +132,21 @@ class SemanticTokenizer:
                         break
                 if matched:
                     continue
+
+            # Subword match via prefix map
+            if self.use_subwords:
+                prefix = text[i]
+                candidates = self.prefix_map.get(prefix)
+                if candidates:
+                    matched = False
+                    for sw in candidates:
+                        if text.startswith(sw, i):
+                            tokens.append(self.token_to_id[sw])
+                            i += len(sw)
+                            matched = True
+                            break
+                    if matched:
+                        continue
 
             # Fallback to UTF-8 byte encoding
             char_bytes = text[i].encode("utf-8")
@@ -120,11 +165,14 @@ class SemanticTokenizer:
 
         def flush_bytes():
             if byte_list:
-                result_parts.append(bytes(byte_list).decode("utf-8", errors="replace"))
+                result_parts.append(bytes(byte_list).decode("utf-8", errors="ignore"))
                 byte_list.clear()
 
         for tid in token_ids:
-            if tid >= self.byte_offset and tid < self.vocab_size:
+            if self.use_subwords and tid >= self.subword_offset and tid < self.vocab_size:
+                flush_bytes()
+                result_parts.append(self.id_to_token[tid])
+            elif tid >= self.byte_offset and tid < self.byte_end:
                 byte_list.append(tid - self.byte_offset)
             else:
                 flush_bytes()
@@ -137,3 +185,4 @@ class SemanticTokenizer:
 
     def __len__(self) -> int:
         return self.vocab_size
+
