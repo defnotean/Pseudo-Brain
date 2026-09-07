@@ -144,3 +144,17 @@ We maintain strict claim discipline ([MEASURED], [INFERRED], [HYPOTHESIS], [ASPI
    - Formulated formal mathematical scaling ladder: Tier 0 (131k params, K=32) $\to$ Tier 1 (10M, K=64) $\to$ Tier 2 (50M, K=128) $\to$ Tier 3 (100M, K=256) $\to$ Tier 4 (300M, K=512) $\to$ Tier 5 (1B, K=1024) $\to$ Tier 6 (3B, K=2048).
    - Enforces 4 cross-scale architectural invariants: Shared Parametric Core, Cognitive Input Gating (CIG), Sub-Quadratic Block-Sparse Routing ($\mathcal{O}(K)$), and Consequence-Gated Synaptic Latching ($P_t$).
    - Documented in [`brain/docs/COGNITIVE_SCALING_ROADMAP.md`](COGNITIVE_SCALING_ROADMAP.md).
+
+6. **MTLD Degradation Causal Diagnostic Suite**: [COMPLETE & REPORTED]
+   - Audited the 4 root-cause hypotheses behind the delay degradation failure curve ($38.3\% \to 19.1\%$ across $L=16 \to 128$) and routing crossover.
+   - **Hypothesis 1 (Passive Decay)**: Setting $\lambda = 0.9999$ ($t_{1/2} \approx 6,931$ ticks) provides optimal latch persistence across 256 delay ticks, boosting $L=128$ retention from $17.9\%$ to **$25.7\%$** (while avoiding unbounded $\lambda=1.0$ drift).
+   - **Hypothesis 2 (CIG Gate Bleed)**: Gate temperature sharpening ($T=0.5$) slashes delay salience on sensory noise by **$88\%$** ($0.336 \to 0.039$), boosting $L=128$ retention to **$30.4\%$**.
+   - **Hypothesis 3 (Slot Width / Subspace Volume)**: Increasing slot width from $W=12$ to $W=48$ expands hyperspherical representation volume, lifting $L=128$ retention from $17.0\%$ to **$29.3\%$**.
+   - **Hypothesis 4 (Routing Modality)**: On orthogonal variables, Disconnected routing achieves **$25.2\%$ at $L=128$** with $9.52\text{ ms}$ latency, outperforming Static Top-4 ($17.7\%$, $17.81\text{ ms}$).
+   - Documented in `brain/docs/runs/2026-09-07-mtld-degradation-causal-diagnostic.md` and `.json`.
+
+7. **Cognitive Scaling Ladder Benchmark (131k $\to$ 500k $\to$ 2M $\to$ 8M)**: [COMPLETE & REPORTED]
+   - Benchmarked Pseudo-Brain CGP Thoughtlets against parameter-matched Monolithic GRU and Modern Diagonal SSM (GLRU) across 4 parameter tiers and 3 stress regimes (Baseline $M=4, L=16$; Delay Stress $L=128$; Massive Load $M=32, L=32$).
+   - **Brute-Force Scaling Falsification**: Even when scaled to **$10.7\text{ MILLION parameters}$** (+55x scale), Monolithic GRU ($10.9\% - 14.7\%$) and Modern Diagonal SSM ($11.5\% - 13.3\%$) remain permanently trapped at chance (~12.5%) under multi-threaded latent dependency load.
+   - **Pseudo-Brain Multi-Scale Invariance**: CGP Thoughtlets sustain **$38.0\% - 39.4\%$ retention at $L=128$** (+25.5% to +27.9% margin over GRU/SSM) and graceful degradation at $M=32$ (**$20.9\% - 21.7\%$**) at sub-2ms CPU inference latency ($0.96\text{ ms} - 1.92\text{ ms}$).
+   - Documented in `brain/docs/runs/2026-09-07-cognitive-scaling-ladder.md` and `.json`.

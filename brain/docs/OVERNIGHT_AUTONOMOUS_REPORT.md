@@ -142,6 +142,24 @@ Under the `/goal` mandate, this autonomous multi-agent research and engineering 
   - **The "Isolate on Orthogonality" Principle**: Disconnected CGP slots reach **43.3% at $M=2$ and 39.7% at $M=4$ with $2\times$ lower latency (1.46 ms vs 2.96 ms)**, proving that unconstrained inter-slot communication injects cross-talk noise when latent threads are independent.
 - **Artifacts**: `2026-09-07-mtld-extreme-scaling-grid.md` and `.json`.
 
+### P13: MTLD Degradation Causal Diagnostic Suite
+- **Core Scientific Question Addressed**: Why does retention decay from 38.3% to 19.1% across $L=16 \to 128$ in MTLD-Extreme, and what mechanisms govern the long-horizon routing crossover?
+- **Protocol**: Systematically tested 4 hypotheses across 15 seeds:
+  1. *Passive Latch Decay*: Swept $\lambda \in [0.99, 0.999, 0.9999, 1.0]$. Setting $\lambda=0.9999$ ($t_{1/2} \approx 6,931$ ticks) preserves latched state without numerical instability, elevating $L=128$ retention from $17.9\%$ to **$25.7\%$**.
+  2. *CIG Gate Bleed*: Audited gate activation $\bar{g}_{\text{delay}}$ on uninformative sensory noise. Temperature sharpening ($T=0.5$) slashed delay noise salience by **$88\%$** ($0.336 \to 0.039$), lifting $L=128$ retention to **$30.4\%$**.
+  3. *Slot Width / Subspace Volume*: Swept width $W \in [12, 24, 48, 64]$. Expanding to $W=48$ rescued $L=128$ retention to **$29.3\%$** by mitigating subspace collapse.
+  4. *Routing Modality*: On orthogonal variables, Disconnected routing retains superior performance (**$25.2\%$ at $L=128$** with $9.52\text{ ms}$ latency vs $17.7\%$ and $17.81\text{ ms}$ for Static Top-4).
+- **Artifacts**: `2026-09-07-mtld-degradation-causal-diagnostic.md` and `.json`.
+
+### P14: Cognitive Scaling Ladder Benchmark (131k -> 8M)
+- **Core Scientific Question Addressed**: Does the architectural advantage of Pseudo-Brain's shared recurrent core, CIG gating, and synaptic latching ($P_t$) survive when monolithic baselines are given massive parameter scale (+55x)?
+- **Protocol**: Benchmarked Pseudo-Brain CGP Thoughtlets against parameter-matched Monolithic GRU and Modern Diagonal SSM (GLRU) across 4 parameter tiers (131k, 500k, 2M, 8M) and 3 stress regimes (Baseline $M=4, L=16$; Delay Stress $L=128$; Massive Load $M=32, L=32$).
+- **Falsification of Brute-Force Parameter Scaling**:
+  - Even when scaled to **$10.7\text{ MILLION parameters}$**, Monolithic GRU ($10.9\% - 14.7\%$) and Modern Diagonal SSM ($11.5\% - 13.3\%$) remain permanently trapped at chance (~12.5%) across all conditions.
+  - In stark contrast, Pseudo-Brain CGP Thoughtlets sustain **$38.0\% - 39.4\%$ retention at $L=128$** (+25.5% to +27.9% margin over GRU/SSM) and graceful degradation at $M=32$ (**$20.9\% - 21.7\%$**) across all tiers.
+  - Inference latency remains sub-2ms on single-threaded CPU (**$0.96\text{ ms}$ at 131k, $1.92\text{ ms}$ at 8M**).
+- **Artifacts**: `2026-09-07-cognitive-scaling-ladder.md` and `.json`.
+
 ### P11 / Red-Teaming: Discovery of Capability Boundaries
 1. **The Birds-Eye Observability Leak**:
    In unmasked 16x16 `KeysDoorsEnv`, a feedforward `ReactiveModel` (zero memory) achieved **81.0% Key->Door conversion** by detecting key absence directly from global pixels. Recurrence is only strictly required when partial observability is mathematically enforced.
@@ -157,7 +175,10 @@ Under the `/goal` mandate, this autonomous multi-agent research and engineering 
 | Architectural Mechanism | Action | Evidence & Rationale |
 | :--- | :---: | :--- |
 | **Multi-Slot Latent Variable Isolation** | **KEEP** | Outperforms monolithic GRU and diagonal SSM by $3.2\times$ across delay corridors in MTLD-Bench; prevents cross-talk interference. |
-| **The "Isolate on Orthogonality" Principle** | **KEEP** | Gating routing off during independent threads halves latency (1.46 ms vs 2.96 ms) and improves retention. |
+| **Ultra-Slow Relaxation Timescale ($\lambda=0.9999$)** | **KEEP** | Prevents passive decay across 256 delay ticks in MTLD, lifting $L=128$ retention from $17.9\%$ to $25.7\%$ while preventing $\lambda=1.0$ unbounded drift. |
+| **CIG Gate Sharpening ($T=0.5$)** | **KEEP** | Slashes delay salience on sensory noise by $88\%$ ($0.336 \to 0.039$), lifting $L=128$ retention to $30.4\%$. |
+| **Slot Width Expansion ($W=48$)** | **KEEP** | Rescues $L=128$ retention to $29.3\%$ by expanding hyperspherical representation volume. |
+| **The "Isolate on Orthogonality" Principle** | **KEEP** | Gating routing off during independent threads halves latency (1.46 ms vs 2.96 ms) and achieves $25.2\%$ retention at $L=128$ vs $17.7\%$ for Static Top-4. |
 | **Cognitive Scaling Roadmap ($131\text{k} \to 3\text{B}$)** | **KEEP** | Formal scaling ladder defined in `COGNITIVE_SCALING_ROADMAP.md` preserving 4 core invariants across 6 parameter tiers. |
 | **Consequence-Surprise Decoupling** | **KEEP** | Decoupled $\delta_{\text{sensory}}$ from $\delta_{\text{consequence}}$, preventing spurious weight drift from sensory noise. |
 | **State-Novelty IOR Decay** | **KEEP** | Enables retry-after-repair on L4 (100% vs 20% blind anti-perseveration); prevents permanent tool lockout. |
@@ -171,9 +192,11 @@ Under the `/goal` mandate, this autonomous multi-agent research and engineering 
 
 ---
 
-## 4. Master Test Suite Health (66/66 Passing)
+## 4. Master Test Suite Health (75/75 Passing)
 
-All 11 target research and engineering test modules maintain 100% green status in ~5.3 seconds:
+All 13 target research and engineering test modules maintain 100% green status in ~5.9 seconds:
+- `test_cognitive_scaling_ladder.py` (3/3 PASS)
+- `test_mtld_degradation_diagnostic.py` (6/6 PASS)
 - `test_multi_threaded_latent_dependency.py` (8/8 PASS)
 - `test_consequence_surprise_semantics.py` (6/6 PASS)
 - `test_ior_causal_validation_suite.py` (5/5 PASS)

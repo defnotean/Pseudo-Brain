@@ -1,0 +1,528 @@
+{
+  "experiment_1_latch_decay": {
+    "lambda_0.99": {
+      "16": {
+        "overall_retention_accuracy": 36.041666666666664,
+        "untouched_retention_accuracy": 35.55555555555556,
+        "cross_talk_error_rate": 64.44444444444444,
+        "updated_retention_accuracy": 37.5,
+        "latency_ms_mean": 2.898296666666667,
+        "mean_salience": 0.3337984130149934
+      },
+      "32": {
+        "overall_retention_accuracy": 33.33333333333333,
+        "untouched_retention_accuracy": 29.305555555555557,
+        "cross_talk_error_rate": 70.69444444444444,
+        "updated_retention_accuracy": 45.416666666666664,
+        "latency_ms_mean": 5.272811666666668,
+        "mean_salience": 0.29748196688961226
+      },
+      "64": {
+        "overall_retention_accuracy": 24.0625,
+        "untouched_retention_accuracy": 21.38888888888889,
+        "cross_talk_error_rate": 78.61111111111111,
+        "updated_retention_accuracy": 32.083333333333336,
+        "latency_ms_mean": 9.586474166666669,
+        "mean_salience": 0.27650970893474686
+      },
+      "128": {
+        "overall_retention_accuracy": 16.25,
+        "untouched_retention_accuracy": 14.027777777777779,
+        "cross_talk_error_rate": 85.97222222222223,
+        "updated_retention_accuracy": 22.916666666666664,
+        "latency_ms_mean": 17.994062916666667,
+        "mean_salience": 0.26509364802882357
+      }
+    },
+    "lambda_0.999": {
+      "16": {
+        "overall_retention_accuracy": 36.145833333333336,
+        "untouched_retention_accuracy": 35.55555555555556,
+        "cross_talk_error_rate": 64.44444444444444,
+        "updated_retention_accuracy": 37.916666666666664,
+        "latency_ms_mean": 2.9067483333333333,
+        "mean_salience": 0.26024745099428226
+      },
+      "32": {
+        "overall_retention_accuracy": 35.729166666666664,
+        "untouched_retention_accuracy": 36.388888888888886,
+        "cross_talk_error_rate": 63.611111111111114,
+        "updated_retention_accuracy": 33.75,
+        "latency_ms_mean": 5.065662916666667,
+        "mean_salience": 0.2135251399793037
+      },
+      "64": {
+        "overall_retention_accuracy": 23.958333333333336,
+        "untouched_retention_accuracy": 25.27777777777778,
+        "cross_talk_error_rate": 74.72222222222223,
+        "updated_retention_accuracy": 20.0,
+        "latency_ms_mean": 9.546042916666666,
+        "mean_salience": 0.18394390377612588
+      },
+      "128": {
+        "overall_retention_accuracy": 17.916666666666668,
+        "untouched_retention_accuracy": 17.77777777777778,
+        "cross_talk_error_rate": 82.22222222222223,
+        "updated_retention_accuracy": 18.333333333333332,
+        "latency_ms_mean": 18.369542083333332,
+        "mean_salience": 0.1678496547914901
+      }
+    },
+    "lambda_0.9999": {
+      "16": {
+        "overall_retention_accuracy": 33.125,
+        "untouched_retention_accuracy": 34.02777777777778,
+        "cross_talk_error_rate": 65.97222222222223,
+        "updated_retention_accuracy": 30.416666666666664,
+        "latency_ms_mean": 2.84878125,
+        "mean_salience": 0.3928410354668533
+      },
+      "32": {
+        "overall_retention_accuracy": 32.29166666666667,
+        "untouched_retention_accuracy": 35.27777777777778,
+        "cross_talk_error_rate": 64.72222222222223,
+        "updated_retention_accuracy": 23.333333333333332,
+        "latency_ms_mean": 5.1073441666666675,
+        "mean_salience": 0.3646658176428651
+      },
+      "64": {
+        "overall_retention_accuracy": 29.791666666666668,
+        "untouched_retention_accuracy": 32.361111111111114,
+        "cross_talk_error_rate": 67.63888888888889,
+        "updated_retention_accuracy": 22.083333333333332,
+        "latency_ms_mean": 9.898430833333332,
+        "mean_salience": 0.3481633389083139
+      },
+      "128": {
+        "overall_retention_accuracy": 25.729166666666664,
+        "untouched_retention_accuracy": 24.72222222222222,
+        "cross_talk_error_rate": 75.27777777777777,
+        "updated_retention_accuracy": 28.749999999999996,
+        "latency_ms_mean": 18.15162666666667,
+        "mean_salience": 0.3400476416551842
+      }
+    },
+    "lambda_1.0": {
+      "16": {
+        "overall_retention_accuracy": 32.083333333333336,
+        "untouched_retention_accuracy": 34.02777777777778,
+        "cross_talk_error_rate": 65.97222222222223,
+        "updated_retention_accuracy": 26.25,
+        "latency_ms_mean": 2.7323087500000005,
+        "mean_salience": 0.6730571226375859
+      },
+      "32": {
+        "overall_retention_accuracy": 30.208333333333332,
+        "untouched_retention_accuracy": 32.5,
+        "cross_talk_error_rate": 67.5,
+        "updated_retention_accuracy": 23.333333333333332,
+        "latency_ms_mean": 5.011611666666668,
+        "mean_salience": 0.6550451273243176
+      },
+      "64": {
+        "overall_retention_accuracy": 26.458333333333332,
+        "untouched_retention_accuracy": 27.361111111111114,
+        "cross_talk_error_rate": 72.63888888888889,
+        "updated_retention_accuracy": 23.75,
+        "latency_ms_mean": 9.084823333333334,
+        "mean_salience": 0.6450831593678237
+      },
+      "128": {
+        "overall_retention_accuracy": 17.708333333333336,
+        "untouched_retention_accuracy": 18.75,
+        "cross_talk_error_rate": 81.25,
+        "updated_retention_accuracy": 14.583333333333334,
+        "latency_ms_mean": 16.80465666666667,
+        "mean_salience": 0.63925198577485
+      }
+    }
+  },
+  "experiment_2_gate_bleed": {
+    "temp_1.0": {
+      "16": {
+        "overall_retention_accuracy": 36.770833333333336,
+        "untouched_retention_accuracy": 34.166666666666664,
+        "cross_talk_error_rate": 65.83333333333334,
+        "updated_retention_accuracy": 44.583333333333336,
+        "latency_ms_mean": 3.0247870833333335,
+        "mean_salience": 0.40861095267582725
+      },
+      "64": {
+        "overall_retention_accuracy": 31.979166666666664,
+        "untouched_retention_accuracy": 25.694444444444443,
+        "cross_talk_error_rate": 74.30555555555556,
+        "updated_retention_accuracy": 50.83333333333333,
+        "latency_ms_mean": 9.327992083333333,
+        "mean_salience": 0.34846958081507623
+      },
+      "128": {
+        "overall_retention_accuracy": 28.645833333333332,
+        "untouched_retention_accuracy": 25.833333333333336,
+        "cross_talk_error_rate": 74.16666666666666,
+        "updated_retention_accuracy": 37.083333333333336,
+        "latency_ms_mean": 17.7193775,
+        "mean_salience": 0.33602883077267587
+      }
+    },
+    "temp_0.5": {
+      "16": {
+        "overall_retention_accuracy": 36.875,
+        "untouched_retention_accuracy": 39.861111111111114,
+        "cross_talk_error_rate": 60.138888888888886,
+        "updated_retention_accuracy": 27.916666666666668,
+        "latency_ms_mean": 2.90819125,
+        "mean_salience": 0.16709561266943931
+      },
+      "64": {
+        "overall_retention_accuracy": 33.541666666666664,
+        "untouched_retention_accuracy": 37.916666666666664,
+        "cross_talk_error_rate": 62.083333333333336,
+        "updated_retention_accuracy": 20.416666666666668,
+        "latency_ms_mean": 9.738668749999999,
+        "mean_salience": 0.0682929100651167
+      },
+      "128": {
+        "overall_retention_accuracy": 30.416666666666664,
+        "untouched_retention_accuracy": 35.27777777777778,
+        "cross_talk_error_rate": 64.72222222222223,
+        "updated_retention_accuracy": 15.833333333333332,
+        "latency_ms_mean": 18.742410416666665,
+        "mean_salience": 0.039481813158582214
+      }
+    },
+    "temp_0.2": {
+      "16": {
+        "overall_retention_accuracy": 39.58333333333333,
+        "untouched_retention_accuracy": 39.72222222222222,
+        "cross_talk_error_rate": 60.27777777777778,
+        "updated_retention_accuracy": 39.166666666666664,
+        "latency_ms_mean": 2.9343533333333336,
+        "mean_salience": 0.24030085107258606
+      },
+      "64": {
+        "overall_retention_accuracy": 32.604166666666664,
+        "untouched_retention_accuracy": 38.47222222222222,
+        "cross_talk_error_rate": 61.52777777777778,
+        "updated_retention_accuracy": 15.0,
+        "latency_ms_mean": 9.838446666666668,
+        "mean_salience": 0.16415208981694188
+      },
+      "128": {
+        "overall_retention_accuracy": 29.270833333333336,
+        "untouched_retention_accuracy": 35.41666666666667,
+        "cross_talk_error_rate": 64.58333333333333,
+        "updated_retention_accuracy": 10.833333333333334,
+        "latency_ms_mean": 19.234567499999994,
+        "mean_salience": 0.14893458927073663
+      }
+    }
+  },
+  "experiment_3_slot_width": {
+    "width_12": {
+      "16": {
+        "overall_retention_accuracy": 36.5625,
+        "untouched_retention_accuracy": 40.13888888888889,
+        "cross_talk_error_rate": 59.86111111111111,
+        "updated_retention_accuracy": 25.833333333333336,
+        "latency_ms_mean": 2.90964875,
+        "mean_salience": 0.3828194151079752,
+        "params": 99559
+      },
+      "32": {
+        "overall_retention_accuracy": 30.9375,
+        "untouched_retention_accuracy": 34.166666666666664,
+        "cross_talk_error_rate": 65.83333333333334,
+        "updated_retention_accuracy": 21.25,
+        "latency_ms_mean": 5.032134999999999,
+        "mean_salience": 0.3421733889133419,
+        "params": 99559
+      },
+      "64": {
+        "overall_retention_accuracy": 23.229166666666668,
+        "untouched_retention_accuracy": 26.52777777777778,
+        "cross_talk_error_rate": 73.47222222222223,
+        "updated_retention_accuracy": 13.333333333333334,
+        "latency_ms_mean": 9.25036875,
+        "mean_salience": 0.3145429422820571,
+        "params": 99559
+      },
+      "128": {
+        "overall_retention_accuracy": 16.979166666666668,
+        "untouched_retention_accuracy": 18.333333333333332,
+        "cross_talk_error_rate": 81.66666666666667,
+        "updated_retention_accuracy": 12.916666666666668,
+        "latency_ms_mean": 17.76750708333333,
+        "mean_salience": 0.29611900494158644,
+        "params": 99559
+      }
+    },
+    "width_24": {
+      "16": {
+        "overall_retention_accuracy": 31.874999999999996,
+        "untouched_retention_accuracy": 29.444444444444446,
+        "cross_talk_error_rate": 70.55555555555556,
+        "updated_retention_accuracy": 39.166666666666664,
+        "latency_ms_mean": 3.261144583333334,
+        "mean_salience": 0.20217219181737403,
+        "params": 361627
+      },
+      "32": {
+        "overall_retention_accuracy": 31.666666666666664,
+        "untouched_retention_accuracy": 28.194444444444443,
+        "cross_talk_error_rate": 71.80555555555556,
+        "updated_retention_accuracy": 42.083333333333336,
+        "latency_ms_mean": 5.73648875,
+        "mean_salience": 0.13883238358116923,
+        "params": 361627
+      },
+      "64": {
+        "overall_retention_accuracy": 30.312499999999996,
+        "untouched_retention_accuracy": 31.11111111111111,
+        "cross_talk_error_rate": 68.88888888888889,
+        "updated_retention_accuracy": 27.916666666666668,
+        "latency_ms_mean": 10.798480416666669,
+        "mean_salience": 0.1005527612932226,
+        "params": 361627
+      },
+      "128": {
+        "overall_retention_accuracy": 24.583333333333332,
+        "untouched_retention_accuracy": 25.833333333333336,
+        "cross_talk_error_rate": 74.16666666666666,
+        "updated_retention_accuracy": 20.833333333333336,
+        "latency_ms_mean": 20.91080125,
+        "mean_salience": 0.08130300193989896,
+        "params": 361627
+      }
+    },
+    "width_48": {
+      "16": {
+        "overall_retention_accuracy": 39.479166666666664,
+        "untouched_retention_accuracy": 40.833333333333336,
+        "cross_talk_error_rate": 59.166666666666664,
+        "updated_retention_accuracy": 35.41666666666667,
+        "latency_ms_mean": 3.8345775,
+        "mean_salience": 0.23471721176936375,
+        "params": 925507
+      },
+      "32": {
+        "overall_retention_accuracy": 36.25,
+        "untouched_retention_accuracy": 38.05555555555556,
+        "cross_talk_error_rate": 61.94444444444444,
+        "updated_retention_accuracy": 30.833333333333336,
+        "latency_ms_mean": 6.895988750000001,
+        "mean_salience": 0.1836775092331514,
+        "params": 925507
+      },
+      "64": {
+        "overall_retention_accuracy": 34.0625,
+        "untouched_retention_accuracy": 38.05555555555556,
+        "cross_talk_error_rate": 61.94444444444444,
+        "updated_retention_accuracy": 22.083333333333332,
+        "latency_ms_mean": 12.8932,
+        "mean_salience": 0.15169049935311155,
+        "params": 925507
+      },
+      "128": {
+        "overall_retention_accuracy": 29.270833333333336,
+        "untouched_retention_accuracy": 34.166666666666664,
+        "cross_talk_error_rate": 65.83333333333334,
+        "updated_retention_accuracy": 14.583333333333334,
+        "latency_ms_mean": 24.95224541666666,
+        "mean_salience": 0.1338841173741615,
+        "params": 925507
+      }
+    },
+    "width_64": {
+      "16": {
+        "overall_retention_accuracy": 37.916666666666664,
+        "untouched_retention_accuracy": 38.611111111111114,
+        "cross_talk_error_rate": 61.388888888888886,
+        "updated_retention_accuracy": 35.833333333333336,
+        "latency_ms_mean": 4.408980833333334,
+        "mean_salience": 0.26517120087292134,
+        "params": 1227187
+      },
+      "32": {
+        "overall_retention_accuracy": 34.479166666666664,
+        "untouched_retention_accuracy": 33.88888888888889,
+        "cross_talk_error_rate": 66.11111111111111,
+        "updated_retention_accuracy": 36.25,
+        "latency_ms_mean": 7.853201250000001,
+        "mean_salience": 0.22039163746109838,
+        "params": 1227187
+      },
+      "64": {
+        "overall_retention_accuracy": 29.791666666666668,
+        "untouched_retention_accuracy": 31.38888888888889,
+        "cross_talk_error_rate": 68.61111111111111,
+        "updated_retention_accuracy": 25.0,
+        "latency_ms_mean": 14.619195,
+        "mean_salience": 0.19223093207010097,
+        "params": 1227187
+      },
+      "128": {
+        "overall_retention_accuracy": 23.75,
+        "untouched_retention_accuracy": 23.75,
+        "cross_talk_error_rate": 76.25,
+        "updated_retention_accuracy": 23.75,
+        "latency_ms_mean": 28.286587500000003,
+        "mean_salience": 0.17685288459812318,
+        "params": 1227187
+      }
+    }
+  },
+  "experiment_4_routing_crossover": {
+    "disconnected": {
+      "16": {
+        "overall_retention_accuracy": 40.9375,
+        "untouched_retention_accuracy": 41.52777777777778,
+        "cross_talk_error_rate": 58.47222222222222,
+        "updated_retention_accuracy": 39.166666666666664,
+        "latency_ms_mean": 1.4659770833333334,
+        "mean_salience": 0.3276167709047232,
+        "name": "Disconnected (A=0)"
+      },
+      "32": {
+        "overall_retention_accuracy": 34.89583333333333,
+        "untouched_retention_accuracy": 37.77777777777778,
+        "cross_talk_error_rate": 62.22222222222222,
+        "updated_retention_accuracy": 26.25,
+        "latency_ms_mean": 2.6422575000000004,
+        "mean_salience": 0.2951291127019821,
+        "name": "Disconnected (A=0)"
+      },
+      "64": {
+        "overall_retention_accuracy": 32.708333333333336,
+        "untouched_retention_accuracy": 36.80555555555556,
+        "cross_talk_error_rate": 63.19444444444444,
+        "updated_retention_accuracy": 20.416666666666668,
+        "latency_ms_mean": 4.842550833333334,
+        "mean_salience": 0.2770998935448572,
+        "name": "Disconnected (A=0)"
+      },
+      "128": {
+        "overall_retention_accuracy": 25.208333333333332,
+        "untouched_retention_accuracy": 28.749999999999996,
+        "cross_talk_error_rate": 71.25,
+        "updated_retention_accuracy": 14.583333333333334,
+        "latency_ms_mean": 9.522885,
+        "mean_salience": 0.26728065912266197,
+        "name": "Disconnected (A=0)"
+      }
+    },
+    "sparse_topk": {
+      "16": {
+        "overall_retention_accuracy": 33.541666666666664,
+        "untouched_retention_accuracy": 37.638888888888886,
+        "cross_talk_error_rate": 62.361111111111114,
+        "updated_retention_accuracy": 21.25,
+        "latency_ms_mean": 2.8601320833333337,
+        "mean_salience": 0.4198476864070428,
+        "name": "Static Top-4 Routing"
+      },
+      "32": {
+        "overall_retention_accuracy": 27.8125,
+        "untouched_retention_accuracy": 30.277777777777775,
+        "cross_talk_error_rate": 69.72222222222223,
+        "updated_retention_accuracy": 20.416666666666668,
+        "latency_ms_mean": 5.0418545833333335,
+        "mean_salience": 0.38805944916864504,
+        "name": "Static Top-4 Routing"
+      },
+      "64": {
+        "overall_retention_accuracy": 16.145833333333336,
+        "untouched_retention_accuracy": 18.055555555555554,
+        "cross_talk_error_rate": 81.94444444444444,
+        "updated_retention_accuracy": 10.416666666666668,
+        "latency_ms_mean": 9.461022916666668,
+        "mean_salience": 0.36854262454956405,
+        "name": "Static Top-4 Routing"
+      },
+      "128": {
+        "overall_retention_accuracy": 17.708333333333336,
+        "untouched_retention_accuracy": 18.61111111111111,
+        "cross_talk_error_rate": 81.38888888888889,
+        "updated_retention_accuracy": 15.0,
+        "latency_ms_mean": 17.807101250000002,
+        "mean_salience": 0.35794138408307014,
+        "name": "Static Top-4 Routing"
+      }
+    },
+    "dense": {
+      "16": {
+        "overall_retention_accuracy": 30.312499999999996,
+        "untouched_retention_accuracy": 33.05555555555556,
+        "cross_talk_error_rate": 66.94444444444444,
+        "updated_retention_accuracy": 22.083333333333332,
+        "latency_ms_mean": 2.190465,
+        "mean_salience": 0.07470615492694503,
+        "name": "Dense All-to-All Attention"
+      },
+      "32": {
+        "overall_retention_accuracy": 26.041666666666668,
+        "untouched_retention_accuracy": 28.194444444444443,
+        "cross_talk_error_rate": 71.80555555555556,
+        "updated_retention_accuracy": 19.583333333333332,
+        "latency_ms_mean": 3.8355987500000004,
+        "mean_salience": 0.05322416581077391,
+        "name": "Dense All-to-All Attention"
+      },
+      "64": {
+        "overall_retention_accuracy": 27.395833333333336,
+        "untouched_retention_accuracy": 29.166666666666668,
+        "cross_talk_error_rate": 70.83333333333333,
+        "updated_retention_accuracy": 22.083333333333332,
+        "latency_ms_mean": 7.213595833333332,
+        "mean_salience": 0.04209338790213649,
+        "name": "Dense All-to-All Attention"
+      },
+      "128": {
+        "overall_retention_accuracy": 24.6875,
+        "untouched_retention_accuracy": 26.52777777777778,
+        "cross_talk_error_rate": 73.47222222222223,
+        "updated_retention_accuracy": 19.166666666666668,
+        "latency_ms_mean": 13.917947499999999,
+        "mean_salience": 0.0389607035738867,
+        "name": "Dense All-to-All Attention"
+      }
+    },
+    "dependency_gated": {
+      "16": {
+        "overall_retention_accuracy": 38.54166666666667,
+        "untouched_retention_accuracy": 41.25,
+        "cross_talk_error_rate": 58.75,
+        "updated_retention_accuracy": 30.416666666666664,
+        "latency_ms_mean": 1.9944916666666666,
+        "mean_salience": 0.32821074319564236,
+        "name": "Dependency-Gated Dynamic Routing"
+      },
+      "32": {
+        "overall_retention_accuracy": 34.791666666666664,
+        "untouched_retention_accuracy": 36.11111111111111,
+        "cross_talk_error_rate": 63.88888888888889,
+        "updated_retention_accuracy": 30.833333333333336,
+        "latency_ms_mean": 3.5831758333333337,
+        "mean_salience": 0.2786381402108223,
+        "name": "Dependency-Gated Dynamic Routing"
+      },
+      "64": {
+        "overall_retention_accuracy": 29.166666666666668,
+        "untouched_retention_accuracy": 31.944444444444443,
+        "cross_talk_error_rate": 68.05555555555556,
+        "updated_retention_accuracy": 20.833333333333336,
+        "latency_ms_mean": 6.723718750000001,
+        "mean_salience": 0.24842017460115923,
+        "name": "Dependency-Gated Dynamic Routing"
+      },
+      "128": {
+        "overall_retention_accuracy": 20.416666666666668,
+        "untouched_retention_accuracy": 22.083333333333332,
+        "cross_talk_error_rate": 77.91666666666667,
+        "updated_retention_accuracy": 15.416666666666668,
+        "latency_ms_mean": 12.912901666666667,
+        "mean_salience": 0.23272866494625616,
+        "name": "Dependency-Gated Dynamic Routing"
+      }
+    }
+  }
+}

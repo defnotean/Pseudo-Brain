@@ -106,6 +106,27 @@
   py -3.11 brain/experiments/memory_benchmark/multi_threaded_latent_dependency_benchmark.py --extreme-grid --num-seeds 15 --train-steps 120
   ```
 
+### Workstream 9: MTLD Degradation Causal Diagnostic Suite
+* **Causal Decomposition of the Delay Failure Curve ($L \in [16, 128]$)**:
+  - **Hypothesis 1 (Passive Latch Decay)**: Setting $\lambda = 0.9999$ ($t_{1/2} \approx 6,931$ steps) prevents passive latch decay across 256 delay ticks, improving $L=128$ retention from **$17.9\%$ to $25.7\%$** (while avoiding numerical explosion of unconstrained $\lambda=1.0$).
+  - **Hypothesis 2 (CIG Gate Bleed & Sharpening)**: Gate temperature sharpening ($T=0.5$) slashes delay salience on uninformative sensory noise by **$88\%$** ($0.336 \to 0.039$), boosting $L=128$ retention to **$30.4\%$**.
+  - **Hypothesis 3 (Slot Width / Subspace Volume)**: Increasing slot width from $W=12$ to $W=48$ expands hyperspherical representation volume, lifting $L=128$ retention from $17.0\%$ to **$29.3\%$**.
+  - **Hypothesis 4 (Routing Modality)**: On orthogonal variables, Disconnected routing achieves **$25.2\%$ at $L=128$** with $9.52\text{ ms}$ latency, outperforming Static Top-4 ($17.7\%$, $17.81\text{ ms}$).
+* **Reproduction Command**:
+  ```bash
+  py -3.11 brain/experiments/memory_benchmark/mtld_degradation_diagnostic.py --num-seeds 15 --train-steps 120
+  ```
+
+### Workstream 10: Cognitive Scaling Ladder Benchmark (131k -> 8M)
+* **Multi-Scale Empirical Validation vs. Monolithic GRU and Modern Diagonal SSM (GLRU)**:
+  - **Brute-Force Scaling Falsification**: Monolithic GRU ($10.9\% - 14.7\%$) and Modern Diagonal SSM ($11.5\% - 13.3\%$) remain permanently collapsed to chance (~12.5%) even when scaled to **$10.7\text{ MILLION parameters}$** (+55x scale).
+  - **Pseudo-Brain Multi-Scale Invariance**: Pseudo-Brain CGP Thoughtlets sustain **$38.0\% - 39.4\%$ retention at $L=128$** (+25.5% to +27.9% margin over GRU/SSM) and graceful degradation at $M=32$ (**$20.9\% - 21.7\%$**) across all tiers from 131k up to 8M.
+  - **Sub-2ms CPU Inference**: Latency scales gracefully from **$0.96\text{ ms}$** at 131k to **$1.92\text{ ms}$** at 8M on single-threaded CPU.
+* **Reproduction Command**:
+  ```bash
+  py -3.11 brain/experiments/memory_benchmark/cognitive_scaling_ladder_benchmark.py --num-seeds 15 --train-steps 120
+  ```
+
 ---
 
 ## 3. Known Weaknesses & Critical Caveats

@@ -1,0 +1,371 @@
+{
+  "tiers": [
+    "131k",
+    "500k",
+    "2M",
+    "8M"
+  ],
+  "architectures": [
+    "cgp",
+    "gru",
+    "glru"
+  ],
+  "grid": {
+    "131k": {
+      "cgp": {
+        "baseline": {
+          "overall_retention_accuracy": 38.958333333333336,
+          "untouched_retention_accuracy": 38.19444444444444,
+          "cross_talk_error_rate": 61.80555555555556,
+          "updated_retention_accuracy": 41.25,
+          "latency_ms_mean": 0.9573095833333333,
+          "params": 31927,
+          "arch_label": "Pseudo-Brain CGP"
+        },
+        "long_delay": {
+          "overall_retention_accuracy": 38.02083333333333,
+          "untouched_retention_accuracy": 38.47222222222222,
+          "cross_talk_error_rate": 61.52777777777778,
+          "updated_retention_accuracy": 36.666666666666664,
+          "latency_ms_mean": 6.200936666666667,
+          "params": 31927,
+          "arch_label": "Pseudo-Brain CGP"
+        },
+        "massive_load": {
+          "overall_retention_accuracy": 20.9375,
+          "untouched_retention_accuracy": 20.954301075268816,
+          "cross_talk_error_rate": 79.04569892473118,
+          "updated_retention_accuracy": 20.416666666666668,
+          "latency_ms_mean": 4.611122916666667,
+          "params": 99127,
+          "arch_label": "Pseudo-Brain CGP"
+        }
+      },
+      "gru": {
+        "baseline": {
+          "overall_retention_accuracy": 13.854166666666668,
+          "untouched_retention_accuracy": 14.027777777777779,
+          "cross_talk_error_rate": 85.97222222222223,
+          "updated_retention_accuracy": 13.333333333333334,
+          "latency_ms_mean": 0.23312916666666667,
+          "params": 191112,
+          "arch_label": "Monolithic GRU"
+        },
+        "long_delay": {
+          "overall_retention_accuracy": 11.5625,
+          "untouched_retention_accuracy": 11.11111111111111,
+          "cross_talk_error_rate": 88.88888888888889,
+          "updated_retention_accuracy": 12.916666666666668,
+          "latency_ms_mean": 1.4124583333333334,
+          "params": 191112,
+          "arch_label": "Monolithic GRU"
+        },
+        "massive_load": {
+          "overall_retention_accuracy": 12.369791666666668,
+          "untouched_retention_accuracy": 12.258064516129032,
+          "cross_talk_error_rate": 87.74193548387098,
+          "updated_retention_accuracy": 15.833333333333332,
+          "latency_ms_mean": 0.7331195833333334,
+          "params": 191112,
+          "arch_label": "Monolithic GRU"
+        }
+      },
+      "glru": {
+        "baseline": {
+          "overall_retention_accuracy": 13.333333333333334,
+          "untouched_retention_accuracy": 14.166666666666666,
+          "cross_talk_error_rate": 85.83333333333333,
+          "updated_retention_accuracy": 10.833333333333334,
+          "latency_ms_mean": 0.2754204166666667,
+          "params": 187352,
+          "arch_label": "Modern Diagonal SSM (GLRU)"
+        },
+        "long_delay": {
+          "overall_retention_accuracy": 11.458333333333332,
+          "untouched_retention_accuracy": 11.11111111111111,
+          "cross_talk_error_rate": 88.88888888888889,
+          "updated_retention_accuracy": 12.5,
+          "latency_ms_mean": 1.6049458333333333,
+          "params": 187352,
+          "arch_label": "Modern Diagonal SSM (GLRU)"
+        },
+        "massive_load": {
+          "overall_retention_accuracy": 12.760416666666666,
+          "untouched_retention_accuracy": 12.701612903225806,
+          "cross_talk_error_rate": 87.29838709677419,
+          "updated_retention_accuracy": 14.583333333333334,
+          "latency_ms_mean": 0.7692262499999998,
+          "params": 187352,
+          "arch_label": "Modern Diagonal SSM (GLRU)"
+        }
+      }
+    },
+    "500k": {
+      "cgp": {
+        "baseline": {
+          "overall_retention_accuracy": 38.645833333333336,
+          "untouched_retention_accuracy": 39.72222222222222,
+          "cross_talk_error_rate": 60.27777777777778,
+          "updated_retention_accuracy": 35.41666666666667,
+          "latency_ms_mean": 1.04923,
+          "params": 96475,
+          "arch_label": "Pseudo-Brain CGP"
+        },
+        "long_delay": {
+          "overall_retention_accuracy": 37.604166666666664,
+          "untouched_retention_accuracy": 40.69444444444444,
+          "cross_talk_error_rate": 59.30555555555556,
+          "updated_retention_accuracy": 28.333333333333332,
+          "latency_ms_mean": 6.728115833333333,
+          "params": 96475,
+          "arch_label": "Pseudo-Brain CGP"
+        },
+        "massive_load": {
+          "overall_retention_accuracy": 21.705729166666668,
+          "untouched_retention_accuracy": 21.626344086021508,
+          "cross_talk_error_rate": 78.3736559139785,
+          "updated_retention_accuracy": 24.166666666666668,
+          "latency_ms_mean": 6.135599166666666,
+          "params": 359899,
+          "arch_label": "Pseudo-Brain CGP"
+        }
+      },
+      "gru": {
+        "baseline": {
+          "overall_retention_accuracy": 12.5,
+          "untouched_retention_accuracy": 13.472222222222221,
+          "cross_talk_error_rate": 86.52777777777777,
+          "updated_retention_accuracy": 9.583333333333334,
+          "latency_ms_mean": 0.42201791666666666,
+          "params": 709896,
+          "arch_label": "Monolithic GRU"
+        },
+        "long_delay": {
+          "overall_retention_accuracy": 11.458333333333332,
+          "untouched_retention_accuracy": 11.11111111111111,
+          "cross_talk_error_rate": 88.88888888888889,
+          "updated_retention_accuracy": 12.5,
+          "latency_ms_mean": 2.6145500000000004,
+          "params": 709896,
+          "arch_label": "Monolithic GRU"
+        },
+        "massive_load": {
+          "overall_retention_accuracy": 12.669270833333332,
+          "untouched_retention_accuracy": 12.60752688172043,
+          "cross_talk_error_rate": 87.39247311827957,
+          "updated_retention_accuracy": 14.583333333333334,
+          "latency_ms_mean": 1.3187695833333335,
+          "params": 709896,
+          "arch_label": "Monolithic GRU"
+        }
+      },
+      "glru": {
+        "baseline": {
+          "overall_retention_accuracy": 12.5,
+          "untouched_retention_accuracy": 13.472222222222221,
+          "cross_talk_error_rate": 86.52777777777777,
+          "updated_retention_accuracy": 9.583333333333334,
+          "latency_ms_mean": 0.38111833333333334,
+          "params": 706472,
+          "arch_label": "Modern Diagonal SSM (GLRU)"
+        },
+        "long_delay": {
+          "overall_retention_accuracy": 11.458333333333332,
+          "untouched_retention_accuracy": 11.11111111111111,
+          "cross_talk_error_rate": 88.88888888888889,
+          "updated_retention_accuracy": 12.5,
+          "latency_ms_mean": 2.42551,
+          "params": 706472,
+          "arch_label": "Modern Diagonal SSM (GLRU)"
+        },
+        "massive_load": {
+          "overall_retention_accuracy": 13.098958333333332,
+          "untouched_retention_accuracy": 13.07795698924731,
+          "cross_talk_error_rate": 86.92204301075269,
+          "updated_retention_accuracy": 13.750000000000002,
+          "latency_ms_mean": 1.1630283333333333,
+          "params": 706472,
+          "arch_label": "Modern Diagonal SSM (GLRU)"
+        }
+      }
+    },
+    "2M": {
+      "cgp": {
+        "baseline": {
+          "overall_retention_accuracy": 39.270833333333336,
+          "untouched_retention_accuracy": 38.88888888888889,
+          "cross_talk_error_rate": 61.11111111111111,
+          "updated_retention_accuracy": 40.416666666666664,
+          "latency_ms_mean": 1.2629308333333333,
+          "params": 324931,
+          "arch_label": "Pseudo-Brain CGP"
+        },
+        "long_delay": {
+          "overall_retention_accuracy": 38.4375,
+          "untouched_retention_accuracy": 41.52777777777778,
+          "cross_talk_error_rate": 58.47222222222222,
+          "updated_retention_accuracy": 29.166666666666668,
+          "latency_ms_mean": 8.128722083333335,
+          "params": 324931,
+          "arch_label": "Pseudo-Brain CGP"
+        },
+        "massive_load": {
+          "overall_retention_accuracy": 21.5625,
+          "untouched_retention_accuracy": 21.35752688172043,
+          "cross_talk_error_rate": 78.64247311827957,
+          "updated_retention_accuracy": 27.916666666666668,
+          "latency_ms_mean": 9.158267083333332,
+          "params": 1367875,
+          "arch_label": "Pseudo-Brain CGP"
+        }
+      },
+      "gru": {
+        "baseline": {
+          "overall_retention_accuracy": 14.6875,
+          "untouched_retention_accuracy": 14.305555555555555,
+          "cross_talk_error_rate": 85.69444444444444,
+          "updated_retention_accuracy": 15.833333333333332,
+          "latency_ms_mean": 0.98400625,
+          "params": 2730504,
+          "arch_label": "Monolithic GRU"
+        },
+        "long_delay": {
+          "overall_retention_accuracy": 11.145833333333334,
+          "untouched_retention_accuracy": 11.666666666666666,
+          "cross_talk_error_rate": 88.33333333333333,
+          "updated_retention_accuracy": 9.583333333333334,
+          "latency_ms_mean": 6.276857083333334,
+          "params": 2730504,
+          "arch_label": "Monolithic GRU"
+        },
+        "massive_load": {
+          "overall_retention_accuracy": 12.486979166666666,
+          "untouched_retention_accuracy": 12.473118279569892,
+          "cross_talk_error_rate": 87.52688172043011,
+          "updated_retention_accuracy": 12.916666666666668,
+          "latency_ms_mean": 3.1065383333333334,
+          "params": 2730504,
+          "arch_label": "Monolithic GRU"
+        }
+      },
+      "glru": {
+        "baseline": {
+          "overall_retention_accuracy": 12.708333333333332,
+          "untouched_retention_accuracy": 13.61111111111111,
+          "cross_talk_error_rate": 86.38888888888889,
+          "updated_retention_accuracy": 10.0,
+          "latency_ms_mean": 0.7103195833333334,
+          "params": 2740040,
+          "arch_label": "Modern Diagonal SSM (GLRU)"
+        },
+        "long_delay": {
+          "overall_retention_accuracy": 12.083333333333334,
+          "untouched_retention_accuracy": 12.222222222222221,
+          "cross_talk_error_rate": 87.77777777777777,
+          "updated_retention_accuracy": 11.666666666666666,
+          "latency_ms_mean": 4.567035,
+          "params": 2740040,
+          "arch_label": "Modern Diagonal SSM (GLRU)"
+        },
+        "massive_load": {
+          "overall_retention_accuracy": 12.408854166666666,
+          "untouched_retention_accuracy": 12.419354838709678,
+          "cross_talk_error_rate": 87.58064516129032,
+          "updated_retention_accuracy": 12.083333333333334,
+          "latency_ms_mean": 2.3171804166666665,
+          "params": 2740040,
+          "arch_label": "Modern Diagonal SSM (GLRU)"
+        }
+      }
+    },
+    "8M": {
+      "cgp": {
+        "baseline": {
+          "overall_retention_accuracy": 38.854166666666664,
+          "untouched_retention_accuracy": 39.861111111111114,
+          "cross_talk_error_rate": 60.138888888888886,
+          "updated_retention_accuracy": 35.833333333333336,
+          "latency_ms_mean": 1.9179725,
+          "params": 1179283,
+          "arch_label": "Pseudo-Brain CGP"
+        },
+        "long_delay": {
+          "overall_retention_accuracy": 39.375,
+          "untouched_retention_accuracy": 42.77777777777778,
+          "cross_talk_error_rate": 57.22222222222222,
+          "updated_retention_accuracy": 29.166666666666668,
+          "latency_ms_mean": 12.196351666666667,
+          "params": 1179283,
+          "arch_label": "Pseudo-Brain CGP"
+        },
+        "massive_load": {
+          "overall_retention_accuracy": 15.78125,
+          "untouched_retention_accuracy": 15.725806451612904,
+          "cross_talk_error_rate": 84.2741935483871,
+          "updated_retention_accuracy": 17.5,
+          "latency_ms_mean": 24.18535041666666,
+          "params": 5329555,
+          "arch_label": "Pseudo-Brain CGP"
+        }
+      },
+      "gru": {
+        "baseline": {
+          "overall_retention_accuracy": 10.9375,
+          "untouched_retention_accuracy": 9.722222222222223,
+          "cross_talk_error_rate": 90.27777777777777,
+          "updated_retention_accuracy": 14.583333333333334,
+          "latency_ms_mean": 4.20211,
+          "params": 10703880,
+          "arch_label": "Monolithic GRU"
+        },
+        "long_delay": {
+          "overall_retention_accuracy": 13.854166666666668,
+          "untouched_retention_accuracy": 13.472222222222221,
+          "cross_talk_error_rate": 86.52777777777777,
+          "updated_retention_accuracy": 15.0,
+          "latency_ms_mean": 27.604278333333333,
+          "params": 10703880,
+          "arch_label": "Monolithic GRU"
+        },
+        "massive_load": {
+          "overall_retention_accuracy": 12.708333333333332,
+          "untouched_retention_accuracy": 12.64784946236559,
+          "cross_talk_error_rate": 87.35215053763442,
+          "updated_retention_accuracy": 14.583333333333334,
+          "latency_ms_mean": 13.504490833333334,
+          "params": 10703880,
+          "arch_label": "Monolithic GRU"
+        }
+      },
+      "glru": {
+        "baseline": {
+          "overall_retention_accuracy": 13.020833333333334,
+          "untouched_retention_accuracy": 14.305555555555555,
+          "cross_talk_error_rate": 85.69444444444444,
+          "updated_retention_accuracy": 9.166666666666666,
+          "latency_ms_mean": 2.2865625,
+          "params": 10788488,
+          "arch_label": "Modern Diagonal SSM (GLRU)"
+        },
+        "long_delay": {
+          "overall_retention_accuracy": 11.458333333333332,
+          "untouched_retention_accuracy": 11.11111111111111,
+          "cross_talk_error_rate": 88.88888888888889,
+          "updated_retention_accuracy": 12.5,
+          "latency_ms_mean": 14.032442083333333,
+          "params": 10788488,
+          "arch_label": "Modern Diagonal SSM (GLRU)"
+        },
+        "massive_load": {
+          "overall_retention_accuracy": 12.682291666666668,
+          "untouched_retention_accuracy": 12.580645161290322,
+          "cross_talk_error_rate": 87.41935483870968,
+          "updated_retention_accuracy": 15.833333333333332,
+          "latency_ms_mean": 6.8399475,
+          "params": 10788488,
+          "arch_label": "Modern Diagonal SSM (GLRU)"
+        }
+      }
+    }
+  }
+}
