@@ -1,0 +1,54 @@
+{
+  "H=3": {
+    "horizon": 3,
+    "mean_total_ms": 25.72830777777778,
+    "p50_total_ms": 25.6344,
+    "p90_total_ms": 26.28847,
+    "p95_total_ms": 26.823859999999996,
+    "p99_total_ms": 27.375352,
+    "breakdown_ms": {
+      "encoder": 0.3018511111111111,
+      "recurrent_cgp": 10.48529277777778,
+      "dynamic_planner": 14.642764444444444,
+      "action": 0.012130555555555558,
+      "env_step": 0.19811611111111113
+    },
+    "cognitive_telemetry": {
+      "thoughtlet_dispersion": 2.3323384126027427,
+      "plastic_trace_norm": 0.9185828814903895,
+      "plasticity_delta_norm": 0.018038277355177948,
+      "branches_expanded": 28.0,
+      "branches_pruned": 4.0,
+      "hazard_prunes": 0.0,
+      "utility_prunes": 4.0
+    },
+    "total_pellets": 12,
+    "60hz_budget_met": false
+  },
+  "H=5": {
+    "horizon": 5,
+    "mean_total_ms": 41.38713722222222,
+    "p50_total_ms": 39.67055,
+    "p90_total_ms": 47.729749999999996,
+    "p95_total_ms": 50.52823499999999,
+    "p99_total_ms": 54.90474600000001,
+    "breakdown_ms": {
+      "encoder": 0.32358166666666666,
+      "recurrent_cgp": 10.946572777777778,
+      "dynamic_planner": 29.79321277777778,
+      "action": 0.013641666666666668,
+      "env_step": 0.21670944444444445
+    },
+    "cognitive_telemetry": {
+      "thoughtlet_dispersion": 2.3323384126027427,
+      "plastic_trace_norm": 0.9185828814903895,
+      "plasticity_delta_norm": 0.018038277355177948,
+      "branches_expanded": 60.0,
+      "branches_pruned": 36.0,
+      "hazard_prunes": 0.0,
+      "utility_prunes": 36.0
+    },
+    "total_pellets": 12,
+    "60hz_budget_met": false
+  }
+}

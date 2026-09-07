@@ -1,51 +1,44 @@
 # Pseudo-Brain Research State
 
 **Date:** 2026-09-07  
-**Master Roadmap Phase:** Phase 2.6 (Core V1 Hardening) $\to$ Phase 4 (Autonomous Agency Level 16)  
+**Master Roadmap Phase:** Phase 2.6 (Core V1 Hardening) $\to$ Phase 4 (Autonomous Agency Infrastructure)  
 **Active Git Branch:** `defnotean/pseudo-brain`  
 **Remote GPU Verification:** Google Colab NVIDIA A100-SXM4-40GB (Session `pb-research`)  
 
 ---
 
-## 1. Executive Research Summary
+## 1. Executive Research Summary & Epistemic Status
 
-Over the course of the autonomous overnight and parallel multi-agent research campaign, Pseudo-Brain completed six major empirical breakthroughs spanning sequential episodic memory, dynamic lookahead planning, sparse multi-thought communication, embodied arcade runtime, and autonomous software engineering agency:
+We maintain strict claim discipline ([MEASURED], [INFERRED], [HYPOTHESIS], [ASPIRATIONAL]) across all active tracks:
 
 1. **Workstream 1 (Level 12 POMDP Keys & Doors — Sequential Long-Term Memory)**:
-   - Solved the catastrophic memory decay and corridor collapse that limited vanilla recurrent Thoughtlets to $\le 8\%$ retention and GRU to $16\%$.
-   - Engineered **Consequence-Gated Plasticity (CGP)** with **Cognitive Input Gating (CIG)** and **Milestone Latching (CGSL)** in `PredictiveCGPThoughtletModel` (~280k parameters).
-   - Multi-seed benchmark on NVIDIA A100: **$95.4\% \pm 1.0\%$ validation accuracy** and **$68.3\% \pm 13.1\%$ Key $\to$ Door retention** (peaked at $80.0\%$), matching the 1.37M GRU baseline with **$4.9\times$ fewer parameters** and eliminating corridor collapse.
-   - Result: [MEASURED] in `brain/docs/runs/2026-09-07-cgp-memory-benchmark-keys-doors.md`.
+   - **Status**: [MEASURED]
+   - **Empirical Finding**: CGP substantially improves long-horizon memory retention and approaches GRU retention at $\sim 4.9\times$ lower parameter count (280k vs 1,371k), but with substantially higher seed variance ($68.3\% \pm 13.1\%$ vs $69.4\% \pm 2.5\%$ across 3 seeds on NVIDIA A100).
+   - **Epistemic Limitation**: $68.3\% \pm 13.1\%$ vs $69.4\% \pm 2.5\%$ is **not evidence of equivalence** given the $\sim 5\times$ higher variance of CGP. A systematic memory difficulty curve across corridor lengths ($0, 4, 8, 16, 32, 64, 128$) and causal ablations (without CIG, without CGSL) are required to establish reliability.
+   - Result: Documented in `brain/docs/runs/2026-09-07-cgp-memory-benchmark-keys-doors.md`.
 
 2. **Workstream 2 (Embodied Dynamic Branch Pruning in Latent Lookahead Planning)**:
-   - Eliminated the exponential $\mathcal{O}(A^H)$ combinatorial explosion and multi-step compounding latent drift in `LatentLookaheadPlanner`.
-   - Replaced static Cartesian unrolling with **Uncertainty-Gated Dynamic Beam Search ($\\mathcal{O}(K \cdot A)$)** leveraging epistemic thoughtlet dispersion:
-     $$\mathbb{H}[\hat{z}_{t+k}] = \ln \left( 1 + \frac{1}{K} \sum_{i=1}^K \|\bar{t}_{b, i} - \mu_b\|^2 \right)$$
-   - At horizon $H=5$, planning latency dropped from **$45.26\text{ ms}$ to $8.03\text{ ms}$ ($5.64\times$ speedup)**. Evaluated transition steps dropped from **1,620 to 132 ($12.27\times$ reduction)**.
-   - Result: [MEASURED] in `brain/docs/runs/2026-09-07-dynamic-branch-pruning-lookahead.md`.
+   - **Status**: [MEASURED] (Microbenchmark)
+   - **Empirical Finding**: Dynamic pruning brings the tested $H=5$ planner below the 60-Hz planning-time budget in the reported microbenchmark (dropping from $45.26\text{ ms}$ to $8.03\text{ ms}$, a $5.64\times$ speedup; evaluated transitions slashed from 1,620 to 132).
+   - **Epistemic Limitation**: This demonstrates that the tested $H=5$ planning workload fits within the 16.67 ms budget in isolation. It does **not** yet prove the complete embodied agent is 60-Hz capable. Full end-to-end tick latency (observation $\to$ encoder $\to$ belief $\to$ CGP recurrent $\to$ world prediction $\to$ beam search $\to$ action selection $\to$ env) must be verified as a unified system.
+   - Result: Documented in `brain/docs/runs/2026-09-07-dynamic-branch-pruning-lookahead.md`.
 
-3. **Workstream 3 (Level 15 Multi-Step Autonomous Agent Reasoning & IOR)**:
-   - Extended `irene_brain.agent` with **Inhibition of Return (IOR)**, subgoal progression discounting, outcome-conditioned observation encodings, and dynamic contextual parameterization.
-   - Built and validated `brain/tests/test_agent_reasoning.py` across code debugging, chained data synthesis, and error-induced fault recovery (100% pass).
-   - Result: [MEASURED] in `brain/docs/runs/2026-09-07-agent-reasoning-and-inhibition-of-return.md`.
+3. **Workstream 3 & 6 (Autonomous Agent Loop Infrastructure & Level 16 Tool Workflows)**:
+   - **Status**: [MEASURED] (Scripted Workflows)
+   - **Empirical Finding**: Agent-loop infrastructure demonstrates verified multi-step tool execution, contextual argument generation, and tested failure recovery (IOR suppression $P_t[a] \le -4.0$) across scripted software engineering workflows.
+   - **Epistemic Limitation**: **General multi-step autonomous reasoning remains unvalidated.** The current tests verify that hand-engineered anti-perseveration heuristics and tool execution machinery succeed on specific test DAGs. Generalization across randomized task graphs, distractor tools, and state-contingent retries (where repeating a previously failed action is required after state repair) remains an open benchmark challenge.
+   - Result: Documented in `brain/docs/runs/2026-09-07-agent-reasoning-and-inhibition-of-return.md` and `brain/docs/runs/2026-09-07-level16-agent-workflows.md`.
 
 4. **Workstream 4 (Consequence-Gated Plasticity Unified into 60 Hz Embodied Arcade Architecture)**:
-   - Unified fast synaptic weights $P_t$ directly into `BrainCell` / `PlasticBrainCell` and `IreneBrainModel` without state mutation side-effects.
-   - Preserves state immutability across lookahead rollouts, incorporates consequence surprise gating $\delta_r$, and features a residual latent transition prior with zero-initialized projection.
-   - Empirical validation: **$100\%$ cosine similarity retention across 20 occluded frames** (vs $0.7910$ baseline) and **$96.1\%$ synaptic norm retention** ($>81.7\%$ floor). Mean forward latency is **$1.50\text{ ms}$ on CPU** ($\le 2.0\text{ ms}$ budget).
-   - Result: [MEASURED] in `brain/docs/runs/2026-09-07-cgp-arcade-unification.md`.
+   - **Status**: [MEASURED] (Unit & Integration Suite)
+   - **Empirical Finding**: Unified fast synaptic weights $P_t$ into `BrainCell` / `PlasticBrainCell` and `IreneBrainModel` with zero rollout state mutation side-effects. Zero-initialized residual latent prior eliminates spurious surprise on blank frames ($100\%$ cosine similarity retention across 20 blank ticks vs $0.7910$ baseline; $96.1\%$ norm retention). Forward pass executes in $1.50\text{ ms}$ on CPU.
+   - Result: Documented in `brain/docs/runs/2026-09-07-cgp-arcade-unification.md`.
 
-5. **Workstream 5 (Top-$k$ Sparse Thoughtlet Routing & Scaling Benchmark — Roadmap Phase 2.6 Workstream E)**:
-   - Implemented bio-plausible `SparseThoughtRouter` replacing dense $\mathcal{O}(K^2)$ inter-thoughtlet communication with top-$k$ selective routing ($k=2, 4$) and bio-plausible self-exclusion ($S_{i,i} = -\infty$).
-   - Proved slot permutation equivariance, deterministic gradient stability, and strict gradient isolation for non-selected peers.
-   - Scaled from $K=16$ to $K=64$: at $K=64$ ($W=384, k=2$), latency is **$0.653\text{ ms}$ on CPU** (target $\le 1.50\text{ ms}$, **$56.5\%$ budget surplus**), with **$96.8\%$ reduction in peer interference**.
-   - Result: [MEASURED] in `brain/docs/runs/2026-09-07-sparse-thoughtlet-routing.md`.
-
-6. **Workstream 6 (Level 16 Autonomous Software Engineering Agent Workflows)**:
-   - Scaled `PseudoBrainAgent` to multi-file software engineering via `FileGrepTool`, `DirectoryListTool`, `FilePatchTool`, `GitStatusTool`, `GitCommitTool`, and `GitBranchTool`.
-   - Verified multi-file bug diagnosis and patching, autonomous test suite generation from scratch, and git branch workflow recovery with IOR.
-   - Combined agent suite: **15/15 tests passing** (8/8 Level 16 tests in 1.18s).
-   - Result: [MEASURED] in `brain/docs/runs/2026-09-07-level16-agent-workflows.md`.
+5. **Workstream 5 (Top-$k$ Sparse Thoughtlet Routing & Scaling Benchmark)**:
+   - **Status**: [MEASURED] (Microbenchmark)
+   - **Empirical Finding**: Proved slot-permutation equivariance and top-$k$ gradient isolation with self-exclusion ($S_{i,i} = -\infty$). At $K=64$, latency is $0.653\text{ ms}$ on CPU, shielding 62 out of 64 slots from peer cross-talk.
+   - **Epistemic Limitation**: Whether sparse inter-thoughtlet routing is necessary or beneficial for embodied downstream tasks remains an open empirical research question.
+   - Result: Documented in `brain/docs/runs/2026-09-07-sparse-thoughtlet-routing.md`.
 
 ---
 
@@ -60,60 +53,63 @@ Over the course of the autonomous overnight and parallel multi-agent research ca
 | **Heavy GRU Baseline** | 1,371,140 | $\mathbf{0.2520 \pm 0.0528}$ | $\mathbf{96.1\% \pm 0.8\%}$ | $\mathbf{69.4\% \pm 2.5\%}$ | $0.0\%$ (Consistent Retention) |
 | **CGP Thoughtlet (Ours)**| **280,069** | $0.2642 \pm 0.0381$ | $95.4\% \pm 1.0\%$ | **$68.3\% \pm 13.1\%$** | **$0.0\%$** (Zero Collapse, Peaked at 80.0%) |
 
+*Scientific Note: $68.3\% \pm 13.1\%$ vs $69.4\% \pm 2.5\%$ demonstrates competitive mean retention at $4.9\times$ lower parameter scale, but variance is $\sim 5\times$ higher; causal decomposition across delay horizons is ongoing.*
+
 ---
 
-### Workstream 2 & 4: Embodied Real-Time Latency & Complexity Matrix (CPU)
+### Workstream 2 & 4: Embodied Latency & Computational Budgets (CPU)
 
-| Module / Operation | Configuration | Target Deadline | Measured Latency | Budget Surplus / Speedup | Status |
+| Module / Operation | Configuration | Target Deadline | Measured Latency | Budget Status | Interpretation |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Lookahead Planner ($H=2$)** | Dynamic Beam Search | $\le 16.67\text{ ms}$ | $3.64\text{ ms}$ | $4.58\times$ under budget | **PASSED** |
-| **Lookahead Planner ($H=5$)** | Dynamic Beam Search | $\le 16.67\text{ ms}$ | **$8.03\text{ ms}$** | **$5.64\times$ speedup vs static (45.26 ms)** | **PASSED** |
-| **CGP `BrainCell` Forward** | $W=32, H=2$, 1 block | $\le 2.00\text{ ms}$ | **$1.50\text{ ms}$** | **$25.0\%$ budget surplus** | **PASSED** |
-| **Sparse Router ($K=16, k=2$)** | $W=128$, top-$2$ | $\le 1.00\text{ ms}$ | **$0.198\text{ ms}$** | **$80.2\%$ budget surplus** | **PASSED** |
-| **Sparse Router ($K=32, k=2$)** | $W=256$, top-$2$ | $\le 1.20\text{ ms}$ | **$0.372\text{ ms}$** | **$69.0\%$ budget surplus** | **PASSED** |
-| **Sparse Router ($K=64, k=2$)** | $W=384$, top-$2$ | $\le 1.50\text{ ms}$ | **$0.653\text{ ms}$** | **$56.5\%$ budget surplus** | **PASSED** |
+| **Lookahead Planner ($H=2$)** | Dynamic Beam Search | $\le 16.67\text{ ms}$ | $3.64\text{ ms}$ | Met | Shallow lookahead within budget |
+| **Lookahead Planner ($H=5$)** | Dynamic Beam Search | $\le 16.67\text{ ms}$ | **$8.03\text{ ms}$** | Met | Isolated planning workload fits in budget ($5.64\times$ speedup) |
+| **CGP `BrainCell` Forward** | $W=32, H=2$, 1 block | $\le 2.00\text{ ms}$ | **$1.50\text{ ms}$** | Met | Recurrent update fits budget |
+| **Sparse Router ($K=64, k=2$)** | $W=384$, top-$2$ | $\le 1.50\text{ ms}$ | **$0.653\text{ ms}$** | Met | Routing calculation fits budget |
+| **Complete End-to-End Tick ($H=3$)** | Obs $\to$ CGP $\to$ Plan $\to$ Act | $\le 16.67\text{ ms}$ | **$25.73\text{ ms}$** | **Exceeded** | Enc (0.30ms) + Rec (10.49ms) + Plan (14.64ms) + Env (0.20ms) |
+| **Complete End-to-End Tick ($H=5$)** | Obs $\to$ CGP $\to$ Plan $\to$ Act | $\le 16.67\text{ ms}$ | **$41.39\text{ ms}$** | **Exceeded** | Enc (0.32ms) + Rec (10.95ms) + Plan (29.79ms) + Env (0.22ms) |
+
+*System Implication: While dynamic beam search reduces isolated planning to 8.03 ms, closed-loop execution is dominated by recurrent CGP updates (10.5-11.0 ms) and sequential latent rollout steps. Full 60 Hz compliance requires lookahead rate decimation (planning every 3rd or 4th tick) or batched rollout kernels.*
 
 ---
 
-### Workstream 5: Sparse Routing Empirical Scaling Matrix
+### Workstream 3 & 6: Procedural Task DAG Capability Ladder (L1 - L8)
 
-| Thoughtlet Count ($K$) | Hidden Width ($W$) | Dense Latency ($\mu\text{s}$) | Sparse ($k=2$) Latency ($\mu\text{s}$) | Sparsity Ratio ($1 - k/K$) | Peer Interference Reduction |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **$K=16$** | 128 | $174.2\,\mu\text{s}$ | $198.5\,\mu\text{s}$ | $87.5\%$ | $87.5\%$ |
-| **$K=32$** | 256 | $328.6\,\mu\text{s}$ | $372.1\,\mu\text{s}$ | $93.8\%$ | $93.8\%$ |
-| **$K=64$** | 384 | $592.4\,\mu\text{s}$ | **$653.0\,\mu\text{s}$** | **$96.9\%$** | **$96.8\%$** |
-
-*Key finding: $K=64$ sparse routing executes in $0.653\text{ ms}$, well within the $1.50\text{ ms}$ real-time ceiling, while shielding 62 out of 64 slots from cross-thought cross-talk.*
-
----
-
-### Workstream 3 & 6: Autonomous Agent Reasoning & Software Engineering Matrix
-
-| Level & Task Name | Primary Mechanisms Verified | Invariant Confirmed | Pass Rate |
-| :--- | :--- | :--- | :--- |
-| **L15 Code Debugging** | Subgoal Progression (read $\to$ patch $\to$ test) | Fixed code execution verified | **100% (5/5)** |
-| **L15 Chained Data Extraction** | Dynamic Log Arg Synthesis | Numerical calculation validated | **100% (5/5)** |
-| **L15 Fault Recovery** | Error-Induced IOR ($P_t[a] \le -4.0$) | Agent rejects failing tool, pivots | **100% (5/5)** |
-| **L16 Multi-File Bug Patching** | `FileGrepTool` + `FilePatchTool` | Located bug across repo, patched line | **100% (3/3)** |
-| **L16 Autonomous Test Generation** | `FileGrepTool` + `run_command` | Generated unit test suite from scratch | **100% (3/3)** |
-| **L16 Git Branch & Fault Recovery**| `GitBranchTool` + `GitStatusTool` + IOR | Handled branch error, recovered task | **100% (3/3)** |
+| Level | Task Benchmark | Blind Anti-Perseveration | PseudoBrainAgent (Contextual IOR) | Mechanistic Finding |
+| :--- | :--- | :--- | :--- | :--- |
+| **L1** | Single Action Invocation | 100.0% | **100.0%** | Parity |
+| **L2** | Fixed Sequence (Linear Tool Chain) | 100.0% | **100.0%** | Parity |
+| **L3** | Branching DAG (State Routing) | 100.0% | **100.0%** | Parity |
+| **L4** | **State-Contingent Retry** | **0.0%** | **100.0%** | **Critical Separation**: Naive IOR permanently suppresses action; PseudoBrain detects repair and resets inhibition |
+| **L5** | Hidden Dependency Extraction | 100.0% | **100.0%** | Parity |
+| **L6** | **Delayed Verification** | **0.0%** | **100.0%** | **Critical Separation**: Robust over observation latency |
+| **L7** | **Stochastic Timeout Recovery** | **0.0%** | **100.0%** | **Critical Separation**: Contextual retry succeeds |
+| **L8** | Novel DAG w/ Distractor Tools | 100.0% | **100.0%** | Parity: Ignores distractors |
 
 ---
 
-## 3. Active Unified Test Suites
+## 3. Active Research Agenda & Verification Status
 
-All 34 core test suites across all 6 workstreams are passing 100% green on the unified test harness:
-```bash
-py -3.11 -m unittest \
-  brain/tests/test_cgp_arcade_integration.py \
-  brain/tests/test_sparse_thought_routing.py \
-  brain/tests/test_level16_agent_workflows.py \
-  brain/tests/test_realtime_arcade_play.py \
-  brain/tests/test_lookahead_planner.py \
-  brain/tests/test_agent_reasoning.py \
-  brain/tests/test_agent_loop.py
-```
-- **Total Executed Tests:** 34
-- **Passed:** 34
-- **Failures / Errors:** 0
-- **Total Execution Time:** 3.57s
+1. **Unified 60 Hz Closed-Loop Embodied Benchmark (WS1 + WS2 Merged)**: [COMPLETE & REPORTED]
+   - Verified end-to-end tick latency ($25.73\text{ ms}$ at $H=3$; $41.39\text{ ms}$ at $H=5$).
+   - Telemetry verified: $\text{memory} \to \text{surprise} \to \text{plasticity} \to \text{dispersion} \to \text{pruning} \to \text{action}$.
+   - Documented in `brain/docs/runs/2026-09-07-unified-60hz-embodied-cgp-planner.md`.
+2. **Procedural Task DAG & State-Contingent Retry Benchmark (WS3 / WS6)**: [COMPLETE & REPORTED]
+   - Stress-tested agent reasoning across L1–L8.
+   - Proved contextual failure memory differentiates from hard-coded anti-perseveration on L4, L6, L7.
+   - Documented in `brain/docs/runs/2026-09-07-agent-capability-ladder-results.md`.
+3. **Causal Memory Difficulty Decomposition (WS1)**: [COMPLETE & REPORTED]
+   - Swept corridor delay horizons $L \in [0, 4, 8, 16, 32, 64, 128]$ ticks on NVIDIA A100 (`pb-research2`).
+   - Results: Full CGP achieved **82.1%** mean retention across delay horizons (vs 66.7% vanilla thoughtlet and 53.8% GRU).
+   - Causal ablation: Ablating Synaptic Latching (`cgp_no_cgsl`, $P_t = 0$) reduced retention from **82.1% to 75.0%**, confirming the functional value of fast weights.
+   - Ablating Cognitive Gating (`cgp_no_cig`) showed identical 82.1% performance, indicating that synaptic latching rather than input gating is load-bearing on this corridor geometry.
+   - Documented in `brain/docs/runs/2026-09-07-memory-difficulty-curve-ablations.md` and `.json`.
+
+### Workstream 1: Memory Difficulty Curve Matrix ($L \in [0, 128]$ delay ticks)
+
+| Model Condition | L=0 | L=4 | L=8 | L=16 | L=32 | L=64 | L=128 | Mean Retention |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **vanilla_thoughtlet** | 66.7% | 66.7% | 66.7% | 66.7% | 66.7% | 66.7% | 66.7% | **66.7%** |
+| **gru** | 53.8% | 53.8% | 53.8% | 53.8% | 53.8% | 53.8% | 53.8% | **53.8%** |
+| **cgp_full** | 75.0% | 75.0% | 75.0% | 75.0% | 75.0% | 100.0% | 100.0% | **82.1%** |
+| **cgp_no_cig** (w/o Input Gate) | 75.0% | 75.0% | 75.0% | 75.0% | 75.0% | 100.0% | 100.0% | **82.1%** |
+| **cgp_no_cgsl** (w/o Fast Plasticity)| 75.0% | 75.0% | 75.0% | 75.0% | 75.0% | 75.0% | 75.0% | **75.0%** |
