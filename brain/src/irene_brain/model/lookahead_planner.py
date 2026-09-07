@@ -118,6 +118,7 @@ class LookaheadRolloutStep:
     predicted_danger: float
     predicted_value: float
     is_hazard: bool
+    predictive_entropy: float = 0.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -145,6 +146,22 @@ class LookaheadPlanResult:
     branch_utilities: tuple[float, ...]
     chosen_index: int
     pruned_count: int
+
+
+@dataclass(slots=True)
+class _DynamicBeamCandidate:
+    action_sequence: tuple[DirectionalAction | int, ...]
+    rollout_steps: list[LookaheadRolloutStep]
+    belief: Tensor
+    working_memory: Tensor
+    thoughts: Tensor
+    sensors: Tensor
+    cum_reward: float
+    cum_danger: float
+    terminal_value: float
+    cumulative_utility: float
+    is_pruned: bool = False
+    prune_reason: str | None = None
 
 
 class LatentHazardHead(nn.Module):
@@ -257,6 +274,10 @@ class LatentLookaheadPlanner(nn.Module):
         dead_end_threshold: float = -15.0,
         prune_reversals: bool = True,
         cognitive_cycles_per_step: int = 1,
+        beam_width: int = 8,
+        uncertainty_prune_threshold: float = 3.0,
+        utility_margin_prune: float = 12.0,
+        dynamic_pruning: bool = True,
     ) -> None:
         super().__init__()
         if horizon < 1 or horizon > 5:
@@ -280,6 +301,10 @@ class LatentLookaheadPlanner(nn.Module):
         self.dead_end_threshold = dead_end_threshold
         self.prune_reversals = prune_reversals
         self.cognitive_cycles_per_step = max(1, cognitive_cycles_per_step)
+        self.beam_width = max(1, beam_width)
+        self.uncertainty_prune_threshold = uncertainty_prune_threshold
+        self.utility_margin_prune = utility_margin_prune
+        self.dynamic_pruning = dynamic_pruning
 
         width = self.config.core_width
         self.width = width
@@ -608,6 +633,417 @@ class LatentLookaheadPlanner(nn.Module):
 
         return tuple(results)
 
+    def compute_thoughtlet_dispersion(self, thoughts: Tensor) -> Tensor:
+        """Compute epistemic thoughtlet dispersion / predictive entropy across K thoughtlets.
+
+        Args:
+            thoughts: [batch, thoughtlets, entries, width] or [batch, thoughtlets, width] tensor.
+
+        Returns:
+            entropy: [batch] scalar entropy / dispersion score.
+        """
+        if thoughts.ndim == 4:
+            slot_summaries = thoughts.mean(dim=2)  # [batch, K, width]
+        else:
+            slot_summaries = thoughts  # [batch, K, width]
+
+        mean_summary = slot_summaries.mean(dim=1, keepdim=True)
+        dispersion = ((slot_summaries - mean_summary) ** 2).sum(dim=-1).mean(dim=-1)
+        return torch.log1p(dispersion)
+
+    def plan_dynamic_beam(
+        self,
+        *,
+        state: BrainState,
+        sensors: Tensor,
+        horizon: int,
+        policy_logits: Tensor | None = None,
+        policy_prior_weight: float = 0.0,
+        elapsed_seconds: float = 1.0 / 60.0,
+    ) -> LookaheadPlanResult:
+        """Execute step-by-step uncertainty-gated beam search in latent space.
+
+        Reduces search complexity from O(A^H) to O(K * A) by:
+        1. Pruning branches whose predicted hazard exceeds hazard_prune_threshold.
+        2. Pruning branches whose thoughtlet predictive entropy exceeds uncertainty_prune_threshold.
+        3. Pruning dominated branches whose utility falls behind the best candidate by utility_margin_prune.
+        4. Maintaining at most beam_width active hypotheses into the next horizon step.
+        """
+        device = state.belief.device
+        dtype = state.belief.dtype
+
+        root = _DynamicBeamCandidate(
+            action_sequence=(),
+            rollout_steps=[],
+            belief=state.belief.clone(),
+            working_memory=state.working_memory.clone(),
+            thoughts=state.thoughts.clone(),
+            sensors=sensors.clone(),
+            cum_reward=0.0,
+            cum_danger=0.0,
+            terminal_value=0.0,
+            cumulative_utility=0.0,
+        )
+
+        active_nodes: list[_DynamicBeamCandidate] = [root]
+        all_evaluated_branches: list[LookaheadBranchResult] = []
+
+        valid_actions = [
+            DirectionalAction.W,
+            DirectionalAction.A,
+            DirectionalAction.S,
+            DirectionalAction.D,
+        ]
+
+        with torch.no_grad():
+            for k in range(horizon):
+                if not active_nodes:
+                    break
+
+                # Generate valid expansions for all active parent nodes
+                expansions: list[tuple[int, DirectionalAction]] = []
+                for p_idx, parent in enumerate(active_nodes):
+                    last_act = parent.action_sequence[-1] if parent.action_sequence else None
+                    for act in valid_actions:
+                        if self.prune_reversals and last_act is not None:
+                            if (last_act, act) in _OPPOSITE_DIRECTIONS:
+                                continue
+                        expansions.append((p_idx, act))
+
+                if not expansions:
+                    break
+
+                M = len(expansions)
+                # Vectorized batch assembly for step k
+                batch_belief = torch.cat([active_nodes[p_idx].belief for p_idx, _ in expansions], dim=0)
+                batch_wm = torch.cat([active_nodes[p_idx].working_memory for p_idx, _ in expansions], dim=0)
+                batch_thoughts = torch.cat([active_nodes[p_idx].thoughts for p_idx, _ in expansions], dim=0)
+                batch_sensors = torch.cat([active_nodes[p_idx].sensors for p_idx, _ in expansions], dim=0)
+                batch_goal = state.goal_context.expand(M, -1, -1)
+                batch_retrieval = torch.zeros(
+                    (M, self.config.thoughtlets, self.config.retrieved_entries_per_thoughtlet, self.config.core_width),
+                    dtype=dtype,
+                    device=device,
+                )
+                batch_elapsed = torch.full((M, 1), elapsed_seconds, dtype=dtype, device=device)
+
+                batch_act_vectors = torch.stack(
+                    [
+                        directional_to_control_vector(act, total_queries=self.total_queries, device=device, dtype=dtype)
+                        for _, act in expansions
+                    ],
+                    dim=0,
+                )
+                batch_act_indices = torch.tensor(
+                    [int(act) for _, act in expansions],
+                    dtype=torch.long,
+                    device=device,
+                )
+
+                # Parallel single-step latent transition
+                (
+                    next_b,
+                    next_m,
+                    next_t,
+                    next_s,
+                    r_hat,
+                    d_hat,
+                    v_hat,
+                ) = self.unroll_latent_step(
+                    belief=batch_belief,
+                    working_memory=batch_wm,
+                    thoughts=batch_thoughts,
+                    sensors=batch_sensors,
+                    goal_context=batch_goal,
+                    retrieved_memory=batch_retrieval,
+                    action_vector=batch_act_vectors,
+                    elapsed_seconds=batch_elapsed,
+                    action_indices=batch_act_indices,
+                )
+
+                entropies = self.compute_thoughtlet_dispersion(next_t)
+
+                step_candidates: list[_DynamicBeamCandidate] = []
+                for i, (p_idx, act) in enumerate(expansions):
+                    parent = active_nodes[p_idx]
+                    r_val = float(r_hat[i].item())
+                    d_val = float(d_hat[i].item())
+                    v_val = float(v_hat[i].item())
+                    ent_val = float(entropies[i].item())
+
+                    is_haz = d_val >= self.hazard_prune_threshold
+                    is_uncertain = ent_val >= self.uncertainty_prune_threshold
+
+                    step_info = LookaheadRolloutStep(
+                        step_index=k,
+                        action=act,
+                        predicted_reward=r_val,
+                        predicted_danger=d_val,
+                        predicted_value=v_val,
+                        is_hazard=is_haz,
+                        predictive_entropy=ent_val,
+                    )
+                    new_steps = list(parent.rollout_steps) + [step_info]
+                    new_seq = parent.action_sequence + (act,)
+                    discount = self.gamma**k
+                    new_r_sum = parent.cum_reward + discount * r_val
+                    new_d_sum = parent.cum_danger + discount * d_val
+                    u_cand = new_r_sum - self.hazard_weight * new_d_sum + (self.gamma ** (k + 1)) * v_val
+
+                    is_pruned = False
+                    prune_reason = None
+                    if is_haz:
+                        is_pruned = True
+                        prune_reason = f"hazard_collision_step_{k}"
+                    elif is_uncertain:
+                        is_pruned = True
+                        prune_reason = f"latent_uncertainty_step_{k}"
+
+                    child = _DynamicBeamCandidate(
+                        action_sequence=new_seq,
+                        rollout_steps=new_steps,
+                        belief=next_b[i : i + 1],
+                        working_memory=next_m[i : i + 1],
+                        thoughts=next_t[i : i + 1],
+                        sensors=next_s[i : i + 1],
+                        cum_reward=new_r_sum,
+                        cum_danger=new_d_sum,
+                        terminal_value=v_val,
+                        cumulative_utility=u_cand,
+                        is_pruned=is_pruned,
+                        prune_reason=prune_reason,
+                    )
+
+                    if is_pruned:
+                        all_evaluated_branches.append(
+                            LookaheadBranchResult(
+                                action_sequence=new_seq,
+                                rollout_steps=tuple(new_steps),
+                                cumulative_utility=-1e9,
+                                discounted_reward_sum=new_r_sum,
+                                discounted_danger_sum=new_d_sum,
+                                terminal_value=v_val,
+                                is_pruned=True,
+                                prune_reason=prune_reason,
+                            )
+                        )
+                    else:
+                        step_candidates.append(child)
+
+                if not step_candidates:
+                    # All expanded candidates were flagged at step k.
+                    # Fall back to best candidate among expansions to preserve horizon depth.
+                    all_exp_children = [
+                        _DynamicBeamCandidate(
+                            action_sequence=parent.action_sequence + (act,),
+                            rollout_steps=list(parent.rollout_steps) + [
+                                LookaheadRolloutStep(
+                                    step_index=k,
+                                    action=act,
+                                    predicted_reward=float(r_hat[idx].item()),
+                                    predicted_danger=float(d_hat[idx].item()),
+                                    predicted_value=float(v_hat[idx].item()),
+                                    is_hazard=float(d_hat[idx].item()) >= self.hazard_prune_threshold,
+                                    predictive_entropy=float(entropies[idx].item()),
+                                )
+                            ],
+                            belief=next_b[idx : idx + 1],
+                            working_memory=next_m[idx : idx + 1],
+                            thoughts=next_t[idx : idx + 1],
+                            sensors=next_s[idx : idx + 1],
+                            cum_reward=parent.cum_reward + (self.gamma**k) * float(r_hat[idx].item()),
+                            cum_danger=parent.cum_danger + (self.gamma**k) * float(d_hat[idx].item()),
+                            terminal_value=float(v_hat[idx].item()),
+                            cumulative_utility=(
+                                parent.cum_reward + (self.gamma**k) * float(r_hat[idx].item())
+                                - self.hazard_weight * (parent.cum_danger + (self.gamma**k) * float(d_hat[idx].item()))
+                                + (self.gamma ** (k + 1)) * float(v_hat[idx].item())
+                            ),
+                            is_pruned=True,
+                            prune_reason=f"hazard_fallback_step_{k}",
+                        )
+                        for idx, (p_idx, act) in enumerate(expansions)
+                        for parent in [active_nodes[p_idx]]
+                    ]
+                    best_fallback = max(all_exp_children, key=lambda c: c.cumulative_utility)
+                    step_candidates.append(best_fallback)
+
+                # Branch-and-bound margin filtering
+                best_step_u = max(c.cumulative_utility for c in step_candidates)
+                surviving_beam: list[_DynamicBeamCandidate] = []
+                for c in step_candidates:
+                    if c.cumulative_utility < best_step_u - self.utility_margin_prune:
+                        all_evaluated_branches.append(
+                            LookaheadBranchResult(
+                                action_sequence=c.action_sequence,
+                                rollout_steps=tuple(c.rollout_steps),
+                                cumulative_utility=-1e9,
+                                discounted_reward_sum=c.cum_reward,
+                                discounted_danger_sum=c.cum_danger,
+                                terminal_value=c.terminal_value,
+                                is_pruned=True,
+                                prune_reason=f"branch_and_bound_step_{k}",
+                            )
+                        )
+                    else:
+                        surviving_beam.append(c)
+
+                # Sort by utility descending and retain top beam_width
+                surviving_beam.sort(key=lambda c: c.cumulative_utility, reverse=True)
+                active_nodes = surviving_beam[: self.beam_width]
+
+                # At intermediate steps (k < horizon - 1), excess candidates beyond beam_width
+                # are pruned by beam capacity constraint. At final step (k == horizon - 1),
+                # all candidates that reached horizon are valid completed branches.
+                is_final_step = (k == horizon - 1)
+                for excess in surviving_beam[self.beam_width :]:
+                    all_evaluated_branches.append(
+                        LookaheadBranchResult(
+                            action_sequence=excess.action_sequence,
+                            rollout_steps=tuple(excess.rollout_steps),
+                            cumulative_utility=excess.cumulative_utility if is_final_step else -1e9,
+                            discounted_reward_sum=excess.cum_reward,
+                            discounted_danger_sum=excess.cum_danger,
+                            terminal_value=excess.terminal_value,
+                            is_pruned=not is_final_step,
+                            prune_reason=None if is_final_step else f"beam_capacity_step_{k}",
+                        )
+                    )
+
+        # Convert surviving active nodes at final horizon into branch results
+        for node in active_nodes:
+            if node.action_sequence:
+                all_evaluated_branches.append(
+                    LookaheadBranchResult(
+                        action_sequence=node.action_sequence,
+                        rollout_steps=tuple(node.rollout_steps),
+                        cumulative_utility=node.cumulative_utility,
+                        discounted_reward_sum=node.cum_reward,
+                        discounted_danger_sum=node.cum_danger,
+                        terminal_value=node.terminal_value,
+                        is_pruned=node.is_pruned,
+                        prune_reason=node.prune_reason,
+                    )
+                )
+
+        # External heads evaluation (Counterfactual Foresight & Topological Goal)
+        cf_preds = None
+        if getattr(self, "counterfactual_foresight_head", None) is not None:
+            cf_preds = self.counterfactual_foresight_head.forward_all_actions(state.thoughts)
+
+        topo_pred = None
+        if getattr(self, "topological_goal_head", None) is not None:
+            topo_pred = self.topological_goal_head(state.thoughts)
+
+        final_branches: list[LookaheadBranchResult] = []
+        for b in all_evaluated_branches:
+            if not b.action_sequence:
+                continue
+            first_act = b.action_sequence[0]
+            a_idx = int(first_act) if isinstance(first_act, (int, DirectionalAction)) else 0
+            u = b.cumulative_utility
+            is_pruned = b.is_pruned
+            prune_reason = b.prune_reason
+
+            if cf_preds is not None:
+                if a_idx in cf_preds:
+                    cf_branch = cf_preds[a_idx]
+                    cf_haz = float(cf_branch.hazard_probability[0, 0, 0].item())
+                    cf_esc = float(
+                        cf_branch.predicted_escape_margin[
+                            0, min(1, cf_branch.predicted_escape_margin.shape[1] - 1), 0
+                        ].item()
+                    )
+                    if cf_haz >= self.hazard_prune_threshold:
+                        is_pruned = True
+                        prune_reason = "counterfactual_hazard_predicted"
+                        u = -1e9
+                    else:
+                        danger_penalty = self.hazard_weight * cf_haz
+                        if cf_haz > 0.25:
+                            danger_penalty += 4.0 * (cf_haz - 0.25) ** 2
+                        u -= danger_penalty
+                    if cf_esc < 0.0:
+                        u += cf_esc * 2.0
+
+            if topo_pred is not None and not is_pruned:
+                _ACT_VEC = {0: (0.0, 0.0), 1: (0.0, -1.0), 2: (-1.0, 0.0), 3: (0.0, 1.0), 4: (1.0, 0.0)}
+                vx, vy = _ACT_VEC.get(a_idx, (0.0, 0.0))
+                gx = float(topo_pred.pellet_cluster_vector[0, 0].item())
+                gy = float(topo_pred.pellet_cluster_vector[0, 1].item())
+                goal_alignment = vx * gx + vy * gy
+                j_score = float(topo_pred.junction_exit_logits[0, a_idx].item())
+                u += 1.5 * goal_alignment + 0.5 * j_score
+
+            if is_pruned:
+                u = -1e9
+
+            final_branches.append(
+                LookaheadBranchResult(
+                    action_sequence=b.action_sequence,
+                    rollout_steps=b.rollout_steps,
+                    cumulative_utility=u,
+                    discounted_reward_sum=b.discounted_reward_sum,
+                    discounted_danger_sum=b.discounted_danger_sum,
+                    terminal_value=b.terminal_value,
+                    is_pruned=is_pruned,
+                    prune_reason=prune_reason,
+                )
+            )
+
+        if not final_branches:
+            # Fallback if no valid branches were produced
+            default_act = DirectionalAction.W
+            default_res = LookaheadBranchResult(
+                action_sequence=(default_act,),
+                rollout_steps=(),
+                cumulative_utility=0.0,
+                discounted_reward_sum=0.0,
+                discounted_danger_sum=0.0,
+                terminal_value=0.0,
+                is_pruned=False,
+            )
+            final_branches.append(default_res)
+
+        # Policy prior scoring & selection
+        utilities = tuple(b.cumulative_utility for b in final_branches)
+        effective_scores = []
+        for b in final_branches:
+            score = -1e6 if b.is_pruned else b.cumulative_utility
+            if policy_logits is not None and policy_prior_weight > 0.0:
+                first_act = b.action_sequence[0]
+                act_idx = int(first_act) if isinstance(first_act, (int, DirectionalAction)) else 0
+                if 0 <= act_idx < policy_logits.shape[-1]:
+                    score += policy_prior_weight * float(policy_logits[act_idx].item())
+            effective_scores.append(score)
+
+        chosen_idx = int(torch.tensor(effective_scores).argmax().item())
+        best_branch = final_branches[chosen_idx]
+
+        first_action = best_branch.action_sequence[0]
+        if isinstance(first_action, int) and not isinstance(first_action, DirectionalAction):
+            best_action = DirectionalAction(first_action)
+        else:
+            best_action = first_action
+
+        best_action_control = directional_to_control_vector(
+            best_action,
+            total_queries=self.total_queries,
+            device=device,
+            dtype=dtype,
+        )
+        pruned_count = sum(1 for b in final_branches if b.is_pruned)
+
+        return LookaheadPlanResult(
+            best_action=best_action,
+            best_action_control=best_action_control,
+            best_branch=best_branch,
+            all_branches=tuple(final_branches),
+            branch_utilities=utilities,
+            chosen_index=chosen_idx,
+            pruned_count=pruned_count,
+        )
+
     def plan(
         self,
         *,
@@ -618,6 +1054,7 @@ class LatentLookaheadPlanner(nn.Module):
         policy_prior_weight: float = 0.0,
         horizon: int | None = None,
         elapsed_seconds: float = 1.0 / 60.0,
+        dynamic_pruning: bool | None = None,
     ) -> LookaheadPlanResult:
         """Perform lookahead planning from current latent state.
 
@@ -630,6 +1067,8 @@ class LatentLookaheadPlanner(nn.Module):
             policy_prior_weight: Multiplier weight on policy prior logits.
             horizon: Lookahead depth (defaults to self.horizon).
             elapsed_seconds: Simulated decision interval.
+            dynamic_pruning: Whether to use uncertainty-gated dynamic beam search
+                             (defaults to self.dynamic_pruning).
 
         Returns:
             LookaheadPlanResult containing best action, branch details, and utilities.
@@ -637,13 +1076,6 @@ class LatentLookaheadPlanner(nn.Module):
         h = self.horizon if horizon is None else horizon
         if h < 1 or h > 5:
             raise ValueError(f"horizon must be in [1, 5], got {h}")
-
-        if candidate_sequences is None:
-            candidate_sequences = generate_directional_candidate_sequences(
-                h,
-                include_none=False,
-                prune_reversals=self.prune_reversals,
-            )
 
         if sensors is None:
             sensors = torch.zeros(
@@ -653,6 +1085,24 @@ class LatentLookaheadPlanner(nn.Module):
             )
         elif sensors.ndim == 2:
             sensors = sensors.unsqueeze(0)
+
+        use_dynamic = self.dynamic_pruning if dynamic_pruning is None else dynamic_pruning
+        if candidate_sequences is None and use_dynamic:
+            return self.plan_dynamic_beam(
+                state=state,
+                sensors=sensors,
+                horizon=h,
+                policy_logits=policy_logits,
+                policy_prior_weight=policy_prior_weight,
+                elapsed_seconds=elapsed_seconds,
+            )
+
+        if candidate_sequences is None:
+            candidate_sequences = generate_directional_candidate_sequences(
+                h,
+                include_none=False,
+                prune_reversals=self.prune_reversals,
+            )
 
         branch_results = self.evaluate_candidate_branches(
             state=state,
