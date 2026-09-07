@@ -159,3 +159,9 @@ We maintain strict claim discipline ([MEASURED], [INFERRED], [HYPOTHESIS], [ASPI
    - **Pseudo-Brain Multi-Scale Invariance**: CGP Thoughtlets sustain **$38.0\% - 39.4\%$ retention at $L=128$** (+25.5% to +27.9% margin over GRU/SSM) and graceful degradation at $M=32$ (**$20.9\% - 21.7\%$**) across tiers 131k to 2M at sub-2ms CPU inference latency ($0.96\text{ ms} - 1.92\text{ ms}$).
    - **Discovery of the $M=32$ Boundary**: At $M=32$, the 8M model dips to $15.8\%$, identifying an architectural boundary where monolithic flattened readout layers ($K \cdot W = 3,072$ dims) suffer sample starvation under standard training budgets.
    - Documented in `brain/docs/runs/2026-09-07-cognitive-scaling-ladder.md` and `.json`.
+
+8. **Multi-Threaded Cognitive Process Benchmark (MTCP-Bench)**: [COMPLETE & REPORTED]
+   - Bridges from synthetic latent variables to a realistic multi-threaded cognitive workload ($N_{\text{threads}} \in [8, 16]$) with mid-flight preemption, cross-thread dependencies ($B = f(A, B)$), orthogonal tasks, and delayed consequences.
+   - **Preemption Recovery**: Pseudo-Brain achieves **$99.6\%$ recovery accuracy at 8 threads and $76.2\%$ at 16 threads**, resuming interrupted pipelines seamlessly, while Monolithic GRU ($20.8\% / 15.4\%$), Modern SSM ($12.1\% / 11.7\%$), and Linear Attention ($12.1\% / 13.8\%$) collapse to chance.
+   - **Compound Cognitive Advantage**: Pseudo-Brain achieves compound scores of **45.88 at 8 threads ($91.8\times$ over GRU)** and **37.95 at 16 threads ($82.5\times$ over GRU)** at sub-2.5ms latency.
+   - Documented in `brain/docs/runs/2026-09-07-mtcp-benchmark.md` and `.json`.

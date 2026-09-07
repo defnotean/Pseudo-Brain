@@ -1,0 +1,108 @@
+{
+  "threads_evaluated": [
+    8,
+    16
+  ],
+  "grid": {
+    "threads_8": {
+      "pseudo_brain": {
+        "overall_accuracy": 82.5,
+        "retention_accuracy": 60.416666666666664,
+        "interference_accuracy": 76.25,
+        "cross_talk_error": 23.75,
+        "recovery_accuracy": 99.58333333333333,
+        "dependency_accuracy": 100.0,
+        "latency_ms_mean": 1.5680804166666666,
+        "compound_cognitive_score": 45.8757595486111,
+        "params": 130243,
+        "arch_label": "Pseudo-Brain CGP"
+      },
+      "gru": {
+        "overall_accuracy": 16.5,
+        "retention_accuracy": 18.333333333333332,
+        "interference_accuracy": 13.125,
+        "cross_talk_error": 86.875,
+        "recovery_accuracy": 20.833333333333336,
+        "dependency_accuracy": 17.083333333333332,
+        "latency_ms_mean": 0.2844079166666667,
+        "compound_cognitive_score": 0.5013020833333335,
+        "params": 276568,
+        "arch_label": "Monolithic GRU"
+      },
+      "diagonal_ssm": {
+        "overall_accuracy": 11.5,
+        "retention_accuracy": 15.0,
+        "interference_accuracy": 9.166666666666666,
+        "cross_talk_error": 90.83333333333333,
+        "recovery_accuracy": 12.083333333333334,
+        "dependency_accuracy": 12.083333333333334,
+        "latency_ms_mean": 0.3033925,
+        "compound_cognitive_score": 0.16614583333333344,
+        "params": 269018,
+        "arch_label": "Modern Diagonal SSM (GLRU)"
+      },
+      "linear_attention": {
+        "overall_accuracy": 12.666666666666668,
+        "retention_accuracy": 12.916666666666668,
+        "interference_accuracy": 13.125,
+        "cross_talk_error": 86.875,
+        "recovery_accuracy": 12.083333333333334,
+        "dependency_accuracy": 12.083333333333334,
+        "latency_ms_mean": 0.17675166666666667,
+        "compound_cognitive_score": 0.2048502604166667,
+        "params": 173749,
+        "arch_label": "Recurrent Linear Attention"
+      }
+    },
+    "threads_16": {
+      "pseudo_brain": {
+        "overall_accuracy": 75.41666666666667,
+        "retention_accuracy": 54.166666666666664,
+        "interference_accuracy": 91.875,
+        "cross_talk_error": 8.125,
+        "recovery_accuracy": 76.25,
+        "dependency_accuracy": 62.916666666666664,
+        "latency_ms_mean": 2.3668199999999997,
+        "compound_cognitive_score": 37.94628906249999,
+        "params": 130243,
+        "arch_label": "Pseudo-Brain CGP"
+      },
+      "gru": {
+        "overall_accuracy": 16.583333333333332,
+        "retention_accuracy": 20.0,
+        "interference_accuracy": 14.791666666666666,
+        "cross_talk_error": 85.20833333333333,
+        "recovery_accuracy": 15.416666666666668,
+        "dependency_accuracy": 17.916666666666668,
+        "latency_ms_mean": 0.3584320833333334,
+        "compound_cognitive_score": 0.45607638888888913,
+        "params": 276568,
+        "arch_label": "Monolithic GRU"
+      },
+      "diagonal_ssm": {
+        "overall_accuracy": 10.583333333333334,
+        "retention_accuracy": 10.0,
+        "interference_accuracy": 8.541666666666666,
+        "cross_talk_error": 91.45833333333333,
+        "recovery_accuracy": 11.666666666666666,
+        "dependency_accuracy": 14.166666666666666,
+        "latency_ms_mean": 0.3737341666666667,
+        "compound_cognitive_score": 0.09965277777777783,
+        "params": 269018,
+        "arch_label": "Modern Diagonal SSM (GLRU)"
+      },
+      "linear_attention": {
+        "overall_accuracy": 11.333333333333332,
+        "retention_accuracy": 9.583333333333334,
+        "interference_accuracy": 9.166666666666666,
+        "cross_talk_error": 90.83333333333333,
+        "recovery_accuracy": 13.750000000000002,
+        "dependency_accuracy": 15.0,
+        "latency_ms_mean": 0.21200874999999997,
+        "compound_cognitive_score": 0.12078993055555562,
+        "params": 173749,
+        "arch_label": "Recurrent Linear Attention"
+      }
+    }
+  }
+}

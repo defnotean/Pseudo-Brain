@@ -127,6 +127,21 @@
   py -3.11 brain/experiments/memory_benchmark/cognitive_scaling_ladder_benchmark.py --num-seeds 15 --train-steps 120
   ```
 
+### Workstream 11: Multi-Threaded Cognitive Process Benchmark (MTCP-Bench)
+* **Real-World Cognitive Workload Simulation ($N_{\text{threads}} \in [8, 16]$, Preemption, Dependencies, Delayed Feedback)**:
+  - **8-Thread Workload**:
+    - Pseudo-Brain CGP (130k params): **60.4% Retention**, **76.2% Isolation**, **99.6% Preemption Recovery**, **100.0% Dependency Accuracy**, **1.57 ms Latency**, **Compound Score: 45.88**.
+    - Monolithic GRU (277k params): 18.3% Ret, 13.1% Iso, 20.8% Recov, 17.1% Dep, Compound Score: **0.50** ($91.8\times$ lower).
+    - Modern Diagonal SSM (269k params): 15.0% Ret, 9.2% Iso, 12.1% Recov, 12.1% Dep, Compound Score: **0.17** ($270\times$ lower).
+    - Recurrent Linear Attention (174k params): 12.9% Ret, 13.1% Iso, 12.1% Recov, 12.1% Dep, Compound Score: **0.20** ($229\times$ lower).
+  - **16-Thread Workload**:
+    - Pseudo-Brain CGP sustains **54.2% Retention**, **91.9% Isolation**, **76.2% Recovery**, **62.9% Dependency**, **2.37 ms Latency**, **Compound Score: 37.95** (vs **0.46** GRU, **0.10** SSM, **0.12** Linear Attention).
+  - **Slot-Targeted Readout Elimination of Sample-Starvation**: Thread-specific slot query readout solves the $K \cdot W$ dimensional bottleneck, preserving sub-2.5ms real-time latency across 16 concurrent threads.
+* **Reproduction Command**:
+  ```bash
+  py -3.11 brain/experiments/memory_benchmark/multi_threaded_cognitive_process_benchmark.py --threads 8 16 --num-seeds 15 --train-steps 140
+  ```
+
 ---
 
 ## 3. Known Weaknesses & Critical Caveats

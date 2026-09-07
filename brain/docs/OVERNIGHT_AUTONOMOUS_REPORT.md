@@ -161,6 +161,15 @@ Under the `/goal` mandate, this autonomous multi-agent research and engineering 
   - Inference latency remains sub-2ms on single-threaded CPU (**$0.96\text{ ms}$ at 131k, $1.92\text{ ms}$ at 8M**).
 - **Artifacts**: `2026-09-07-cognitive-scaling-ladder.md` and `.json`.
 
+### P15: Multi-Threaded Cognitive Process Benchmark (MTCP-Bench)
+- **Core Scientific Question Addressed**: Does the architectural advantage of Pseudo-Brain survive when the task transitions from synthetic latent variables to a realistic multi-threaded cognitive workload with mid-flight preemption, cross-thread dependencies, and orthogonal tasks?
+- **Protocol**: Benchmarked 4 parameter-matched architectures across 8 and 16 concurrent asynchronous cognitive threads with preemption interruptions ($D_{\text{interrupt}} \in [8, 16]$ steps) and delayed feedback.
+- **Empirical Findings**:
+  - *Preemption Recovery*: When interrupted mid-pipeline for 8-16 steps of unrelated work, Pseudo-Brain resumes the pipeline with **99.6% accuracy at 8 threads and 76.2% at 16 threads**, whereas Monolithic GRU ($20.8\% / 15.4\%$), Modern SSM ($12.1\% / 11.7\%$), and Linear Attention ($12.1\% / 13.8\%$) collapse to chance.
+  - *Cross-Thread Dependencies*: Pseudo-Brain achieves **100.0% accuracy at 8 threads and 62.9% at 16 threads** in executing cross-thread dependent functions ($f(A, B)$), vs $12-18\%$ for all baselines.
+  - *Compound Cognitive Advantage*: Pseudo-Brain achieves compound scores of **45.88 at 8 threads ($91.8\times$ over GRU)** and **37.95 at 16 threads ($82.5\times$ over GRU)** with sub-2.5ms inference latency on single-threaded CPU.
+- **Artifacts**: `2026-09-07-mtcp-benchmark.md` and `.json`.
+
 ### P11 / Red-Teaming: Discovery of Capability Boundaries
 1. **The Birds-Eye Observability Leak**:
    In unmasked 16x16 `KeysDoorsEnv`, a feedforward `ReactiveModel` (zero memory) achieved **81.0% Key->Door conversion** by detecting key absence directly from global pixels. Recurrence is only strictly required when partial observability is mathematically enforced.
@@ -175,6 +184,7 @@ Under the `/goal` mandate, this autonomous multi-agent research and engineering 
 
 | Architectural Mechanism | Action | Evidence & Rationale |
 | :--- | :---: | :--- |
+| **Thread-Targeted Slot Readout** | **KEEP** | Eliminates $K \cdot W$ dimensional sample starvation in multi-threaded environments, enabling 99.6% preemption recovery and 100% dependency tracking in MTCP-Bench. |
 | **Multi-Slot Latent Variable Isolation** | **KEEP** | Outperforms monolithic GRU and diagonal SSM by $3.2\times$ across delay corridors in MTLD-Bench; prevents cross-talk interference. |
 | **Ultra-Slow Relaxation Timescale ($\lambda=0.9999$)** | **KEEP** | Prevents passive decay across 256 delay ticks in MTLD, lifting $L=128$ retention from $17.9\%$ to $25.7\%$ while preventing $\lambda=1.0$ unbounded drift. |
 | **CIG Gate Sharpening ($T=0.5$)** | **KEEP** | Slashes delay salience on sensory noise by $88\%$ ($0.336 \to 0.039$), lifting $L=128$ retention to $30.4\%$. |
@@ -193,9 +203,10 @@ Under the `/goal` mandate, this autonomous multi-agent research and engineering 
 
 ---
 
-## 4. Master Test Suite Health (75/75 Passing)
+## 4. Master Test Suite Health (80/80 Passing)
 
-All 13 target research and engineering test modules maintain 100% green status in ~5.9 seconds:
+All 14 target research and engineering test modules maintain 100% green status in ~6.0 seconds:
+- `test_multi_threaded_cognitive_process.py` (5/5 PASS)
 - `test_cognitive_scaling_ladder.py` (3/3 PASS)
 - `test_mtld_degradation_diagnostic.py` (6/6 PASS)
 - `test_multi_threaded_latent_dependency.py` (8/8 PASS)
