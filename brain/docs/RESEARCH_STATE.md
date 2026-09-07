@@ -74,19 +74,19 @@ We maintain strict claim discipline ([MEASURED], [INFERRED], [HYPOTHESIS], [ASPI
 ---
 
 ### Workstream 3 & 6: Procedural Task DAG Capability Ladder (L1 - L8)
-*Evaluated across $N=25$ random seeds per level (seeds 5000..5024), $\text{max\_steps}=18$, Shuffled Tool Ordering, Zero Tool Biases.*
+*Evaluated across $N=100$ random seeds per level (seeds 5000..5099), $\text{max\_steps}=18$, Shuffled Tool Ordering, Zero Tool Biases (2,400 total task runs).*
 
 | Level | Task Benchmark | Blind Anti-Perseveration | Uninhibited (No-IOR) | PseudoBrainAgent (Contextual IOR) | Mechanistic Finding |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **L1** | Single Action Invocation | 48.0% (2.2s) | 68.0% (3.2s) | **100.0%** (1.6s) | Baseline tool selection & verification |
-| **L2** | Fixed Sequence (Linear Tool Chain) | 36.0% (2.7s) | 32.0% (3.6s) | **100.0%** (2.7s) | Chained execution without early-exit perseveration |
-| **L3** | Branching DAG (State Routing) | 48.0% (2.6s) | 28.0% (4.2s) | **100.0%** (2.8s) | Dynamic branching conditional on system state |
-| **L4** | **State-Contingent Retry** | **12.0%** (2.8s) | **4.0%** (4.5s) | **100.0%** (3.5s) | **Double Dissociation**: Blind bans failed tool forever; No-IOR perseverates on failure; Contextual IOR resets upon repair |
-| **L5** | Hidden Dependency Extraction | 48.0% (2.3s) | 40.0% (3.7s) | **100.0%** (2.4s) | Dynamic token extraction and authenticated unlock |
-| **L6** | **Delayed Verification** | **0.0%** (2.0s) | 56.0% (3.9s) | **100.0%** (4.0s) | **Critical Separation**: Premature verification failure permanently disables blind agent |
-| **L7** | **Stochastic Timeout Recovery** | **0.0%** (1.0s) | 72.0% (3.2s) | **100.0%** (3.6s) | **Critical Separation**: Adaptive retry overcomes transient 503 errors |
-| **L8** | **Novel DAG w/ Distractor Tools** | **16.0%** (3.1s) | **0.0%** (6.0s) | **68.0%** (12.0s) | **Critical Separation**: Survives corruptions, ignores distractors, completes prerequisite DAG |
-| **Mean** | **Overall Capability Portfolio** | **26.0%** | **37.5%** | **96.0%** | **$3.69\times$ higher SR than blind suppression; $2.56\times$ higher than uninhibited agent** |
+| **L1** | Single Action Invocation | 48.0% (1.5s) | 70.0% (3.1s) | **100.0%** (1.5s) | Baseline tool selection & verification |
+| **L2** | Fixed Sequence (Linear Tool Chain) | 35.0% (2.6s) | 19.0% (3.5s) | **100.0%** (2.7s) | Chained execution without early-exit perseveration |
+| **L3** | Branching DAG (State Routing) | 47.0% (2.5s) | 34.0% (3.9s) | **100.0%** (2.4s) | Dynamic branching conditional on system state |
+| **L4** | **State-Contingent Retry** | **20.0%** (2.9s) | **16.0%** (4.6s) | **100.0%** (5.1s) | **Double Dissociation**: Blind bans failed tool forever; No-IOR perseverates on failure; Contextual IOR resets upon repair |
+| **L5** | Hidden Dependency Extraction | 47.0% (2.3s) | 48.0% (3.7s) | **100.0%** (2.4s) | Dynamic token extraction and authenticated unlock |
+| **L6** | **Delayed Verification** | **0.0%** (1.9s) | 50.0% (3.8s) | **100.0%** (4.0s) | **Critical Separation**: Premature verification failure permanently disables blind agent |
+| **L7** | **Stochastic Timeout Recovery** | **0.0%** (1.0s) | 60.0% (3.2s) | **100.0%** (3.5s) | **Critical Separation**: Adaptive retry overcomes transient 503 errors |
+| **L8** | **Novel DAG w/ Distractor Tools** | **8.0%** (3.0s) | **1.0%** (6.1s) | **73.0%** (11.3s) | **Critical Separation**: Survives corruptions, ignores distractors, completes prerequisite DAG |
+| **Mean** | **Overall Capability Portfolio** | **25.6%** | **37.3%** | **96.6%** | **$3.77\times$ higher SR than blind suppression; $2.59\times$ higher than uninhibited agent** |
 
 ---
 

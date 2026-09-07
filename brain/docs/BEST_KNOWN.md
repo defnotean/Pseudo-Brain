@@ -52,10 +52,10 @@
   ```
 
 ### Workstream 3 & 6: Autonomous Agent Loop & Unassisted Generalization
-* **Procedural Task DAG Capability Ladder Benchmark (WS3 / WS6, N=25 seeds, L1-L8, Shuffled Tools, Zero Bias)**:
-  - Blind Anti-Perseveration: **26.0% Overall SR** (collapses to 12.0% on L4 retry, 0.0% on L6/L7, 16.0% on L8).
-  - Uninhibited Agent (No-IOR): **37.5% Overall SR** (collapses to 4.0% on L4 retry, 0.0% on L8 due to perseveration).
-  - Contextual IOR PseudoBrainAgent: **96.0% Overall SR** (100% on L1-L7, 68.0% on L8, 3.5 steps on L4).
+* **Procedural Task DAG Capability Ladder Benchmark (WS3 / WS6, N=100 seeds, L1-L8, Shuffled Tools, Zero Bias, 2,400 runs)**:
+  - Blind Anti-Perseveration: **25.6% Overall SR** (collapses to 20.0% on L4 retry, 0.0% on L6/L7, 8.0% on L8).
+  - Uninhibited Agent (No-IOR): **37.3% Overall SR** (collapses to 16.0% on L4 retry, 1.0% on L8 due to perseveration).
+  - Contextual IOR PseudoBrainAgent: **96.6% Overall SR** (100% on L1-L7, 73.0% on L8, 5.1 steps on L4).
   - Double Dissociation on L4 proves that state novelty $\Delta z_{\text{obs}}$ decays inhibition to allow retrying previously failed tools after repair.
 * **Autonomous Generalization Benchmark V1 (Zero Tool Bias, Zero Argument Injection, $N=10$ random seeds)**:
   - Task 1 (Autonomous File Investigation): **70.0% SR**, 83.8% APV, 3.70 steps, 3.0ms latency.
