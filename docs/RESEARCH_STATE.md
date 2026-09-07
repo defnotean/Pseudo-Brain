@@ -97,13 +97,45 @@
 
 ---
 
-## 7. Next Research Priority: Level 7 Multi-Reversal Continual Learning & Plasticity Trace Saturation
-- **Bottleneck**:
-  When the environment switches rules multiple times ($A \to B \to A \to B$, 4-block continual schedule), does the synaptic trace $P_t$ suffer from retroactive interference or weight saturation?
-  In biological networks, neuromodulated plasticity includes active homeostatic decay or trace resetting upon task boundary recognition to prevent catastrophic forgetting.
-- **Hypothesis**:
-  Without homeostatic trace regularization or outcome-directed trace reset, $P_t$ accumulates residual weights from previous reversals, impairing adaptation back to Rule A on Reversal 2 ($T_{21} \to T_{22}$).
-- **Proposed Architecture Improvement**:
-  1. Homeostatic weight bounding / trace decay $\lambda_t = \gamma_{\text{base}} + (1 - \gamma_{\text{base}}) \sigma(W_{\text{reset}} \delta_t)$.
-  2. Multi-reversal continual benchmark evaluating Block 1 ($A$), Block 2 ($B$), Block 3 ($A$), and Block 4 ($B$).
+## 7. Level 7 Continual Multi-Reversal Benchmark & Dynamic Consequence-Gated Trace Reset (Validated)
+- **Bottleneck Identified**:
+  When evaluating models across an extended 4-block continual reversal schedule (`[(Rule.RULE_A, 10), (Rule.RULE_B, 10), (Rule.RULE_A, 10), (Rule.RULE_B, 10)]`), standard constant-decay plasticity ($\gamma = 0.98$) maintains 100% within-block retention, but suffers trace inertia, taking 4–5 trials to flip on Reversals 2 and 3 ($T_{22}=0\%$, $T_{32}=0\%$).
+- **Solution Formulated**:
+  **Dynamic Consequence-Gated Trace Reset / Smooth Decay**:
+  $$\gamma(\delta_t) = \gamma_{\text{base}} \cdot \left(1.0 - 0.8 \cdot \sigma\left(\frac{\delta_t - 0.5}{0.1}\right)\right)$$
+  - During normal gameplay or sensory distractor noise ($\delta_t \approx 0$), $\gamma \approx 0.98$ (working memory is preserved).
+  - Upon catastrophic outcome prediction error ($\delta_t > 0.5$, indicating an environmental reversal), the stale accumulated policy trace is rapidly discounted ($\gamma \approx 0.20$), instantly clearing interference.
+- **Empirical Results across all 3 Seeds (`42, 142, 242`)**:
+  - Reversal 1 ($A \to B$): **100.0% ± 0.0%** 1-trial adaptation ($T_{12}$)
+  - Block 2 Retention ($B$): **100.0% ± 0.0%** ($T_{20}$)
+  - Reversal 2 ($B \to A$): **100.0% ± 0.0%** 1-trial adaptation ($T_{22}$)
+  - Block 3 Retention ($A$): **100.0% ± 0.0%** ($T_{30}$)
+  - Reversal 3 ($A \to B$): **100.0% ± 0.0%** 1-trial adaptation ($T_{32}$)
+  - Block 4 Retention ($B$): **100.0% ± 0.0%** ($T_{40}$)
+  - Overall Session Accuracy across all 40 trials: **90.8% ± 1.4%** (theoretical ceiling is $92.5\%$ due to 3 mandatory surprise exploratory trials).
+
+---
+
+## 8. Autonomous Agent Subsystem (`irene_brain.agent`)
+Constructed the minimal end-to-end autonomous agent loop around the cognitive core:
+1. **Goal Specification & Embedding (`goal.py`)**:
+   - `GoalSpecification`: natural-language task objective paired with an objective completion verifier.
+   - `GoalEncoder`: deterministic hashing projection + learned LayerNorm MLP mapping natural language goals to continuous vectors ($g \in \mathbb{R}^{128}$).
+2. **Controlled Tool Registry (`tools.py`)**:
+   - `FileReadTool`, `FileWriteTool`, `CommandTool`, `TestVerifyTool`.
+   - Structured `ToolResult` providing observation text and scalar reward/consequence signal.
+3. **Persistent Cognitive Loop (`loop.py`)**:
+   - `PseudoBrainAgent` and `AgentCognitiveCore`: integrates persistent thoughtlet recurrence ($h_t$), cognitive input gating ($g_t$), consequence-gated fast plasticity ($P_t$), and outcome prediction ($\hat{r}_{t+1}$).
+   - Closed-loop execution: Goal $\to$ Thought $\to$ Tool Selection $\to$ Execution $\to$ Consequence Surprise $\to$ Plastic Adaptation $\to$ Verification $\to$ Completion.
+4. **Test Suite Verified (`brain/tests/test_agent_loop.py`)**:
+   - Unit tests pass with zero external framework dependencies: goal encoding, tool registry, cognitive forward steps, and end-to-end task execution.
+
+---
+
+## 9. Current Highest-Value Next Frontier
+1. **Tool Compositionality & Multi-Step Sequential Dependencies**:
+   - Scaling autonomous tool selection from single-step actions to multi-step diagnostic workflows (e.g. read file $\to$ identify bug $\to$ edit code $\to$ run pytest $\to$ verify).
+2. **Embodied World-Model Transfer**:
+   - Incorporating Consequence-Gated Plasticity into `irene_brain.model.lookahead_planner` to enable dynamic branch pruning during world-model rollouts.
+
 

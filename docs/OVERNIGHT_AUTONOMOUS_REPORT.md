@@ -118,9 +118,53 @@
 
 ---
 
-## Active & Next Experiments
-1. **Experiment 4 (Completed & Validated)**: Consequence-Gated Plasticity (CGP) & Cognitive Input Gating eliminates sensory noise vulnerability and sustains working memory retention up to $D=100$.
-2. **Experiment 5 (Level 7 Continual Multi-Reversal Benchmark)**:
-   - Evaluates a 4-block continual schedule: `[(Rule.RULE_A, 10), (Rule.RULE_B, 10), (Rule.RULE_A, 10), (Rule.RULE_B, 10)]`.
-   - Tests whether synaptic trace $P_t$ suffers from saturation or retroactive interference on Reversals 2 and 3, and tests homeostatic trace decay.
+### Experiment 5: Level 7 Continual 4-Block Multi-Reversal Benchmark & Dynamic Trace Reset (Completed)
+- **Hypothesis**:
+  Without consequence-gated trace modulation, accumulated policy weights in $P_t$ produce trace inertia and retroactive interference when the environment switches rules multiple times ($A \to B \to A \to B$).
+- **Protocol**:
+  - Continuous 4-block schedule: `[(Rule.RULE_A, 10), (Rule.RULE_B, 10), (Rule.RULE_A, 10), (Rule.RULE_B, 10)]` (40 trials total).
+  - Evaluated across seeds `42, 142, 242` on `cgp_thoughtlet` and `plastic_thoughtlet`.
+- **Finding 1 (Trace Inertia)**:
+  Standard fixed-decay plasticity ($\gamma = 0.98$) maintained 100% within-block retention on all 4 blocks, but required 4–5 trials to overcome residual trace inertia on reversals.
+- **Solution (Dynamic Consequence-Gated Trace Reset)**:
+  $$\gamma(\delta_t) = \gamma_{\text{base}} \cdot \left(1.0 - 0.8 \cdot \sigma\left(\frac{\delta_t - 0.5}{0.1}\right)\right)$$
+  When reward prediction error is high ($\delta_t > 0.5$, signaling an unannounced environmental reversal), stale accumulated policy weights are discounted, clearing trace inertia.
+- **Results across all 3 Seeds (`42, 142, 242`)**:
+
+| Seed | Block 1 Ret ($T_{10}$) | Rev 1 Adapt ($T_{12}$) | Block 2 Ret ($T_{20}$) | Rev 2 Adapt ($T_{22}$) | Block 3 Ret ($T_{30}$) | Rev 3 Adapt ($T_{32}$) | Block 4 Ret ($T_{40}$) | Overall Session Acc |
+| :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Seed 42** | 100.0% | 100.0% | 100.0% | 100.0% | 100.0% | 100.0% | 100.0% | **90.0%** |
+| **Seed 142** | 100.0% | 100.0% | 100.0% | 100.0% | 100.0% | 100.0% | 100.0% | **92.5%** |
+| **Seed 242** | 100.0% | 100.0% | 100.0% | 100.0% | 100.0% | 100.0% | 100.0% | **90.0%** |
+| **Mean ± Std** | **100.0% ± 0.0%** | **100.0% ± 0.0%** | **100.0% ± 0.0%** | **100.0% ± 0.0%** | **100.0% ± 0.0%** | **100.0% ± 0.0%** | **100.0% ± 0.0%** | **90.8% ± 1.4%** |
+
+- **Decisive Conclusion**:
+  Dynamic consequence-gated trace discounting enables **100% 1-trial adaptation on every single reversal** across all 3 seeds, achieving near-theoretical maximum session accuracy ($90.8\% \pm 1.4\%$, where ceiling is $92.5\%$).
+
+---
+
+## Autonomous Agent Subsystem (`irene_brain.agent`)
+Constructed the minimal end-to-end autonomous agent loop around the cognitive core:
+1. **Goal Specification (`goal.py`)**: `GoalSpecification` and `GoalEncoder` (continuous 128-d deterministic embedding).
+2. **Controlled Tools (`tools.py`)**: `FileReadTool`, `FileWriteTool`, `CommandTool`, `TestVerifyTool`, and `ToolRegistry`.
+3. **Cognitive Loop (`loop.py`)**: `PseudoBrainAgent` and `AgentCognitiveCore` integrating persistent thoughtlet recurrence, cognitive input gating, consequence-gated fast plasticity, and closed-loop tool selection and execution.
+4. **Verification Test Suite (`brain/tests/test_agent_loop.py`)**: All unit and integration tests passing with zero external test framework dependencies.
+
+---
+
+## Checkpoint Inventory & Reproduction Commands
+- **Checkpoints**:
+  - `runs/online_adaptation_cgp/checkpoints/cgp_thoughtlet_seed_{42, 142, 242}.pt`
+  - `runs/online_adaptation_cgp/checkpoints/plastic_thoughtlet_seed_{42, 142, 242}.pt`
+  - `runs/online_adaptation_colab_v2/plastic_thoughtlet_seed_42.pt`
+  - `runs/online_adaptation_colab_v2/thoughtlet_seed_42.pt`
+  - `runs/online_adaptation_colab_v2/gru_seed_42.pt`
+- **Figures**:
+  - `brain/experiments/online_adaptation/transition_phase_curve.png` (Batch size phase transition)
+  - `brain/experiments/online_adaptation/distractor_resistance_curve.png` (Distractor delay resistance)
+- **Reproduction Commands**:
+  - Distractor benchmark: `py -3.11 -m brain.experiments.online_adaptation.run_cgp_experiment`
+  - Continual multi-reversal: `py -3.11 brain/experiments/online_adaptation/eval_multi_reversal.py`
+  - Agent test suite: `py -3.11 -c "import sys; sys.path.insert(0, 'brain/src'); import brain.tests.test_agent_loop as t; t.test_goal_encoder(); t.test_tool_registry(); t.test_agent_cognitive_core_step(); t.test_autonomous_task_execution()"`
+
 
