@@ -1,6 +1,6 @@
 """Latent World-Model Rollouts and Dynamic Lookahead Planning engine.
 
-Unrolls cognitive thoughtlet and belief states forward H steps (H in [1, 5])
+Unrolls cognitive thoughtlet and belief states forward H steps (H in [1, 8])
 through internal BrainCell transition dynamics without rendering full pixel images.
 Evaluates candidate action sequences using cumulative branch utility:
     U(a_vec) = sum_{k=0}^{H-1} gamma^k * (r_hat_{t+k} - lambda * d_hat_{t+k}) + gamma^H * V_hat(z_{t+H})
@@ -73,13 +73,13 @@ def generate_directional_candidate_sequences(
     """Generate candidate action sequences of length `horizon`.
 
     Args:
-        horizon: Unroll depth H in [1, 5].
+        horizon: Unroll depth H in [1, 8].
         include_none: Whether to include DirectionalAction.NONE in candidate moves.
         prune_reversals: Whether to eliminate immediate back-and-forth oscillations
                          (e.g., W followed immediately by S).
     """
-    if horizon < 1 or horizon > 5:
-        raise ValueError(f"horizon must be between 1 and 5, got {horizon}")
+    if horizon < 1 or horizon > 8:
+        raise ValueError(f"horizon must be between 1 and 8, got {horizon}")
 
     actions = [
         DirectionalAction.W,
@@ -283,8 +283,8 @@ class LatentLookaheadPlanner(nn.Module):
         enable_utility_pruning: bool = True,
     ) -> None:
         super().__init__()
-        if horizon < 1 or horizon > 5:
-            raise ValueError(f"horizon must be an integer between 1 and 5, got {horizon}")
+        if horizon < 1 or horizon > 8:
+            raise ValueError(f"horizon must be an integer between 1 and 8, got {horizon}")
         if gamma <= 0.0 or gamma > 1.0:
             raise ValueError(f"gamma must be in (0, 1], got {gamma}")
         if hazard_weight < 0.0:
@@ -1080,8 +1080,8 @@ class LatentLookaheadPlanner(nn.Module):
             LookaheadPlanResult containing best action, branch details, and utilities.
         """
         h = self.horizon if horizon is None else horizon
-        if h < 1 or h > 5:
-            raise ValueError(f"horizon must be in [1, 5], got {h}")
+        if h < 1 or h > 8:
+            raise ValueError(f"horizon must be in [1, 8], got {h}")
 
         if sensors is None:
             sensors = torch.zeros(

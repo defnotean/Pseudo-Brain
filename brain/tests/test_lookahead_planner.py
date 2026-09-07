@@ -81,11 +81,15 @@ class LookaheadPlannerTests(unittest.TestCase):
         seqs_h3_raw = generate_directional_candidate_sequences(3, prune_reversals=False)
         self.assertEqual(len(seqs_h3_raw), 64)
 
+        # Horizon 6 with reversals pruned: 4 * 3^5 = 972
+        seqs_h6 = generate_directional_candidate_sequences(6, prune_reversals=True)
+        self.assertEqual(len(seqs_h6), 972)
+
         # Horizon bounds checking
         with self.assertRaises(ValueError):
             generate_directional_candidate_sequences(0)
         with self.assertRaises(ValueError):
-            generate_directional_candidate_sequences(6)
+            generate_directional_candidate_sequences(9)
 
     def test_directional_to_control_vector(self) -> None:
         """Test conversion of directional actions to 307-d HID control vector."""

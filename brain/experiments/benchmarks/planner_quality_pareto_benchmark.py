@@ -494,10 +494,11 @@ def generate_pareto_reports(
     print(f"\nSaved JSON telemetry to {json_path}")
 
     md_path = out_dir / "2026-09-07-planner-quality-pareto-frontier.md"
+    horizons_str = ", ".join(str(k) for k in sorted(audit_results.keys()))
     with open(md_path, "w") as f:
         f.write("# Dynamic Planner Quality Pareto Frontier Benchmark (P5)\n\n")
         f.write("**Date:** 2026-09-07  \n")
-        f.write("**Status:** `[MEASURED]` Multi-seed Pareto audit across horizons $H \\in [2, 3, 4, 5]$.  \n")
+        f.write(f"**Status:** `[MEASURED]` Multi-seed Pareto audit across horizons $H \\in [{horizons_str}]$.  \n")
         f.write("**Gold Standard:** Full Exhaustive Search ($dynamic\\_pruning=False$, zero pruning).  \n\n")
 
         f.write("## 1. Executive Summary & Pareto Frontier\n\n")

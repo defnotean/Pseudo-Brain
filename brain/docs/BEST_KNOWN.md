@@ -37,18 +37,19 @@
   ```
 
 ### Workstream 2: Dynamic Lookahead Planning Pareto Frontier (P5)
-* **Pareto Audit vs. Exhaustive Search ($H \in [2, 3, 4, 5]$, $N=15$ diverse decision states)**:
-  - $H=2$: **100.0% Agreement**, 0.00 Regret, 0.0% False Pruning, $1.18\times$ speedup.
-  - $H=3$: **100.0% Agreement**, 0.00 Regret, 0.0% False Pruning, $1.80\times$ speedup ($18.28\text{ ms}$ vs $32.88\text{ ms}$).
-  - $H=4$: **100.0% Agreement**, 0.00 Regret, 0.0% False Pruning, **$4.64\times$ speedup** ($24.97\text{ ms}$ vs $115.95\text{ ms}$).
-  - $H=5$: **100.0% Agreement**, 0.00 Regret, 0.0% False Pruning, **$9.73\times$ speedup** ($39.53\text{ ms}$ vs $384.75\text{ ms}$).
+* **Pareto Audit vs. Exhaustive Search ($H \in [2, 3, 4, 5, 6]$, diverse decision states)**:
+  - $H=2$: **100.0% Agreement**, 0.00 Regret, 0.0% False Pruning, $1.16\times$ speedup ($8.49\text{ ms}$ vs $9.83\text{ ms}$).
+  - $H=3$: **100.0% Agreement**, 0.00 Regret, 0.0% False Pruning, $1.99\times$ speedup ($16.30\text{ ms}$ vs $32.46\text{ ms}$).
+  - $H=4$: **100.0% Agreement**, 0.00 Regret, 0.0% False Pruning, **$4.22\times$ speedup** ($25.79\text{ ms}$ vs $108.74\text{ ms}$).
+  - $H=5$: **100.0% Agreement**, 0.00 Regret, 0.0% False Pruning, **$12.06\times$ speedup** ($33.83\text{ ms}$ vs $408.06\text{ ms}$).
+  - $H=6$: **100.0% Agreement**, 0.00 Regret, 0.0% False Pruning, **$38.20\times$ speedup** ($48.86\text{ ms}$ vs $1,866.59\text{ ms}$).
 * **Closed-Loop Arcade Benchmark (MazeChase, $H=3$)**:
   - Pellets: 3.0 (Exhaustive) vs **3.0** (Dynamic Beam).
   - Ghost Collisions: 1.0 vs **1.0**.
-  - Tick Latency: $47.04\text{ ms}$ $\to$ **$29.41\text{ ms}$** ($1.60\times$ full loop speedup).
+  - Tick Latency: $47.99\text{ ms}$ $\to$ **$30.40\text{ ms}$** ($1.58\times$ full loop speedup).
 * **Reproduction Command**:
   ```bash
-  py -3.11 brain/experiments/benchmarks/planner_quality_pareto_benchmark.py --horizons 2 3 4 5
+  py -3.11 brain/experiments/benchmarks/planner_quality_pareto_benchmark.py --horizons 2 3 4 5 6
   ```
 
 ### Workstream 3 & 6: Autonomous Agent Loop & Unassisted Generalization

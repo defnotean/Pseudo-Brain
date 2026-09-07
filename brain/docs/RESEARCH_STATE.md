@@ -57,6 +57,21 @@ We maintain strict claim discipline ([MEASURED], [INFERRED], [HYPOTHESIS], [ASPI
 
 ---
 
+### Workstream 2: Dynamic Lookahead Planning Pareto Frontier (H=2 to H=6)
+*Audited against full Exhaustive Search ($dynamic\_pruning=False$, zero pruning) on identical decision-critical states.*
+
+| Horizon | Exhaustive Latency | Dynamic Beam Latency | Action Agreement | Regret | False Pruning | Speedup vs Exh |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **H = 2** (12 branches) | 9.83 ms | **8.49 ms** | **100.0%** | 0.00 | 0.0% | **$1.16\times$** |
+| **H = 3** (36 branches) | 32.46 ms | **16.30 ms** | **100.0%** | 0.00 | 0.0% | **$1.99\times$** |
+| **H = 4** (108 branches) | 108.74 ms | **25.79 ms** | **100.0%** | 0.00 | 0.0% | **$4.22\times$** |
+| **H = 5** (324 branches) | 408.06 ms | **33.83 ms** | **100.0%** | 0.00 | 0.0% | **$12.06\times$** |
+| **H = 6** (972 branches) | 1,866.59 ms | **48.86 ms** | **100.0%** | 0.00 | 0.0% | **$38.20\times$** |
+
+*Key Finding: As search depth scales from $H=2$ to $H=6$, Exhaustive Search collapses exponentially to multi-second latency ($1.87\text{ s}$ per tick), while Dynamic Beam Search scales linearly ($48.9\text{ ms}$ at $H=6$), achieving a **$38.20\times$ speedup** with **zero false pruning and 100% action agreement**.*
+
+---
+
 ### Workstream 2 & 4: Embodied Latency & Computational Budgets (Single-Threaded CPU)
 
 | Module / Operation | Configuration | Target Deadline | Measured Latency (Mean / p90) | Budget Status | Interpretation |

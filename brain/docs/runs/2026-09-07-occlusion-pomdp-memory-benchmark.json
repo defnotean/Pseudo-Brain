@@ -1,0 +1,140 @@
+{
+  "timestamp": "2026-09-07",
+  "benchmark": "occlusion_pomdp_memory_benchmark",
+  "results": {
+    "radius_4": {
+      "view_radius": 4,
+      "visible_cells": 81,
+      "visibility_percent": 31.640625,
+      "conditions": {
+        "reactive": {
+          "mean_targets_per_100": 0.0,
+          "std_targets_per_100": 0.0,
+          "mean_collisions_per_100": 4.0,
+          "std_collisions_per_100": 1.2649110640673518,
+          "mean_net_score": -4.0,
+          "mean_latency_ticks": 100.0,
+          "search_efficiency": 0.0,
+          "elapsed_seconds": 0.4331188
+        },
+        "gru": {
+          "mean_targets_per_100": 0.0,
+          "std_targets_per_100": 0.0,
+          "mean_collisions_per_100": 3.2,
+          "std_collisions_per_100": 2.7129319932501077,
+          "mean_net_score": -3.2,
+          "mean_latency_ticks": 100.0,
+          "search_efficiency": 0.0,
+          "elapsed_seconds": 0.5127569
+        },
+        "thoughtlet": {
+          "mean_targets_per_100": 0.0,
+          "std_targets_per_100": 0.0,
+          "mean_collisions_per_100": 4.0,
+          "std_collisions_per_100": 1.2649110640673518,
+          "mean_net_score": -4.0,
+          "mean_latency_ticks": 100.0,
+          "search_efficiency": 0.0,
+          "elapsed_seconds": 0.7348187
+        },
+        "cgp_full": {
+          "mean_targets_per_100": 0.0,
+          "std_targets_per_100": 0.0,
+          "mean_collisions_per_100": 2.8,
+          "std_collisions_per_100": 2.039607805437114,
+          "mean_net_score": -2.8,
+          "mean_latency_ticks": 100.0,
+          "search_efficiency": 0.0,
+          "elapsed_seconds": 0.9470837
+        },
+        "cgp_no_cig": {
+          "mean_targets_per_100": 0.0,
+          "std_targets_per_100": 0.0,
+          "mean_collisions_per_100": 2.8,
+          "std_collisions_per_100": 2.039607805437114,
+          "mean_net_score": -2.8,
+          "mean_latency_ticks": 100.0,
+          "search_efficiency": 0.0,
+          "elapsed_seconds": 0.9631912
+        },
+        "cgp_no_cgsl": {
+          "mean_targets_per_100": 0.0,
+          "std_targets_per_100": 0.0,
+          "mean_collisions_per_100": 2.0,
+          "std_collisions_per_100": 2.1908902300206643,
+          "mean_net_score": -2.0,
+          "mean_latency_ticks": 100.0,
+          "search_efficiency": 0.0,
+          "elapsed_seconds": 1.5967266
+        }
+      }
+    },
+    "radius_2": {
+      "view_radius": 2,
+      "visible_cells": 25,
+      "visibility_percent": 9.765625,
+      "conditions": {
+        "reactive": {
+          "mean_targets_per_100": 0.0,
+          "std_targets_per_100": 0.0,
+          "mean_collisions_per_100": 4.0,
+          "std_collisions_per_100": 1.7888543819998317,
+          "mean_net_score": -4.0,
+          "mean_latency_ticks": 100.0,
+          "search_efficiency": 0.0,
+          "elapsed_seconds": 0.5941507
+        },
+        "gru": {
+          "mean_targets_per_100": 0.2,
+          "std_targets_per_100": 0.4000000000000001,
+          "mean_collisions_per_100": 4.0,
+          "std_collisions_per_100": 2.1908902300206643,
+          "mean_net_score": -3.8,
+          "mean_latency_ticks": 80.8,
+          "search_efficiency": 0.04,
+          "elapsed_seconds": 0.5836707
+        },
+        "thoughtlet": {
+          "mean_targets_per_100": 0.0,
+          "std_targets_per_100": 0.0,
+          "mean_collisions_per_100": 3.6,
+          "std_collisions_per_100": 0.8000000000000002,
+          "mean_net_score": -3.6,
+          "mean_latency_ticks": 100.0,
+          "search_efficiency": 0.0,
+          "elapsed_seconds": 0.9648695
+        },
+        "cgp_full": {
+          "mean_targets_per_100": 0.0,
+          "std_targets_per_100": 0.0,
+          "mean_collisions_per_100": 2.8,
+          "std_collisions_per_100": 2.7129319932501077,
+          "mean_net_score": -2.8,
+          "mean_latency_ticks": 100.0,
+          "search_efficiency": 0.0,
+          "elapsed_seconds": 1.0070724
+        },
+        "cgp_no_cig": {
+          "mean_targets_per_100": 0.0,
+          "std_targets_per_100": 0.0,
+          "mean_collisions_per_100": 2.8,
+          "std_collisions_per_100": 2.7129319932501077,
+          "mean_net_score": -2.8,
+          "mean_latency_ticks": 100.0,
+          "search_efficiency": 0.0,
+          "elapsed_seconds": 1.1286033
+        },
+        "cgp_no_cgsl": {
+          "mean_targets_per_100": 0.0,
+          "std_targets_per_100": 0.0,
+          "mean_collisions_per_100": 2.8,
+          "std_collisions_per_100": 2.7129319932501077,
+          "mean_net_score": -2.8,
+          "mean_latency_ticks": 100.0,
+          "search_efficiency": 0.0,
+          "elapsed_seconds": 0.9841778
+        }
+      }
+    }
+  }
+}
