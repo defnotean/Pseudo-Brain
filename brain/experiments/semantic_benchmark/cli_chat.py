@@ -131,8 +131,8 @@ def train_conversational_calibration(
             targs = [-100] * len(toks)
             if resp_tok in toks:
                 r_i = toks.index(resp_tok)
-                for ti in range(r_i + 1, len(toks)):
-                    targs[ti] = toks[ti]
+                for ti in range(r_i, len(toks) - 1):
+                    targs[ti] = toks[ti + 1]
             tokens = torch.tensor([toks], dtype=torch.long, device=dev)
             targets = torch.tensor([targs], dtype=torch.long, device=dev)
             threads = torch.tensor([[tmpl_tid] * len(toks)], dtype=torch.long, device=dev)

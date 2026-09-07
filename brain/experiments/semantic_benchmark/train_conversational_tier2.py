@@ -88,8 +88,8 @@ def build_and_cache_hf_corpus(
                 targets = [-100] * len(toks)
                 if resp_id in toks:
                     r_idx = toks.index(resp_id)
-                    for ti in range(r_idx + 1, len(toks)):
-                        targets[ti] = toks[ti]
+                    for ti in range(r_idx, len(toks) - 1):
+                        targets[ti] = toks[ti + 1]
                 focused_turns.append({
                     "episode_id": f"turn_{d.dialogue_id}_{turn_idx}",
                     "text": turn_str,
@@ -122,8 +122,8 @@ def build_and_cache_hf_corpus(
             targets = [-100] * len(toks)
             if resp_id in toks:
                 r_idx = toks.index(resp_id)
-                for ti in range(r_idx + 1, len(toks)):
-                    targets[ti] = toks[ti]
+                for ti in range(r_idx, len(toks) - 1):
+                    targets[ti] = toks[ti + 1]
             focused_turns.append({
                 "episode_id": f"template_{idx}_t{tid}",
                 "text": turn_str,

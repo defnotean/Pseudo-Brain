@@ -58,8 +58,8 @@ class LanguageCurriculumGenerator:
         prompt_len = len(self.tokenizer.encode(prompt))
 
         targets = [-100] * len(tokens)
-        for i in range(prompt_len, len(tokens)):
-            targets[i] = tokens[i]
+        for i in range(prompt_len - 1, len(tokens) - 1):
+            targets[i] = tokens[i + 1]
 
         threads = [0] * len(tokens)
         return SemanticEpisode(
@@ -100,8 +100,8 @@ class LanguageCurriculumGenerator:
         prompt_len = len(self.tokenizer.encode(prompt))
 
         targets = [-100] * len(tokens)
-        for i in range(prompt_len, len(tokens)):
-            targets[i] = tokens[i]
+        for i in range(prompt_len - 1, len(tokens) - 1):
+            targets[i] = tokens[i + 1]
 
         threads = [0] * len(tokens)
         return SemanticEpisode(
@@ -150,8 +150,8 @@ class LanguageCurriculumGenerator:
         prompt_len = len(self.tokenizer.encode(prompt))
 
         targets = [-100] * len(tokens)
-        for i in range(prompt_len, len(tokens)):
-            targets[i] = tokens[i]
+        for i in range(prompt_len - 1, len(tokens) - 1):
+            targets[i] = tokens[i + 1]
 
         # Build thread sequence
         threads = self._extract_thread_ids_from_tokens(tokens)
@@ -209,8 +209,8 @@ class LanguageCurriculumGenerator:
         prompt_len = len(self.tokenizer.encode(prompt))
 
         targets = [-100] * len(tokens)
-        for i in range(prompt_len, len(tokens)):
-            targets[i] = tokens[i]
+        for i in range(prompt_len - 1, len(tokens) - 1):
+            targets[i] = tokens[i + 1]
 
         threads = self._extract_thread_ids_from_tokens(tokens)
         return SemanticEpisode(
@@ -251,8 +251,8 @@ class LanguageCurriculumGenerator:
         prompt_len = len(self.tokenizer.encode(prompt))
 
         targets = [-100] * len(tokens)
-        for i in range(prompt_len, len(tokens)):
-            targets[i] = tokens[i]
+        for i in range(prompt_len - 1, len(tokens) - 1):
+            targets[i] = tokens[i + 1]
 
         threads = self._extract_thread_ids_from_tokens(tokens)
         return SemanticEpisode(
@@ -284,8 +284,8 @@ class LanguageCurriculumGenerator:
         prompt_len = len(self.tokenizer.encode(prompt))
 
         targets = [-100] * len(tokens)
-        for i in range(prompt_len, len(tokens)):
-            targets[i] = tokens[i]
+        for i in range(prompt_len - 1, len(tokens) - 1):
+            targets[i] = tokens[i + 1]
 
         threads = self._extract_thread_ids_from_tokens(tokens)
         return SemanticEpisode(

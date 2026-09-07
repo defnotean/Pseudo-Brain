@@ -89,16 +89,17 @@ class StreamingCognitiveSession:
         prompt_latencies = []
         last_logits = None
 
+        active_tid = thread_id if thread_id is not None else 0
         if prompt_text:
-            token_ids = self.tokenizer.encode(prompt_text, thread_id=thread_id)
+            token_ids = self.tokenizer.encode(prompt_text, thread_id=active_tid)
             for tid in token_ids:
-                last_logits, dt = self.step_token(tid, thread_id=thread_id, allow_routing=allow_routing)
+                last_logits, dt = self.step_token(tid, thread_id=active_tid, allow_routing=allow_routing)
                 prompt_latencies.append(dt)
 
         # Ingest [RESP] token marker to switch to response phase if not already stepped
         resp_tok = self.tokenizer.resp_id
         if not (prompt_text and token_ids and token_ids[-1] == resp_tok):
-            last_logits, dt = self.step_token(resp_tok, thread_id=thread_id, allow_routing=allow_routing)
+            last_logits, dt = self.step_token(resp_tok, thread_id=active_tid, allow_routing=allow_routing)
             prompt_latencies.append(dt)
 
         generated_token_ids: List[int] = []
@@ -128,7 +129,7 @@ class StreamingCognitiveSession:
                 break
 
             generated_token_ids.append(next_tok)
-            last_logits, dt = self.step_token(next_tok, thread_id=thread_id, allow_routing=allow_routing)
+            last_logits, dt = self.step_token(next_tok, thread_id=active_tid, allow_routing=allow_routing)
             gen_latencies.append(dt)
 
         generated_text = self.tokenizer.decode(generated_token_ids, skip_special=True)

@@ -670,15 +670,18 @@ class LLMDataTransformer:
         eos_id = self.tokenizer.eos_id
 
         targets = [-100] * len(tokens)
+        n = len(tokens)
         in_resp = False
 
-        for i, t in enumerate(tokens):
+        for i in range(n - 1):
+            t = tokens[i]
+            next_t = tokens[i + 1]
             if t == resp_id:
                 in_resp = True
-                targets[i] = -100
+                targets[i] = next_t
             elif in_resp:
-                targets[i] = t
-                if t == eos_id:
+                targets[i] = next_t
+                if next_t == eos_id:
                     in_resp = False
 
         return targets
