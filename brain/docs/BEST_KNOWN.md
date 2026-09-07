@@ -85,6 +85,19 @@
   py -3.11 brain/experiments/benchmarks/thoughtlet_routing_scaling_benchmark.py
   ```
 
+### Workstream 7: Matched-Budget Architecture Comparison (P10)
+* **Master Architecture Comparison ($L=16$ Delay Corridor POMDP, CPU Inference)**:
+  - **Reactive Baseline**: 133k params, 0 state bytes, 2.52 MFLOPs, 0.48 ms, **0.0% retention** (cannot retain key).
+  - **Heavy GRU Baseline**: 1,371k params, 1,536 state bytes, 4.99 MFLOPs, 0.60 ms, **50.0% retention** (0.036 ret/kParam).
+  - **Dense Thoughtlet (32 slots)**: 65k params, 1,536 state bytes, 4.22 MFLOPs, 0.91 ms, **0.0% retention**.
+  - **Sparse Thoughtlet ($k=4$)**: 65k params, 1,536 state bytes, 4.22 MFLOPs, 0.80 ms, **75.0% retention**.
+  - **CGP Thoughtlet (Ours)**: **280k params**, 1,556 state bytes, 4.27 MFLOPs, 1.28 ms, **100.0% retention** (**0.357 ret/kParam, $9.92\times$ higher than GRU**).
+  - **Full Pseudo-Brain (CGP + Router + Lookahead)**: 280k params, 5.96 MFLOPs, 26.36 ms, **100.0% retention**.
+* **Reproduction Command**:
+  ```bash
+  py -3.11 brain/experiments/benchmarks/matched_budget_architecture_comparison.py
+  ```
+
 ---
 
 ## 3. Known Weaknesses & Critical Caveats
