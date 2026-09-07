@@ -49,15 +49,36 @@
 
 ---
 
-## 4. Current Primary Limitation: Sensory Distractor Noise Vulnerability
-- In `DistractorHiddenRuleEnv`, visual distractor delay ticks ($D \in [10, 25, 50]$) inject dynamic sensory noise.
-- Current surprise gating triggers on raw latent observation prediction error: $\|z_{t+1} - \hat{z}_{t+1}\|_2$.
-- Because visual distractor noise cannot be predicted, the gate opens on irrelevant sensory fluctuations, corrupting synaptic weights $P_t$ and causing performance to degrade under delay horizons.
+## 4. Primary Limitation Uncovered: The "Noisy TV" & Cross-Attention Diffusion Problem
+1. **Audit of `distractor_benchmark.py`**:
+   - The original benchmark contained an artificial cheat: `if in_distractor: surprise = 0` and `frozen_P = P_t`.
+   - When evaluated **honestly** without oracle cheats:
+     - **Plastic Thoughtlet** collapses from **100.0%** to **0.0%** Rule A retention at $D=10$ because random visual noise produces latent prediction errors $e_t \approx 29.7$, triggering synaptic plasticity on irrelevant pixels.
+     - **Thoughtlet Baseline** collapses from **100.0%** to **0.0%** Rule A retention at $D=25$ because un-gated recurrent cross-attention diffuses working memory during delay ticks.
+     - In contrast, standard GRU retained 100.0% across clean memory cells because it lacked un-gated attention and plastic noise corruption.
+2. **Diagnostic Breakthrough**:
+   - Controlled 80-session diagnostic (`diag_cognitive_gating.py`) proved that freezing recurrent updates during delays restores Rule A retention to **100.0% across all delays $D \le 50$**.
 
 ---
 
-## 5. Next Immediate Architectural Improvement: Consequence-Gated Plasticity (CGP)
-- **Hypothesis**: Replacing raw observation prediction error with **Outcome / Consequence Prediction Error** (reward/penalty discrepancy $\delta_t = |r_t - \hat{r}_t|$) will decouple plasticity gating from sensory distractor noise, making $P_t$ impervious to visual distractions across arbitrary delay horizons $D$.
-- **Test Protocol**: Benchmark on `distractor_benchmark.py` across $D \in [0, 10, 25, 50, 100]$.
+## 5. Architectural Solution: Consequence-Gated Plasticity (CGP) & Cognitive Input Gating (CIG)
+1. **Consequence-Gated Plasticity (CGP)**:
+   - Scalar predictor $\hat{r}_{t+1} = \text{head}(h_t, a_t)$ trained with MSE loss on environment rewards.
+   - Fast synaptic plasticity $P_t$ is modulated by outcome prediction error $\delta_t = |r_{t+1} - \hat{r}_{t+1}|$.
+   - Visual noise in corridors or during delays produces $\delta_t = 0$, rendering synaptic memory completely impervious to sensory distractors.
+2. **Endogenous Cognitive Input Gating (CIG)**:
+   - Differentiable salience gate $g_t = \sigma(W_{\text{gate}} x_t + b_g)$ modulating thoughtlet updates:
+     $$h_t = (1 - g_t) \odot h_{t-1} + g_t \odot \tilde{h}_t$$
+   - Protects recurrent state attractor from sensory diffusion during non-informative intervals.
+3. **Distractor-Aware Training**:
+   - Training corpus augmented with variable inter-trial delays ($D \in [0, 2, 5, 8]$) with dynamic visual noise so the network learns end-to-end to close its cognitive gate during delays.
 
+---
 
+## 6. Active In-Flight Experiment (Colab NVIDIA A100-SXM4-40GB)
+- **Script**: `brain/experiments/online_adaptation/run_cgp_experiment.py`
+- **Corpus**: `/content/corpus_distractor_v1` (distractor-aware multi-trial corpus)
+- **Models**: `cgp_thoughtlet` vs. `plastic_thoughtlet`
+- **Training Config**: $B=32$, 750 steps (24,000 sequence samples), `bfloat16` AMP, `torch.compile` across seeds `[42, 142, 242]`.
+- **Honest Distractor Evaluation**: $D \in [0, 10, 25, 50, 100]$ across 10 sessions per seed (30 sessions per delay, 150 sessions total per model).
+- **Log Location**: `/content/runs_cgp/experiment.log`

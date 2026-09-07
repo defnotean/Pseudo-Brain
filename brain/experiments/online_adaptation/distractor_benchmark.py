@@ -39,6 +39,7 @@ from online_adaptation.hidden_rule_env import HiddenRuleEnv, Rule
 from online_adaptation.models import (
     PredictiveGRUModel,
     PredictiveThoughtletModel,
+    PredictiveCGPThoughtletModel,
     N_FRAMES,
     ACTION_CLASSES,
 )
@@ -221,33 +222,19 @@ def evaluate_session_under_distractor(
                     P_t=P_t,
                 )
             else:
-                if in_distractor and use_plasticity:
-                    # Surprise-gated synaptic weights P_t remain frozen during distractor steps
-                    frozen_P = P_t.clone() if P_t is not None else None
-                    logits, recurrent_state, e_t, _, delta_P = model.forward_step(
-                        z_t=z_t,
-                        prev_action=prev_act_tensor,
-                        surprise_t=surprise,
-                        thoughts=recurrent_state,
-                        P_t=frozen_P,
-                    )
-                    P_t = frozen_P
-                else:
-                    logits, recurrent_state, e_t, P_t, delta_P = model.forward_step(
-                        z_t=z_t,
-                        prev_action=prev_act_tensor,
-                        surprise_t=surprise,
-                        thoughts=recurrent_state,
-                        P_t=P_t,
-                    )
+                logits, recurrent_state, e_t, P_t, delta_P = model.forward_step(
+                    z_t=z_t,
+                    prev_action=prev_act_tensor,
+                    surprise_t=surprise,
+                    thoughts=recurrent_state,
+                    P_t=P_t,
+                )
 
             action = int(logits.argmax(dim=-1).item())
             z_hat = model.predict_next_latent(recurrent_state, torch.tensor([action], device=device))
 
         ctrl = CTRL_MAP.get(action, CTRL_MAP[0])
         outcome = env.step(ctrl)
-
-        in_distractor = ("distractor_delay" in outcome.events)
 
         next_raw = np.frombuffer(outcome.observation.rgb.pixels, dtype=np.uint8).reshape(16, 16, 3)
         frame_history.append(next_raw)
@@ -256,13 +243,15 @@ def evaluate_session_under_distractor(
         next_tensor = torch.from_numpy(next_stacked).float().unsqueeze(0).to(device) / 255.0
 
         with torch.no_grad():
-            if in_distractor:
-                # No goal reached during distractor steps -> no surprise
-                surprise = torch.zeros(1, 1, device=device)
+            if hasattr(model, "predict_next_consequence") and getattr(model, "use_cgp", False):
+                # Consequence-Gated Plasticity: surprise is outcome prediction error
+                r_hat = model.predict_next_consequence(recurrent_state, torch.tensor([action], device=device))
+                r_true = torch.tensor([outcome.reward], dtype=torch.float32, device=device)
+                surprise = torch.abs(r_hat - r_true).unsqueeze(-1)
             else:
+                # Observation surprise (raw pixel prediction error)
                 z_true_next = model.encode_observation(next_tensor)
-                err = torch.norm(z_hat - z_true_next, dim=-1, keepdim=True)
-                surprise = err
+                surprise = torch.norm(z_hat - z_true_next, dim=-1, keepdim=True)
 
         prev_action = action
         if outcome.terminated or outcome.truncated:
@@ -332,9 +321,11 @@ def run_benchmark(
         ckpt_data = torch.load(ckpt_file, map_location=device)
         if m_type == "gru":
             m = PredictiveGRUModel(use_plasticity=use_plast).to(device)
+        elif m_type == "cgp_thoughtlet":
+            m = PredictiveCGPThoughtletModel().to(device)
         else:
             m = PredictiveThoughtletModel(use_plasticity=use_plast).to(device)
-        m.load_state_dict(ckpt_data["model_state_dict"])
+        m.load_state_dict(ckpt_data["model_state_dict"], strict=False)
         m.eval()
         loaded_models[label] = (m, m_type, ckpt_name, use_plast)
 

@@ -22,6 +22,7 @@ sys.path.insert(0, str(_REPO_ROOT / "experiments"))
 
 from irene_brain.types import GenericControl, HidKey
 from online_adaptation.hidden_rule_env import HiddenRuleEnv, Rule
+from online_adaptation.distractor_benchmark import DistractorHiddenRuleEnv
 
 N_FRAMES = 4
 
@@ -63,6 +64,7 @@ def generate_single_session_trajectory(
     prev_action = ACTION_IDLE
     known_rule: Optional[Rule] = None
     last_trial_idx = -1
+    in_delay = False
 
     done = False
     while not done:
@@ -70,13 +72,14 @@ def generate_single_session_trajectory(
         if curr_trial != last_trial_idx:
             # New trial started
             last_trial_idx = curr_trial
-            # If the current block's rule changed without the agent knowing yet,
-            # we keep the previous known_rule until we encounter feedback!
 
-        # Decide action based on position and known_rule
+        # Decide action based on position, delay, and known_rule
         px, py = env._player_x, env._player_y
 
-        if py > 7:
+        if in_delay:
+            # During distractor delay ticks: player dwells / waits
+            action = ACTION_IDLE
+        elif py > 7:
             # In vertical corridor: must move UP to junction
             action = ACTION_UP
         elif py == 7 and px == 7:
@@ -111,6 +114,7 @@ def generate_single_session_trajectory(
         outcome = env.step(ctrl)
 
         all_rewards.append(outcome.reward)
+        in_delay = ("distractor_delay" in outcome.events)
 
         # Update known rule from feedback
         if "trial_success" in outcome.events:
@@ -147,6 +151,8 @@ def generate_corpus(
     n_train: int = 80,
     n_dev: int = 20,
     seed: int = 1000,
+    distractor_delays: Optional[List[int]] = None,
+    distractor_noise_level: float = 35.0,
 ):
     out_path = Path(output_dir)
     train_dir = out_path / "train"
@@ -154,7 +160,7 @@ def generate_corpus(
     train_dir.mkdir(parents=True, exist_ok=True)
     dev_dir.mkdir(parents=True, exist_ok=True)
 
-    print(f"Generating {n_train} train and {n_dev} dev sessions into {out_path}...")
+    print(f"Generating {n_train} train and {n_dev} dev sessions into {out_path} (delays={distractor_delays})...")
 
     # Varied schedules for training to prevent overfitting to a single block length
     schedules = [
@@ -169,14 +175,30 @@ def generate_corpus(
     # Generate Train
     for i in range(n_train):
         sched = schedules[i % len(schedules)]
-        env = HiddenRuleEnv(rule_schedule=sched)
+        if distractor_delays:
+            D = distractor_delays[i % len(distractor_delays)]
+            env = DistractorHiddenRuleEnv(
+                rule_schedule=sched,
+                distractor_delay=D,
+                distractor_noise_level=distractor_noise_level,
+            )
+        else:
+            env = HiddenRuleEnv(rule_schedule=sched)
         data = generate_single_session_trajectory(env, seed=seed + i)
         np.savez_compressed(train_dir / f"session_{i:04d}.npz", **data)
 
     # Generate Dev
     for i in range(n_dev):
         sched = schedules[i % len(schedules)]
-        env = HiddenRuleEnv(rule_schedule=sched)
+        if distractor_delays:
+            D = distractor_delays[i % len(distractor_delays)]
+            env = DistractorHiddenRuleEnv(
+                rule_schedule=sched,
+                distractor_delay=D,
+                distractor_noise_level=distractor_noise_level,
+            )
+        else:
+            env = HiddenRuleEnv(rule_schedule=sched)
         data = generate_single_session_trajectory(env, seed=seed + 5000 + i)
         np.savez_compressed(dev_dir / f"session_{i:04d}.npz", **data)
 
@@ -279,6 +301,14 @@ if __name__ == "__main__":
     parser.add_argument("--output_dir", type=str, default="brain/datasets/hidden_rule_corpus_v1")
     parser.add_argument("--n_train", type=int, default=80)
     parser.add_argument("--n_dev", type=int, default=20)
+    parser.add_argument("--distractor_delays", type=int, nargs="*", default=None, help="List of distractor delays (e.g. 0 2 5 8)")
+    parser.add_argument("--distractor_noise_level", type=float, default=35.0)
     args = parser.parse_args()
 
-    generate_corpus(args.output_dir, n_train=args.n_train, n_dev=args.n_dev)
+    generate_corpus(
+        args.output_dir,
+        n_train=args.n_train,
+        n_dev=args.n_dev,
+        distractor_delays=args.distractor_delays,
+        distractor_noise_level=args.distractor_noise_level,
+    )

@@ -34,6 +34,7 @@ from online_adaptation.models import (
     ReactiveModel,
     PredictiveGRUModel,
     PredictiveThoughtletModel,
+    PredictiveCGPThoughtletModel,
     ACTION_CLASSES,
 )
 
@@ -101,6 +102,8 @@ def train_model(
         model = PredictiveThoughtletModel(use_plasticity=False).to(device)
     elif model_type == "plastic_thoughtlet":
         model = PredictiveThoughtletModel(use_plasticity=True).to(device)
+    elif model_type == "cgp_thoughtlet":
+        model = PredictiveCGPThoughtletModel().to(device)
     else:
         raise ValueError(f"Unknown model_type: {model_type}")
 
@@ -167,6 +170,7 @@ def train_model(
         frames = batch["frames"].to(device)        # [B, T, 4, 3, 16, 16]
         actions = batch["actions"].to(device)      # [B, T]
         prev_actions = batch["prev_actions"].to(device)
+        rewards = batch["rewards"].to(device) if "rewards" in batch else None
 
         B, T = frames.shape[:2]
 
@@ -256,26 +260,40 @@ def train_model(
             if use_amp and device.type == "cuda":
                 with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
                     all_z = model.encode_observation(all_frames_flat).reshape(B, T, -1)
-                    all_logits, all_z_hat, surprise, diag = model.forward_sequence(
-                        all_z, prev_actions, actions, ss_rate=ss_rate, return_diagnostics=True
+                    res = model.forward_sequence(
+                        all_z, prev_actions, actions, rewards=rewards, ss_rate=ss_rate, return_diagnostics=True
                     )
+                    if len(res) == 5:
+                        all_logits, all_z_hat, all_r_hat, surprise, diag = res
+                        loss_rew = pred_criterion(all_r_hat, rewards[:, 1:]) if (all_r_hat.numel() > 0 and rewards is not None) else torch.tensor(0.0, device=device)
+                    else:
+                        all_logits, all_z_hat, surprise, diag = res
+                        loss_rew = torch.tensor(0.0, device=device)
+
                     loss_act = act_criterion(all_logits.reshape(B * T, -1), actions.reshape(B * T))
                     if all_z_hat.shape[1] > 0:
                         loss_pred = pred_criterion(all_z_hat, all_z[:, 1:].detach())
                     else:
                         loss_pred = torch.tensor(0.0, device=device)
-                    loss = loss_act + pred_weight * loss_pred
+                    loss = loss_act + pred_weight * loss_pred + 0.5 * loss_rew
             else:
                 all_z = model.encode_observation(all_frames_flat).reshape(B, T, -1)
-                all_logits, all_z_hat, surprise, diag = model.forward_sequence(
-                    all_z, prev_actions, actions, ss_rate=ss_rate, return_diagnostics=True
+                res = model.forward_sequence(
+                    all_z, prev_actions, actions, rewards=rewards, ss_rate=ss_rate, return_diagnostics=True
                 )
+                if len(res) == 5:
+                    all_logits, all_z_hat, all_r_hat, surprise, diag = res
+                    loss_rew = pred_criterion(all_r_hat, rewards[:, 1:]) if (all_r_hat.numel() > 0 and rewards is not None) else torch.tensor(0.0, device=device)
+                else:
+                    all_logits, all_z_hat, surprise, diag = res
+                    loss_rew = torch.tensor(0.0, device=device)
+
                 loss_act = act_criterion(all_logits.reshape(B * T, -1), actions.reshape(B * T))
                 if all_z_hat.shape[1] > 0:
                     loss_pred = pred_criterion(all_z_hat, all_z[:, 1:].detach())
                 else:
                     loss_pred = torch.tensor(0.0, device=device)
-                loss = loss_act + pred_weight * loss_pred
+                loss = loss_act + pred_weight * loss_pred + 0.5 * loss_rew
 
             loss_unscaled = loss.item()
             loss = loss / grad_accum_steps

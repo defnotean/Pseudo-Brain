@@ -75,6 +75,24 @@ class FutureLatentPredictor(nn.Module):
         return self.net(x)
 
 
+class ConsequencePredictor(nn.Module):
+    """Predicts next scalar reward/outcome r_hat_{t+1} given state and chosen action."""
+
+    def __init__(self, state_dim: int, n_actions: int = ACTION_CLASSES):
+        super().__init__()
+        self.act_emb = nn.Embedding(n_actions, 16)
+        self.net = nn.Sequential(
+            nn.Linear(state_dim + 16, 128),
+            nn.ReLU(),
+            nn.Linear(128, 1),
+        )
+
+    def forward(self, state: torch.Tensor, action: torch.Tensor) -> torch.Tensor:
+        a_emb = self.act_emb(action.long())
+        x = torch.cat([state, a_emb], dim=-1)
+        return self.net(x).squeeze(-1)
+
+
 class FastPlasticityModule(nn.Module):
     """Fast episodic state adaptation (P_t).
 
@@ -300,6 +318,8 @@ class PredictiveThoughtletModel(nn.Module):
         thought_size: int = 12,
         latent_dim: int = LATENT_DIM,
         use_plasticity: bool = True,
+        use_cgp: bool = False,
+        use_cognitive_gate: bool = False,
         ablate_surprise: bool = False,
         plastic_decay: float = 0.98,
         plastic_lr: float = 0.25,
@@ -310,6 +330,8 @@ class PredictiveThoughtletModel(nn.Module):
         self.total_state = K * thought_size  # 384
         self.latent_dim = latent_dim
         self.use_plasticity = use_plasticity
+        self.use_cgp = use_cgp
+        self.use_cognitive_gate = use_cognitive_gate
         self.ablate_surprise = ablate_surprise
 
         self.encoder = ConvEncoder()
@@ -321,8 +343,18 @@ class PredictiveThoughtletModel(nn.Module):
         self.attention = nn.MultiheadAttention(embed_dim=thought_size, num_heads=4, batch_first=True)
         self.attn_proj = nn.Linear(thought_size, thought_size)
 
+        if use_cognitive_gate:
+            self.cognitive_gate = nn.Sequential(
+                nn.Linear(in_size, 1),
+                nn.Sigmoid(),
+            )
+            nn.init.constant_(self.cognitive_gate[0].bias, 2.0)
+        else:
+            self.cognitive_gate = None
+
         self.action_head = nn.Linear(self.total_state, ACTION_CLASSES)
         self.predictor = FutureLatentPredictor(state_dim=self.total_state, latent_dim=latent_dim)
+        self.consequence_predictor = ConsequencePredictor(state_dim=self.total_state)
         self.plasticity = FastPlasticityModule(
             state_dim=self.total_state,
             decay=plastic_decay,
@@ -370,7 +402,15 @@ class PredictiveThoughtletModel(nn.Module):
 
         # Cross-thoughtlet self-attention
         attn_out, _ = self.attention(new_t, new_t, new_t)
-        thoughts_new = new_t + self.attn_proj(attn_out)
+        thoughts_candidate = new_t + self.attn_proj(attn_out)
+
+        # Endogenous Cognitive Input Gate
+        salience = None
+        if self.use_cognitive_gate and self.cognitive_gate is not None:
+            salience = self.cognitive_gate(x_in)
+            thoughts_new = (1.0 - salience.unsqueeze(1)) * thoughts + salience.unsqueeze(1) * thoughts_candidate
+        else:
+            thoughts_new = thoughts_candidate
 
         flat_state = thoughts_new.reshape(B, -1)
         base_logits = self.action_head(flat_state)
@@ -392,29 +432,21 @@ class PredictiveThoughtletModel(nn.Module):
         flat_state = thoughts.reshape(B, -1)
         return self.predictor(flat_state, action)
 
+    def predict_next_consequence(self, thoughts: torch.Tensor, action: torch.Tensor) -> torch.Tensor:
+        B = thoughts.size(0)
+        flat_state = thoughts.reshape(B, -1)
+        return self.consequence_predictor(flat_state, action)
+
     def forward_sequence(
         self,
         all_z: torch.Tensor,
         prev_actions: torch.Tensor,
         actions: torch.Tensor,
+        rewards: Optional[torch.Tensor] = None,
         ss_rate: float = 0.0,
         return_diagnostics: bool = False,
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor] | Tuple[torch.Tensor, torch.Tensor, torch.Tensor, Dict]:
-        """Vectorized sequence forward pass across all T steps for parallel thoughtlets.
-
-        Args:
-            all_z: [B, T, latent_dim] encoded observations
-            prev_actions: [B, T] antecedent actions
-            actions: [B, T] ground-truth actions for current steps
-            ss_rate: scheduled sampling probability in [0, 1]
-            return_diagnostics: whether to return internal gate and surprise trajectories
-
-        Returns:
-            all_logits: [B, T, ACTION_CLASSES] action logits
-            all_z_hat: [B, T - 1, latent_dim] predicted next latents
-            final_surprise: [B, 1] final surprise norm
-            (optional) diagnostics: Dict of surprise, gate, and plasticity norms
-        """
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor] | Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor] | Tuple[torch.Tensor, torch.Tensor, torch.Tensor, Dict]:
+        """Vectorized sequence forward pass across all T steps for parallel thoughtlets."""
         B, T, _ = all_z.shape
         dev = all_z.device
         thoughts = torch.zeros(B, self.K, self.thought_size, device=dev)
@@ -424,6 +456,7 @@ class PredictiveThoughtletModel(nn.Module):
 
         logits_list = []
         z_hat_list = []
+        r_hat_list = []
         gate_list = []
         surp_list = []
 
@@ -440,8 +473,16 @@ class PredictiveThoughtletModel(nn.Module):
             if t < T - 1:
                 z_hat = self.predict_next_latent(thoughts, actions[:, t])
                 z_hat_list.append(z_hat)
-                z_next_true = all_z[:, t + 1].detach()
-                surprise = torch.norm(z_hat.detach() - z_next_true, dim=-1, keepdim=True)
+
+                r_hat = self.predict_next_consequence(thoughts, actions[:, t])
+                r_hat_list.append(r_hat)
+
+                if self.use_cgp and rewards is not None:
+                    surprise = torch.abs(r_hat.detach() - rewards[:, t + 1]).unsqueeze(-1)
+                else:
+                    z_next_true = all_z[:, t + 1].detach()
+                    surprise = torch.norm(z_hat.detach() - z_next_true, dim=-1, keepdim=True)
+
                 if return_diagnostics:
                     surp_list.append(surprise)
 
@@ -453,24 +494,41 @@ class PredictiveThoughtletModel(nn.Module):
 
         all_logits = torch.stack(logits_list, dim=1)
         all_z_hat = torch.stack(z_hat_list, dim=1) if z_hat_list else torch.empty(B, 0, self.latent_dim, device=dev)
+        all_r_hat = torch.stack(r_hat_list, dim=1) if r_hat_list else torch.empty(B, 0, device=dev)
 
         if return_diagnostics:
             diag = {
                 "all_surprises": torch.stack(surp_list, dim=1) if surp_list else torch.empty(B, 0, 1, device=dev),
                 "all_gates": torch.stack(gate_list, dim=1) if gate_list else torch.empty(B, 0, 1, device=dev),
             }
+            if rewards is not None:
+                return all_logits, all_z_hat, all_r_hat, surprise, diag
             return all_logits, all_z_hat, surprise, diag
 
+        if rewards is not None:
+            return all_logits, all_z_hat, all_r_hat, surprise
         return all_logits, all_z_hat, surprise
+
+
+class PredictiveCGPThoughtletModel(PredictiveThoughtletModel):
+    """Consequence-Gated Plasticity & Cognitive Gated Thoughtlet Model."""
+
+    def __init__(self, **kwargs):
+        kwargs.setdefault("use_plasticity", True)
+        kwargs.setdefault("use_cgp", True)
+        kwargs.setdefault("use_cognitive_gate", True)
+        super().__init__(**kwargs)
 
 
 __all__ = [
     "SurpriseEncoder",
     "FutureLatentPredictor",
+    "ConsequencePredictor",
     "FastPlasticityModule",
     "ReactiveModel",
     "PredictiveGRUModel",
     "PredictiveThoughtletModel",
+    "PredictiveCGPThoughtletModel",
     "LATENT_DIM",
     "SURPRISE_DIM",
 ]
