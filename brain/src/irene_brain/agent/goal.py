@@ -10,6 +10,24 @@ import torch.nn as nn
 
 
 @dataclass
+class GoalMilestone:
+    """Endogenous hierarchical sub-goal / milestone.
+
+    Represents an intermediate milestone that must be achieved and consolidated
+    before branching into dependent tasks.
+    """
+    milestone_id: str
+    description: str
+    tool_name: Optional[str] = None
+    tool_idx: Optional[int] = None
+    verification_fn: Optional[Callable[[], bool]] = None
+    prerequisites: List[str] = field(default_factory=list)
+    reinforcement: float = 1.0  # Internal milestone reinforcement m_t > 0
+    completed: bool = False
+    step_completed: Optional[int] = None
+
+
+@dataclass
 class GoalSpecification:
     """Represents a verifiable autonomous task."""
     goal_id: str
@@ -17,12 +35,63 @@ class GoalSpecification:
     verification_fn: Optional[Callable[[], bool]] = None
     verification_command: Optional[str] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
+    milestones: List[GoalMilestone] = field(default_factory=list)
 
     def is_complete(self) -> bool:
         """Evaluate if the task completion condition is met."""
         if self.verification_fn is not None:
             return bool(self.verification_fn())
+        if self.milestones and all(m.completed for m in self.milestones):
+            return True
         return False
+
+    def get_uncompleted_milestones(self) -> List[GoalMilestone]:
+        """Return milestones that have not yet been completed."""
+        return [m for m in self.milestones if not m.completed]
+
+    def get_ready_milestones(self) -> List[GoalMilestone]:
+        """Return uncompleted milestones whose prerequisites are all satisfied."""
+        completed_ids = {m.milestone_id for m in self.milestones if m.completed}
+        return [
+            m for m in self.milestones
+            if not m.completed and all(p in completed_ids for p in m.prerequisites)
+        ]
+
+    def check_milestone_completion(
+        self,
+        tool_name: Optional[str] = None,
+        tool_idx: Optional[int] = None,
+        tool_success: bool = True,
+        step: Optional[int] = None,
+    ) -> List[GoalMilestone]:
+        """Check and mark newly completed milestones whose prerequisites are met."""
+        if not tool_success:
+            return []
+        completed_ids = {m.milestone_id for m in self.milestones if m.completed}
+        newly_completed: List[GoalMilestone] = []
+
+        for m in self.milestones:
+            if m.completed:
+                continue
+            if not all(p in completed_ids for p in m.prerequisites):
+                continue
+
+            matched = False
+            if m.verification_fn is not None and m.verification_fn():
+                matched = True
+            elif tool_name is not None and m.tool_name == tool_name:
+                matched = True
+            elif tool_idx is not None and m.tool_idx == tool_idx:
+                matched = True
+
+            if matched:
+                m.completed = True
+                m.step_completed = step
+                completed_ids.add(m.milestone_id)
+                newly_completed.append(m)
+
+        return newly_completed
+
 
 
 class GoalEncoder(nn.Module):

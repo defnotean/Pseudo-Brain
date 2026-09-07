@@ -46,6 +46,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_REPO_ROOT / "src"))
 sys.path.insert(0, str(_REPO_ROOT / "experiments"))
 
+from irene_brain.model.brain_cell import BrainCellCore, FactorizedLowRankProjection
 from irene_brain.model.sparse_thought_router import SparseThoughtRouter
 from irene_brain.model.torch_model import deterministic_thought_identity_codes
 
@@ -255,23 +256,7 @@ def build_batch(
 # 2. Architectural Candidate Models (Matched Budget)
 # ==============================================================================
 
-class BrainCellCore(nn.Module):
-    """Recurrent BrainCell matching Pseudo-Brain formulation."""
-
-    def __init__(self, input_size: int, thought_size: int):
-        super().__init__()
-        self.W_ir = nn.Linear(input_size, thought_size)
-        self.W_hr = nn.Linear(thought_size, thought_size)
-        self.W_iz = nn.Linear(input_size, thought_size)
-        self.W_hz = nn.Linear(thought_size, thought_size)
-        self.W_in = nn.Linear(input_size, thought_size)
-        self.W_hn = nn.Linear(thought_size, thought_size)
-
-    def forward(self, thought: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
-        r = torch.sigmoid(self.W_ir(x) + self.W_hr(thought))
-        z = torch.sigmoid(self.W_iz(x) + self.W_hz(thought))
-        n = torch.tanh(self.W_in(x) + r * self.W_hn(thought))
-        return (1.0 - z) * n + z * thought
+# BrainCellCore is imported from irene_brain.model.brain_cell
 
 
 # --- 1. Reactive Baseline ---

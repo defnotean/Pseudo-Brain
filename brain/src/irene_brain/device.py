@@ -1,118 +1,147 @@
-﻿"""Hardware telemetry and device resolution utility for Pseudo-Brain.
+"""Hardware Topology & Device Auto-Resolution Subsystem.
 
-Supports seamless operation across:
-- Local workstations (CPU, optional DirectML)
-- DGX Spark (NVIDIA A100/H100)
-- Google Colab (NVIDIA T4, V100, A100, L4)
+Provides cross-platform hardware acceleration discovery for Irene Brain:
+1. NVIDIA CUDA (via torch.cuda)
+2. AMD / Intel DirectML on Windows (via torch_directml or ONNX DML)
+3. Multi-threaded CPU fallback (MKL / OpenMP) with thread pool tuning
 """
+
 from __future__ import annotations
 
+import logging
 import os
 import platform
-import sys
-from typing import Any, Dict, Optional
+import subprocess
+from typing import Any, Dict, Optional, Tuple
 
 import torch
 
-
-def resolve_device(
-    device_str: str = "auto",
-    require_cuda: bool = False,
-) -> torch.device:
-    """Resolve compute device with strict validation and clear error reporting.
-
-    Args:
-        device_str: 'auto', 'cuda', 'cuda:0', 'cpu', or DirectML 'dml:0'.
-        require_cuda: If True and CUDA is unavailable, raises RuntimeError with guidance.
-
-    Returns:
-        torch.device instance.
-    """
-    device_str = device_str.strip().lower()
-
-    if device_str == "auto":
-        if torch.cuda.is_available():
-            return torch.device("cuda")
-        if require_cuda:
-            raise RuntimeError(
-                "CUDA requested or required, but torch.cuda.is_available() is False.\n"
-                "If running in Google Colab, ensure GPU runtime is enabled:\n"
-                "  Runtime -> Change runtime type -> Hardware accelerator -> T4 / A100 / L4 GPU."
-            )
-        return torch.device("cpu")
-
-    if device_str.startswith("cuda"):
-        if not torch.cuda.is_available():
-            raise RuntimeError(
-                f"Device '{device_str}' requested, but CUDA is not available on this system.\n"
-                f"Available devices: CPU (CUDA available: False)."
-            )
-        return torch.device(device_str)
-
-    if device_str.startswith("dml:"):
-        try:
-            import torch_directml  # type: ignore
-            idx = int(device_str.split(":")[1])
-            return torch_directml.device(idx)
-        except Exception as e:
-            raise RuntimeError(f"DirectML device requested but unavailable: {e}")
-
-    return torch.device(device_str)
+logger = logging.getLogger("irene_brain.device")
 
 
-def get_hardware_summary() -> Dict[str, Any]:
-    """Inspects available compute hardware and returns structured telemetry."""
-    cuda_avail = torch.cuda.is_available()
-    gpu_name = None
-    gpu_memory_gb = None
-    cuda_version = torch.version.cuda if hasattr(torch.version, "cuda") else None
-    compute_cap = None
-
-    if cuda_avail:
-        try:
-            gpu_name = torch.cuda.get_device_name(0)
-            props = torch.cuda.get_device_properties(0)
-            gpu_memory_gb = round(props.total_memory / (1024**3), 2)
-            compute_cap = f"{props.major}.{props.minor}"
-        except Exception:
-            gpu_name = "CUDA Device (query error)"
-
-    return {
+def probe_system_gpus() -> Dict[str, Any]:
+    """Probe system video controllers via OS-level hardware discovery."""
+    gpu_info = {
         "os": platform.system(),
-        "python_version": platform.python_version(),
-        "pytorch_version": torch.__version__,
-        "cuda_available": cuda_avail,
-        "cuda_version": cuda_version,
-        "gpu_name": gpu_name,
-        "gpu_memory_gb": gpu_memory_gb,
-        "compute_capability": compute_cap,
+        "release": platform.release(),
+        "controllers": [],
+        "has_amd_radeon": False,
+        "has_nvidia": False,
     }
 
+    if platform.system() == "Windows":
+        try:
+            cmd = ["powershell", "-NoProfile", "-Command", "Get-CimInstance Win32_VideoController | Select-Object -Property Name, AdapterRAM, DriverVersion | ConvertTo-Json"]
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+            if proc.returncode == 0 and proc.stdout.strip():
+                import json
+                try:
+                    data = json.loads(proc.stdout)
+                    if isinstance(data, dict):
+                        data = [data]
+                    for item in data:
+                        name = str(item.get("Name", ""))
+                        gpu_info["controllers"].append({
+                            "name": name,
+                            "ram_bytes": item.get("AdapterRAM", 0),
+                            "driver": item.get("DriverVersion", ""),
+                        })
+                        if "Radeon" in name or "AMD" in name:
+                            gpu_info["has_amd_radeon"] = True
+                        if "NVIDIA" in name or "GeForce" in name or "RTX" in name:
+                            gpu_info["has_nvidia"] = True
+                except Exception:
+                    pass
+        except Exception as e:
+            logger.debug("Failed to query Win32_VideoController: %s", e)
 
-def format_hardware_summary() -> str:
-    """Returns standardized hardware summary string conforming to user specification."""
-    info = get_hardware_summary()
-    gpu_mem_str = f"{info['gpu_memory_gb']} GB" if info["gpu_memory_gb"] is not None else "N/A"
-    gpu_name_str = info["gpu_name"] if info["gpu_name"] is not None else "None"
-    cuda_ver_str = info["cuda_version"] if info["cuda_version"] is not None else "N/A"
-
-    return (
-        f"GPU: {gpu_name_str}\n"
-        f"CUDA available: {info['cuda_available']}\n"
-        f"GPU name: {gpu_name_str}\n"
-        f"GPU memory: {gpu_mem_str}\n"
-        f"PyTorch version: {info['pytorch_version']}\n"
-        f"CUDA version: {cuda_ver_str}"
-    )
+    return gpu_info
 
 
-def print_hardware_summary() -> None:
-    print("=" * 60)
-    print("PSEUDO-BRAIN HARDWARE TELEMETRY")
-    print("=" * 60)
-    print(format_hardware_summary())
-    print("=" * 60)
+def is_directml_available() -> bool:
+    """Check if torch_directml or native DirectML tensor backend is accessible."""
+    try:
+        import torch_directml  # type: ignore
+        return True
+    except ImportError:
+        return False
 
 
-if __name__ == "__main__":
-    print_hardware_summary()
+def get_directml_device(device_index: int = 0) -> Optional[torch.device]:
+    """Return DirectML torch device if available."""
+    try:
+        import torch_directml  # type: ignore
+        return torch_directml.device(device_index)
+    except ImportError:
+        return None
+
+
+def resolve_optimal_device(preference: Optional[str] = None) -> Tuple[torch.device, str]:
+    """Resolve optimal compute device for Pseudo-Brain models.
+    
+    Priority order:
+    1. Explicit preference ('cuda', 'dml', 'directml', 'cpu')
+    2. NVIDIA CUDA (if cuda.is_available())
+    3. AMD / Intel DirectML (if torch_directml is installed)
+    4. Multi-threaded CPU (default)
+    """
+    if preference:
+        pref = preference.lower().strip()
+        if pref == "cuda":
+            if torch.cuda.is_available():
+                return torch.device("cuda:0"), "cuda"
+            logger.warning("CUDA requested but not available; falling back to CPU.")
+            return torch.device("cpu"), "cpu_fallback"
+        elif pref in ("dml", "directml"):
+            dml_dev = get_directml_device()
+            if dml_dev is not None:
+                return dml_dev, "directml"
+            logger.warning("DirectML requested but torch_directml is not installed; falling back to CPU.")
+            return torch.device("cpu"), "cpu_fallback"
+        elif pref == "cpu":
+            return torch.device("cpu"), "cpu"
+
+    # Automatic selection
+    if torch.cuda.is_available():
+        return torch.device("cuda:0"), "cuda"
+
+    dml_dev = get_directml_device()
+    if dml_dev is not None:
+        return dml_dev, "directml"
+
+    return torch.device("cpu"), "cpu"
+
+
+def configure_cpu_threading(num_threads: Optional[int] = None) -> int:
+    """Configure CPU thread pool for deterministic real-time latency."""
+    if num_threads is not None and num_threads > 0:
+        torch.set_num_threads(num_threads)
+    return torch.get_num_threads()
+
+
+def get_device_telemetry(device: Optional[torch.device] = None) -> Dict[str, Any]:
+    """Report hardware topology, active device, and memory characteristics."""
+    gpu_hw = probe_system_gpus()
+    active_dev, backend = resolve_optimal_device(str(device) if device else None)
+
+    telemetry = {
+        "active_device": str(active_dev),
+        "backend": backend,
+        "cuda_available": torch.cuda.is_available(),
+        "directml_available": is_directml_available(),
+        "cpu_threads": torch.get_num_threads(),
+        "system_gpus": gpu_hw.get("controllers", []),
+        "has_amd_radeon": gpu_hw.get("has_amd_radeon", False),
+        "has_nvidia": gpu_hw.get("has_nvidia", False),
+    }
+
+    if backend == "cuda" and torch.cuda.is_available():
+        telemetry["cuda_device_name"] = torch.cuda.get_device_name(0)
+        telemetry["cuda_memory_allocated_mb"] = torch.cuda.memory_allocated() / (1024 * 1024)
+    elif gpu_hw.get("has_amd_radeon") and not is_directml_available():
+        telemetry["recommendation"] = (
+            "Detected AMD Radeon GPU without torch-directml. "
+            "To enable local DirectML hardware acceleration, install: pip install torch-directml"
+        )
+
+    return telemetry

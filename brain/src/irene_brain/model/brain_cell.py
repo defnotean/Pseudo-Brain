@@ -305,6 +305,201 @@ class FastPlasticityModule(nn.Module):
         return P_next, delta, gate
 
 
+class FactorizedLowRankProjection(nn.Module):
+    """Factorized low-rank linear projection (W -> r -> proj_dim or in_dim -> r -> out_dim).
+
+    Factorizes a high-dimensional linear projection into two low-rank stages:
+        down: in_features -> rank (no bias)
+        up:   rank -> out_features (with bias)
+
+    Reduces parameter complexity from O(in_dim * out_dim) to O(rank * (in_dim + out_dim)),
+    preventing latency explosion during core parameter scaling (proj_dim >= 512, 1024, 2816).
+    """
+
+    def __init__(
+        self,
+        in_features: int,
+        out_features: int,
+        rank: int,
+        bias: bool = True,
+    ) -> None:
+        super().__init__()
+        if rank <= 0:
+            raise ValueError(f"rank must be a positive integer, got {rank}")
+        self.in_features = in_features
+        self.out_features = out_features
+        self.rank = rank
+        self.down = nn.Linear(in_features, rank, bias=False)
+        self.up = nn.Linear(rank, out_features, bias=bias)
+        self.reset_parameters()
+
+    def reset_parameters(self) -> None:
+        nn.init.kaiming_uniform_(self.down.weight, a=math.sqrt(5))
+        nn.init.kaiming_uniform_(self.up.weight, a=math.sqrt(5))
+        if self.up.bias is not None:
+            fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self.up.weight)
+            bound = 1.0 / math.sqrt(fan_in) if fan_in > 0 else 0.0
+            nn.init.uniform_(self.up.bias, -bound, bound)
+
+    def forward(self, x: Tensor) -> Tensor:
+        return self.up(self.down(x))
+
+    def extra_repr(self) -> str:
+        return f"in_features={self.in_features}, out_features={self.out_features}, rank={self.rank}"
+
+
+class BrainCellCore(nn.Module):
+    """Recurrent BrainCell core with optional factorized low-rank projections and conditional recurrence."""
+
+    def __init__(
+        self,
+        input_size: int,
+        thought_size: int,
+        rank: int | None = None,
+    ) -> None:
+        super().__init__()
+        self.input_size = input_size
+        self.thought_size = thought_size
+        self.rank = rank
+
+        # Input projections (proj_dim -> thought_size): dense or factorized low-rank
+        if rank is not None and rank > 0:
+            self.W_ir: nn.Module = FactorizedLowRankProjection(input_size, thought_size, rank=rank)
+            self.W_iz: nn.Module = FactorizedLowRankProjection(input_size, thought_size, rank=rank)
+            self.W_in: nn.Module = FactorizedLowRankProjection(input_size, thought_size, rank=rank)
+        else:
+            self.W_ir = nn.Linear(input_size, thought_size)
+            self.W_iz = nn.Linear(input_size, thought_size)
+            self.W_in = nn.Linear(input_size, thought_size)
+
+        # Recurrent hidden transitions (thought_size -> thought_size)
+        self.W_hr = nn.Linear(thought_size, thought_size)
+        self.W_hz = nn.Linear(thought_size, thought_size)
+        self.W_hn = nn.Linear(thought_size, thought_size)
+
+        # Telemetry & FLOP tracking
+        self.eval_count: int = 0
+        self.total_flops: int = 0
+
+    def flops_per_slot(self) -> int:
+        """Calculate the theoretical FLOPs evaluated per active slot."""
+        if self.rank is not None and self.rank > 0:
+            flops_input = 3 * 2 * (self.input_size * self.rank + self.rank * self.thought_size)
+        else:
+            flops_input = 3 * 2 * (self.input_size * self.thought_size)
+        flops_hidden = 3 * 2 * (self.thought_size * self.thought_size)
+        flops_pointwise = (
+            3 * self.thought_size  # additions for pre-activations
+            + 8 * self.thought_size  # 2 sigmoids (~4 flops each)
+            + 4 * self.thought_size  # tanh (~4 flops)
+            + 4 * self.thought_size  # blend: (1-z)*n + z*thought
+        )
+        return flops_input + flops_hidden + flops_pointwise
+
+    def reset_telemetry(self) -> None:
+        """Reset evaluation slot count and FLOP tracking telemetry."""
+        self.eval_count = 0
+        self.total_flops = 0
+
+    def forward(self, thought: Tensor, x: Tensor) -> Tensor:
+        """Dense recurrent evaluation for arbitrary batch shape of thought and x.
+
+        Args:
+            thought: [..., thought_size]
+            x: [..., input_size]
+        """
+        batch_slots = thought.numel() // self.thought_size
+        self.eval_count += batch_slots
+        self.total_flops += batch_slots * self.flops_per_slot()
+
+        r = torch.sigmoid(self.W_ir(x) + self.W_hr(thought))
+        z = torch.sigmoid(self.W_iz(x) + self.W_hz(thought))
+        n = torch.tanh(self.W_in(x) + r * self.W_hn(thought))
+        return (1.0 - z) * n + z * thought
+
+    def forward_conditional(
+        self,
+        thoughts: Tensor,
+        x: Tensor,
+        salience: Tensor,
+        epsilon_dormant: float = 0.05,
+    ) -> tuple[Tensor, Tensor]:
+        """Event-driven sparse slot ticking (conditional recurrence).
+
+        Bypasses BrainCellCore evaluation when Cognitive Input Gate salience s_k < epsilon_dormant.
+        Dormant slots remain strictly unchanged with ZERO FLOPs evaluated.
+        Only active slots evaluate the heavy BrainCellCore matrix multiplications.
+
+        Args:
+            thoughts: [B, K, thought_size] or [N, thought_size] slot thought states
+            x: [B, K, input_size], [B, input_size], or [N, input_size] input features
+            salience: [B, K, 1], [B, K], or [N, 1], [N] CIG salience scores s_k
+            epsilon_dormant: dormancy threshold below which slots are bypassed
+
+        Returns:
+            updated_thoughts: updated thoughts tensor with dormant slots unchanged
+            active_mask: boolean tensor indicating which slots ticked
+        """
+        if thoughts.dim() == 2:
+            N, W = thoughts.shape
+            s_val = salience.squeeze(-1) if salience.dim() == 2 else salience
+            active_mask = (s_val >= epsilon_dormant)
+            num_active = int(active_mask.sum().item())
+
+            if num_active == 0:
+                return thoughts, active_mask
+
+            if num_active == N:
+                new_t = self.forward(thoughts, x)
+                s_blend = salience if salience.dim() == 2 else salience.unsqueeze(-1)
+                updated = (1.0 - s_blend) * thoughts + s_blend * new_t
+                return updated, active_mask
+
+            idx = torch.nonzero(active_mask, as_tuple=True)[0]
+            t_active = thoughts[idx]
+            x_active = x[idx]
+            new_t_active = self.forward(t_active, x_active)
+            s_blend = salience if salience.dim() == 2 else salience.unsqueeze(-1)
+            s_active = s_blend[idx]
+            updated_active = (1.0 - s_active) * t_active + s_active * new_t_active
+
+            next_thoughts = thoughts.clone()
+            next_thoughts[idx] = updated_active
+            return next_thoughts, active_mask
+
+        # 3D tensor: [B, K, W]
+        B, K, W = thoughts.shape
+        s_val = salience.squeeze(-1) if salience.dim() == 3 else salience
+        active_mask = (s_val >= epsilon_dormant)
+        num_active = int(active_mask.sum().item())
+
+        if num_active == 0:
+            return thoughts, active_mask
+
+        x_exp = x.unsqueeze(1).expand(-1, K, -1) if x.dim() == 2 else x
+
+        if num_active == B * K:
+            t_flat = thoughts.reshape(B * K, W)
+            x_flat = x_exp.reshape(B * K, -1)
+            new_t = self.forward(t_flat, x_flat).reshape(B, K, W)
+            s_blend = salience if salience.dim() == 3 else salience.unsqueeze(-1)
+            updated = (1.0 - s_blend) * thoughts + s_blend * new_t
+            return updated, active_mask
+
+        b_idx, k_idx = torch.nonzero(active_mask, as_tuple=True)
+        t_active = thoughts[b_idx, k_idx]
+        x_active = x_exp[b_idx, k_idx]
+        new_t_active = self.forward(t_active, x_active)
+
+        s_blend = salience if salience.dim() == 3 else salience.unsqueeze(-1)
+        s_active = s_blend[b_idx, k_idx]
+        updated_active = (1.0 - s_active) * t_active + s_active * new_t_active
+
+        next_thoughts = thoughts.clone()
+        next_thoughts[b_idx, k_idx] = updated_active
+        return next_thoughts, active_mask
+
+
 class BrainCell(nn.Module):
     """A stack of blocks; this one instance is tied across cognitive cycles."""
 
@@ -858,10 +1053,12 @@ class MonolithicRecurrentCell(nn.Module):
 
 __all__ = [
     "BrainCell",
+    "BrainCellCore",
     "BrainCellOutput",
     "ContinuousTimeBlend",
     "EnsembleBrainCell",
     "EnsembleMemberBlock",
+    "FactorizedLowRankProjection",
     "FastPlasticityModule",
     "MonolithicRecurrentBlock",
     "MonolithicRecurrentCell",

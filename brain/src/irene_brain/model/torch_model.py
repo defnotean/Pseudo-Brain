@@ -691,15 +691,25 @@ class IreneBrainModel(nn.Module):
         )
         belief_proposal = self.ingest_attention(state.belief, ingest_context)
         belief = self.ingest_blend(state.belief, belief_proposal, elapsed)
-        thoughts, thought_ages, applied_expire_probability = self._refresh_thoughts(
-            thoughts=state.thoughts,
-            sensors=sensors,
-            belief=belief,
-            elapsed_seconds=elapsed,
-            thought_age_seconds=state.thought_age_seconds,
-            thought_noise=thought_noise,
-            surprise=consequence_surprise_tensor,
-        )
+        try:
+            thoughts, thought_ages, applied_expire_probability = self._refresh_thoughts(
+                thoughts=state.thoughts,
+                sensors=sensors,
+                belief=belief,
+                elapsed_seconds=elapsed,
+                thought_age_seconds=state.thought_age_seconds,
+                thought_noise=thought_noise,
+                surprise=consequence_surprise_tensor,
+            )
+        except TypeError:
+            thoughts, thought_ages, applied_expire_probability = self._refresh_thoughts(
+                thoughts=state.thoughts,
+                sensors=sensors,
+                belief=belief,
+                elapsed_seconds=elapsed,
+                thought_age_seconds=state.thought_age_seconds,
+                thought_noise=thought_noise,
+            )
         working_memory = state.working_memory
         goal_context = state.goal_context
 

@@ -36,6 +36,10 @@ class AgentStepLog:
     gate_activation: float
     p_norm: float
     output_snippet: str
+    milestone_reinforcement: float = 0.0
+    completed_milestones: List[str] = field(default_factory=list)
+    active_milestone: Optional[str] = None
+    p_latch_prereq: Optional[float] = None
 
 
 @dataclass
@@ -47,6 +51,9 @@ class AgentTaskReport:
     total_steps: int
     cumulative_reward: float
     steps_log: List[AgentStepLog] = field(default_factory=list)
+    completed_milestones: List[str] = field(default_factory=list)
+    milestone_reward: float = 0.0
+
 
 
 class AgentCognitiveCore(nn.Module):
@@ -121,6 +128,8 @@ class AgentCognitiveCore(nn.Module):
         suppression_decay: float = 1.0,
         consecutive_failures: int = 0,
         specific_suppression: Optional[Dict[int, float]] = None,
+        milestone_reinforcement: float = 0.0,
+        consolidate_tool_idx: Optional[int] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, float]:
         """Runs a single recurrent cognitive step.
 
@@ -151,15 +160,23 @@ class AgentCognitiveCore(nn.Module):
         delta_P = gate * torch.tanh(self.p_modulator(torch.cat([h_next, consequence_surprise], dim=-1)))
         P_next = effective_decay * P_t + self.lr * delta_P
 
-        # Inhibition of Return & Subgoal Progression:
-        # Actively penalize repeating an action that failed, and discount immediate re-execution of completed action
+        # Endogenous Milestone Latch Consolidation
+        if consolidate_tool_idx is not None and milestone_reinforcement > 0.0:
+            consolidation_boost = torch.zeros_like(P_next)
+            consolidation_boost[0, consolidate_tool_idx] = 2.0 * float(milestone_reinforcement)
+            P_next = P_next + consolidation_boost
+
+        # 1. Action-specific suppression / guidance (e.g. from hierarchical milestone dependencies)
         if specific_suppression is not None:
             suppression = torch.zeros_like(P_next)
             for act_idx, supp_val in specific_suppression.items():
                 if 0 <= act_idx < self.n_tools:
                     suppression[0, act_idx] = supp_val
             P_next = P_next + suppression
-        elif last_action is not None:
+
+        # 2. Inhibition of Return & Subgoal Progression:
+        # Actively penalize repeating an action that failed, and discount immediate re-execution of completed action
+        if last_action is not None:
             if last_success is False:
                 # State-contingent IOR: decay suppression exponentially if state novelty or repair occurred
                 decay = np.exp(-2.0 * max(0.0, state_novelty)) * max(0.0, suppression_decay)
@@ -170,6 +187,8 @@ class AgentCognitiveCore(nn.Module):
                 discount = torch.zeros_like(P_next)
                 discount[0, last_action] = -1.2
                 P_next = P_next + discount
+
+
 
         # Combined Policy Logits
         base_logits = self.policy_head(h_next)
@@ -264,18 +283,56 @@ class PseudoBrainAgent:
 
         logs: List[AgentStepLog] = []
         cum_reward = 0.0
+        cum_milestone_reward = 0.0
         complete = False
         last_action_idx: Optional[int] = None
         last_success: Optional[bool] = None
         last_reward = 0.0
         consecutive_failures = 0
+        last_milestone_reinforcement = 0.0
+        last_consolidate_tool: Optional[int] = None
 
         for step in range(1, max_steps + 1):
             state_novelty = 0.0
             if last_failure_obs_emb is not None and last_success is False:
                 state_novelty = float(torch.norm(obs_emb - last_failure_obs_emb).item())
 
-            # 1. Thought / Planning / Policy forward step with outcome history
+            # Hierarchical Milestone Tracking:
+            # Check for blocked dependent milestones whose prerequisites are not yet completed
+            specific_suppression: Optional[Dict[int, float]] = None
+            active_milestone_desc: Optional[str] = None
+            if goal.milestones:
+                ready_milestones = goal.get_ready_milestones()
+                completed_milestones = [m for m in goal.milestones if m.completed]
+                if ready_milestones:
+                    active_milestone_desc = ready_milestones[0].description
+                blocked_milestones = [m for m in goal.milestones if not m.completed and m not in ready_milestones]
+                blocked_tool_names = {m.tool_name for m in blocked_milestones if m.tool_name}
+                ready_tool_names = {m.tool_name for m in ready_milestones if m.tool_name}
+                completed_tool_names = {m.tool_name for m in completed_milestones if m.tool_name}
+
+                # Manage hierarchical action progression:
+                # Suppress blocked actions until prerequisites complete,
+                # suppress completed actions to avoid subgoal stagnation,
+                # and prioritize ready milestone actions.
+                supp_dict: Dict[int, float] = {}
+                for idx in range(len(self.registry)):
+                    t_name = self.registry.get_by_index(idx).name
+                    if t_name in blocked_tool_names and t_name not in ready_tool_names:
+                        supp_dict[idx] = -6.0
+                    elif t_name in completed_tool_names and t_name not in ready_tool_names:
+                        supp_dict[idx] = -6.0
+                    elif t_name in ready_tool_names:
+                        if not (last_action_idx == idx and last_success is False):
+                            supp_dict[idx] = 2.0
+                if supp_dict:
+                    specific_suppression = supp_dict
+
+
+
+
+
+            # 1. Thought / Planning / Policy forward step with outcome history & milestone consolidation
             with torch.no_grad():
                 logits, h_t, P_t, gate_val = self.core.forward_step(
                     obs_emb=obs_emb,
@@ -287,6 +344,9 @@ class PseudoBrainAgent:
                     last_success=last_success,
                     state_novelty=state_novelty,
                     consecutive_failures=consecutive_failures,
+                    specific_suppression=specific_suppression,
+                    milestone_reinforcement=last_milestone_reinforcement,
+                    consolidate_tool_idx=last_consolidate_tool,
                 )
                 if action_selector is not None:
                     action_idx = action_selector(logits, logs)
@@ -304,10 +364,31 @@ class PseudoBrainAgent:
 
             tool_res = tool.execute(**args)
             r_true = tool_res.reward
-            cum_reward += r_true
 
-            # 3. Compute consequence prediction error (surprise)
-            delta_r = abs(r_true - r_hat)
+            # Check for completed hierarchical milestones on this step
+            newly_completed = goal.check_milestone_completion(
+                tool_name=tool_name,
+                tool_idx=action_idx,
+                tool_success=tool_res.success,
+                step=step,
+            )
+            if newly_completed:
+                m_t = sum(m.reinforcement for m in newly_completed)
+                consolidate_tool = action_idx
+                # Consolidate synaptic latch P_t on prerequisite tool immediately
+                P_t[0, action_idx] = P_t[0, action_idx] + 2.0 * float(m_t)
+            else:
+                m_t = 0.0
+                consolidate_tool = None
+
+            last_milestone_reinforcement = m_t
+            last_consolidate_tool = consolidate_tool
+
+            cum_reward += (r_true + m_t)
+            cum_milestone_reward += m_t
+
+            # 3. Compute consequence prediction error (surprise) incorporating milestone reinforcement
+            delta_r = abs(r_true - r_hat) + m_t
             consequence_surprise = torch.tensor([[delta_r]], device=self.device, dtype=torch.float32)
 
             # 4. Update observation embedding
@@ -331,6 +412,7 @@ class PseudoBrainAgent:
             last_reward = r_true
 
             # 5. Log telemetry
+            completed_milestone_ids = [m.milestone_id for m in goal.milestones if m.completed]
             p_norm = float(P_t.norm().item())
             logs.append(
                 AgentStepLog(
@@ -345,6 +427,10 @@ class PseudoBrainAgent:
                     gate_activation=gate_val,
                     p_norm=p_norm,
                     output_snippet=obs_snippet,
+                    milestone_reinforcement=m_t,
+                    completed_milestones=completed_milestone_ids,
+                    active_milestone=active_milestone_desc,
+                    p_latch_prereq=float(P_t[0, action_idx].item()),
                 )
             )
 
@@ -360,6 +446,8 @@ class PseudoBrainAgent:
             total_steps=len(logs),
             cumulative_reward=cum_reward,
             steps_log=logs,
+            completed_milestones=[m.milestone_id for m in goal.milestones if m.completed],
+            milestone_reward=cum_milestone_reward,
         )
 
 

@@ -28,3 +28,14 @@ select = ["E", "F", "I", "UP", "B"]
 pythonVersion = "3.11"
 typeCheckingMode = "strict"
 include = ["src", "tests"]
+
+[tool.pytest.ini_options]
+pythonpath = [
+    "src",
+    "experiments",
+    "experiments/memory_benchmark",
+    "experiments/semantic_benchmark",
+    "experiments/agent_benchmarks",
+]
+testpaths = ["tests"]
+

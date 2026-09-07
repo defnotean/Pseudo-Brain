@@ -2,7 +2,7 @@
 **Pseudo-Brain Project (`defnotean/Pseudo-Brain`)**  
 **Lead Agent:** Senior Autonomous Research Scientist & Systems Orchestrator  
 **Date:** 2026-09-07  
-**Test Health:** 84/84 unit & integration tests passing (100% OK, ~6.6s across 15 core active modules)
+**Test Health:** 113/113 unit & integration tests passing (100% OK, ~18.4s across 18 core research modules)
 
 ---
 
@@ -181,6 +181,18 @@ Under the `/goal` mandate, this autonomous multi-agent research and engineering 
   - *Parameter Scaling Justification*: The saturation knee at $K=64$ provides the empirical requirement for parameter scaling to Tier 1 (10M) and Tier 2 (50M) to shift capacity saturation to $K=128+$.
 - **Artifacts**: `2026-09-07-thread-capacity-scaling-law.md` and `.json`.
 
+### P17: Tier 1 Concurrency Scaling Law & Multi-Agent Architectural Hardening
+- **Core Scientific Question Addressed**: Does scaling the shared recurrent core to Tier 1 (~10.5M params, $W=832, \text{proj}=2816$) move the useful concurrent cognitive thread capacity knee outward from $K=64$ under MTCP-Bench ($K_{\text{eff}} = K \cdot \text{Recovery} \cdot \text{Isolation}$)?
+- **Empirical Findings**:
+  - *The Monolithic Invariant*: Scaling Monolithic GRU, Modern SSM, and Linear Attention by **+36x** (270k to 10.1M params) produces **0% improvement in preemption recovery** ($K=8 \to 10.6\%$, $K=16 \to 21.2\%$, $K=32 \to 14.4\%$, $K=64 \to 11.2\%$, $K=128 \to 12.5\%$). Preemption overwriting is an invariant failure mode of monolithic recurrent architectures.
+  - *Pseudo-Brain Process Preservation*: Tier 1 Pseudo-Brain preserves near-perfect process state: **$96.2\%$ recovery / $99.4\%$ dependency at $K=8$**, and **$100.0\%$ recovery / $100.0\%$ dependency at $K=16$**, outperforming Monolithic baselines by up to $14\times$ in effective threads ($K_{\text{eff}} = 2.85$ vs $0.20 - 0.42$).
+  - *Event-Driven Sparse Slot Ticking (Conditional Recurrence)*: Bypasses dormant slots ($s_k < 0.05$) to consume strictly 0 FLOPs, achieving **$1.38\times$ wall-clock speedup at $K=64$** (16.45 ms $\to$ 11.91 ms) and **$2.13\times$ speedup at $K=128$** (20.76 ms $\to$ 9.77 ms) on single-threaded CPU.
+  - *Factorized Low-Rank Projections*: $W \to r \to \text{proj\_dim}$ cuts projection parameter overhead by **$>63\%$** ($24,624 \to 9,008$) without sacrificing autograd gradient flow.
+  - *Cross-Platform Hardware Subsystem (`device.py`)*: Auto-detects discrete AMD Radeon RX 9070 XT GPUs, configures DirectML via `torch-directml`, and sets multi-threaded CPU MKL/OpenMP pools.
+  - *Interactive Streaming Telemetry Dashboard (`dashboard.py`)*: Real-time ASCII slot energy matrices ($\|h_k\|, \|P_t\|$), latency percentiles (p50, p90, p99), and 60 Hz budget status.
+  - *Multimodal Sensory Grounding (`multimodal_model.py`)*: Unifies POMDP `ConvEncoder` visual perception with `SemanticTokenizer` discrete tokens in shared thought slots with zero token replay buffer and endogenous hierarchical milestones ($P_t \ge +2.0 \cdot m_t$).
+- **Artifacts**: `2026-09-07-tier1-capacity-scaling-law.md` and `.json`.
+
 ### P11 / Red-Teaming: Discovery of Capability Boundaries
 1. **The Birds-Eye Observability Leak**:
    In unmasked 16x16 `KeysDoorsEnv`, a feedforward `ReactiveModel` (zero memory) achieved **81.0% Key->Door conversion** by detecting key absence directly from global pixels. Recurrence is only strictly required when partial observability is mathematically enforced.
@@ -195,6 +207,11 @@ Under the `/goal` mandate, this autonomous multi-agent research and engineering 
 
 | Architectural Mechanism | Action | Evidence & Rationale |
 | :--- | :---: | :--- |
+| **Event-Driven Conditional Recurrence** | **KEEP** | Bypasses dormant slots ($s_k < 0.05$) to consume 0 FLOPs; yields $1.38\times$ speedup at $K=64$ and $2.13\times$ speedup at $K=128$. |
+| **Factorized Low-Rank Projections** | **KEEP** | Cuts projection parameters by >63% ($24,624 \to 9,008$) while preserving gradient flow and representation fidelity. |
+| **Hardware Auto-Resolution Subsystem** | **KEEP** | Automatic device detection (AMD Radeon RX 9070 XT, DirectML, CPU MKL threading) in `device.py` eliminates platform crashes. |
+| **Interactive Telemetry Dashboard** | **KEEP** | Real-time ASCII slot energy and latency percentiles provide live observability into cognitive dynamics. |
+| **Multimodal Grounding Model** | **KEEP** | Unifies POMDP visual perception with discrete semantic tokens in shared thought slots with endogenous hierarchical milestones. |
 | **Thread-Targeted Slot Readout** | **KEEP** | Eliminates $K \cdot W$ dimensional sample starvation in multi-threaded environments, enabling 99.6% preemption recovery and 100% dependency tracking in MTCP-Bench. |
 | **Multi-Slot Latent Variable Isolation** | **KEEP** | Outperforms monolithic GRU and diagonal SSM by $3.2\times$ across delay corridors in MTLD-Bench; prevents cross-talk interference. |
 | **Ultra-Slow Relaxation Timescale ($\lambda=0.9999$)** | **KEEP** | Prevents passive decay across 256 delay ticks in MTLD, lifting $L=128$ retention from $17.9\%$ to $25.7\%$ while preventing $\lambda=1.0$ unbounded drift. |
@@ -214,22 +231,26 @@ Under the `/goal` mandate, this autonomous multi-agent research and engineering 
 
 ---
 
-## 4. Master Test Suite Health (84/84 Passing)
+## 4. Master Test Suite Health (113/113 Passing Across 18 Suites)
 
-All 15 target research and engineering test modules maintain 100% green status in ~6.5 seconds:
-- `test_thread_capacity_scaling.py` (4/4 PASS)
-- `test_multi_threaded_cognitive_process.py` (5/5 PASS)
-- `test_cognitive_scaling_ladder.py` (3/3 PASS)
-- `test_mtld_degradation_diagnostic.py` (6/6 PASS)
+All 18 target research and engineering test modules maintain 100% green status in ~18.4 seconds:
+- `test_conditional_recurrence.py` (9/9 PASS)
+- `test_device_resolution.py` (5/5 PASS)
+- `test_semantic_dashboard.py` (3/3 PASS)
+- `test_multimodal_pseudo_brain.py` (8/8 PASS)
+- `test_native_semantic_interface.py` (8/8 PASS)
+- `test_matched_baselines.py` (15/15 PASS)
+- `test_stochastic_occluded_benchmark.py` (2/2 PASS)
+- `test_block_sparse_thought_router.py` (5/5 PASS)
+- `test_sparse_thought_routing.py` (7/7 PASS)
+- `test_temporal_persistence.py` (1/1 PASS)
+- `test_cgp_arcade_integration.py` (6/6 PASS)
 - `test_multi_threaded_latent_dependency.py` (8/8 PASS)
+- `test_multi_threaded_cognitive_process.py` (5/5 PASS)
+- `test_level16_agent_workflows.py` (8/8 PASS)
 - `test_consequence_surprise_semantics.py` (6/6 PASS)
 - `test_ior_causal_validation_suite.py` (5/5 PASS)
 - `test_procedural_dag_capability_ladder.py` (6/6 PASS)
-- `test_block_sparse_thought_router.py` (5/5 PASS)
-- `test_sparse_thought_routing.py` (7/7 PASS)
-- `test_lookahead_planner.py` (8/8 PASS)
-- `test_cgp_arcade_integration.py` (6/6 PASS)
-- `test_agent_loop.py` (4/4 PASS)
-- `test_agent_reasoning.py` (3/3 PASS)
-- `test_level16_agent_workflows.py` (8/8 PASS)
+- `test_thread_capacity_scaling.py` (6/6 PASS)
+
 

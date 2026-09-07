@@ -42,9 +42,10 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_REPO_ROOT / "src"))
 sys.path.insert(0, str(_REPO_ROOT / "experiments"))
 
+from irene_brain.model.brain_cell import BrainCellCore, FactorizedLowRankProjection
 from irene_brain.model.sparse_thought_router import SparseThoughtRouter
 from irene_brain.model.torch_model import deterministic_thought_identity_codes
-from memory_benchmark.multi_threaded_latent_dependency_benchmark import BrainCellCore, count_params
+from memory_benchmark.multi_threaded_latent_dependency_benchmark import count_params
 
 
 # ==============================================================================
@@ -300,16 +301,23 @@ class MTCPPseudoBrainModel(nn.Module):
         num_values: int = 8,
         plastic_decay: float = 0.9999,
         plastic_lr: float = 0.25,
+        rank: Optional[int] = None,
+        epsilon_dormant: float = 0.05,
+        conditional_recurrence: bool = True,
     ):
         super().__init__()
         self.K = K
         self.thought_size = thought_size
+        self.proj_dim = proj_dim
         self.num_values = num_values
         self.plastic_decay = plastic_decay
         self.plastic_lr = plastic_lr
+        self.rank = rank
+        self.epsilon_dormant = epsilon_dormant
+        self.conditional_recurrence = conditional_recurrence
 
         self.proj = nn.Linear(input_dim, proj_dim)
-        self.brain_cell = BrainCellCore(input_size=proj_dim, thought_size=thought_size)
+        self.brain_cell = BrainCellCore(input_size=proj_dim, thought_size=thought_size, rank=rank)
 
         # CIG Gate with Temperature Sharpening
         self.cig_gate = nn.Sequential(
@@ -319,11 +327,18 @@ class MTCPPseudoBrainModel(nn.Module):
         nn.init.constant_(self.cig_gate[0].bias, 1.0)
 
         # Thread-Targeted Slot Readout (eliminates M=32 sample-starvation wall!)
-        self.slot_head = nn.Sequential(
-            nn.Linear(thought_size, proj_dim // 2),
-            nn.GELU(),
-            nn.Linear(proj_dim // 2, num_values),
-        )
+        if rank is not None and rank > 0:
+            self.slot_head = nn.Sequential(
+                FactorizedLowRankProjection(thought_size, proj_dim // 2, rank=rank),
+                nn.GELU(),
+                nn.Linear(proj_dim // 2, num_values),
+            )
+        else:
+            self.slot_head = nn.Sequential(
+                nn.Linear(thought_size, proj_dim // 2),
+                nn.GELU(),
+                nn.Linear(proj_dim // 2, num_values),
+            )
 
         # Synaptic Plastic Latch per slot: [B, K, num_values]
         self.plastic_modulator = nn.Linear(thought_size + 16, num_values)
@@ -371,13 +386,20 @@ class MTCPPseudoBrainModel(nn.Module):
             raw_gate = self.cig_gate(gate_in)
             salience = torch.sigmoid((torch.logit(raw_gate.clamp(1e-6, 1 - 1e-6))) / 0.5)
 
-            # BrainCell Core
-            t_flat = thoughts.reshape(B * self.K, self.thought_size)
-            x_flat = x_exp.reshape(B * self.K, -1)
-            new_t = self.brain_cell(t_flat, x_flat).reshape(B, self.K, self.thought_size)
-
-            # Isolated slot update (eliminates orthogonal cross-talk)
-            thoughts = (1.0 - salience) * thoughts + salience * new_t
+            # Event-Driven Sparse Slot Ticking (Conditional Recurrence)
+            if self.conditional_recurrence and self.epsilon_dormant > 0.0:
+                thoughts, _ = self.brain_cell.forward_conditional(
+                    thoughts=thoughts,
+                    x=x_exp,
+                    salience=salience,
+                    epsilon_dormant=self.epsilon_dormant,
+                )
+            else:
+                # Dense fallback
+                t_flat = thoughts.reshape(B * self.K, self.thought_size)
+                x_flat = x_exp.reshape(B * self.K, -1)
+                new_t = self.brain_cell(t_flat, x_flat).reshape(B, self.K, self.thought_size)
+                thoughts = (1.0 - salience) * thoughts + salience * new_t
 
             # Surprise & Fast Synaptic Latch Update
             delta_slot = torch.norm(thoughts - prev_thoughts, dim=-1, keepdim=True)  # [B, K, 1]
@@ -543,6 +565,9 @@ def make_mtcp_model(
     input_dim: int = 64,
     num_threads: int = 8,
     num_values: int = 8,
+    rank: Optional[int] = None,
+    epsilon_dormant: float = 0.05,
+    conditional_recurrence: bool = True,
 ) -> nn.Module:
     """Create parameter-matched model for MTCP-Bench."""
     if arch == "pseudo_brain":
@@ -552,6 +577,9 @@ def make_mtcp_model(
             thought_size=48,
             proj_dim=512,
             num_values=num_values,
+            rank=rank,
+            epsilon_dormant=epsilon_dormant,
+            conditional_recurrence=conditional_recurrence,
         )
     elif arch == "gru":
         return MTCPMonolithicGRU(

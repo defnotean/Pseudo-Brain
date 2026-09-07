@@ -39,19 +39,19 @@
     }
   },
   "implementation": {
-    "source_bundle_sha256": "c1d3a2b371579469bda45a9eb153423bca92cc4ff6024fc43d9abbe303018e5d",
+    "source_bundle_sha256": "ffe46621e110e857e5f62cc11a70591fbe679c4a9858786ed87be5cee4cfe7ff",
     "source_files": {
       "src/irene_brain/model/actuator.py": "f6c7f9e5031a753e406744e715a7f8045b8503020cd6052fbc2fa05e66bceba4",
-      "src/irene_brain/model/baselines.py": "045a8c5d7330fbc24823a5481c8c8b0a402af47559942a66b80eee72e76db663",
-      "src/irene_brain/model/brain_cell.py": "d0a85f2021d84d0ea6a5eee63ecd401fb692bfd2dafed52d674e26561ffd5496",
-      "src/irene_brain/model/sensory.py": "bd7ae52907076f9eb19b9fa24a8ddc85abffb9cfee9577ee6a8af11898330dca",
-      "src/irene_brain/model/spec.py": "d6c718fa4ee8ff2e031f30746d490603e2a4aac3a31d124bdef1d7c2c2148cf5",
-      "src/irene_brain/model/torch_model.py": "5e4eceb721dafc90fc13928e8d9805b80f913f192280cad62c6573b1849ffbe3",
-      "src/irene_brain/training/factory.py": "c6230b36fde9925d8e65fa6334def360effbd856ee84341517c9610fedd6af2a",
-      "src/irene_brain/training/objective.py": "fd1eeba42bafe5e48227760c09e883fe3fa827b5fd328683b6d9de847a0af1e8"
+      "src/irene_brain/model/baselines.py": "fa3b5af56c7628426ac5314605039dfa92bc970a251271ea5c7466af9ef15e41",
+      "src/irene_brain/model/brain_cell.py": "1f28859e245b5fa709aa96578d2c6f928c381fb21142131632f789474a3a58eb",
+      "src/irene_brain/model/sensory.py": "bbdb3282f531de8917b2b7bfdd8b2a43e8344f1bf09f99c1254bccaa819ce58b",
+      "src/irene_brain/model/spec.py": "cb233409b00c739c347f83aa641e75aa8317cce9ebc974741709ca66a69718c3",
+      "src/irene_brain/model/torch_model.py": "a00facc70ebf8eec813a79ba70a701daec121e2572feb370dc62a3f7910ac321",
+      "src/irene_brain/training/factory.py": "da0c97218dc49bedbbeb7ecfd3dc2c3fdaffdc7578a7162356cbdb9451e910a5",
+      "src/irene_brain/training/objective.py": "90b2bf33b9905b83900cd71e8ae78a82a788d542ab35e51cb34a54c512c2c775"
     }
   },
-  "manifest_sha256": "961efed1a24cef8532f0bf5ef238e448cdbf0c5c75da420c2b63899b91eeb679",
+  "manifest_sha256": "9de0194109e008a6e87223e9f9309261eb6d47f2d0fcb09bf5f1aa9553457a41",
   "reference_variant_id": "irene.thought_field.routed.v1",
   "schema_version": 1,
   "variants": [
@@ -100,7 +100,7 @@
       "training_recipe": {
         "canonical_config_sha256": "55b0c0908029868ca5db7854db456d88eb8fccd73c250c752252bf8f236b4f0e",
         "path": "configs/training/baseline-stagea-monolithic-parameter-matched.toml",
-        "raw_sha256": "4b01d28e25eff71fd115055594ebe3c26bc51ee26bcee1f59fa6d52ecaac141a"
+        "raw_sha256": "6c87ed218051903c7b32c2b602faa26f81b6ef69746c4433546b8c9938d0f524"
       },
       "variant_id": "irene.monolithic_gru.parameter_matched.v1",
       "variant_identity_sha256": "f8022dbca00ce90b68a79ef8995d7a35182450aa459ee1b429461788ee877659"
@@ -150,7 +150,7 @@
       "training_recipe": {
         "canonical_config_sha256": "6060b0026a48598264dfd77e72dd4cab59852f0101649b86fe551edc84615f6c",
         "path": "configs/training/baseline-stagea-monolithic-same-width.toml",
-        "raw_sha256": "f42b918bb71e756e327ad2a2a67ca4cb86a898a4bae87c5896148c008465523d"
+        "raw_sha256": "f83de9b537196d95795a056f4575108097c768dadb86f3695ada2562f771549e"
       },
       "variant_id": "irene.monolithic_gru.same_width.v1",
       "variant_identity_sha256": "d41bb7853e888f17704df22fa82322ad1dd86b61caf1d46c31eb64fd8c835434"
@@ -200,7 +200,7 @@
       "training_recipe": {
         "canonical_config_sha256": "a64bab6a61de20d4e2a1e929d73052a912542db81e1aa412dc2fb20cee53c28b",
         "path": "configs/training/baseline-stagea-recurrent-transformer.toml",
-        "raw_sha256": "2149388a58c88c5994cbe5414feb80c7985369e2369c58e6414b254652c094b2"
+        "raw_sha256": "f51a87baca26886e33840a6337520f9364dd1c0ec329aac2995fecae64ef72fc"
       },
       "variant_id": "irene.recurrent_transformer.carry_token.v1",
       "variant_identity_sha256": "5a5d6ee9db8bb4faec1efc76c364c128b0604d358b5f2944c59e785dd0255f35"
@@ -250,7 +250,7 @@
       "training_recipe": {
         "canonical_config_sha256": "bc28eb2a937967c4515a61a27fc9de264ff42b81e939e1dad0a6f0d4933b59c7",
         "path": "configs/training/baseline-stagea-dense-communication.toml",
-        "raw_sha256": "8e9b3f794be12fcd623d880b93fdf61fb1e809f8d0b949ec72a75b739323fe95"
+        "raw_sha256": "b290b14c6edf56cea307d45c8bff6a562480c1830c3cfb97ce9426cd13a05a7e"
       },
       "variant_id": "irene.thought_field.dense_routing.v1",
       "variant_identity_sha256": "5dc1acc4f17240156568193cfde9aaeee321ccd7fc84efa4ecd1aa9e29d65044"
@@ -300,7 +300,7 @@
       "training_recipe": {
         "canonical_config_sha256": "25f83540dacd8603e9168055afb6f93d73d356b08f4331648e96d2e360db438c",
         "path": "configs/training/baseline-stagea-fixed-multi-horizon.toml",
-        "raw_sha256": "028555f380419c0340396e7f69cf976241d5b56a5e4881624d573b6ec823f053"
+        "raw_sha256": "cff31479f6189c2c073a1b0616af43af86fe869678716b7e42a60be1f30d7bfa"
       },
       "variant_id": "irene.thought_field.fixed_multi_horizon.v1",
       "variant_identity_sha256": "0b4aed284035f2fc27c2cb5d11249bc9a09ead639817f64bc1c1c5d61165ad9f"
@@ -351,7 +351,7 @@
       "training_recipe": {
         "canonical_config_sha256": "55486f575ba43591d945d908eb1e8a5d5c94df253f54ba7661bcb99a1aef7ce1",
         "path": "configs/training/baseline-stagea-matched-ensemble.toml",
-        "raw_sha256": "24c7e7935da1da9018e672befa10b9768505d07a97bde5383bf759357cc57c96"
+        "raw_sha256": "5bb3b13fa30824207950a05ca0766193b2304c2bf00dc84219ec31a3d31118e0"
       },
       "variant_id": "irene.thought_field.independent_ensemble.v1",
       "variant_identity_sha256": "67b878326cb0987aa6e0a3063705014f15bf302bc8bb5758cf14a07cf8f53056"
@@ -401,7 +401,7 @@
       "training_recipe": {
         "canonical_config_sha256": "9ca4c3cc23a77fd2f28cdd38afd2ee3be673e909a6d9753fb8e8a572420e5161",
         "path": "configs/training/baseline-stagea-no-communication.toml",
-        "raw_sha256": "1fb17c78ff38209d8a5ad05a0c9d7e4227c4cd44aad654c03015a229f3cc1e3e"
+        "raw_sha256": "240c65d2e8d378626e070c5d0b6d439ec6ab9e93b4ef08f5210c3b9497d78140"
       },
       "variant_id": "irene.thought_field.isolated_slots.v1",
       "variant_identity_sha256": "4f56abaee97c73c6660367418fb3440d44a54f8bb1c7cfe3e7d05e1a1c439600"
@@ -451,7 +451,7 @@
       "training_recipe": {
         "canonical_config_sha256": "707a2add36625207c9205f805bf5c1da3589eac0562b2e56e334a009f6877710",
         "path": "configs/training/baseline-stagea-reactive.toml",
-        "raw_sha256": "e8058e90ee4af8b8b375363d0c4eab94b6b4aa37a7d357170f1a7cd70fa25810"
+        "raw_sha256": "fe2a43df0860a931183067c499c29eedc618bf96cdf5d30a206e082048302c20"
       },
       "variant_id": "irene.thought_field.reactive.v1",
       "variant_identity_sha256": "7137f6ca901800df0de34fcbc21091a80697c0d14a0fa4ab00f31553a43a1fb4"
@@ -501,7 +501,7 @@
       "training_recipe": {
         "canonical_config_sha256": "a436363059a938a19e06f9a9d860093cddc6f1eaeef1d2359964900434a22e7d",
         "path": "configs/training/baseline-stagea-reset-slots.toml",
-        "raw_sha256": "47b0e69ea2dcffd563f012a46340c5f279fd2310437d77ab0412d66fe379ea77"
+        "raw_sha256": "8683ff24e357b58b1243fbc4761cd91dffb1b01a136cedc290f2436d045bc306"
       },
       "variant_id": "irene.thought_field.reset_slots.v1",
       "variant_identity_sha256": "1b8dfba7793525760ad2e9336d3579f7c18652bd2dcdbbe78bc838b12ca82095"
@@ -551,7 +551,7 @@
       "training_recipe": {
         "canonical_config_sha256": "8e8e4cc12123f55ee22aace1d65517dbb7586465bbf704c77cc7fe45bb3fc1f9",
         "path": "configs/training/dgx-stagea-continuation-gate-b.toml",
-        "raw_sha256": "f013e3e14dfb854da1131aa726dd141bbe22e5766db8a48ed7cdb1aff6b9a6bf"
+        "raw_sha256": "e1581d72744c55812043f7b7a5724daca09dbb46cec3bd93bfc4a8651e2581cd"
       },
       "variant_id": "irene.thought_field.routed.v1",
       "variant_identity_sha256": "dedb079de66dda87fe40fdfefc101b9b788facc278121faa97d6d2e08cbc845e"
@@ -601,7 +601,7 @@
       "training_recipe": {
         "canonical_config_sha256": "72ced8a17f9deae15681db84a6584f132030f57ae9897714ca5c4ac824c89c0c",
         "path": "configs/training/baseline-stagea-serial-depth.toml",
-        "raw_sha256": "e35fe6e45a56fa72021e58006dac622db475476afe373c8c2c3ba9320b55ff6c"
+        "raw_sha256": "ac8ed2fbc01c6e899b8e2adec4894bb6f5678e706ef303675349cb1082764c15"
       },
       "variant_id": "irene.thought_field.serial_depth.v1",
       "variant_identity_sha256": "a2e8df946d055727984d018d20582c59eda9f35bf60cc19401681626544dcc68"
