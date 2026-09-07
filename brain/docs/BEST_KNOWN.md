@@ -1,7 +1,7 @@
 # Pseudo-Brain: BEST_KNOWN State
 
 **Last Updated:** 2026-09-07  
-**Champion Git Commit:** `f81300d`  
+**Champion Git Commit:** `7de10c5`  
 **Active Branch:** `defnotean/pseudo-brain`  
 **Hardware Baselines:**
 - Local: Windows 11 AMD CPU / DirectML
