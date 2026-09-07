@@ -2,7 +2,7 @@
 **Pseudo-Brain Project (`defnotean/Pseudo-Brain`)**  
 **Lead Agent:** Senior Autonomous Research Scientist & Systems Orchestrator  
 **Date:** 2026-09-07  
-**Test Health:** 66/66 unit & integration tests passing (100% OK, ~5.3s across 11 core active modules)
+**Test Health:** 84/84 unit & integration tests passing (100% OK, ~6.6s across 15 core active modules)
 
 ---
 
@@ -170,6 +170,17 @@ Under the `/goal` mandate, this autonomous multi-agent research and engineering 
   - *Compound Cognitive Advantage*: Pseudo-Brain achieves compound scores of **45.88 at 8 threads ($91.8\times$ over GRU)** and **37.95 at 16 threads ($82.5\times$ over GRU)** with sub-2.5ms inference latency on single-threaded CPU.
 - **Artifacts**: `2026-09-07-mtcp-benchmark.md` and `.json`.
 
+### P16: Concurrent Cognitive Thread Capacity Scaling Law ($K \in [8, 256]$)
+- **Core Scientific Question Addressed**: What is the empirical scaling law of useful concurrent cognitive threads $K_{\text{eff}} = K \cdot \text{Acc}_{\text{overall}}$ as concurrency scales across orders of magnitude ($K \in [8, 16, 32, 64, 128, 256]$) on a fixed 130k-parameter micro-core?
+- **Protocol**: Benchmarked 4 parameter-matched architectures across 6 concurrency tiers under full multi-threaded pipeline workloads with preemption interruptions and cross-thread dependencies.
+- **Empirical Findings**:
+  - *Near-Linear Scaling to $K=64$*: Effective thread capacity scales near-linearly from $K=8$ ($K_{\text{eff}} = 6.77$, 84.7% util, 1.31 ms) $\to$ $K=16$ ($K_{\text{eff}} = 13.26$, 82.9% util, 1.97 ms) $\to$ $K=32$ ($K_{\text{eff}} = 27.27$, 85.2% util, 3.59 ms) $\to$ $K=64$ (**$K_{\text{eff}} = 57.87$, 90.4% util, 8.98 ms latency**).
+  - *Embodied 60-Hz CPU Compliance*: At $K=64$ concurrent cognitive threads, single-threaded CPU execution time is **8.98 ms** (comfortably under the 16.67 ms real-time ceiling).
+  - *Capacity Saturation Knee at $K \ge 128$*: The 130k-parameter core exhibits sharp capacity saturation at $K=128$ ($K_{\text{eff}} = 18.29$, 22.67 ms) and reaches overload floor at $K=256$ ($K_{\text{eff}} = 6.16$, 71.86 ms).
+  - *Monolithic Baselines Flatlining*: Monolithic GRU ($K_{\text{eff}} \in [0.98, 3.67]$), Modern SSM ($K_{\text{eff}} \in [0.96, 3.12]$), and Linear Attention ($K_{\text{eff}} \in [0.98, 3.54]$) remain permanently flat across all concurrency levels.
+  - *Parameter Scaling Justification*: The saturation knee at $K=64$ provides the empirical requirement for parameter scaling to Tier 1 (10M) and Tier 2 (50M) to shift capacity saturation to $K=128+$.
+- **Artifacts**: `2026-09-07-thread-capacity-scaling-law.md` and `.json`.
+
 ### P11 / Red-Teaming: Discovery of Capability Boundaries
 1. **The Birds-Eye Observability Leak**:
    In unmasked 16x16 `KeysDoorsEnv`, a feedforward `ReactiveModel` (zero memory) achieved **81.0% Key->Door conversion** by detecting key absence directly from global pixels. Recurrence is only strictly required when partial observability is mathematically enforced.
@@ -203,9 +214,10 @@ Under the `/goal` mandate, this autonomous multi-agent research and engineering 
 
 ---
 
-## 4. Master Test Suite Health (80/80 Passing)
+## 4. Master Test Suite Health (84/84 Passing)
 
-All 14 target research and engineering test modules maintain 100% green status in ~6.0 seconds:
+All 15 target research and engineering test modules maintain 100% green status in ~6.5 seconds:
+- `test_thread_capacity_scaling.py` (4/4 PASS)
 - `test_multi_threaded_cognitive_process.py` (5/5 PASS)
 - `test_cognitive_scaling_ladder.py` (3/3 PASS)
 - `test_mtld_degradation_diagnostic.py` (6/6 PASS)

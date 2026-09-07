@@ -165,3 +165,12 @@ We maintain strict claim discipline ([MEASURED], [INFERRED], [HYPOTHESIS], [ASPI
    - **Preemption Recovery**: Pseudo-Brain achieves **$99.6\%$ recovery accuracy at 8 threads and $76.2\%$ at 16 threads**, resuming interrupted pipelines seamlessly, while Monolithic GRU ($20.8\% / 15.4\%$), Modern SSM ($12.1\% / 11.7\%$), and Linear Attention ($12.1\% / 13.8\%$) collapse to chance.
    - **Compound Cognitive Advantage**: Pseudo-Brain achieves compound scores of **45.88 at 8 threads ($91.8\times$ over GRU)** and **37.95 at 16 threads ($82.5\times$ over GRU)** at sub-2.5ms latency.
    - Documented in `brain/docs/runs/2026-09-07-mtcp-benchmark.md` and `.json`.
+
+9. **Concurrent Cognitive Thread Capacity Scaling Law (Workstream 12)**: [COMPLETE & REPORTED]
+   - Evaluated the empirical scaling law of useful concurrent cognitive threads $K_{\text{eff}} = K \cdot \text{Acc}_{\text{overall}}$ across $K \in [8, 16, 32, 64, 128, 256]$ with a fixed 130k-parameter micro-core on single-threaded CPU.
+   - **Linear Scaling to $K=64$ ($K_{\text{eff}} = 57.87$)**: Thread capacity scales near-linearly from $K=8$ ($K_{\text{eff}} = 6.77$, 84.7% util, 1.31 ms) up to $K=64$ ($K_{\text{eff}} = 57.87$, **90.4% util, 8.98 ms latency**), remaining comfortably within the 16.67 ms (60 Hz) embodied real-time deadline.
+   - **Capacity Saturation Knee at $K \ge 128$**: The micro-core saturates at $K=128$ ($K_{\text{eff}} = 18.29$, 22.67 ms) and reaches overload floor at $K=256$ ($K_{\text{eff}} = 6.16$, 71.86 ms).
+   - **Monolithic Baseline Flatlining**: Monolithic GRU, Modern Diagonal SSM, and Linear Attention remain flat at $K_{\text{eff}} \le 3.67$ threads across all concurrency levels ($0.98 - 3.67$ threads, $12\% - 23\%$ accuracy).
+   - **Direct Justification for Parameter Scaling**: The saturation knee at $K=64$ for the 130k-parameter core provides the quantitative basis for the Cognitive Scaling Roadmap (scaling to Tier 1 10M to shift capacity to $K=128+$).
+   - Documented in `brain/docs/runs/2026-09-07-thread-capacity-scaling-law.md` and `.json`.
+

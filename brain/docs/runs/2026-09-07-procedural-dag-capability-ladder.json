@@ -1,0 +1,98 @@
+[
+  {
+    "level": 1,
+    "task_name": "L1: Single Action",
+    "discriminator": "Baseline invocation",
+    "blind_sr": 48.0,
+    "blind_steps": 10.32,
+    "no_ior_sr": 70.0,
+    "no_ior_steps": 6.47,
+    "pb_sr": 100.0,
+    "pb_steps": 1.47,
+    "pb_reward": 0.006
+  },
+  {
+    "level": 2,
+    "task_name": "L2: Fixed Sequence",
+    "discriminator": "Linear chained tools",
+    "blind_sr": 35.0,
+    "blind_steps": 12.75,
+    "no_ior_sr": 19.0,
+    "no_ior_steps": 15.36,
+    "pb_sr": 100.0,
+    "pb_steps": 2.71,
+    "pb_reward": 0.558
+  },
+  {
+    "level": 3,
+    "task_name": "L3: Branching DAG",
+    "discriminator": "Conditional state routing",
+    "blind_sr": 47.0,
+    "blind_steps": 11.1,
+    "no_ior_sr": 34.0,
+    "no_ior_steps": 12.48,
+    "pb_sr": 100.0,
+    "pb_steps": 2.43,
+    "pb_reward": 0.3449999999999999
+  },
+  {
+    "level": 4,
+    "task_name": "L4: State-Contingent Retry",
+    "discriminator": "Requires retrying failed action after repair",
+    "blind_sr": 20.0,
+    "blind_steps": 15.0,
+    "no_ior_sr": 16.0,
+    "no_ior_steps": 15.93,
+    "pb_sr": 100.0,
+    "pb_steps": 5.08,
+    "pb_reward": 0.9260000000000003
+  },
+  {
+    "level": 5,
+    "task_name": "L5: Hidden Dependency",
+    "discriminator": "Context arg extraction",
+    "blind_sr": 47.0,
+    "blind_steps": 11.1,
+    "no_ior_sr": 48.0,
+    "no_ior_steps": 10.57,
+    "pb_sr": 100.0,
+    "pb_steps": 2.43,
+    "pb_reward": 0.5319999999999999
+  },
+  {
+    "level": 6,
+    "task_name": "L6: Delayed Verification",
+    "discriminator": "Persistent state across delay",
+    "blind_sr": 0.0,
+    "blind_steps": 18.0,
+    "no_ior_sr": 50.0,
+    "no_ior_steps": 11.27,
+    "pb_sr": 100.0,
+    "pb_steps": 4.0,
+    "pb_reward": 0.09799999999999999
+  },
+  {
+    "level": 7,
+    "task_name": "L7: Stochastic Timeout",
+    "discriminator": "Transient fault recovery",
+    "blind_sr": 0.0,
+    "blind_steps": 3.0,
+    "no_ior_sr": 60.0,
+    "no_ior_steps": 9.07,
+    "pb_sr": 100.0,
+    "pb_steps": 3.49,
+    "pb_reward": 0.001999999999999945
+  },
+  {
+    "level": 8,
+    "task_name": "L8: Novel Procedural DAG",
+    "discriminator": "Distractor & misleading tool resistance",
+    "blind_sr": 8.0,
+    "blind_steps": 17.15,
+    "no_ior_sr": 1.0,
+    "no_ior_steps": 17.95,
+    "pb_sr": 73.0,
+    "pb_steps": 11.31,
+    "pb_reward": 0.7119999999999999
+  }
+]

@@ -26,4 +26,4 @@ brain/datasets/
 *.tgz
 *.zip
 scratch/
-runs/
+/runs/
