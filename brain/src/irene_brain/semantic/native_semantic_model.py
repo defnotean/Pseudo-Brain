@@ -145,7 +145,7 @@ class NativeSemanticPseudoBrain(nn.Module):
 
         # Update active thread if explicit or if token is thread token [THREAD:i] (tokens 9 .. 9+K-1)
         if thread_ids is not None:
-            state.active_thread = thread_ids
+            state.active_thread = thread_ids.clamp(0, self.K - 1)
         else:
             # Check if token is thread marker (base_thread_offset is 9 in tokenizer)
             is_thread_tok = (token_ids >= 9) & (token_ids < 9 + self.K)
@@ -163,7 +163,7 @@ class NativeSemanticPseudoBrain(nn.Module):
         # 3. Cognitive Input Gating with T=0.5 Sharpening
         gate_in = torch.cat([x_exp, state.thoughts], dim=-1)
         raw_gate = self.cig_gate(gate_in)
-        salience = torch.sigmoid((torch.logit(raw_gate.clamp(1e-6, 1 - 1e-6))) / 0.5)
+        salience = torch.sigmoid((torch.logit(raw_gate.clamp(1e-4, 1.0 - 1e-4))) / 0.5)
 
         # 4. Recurrent Core Update
         t_flat = state.thoughts.reshape(B * self.K, self.thought_size)
@@ -194,11 +194,12 @@ class NativeSemanticPseudoBrain(nn.Module):
 
         # 8. Thread-Targeted Readout from active thread
         batch_idx = torch.arange(B, device=dev)
-        queried_slot = next_thoughts[batch_idx, state.active_thread]  # [B, W]
+        clamped_active = state.active_thread.clamp(0, self.K - 1)
+        queried_slot = next_thoughts[batch_idx, clamped_active]  # [B, W]
         slot_logits = self.slot_head(queried_slot)  # [B, V]
 
         if self.use_cgp and self.plastic_scale is not None:
-            queried_P = next_P_t[batch_idx, state.active_thread]  # [B, V]
+            queried_P = next_P_t[batch_idx, clamped_active]  # [B, V]
             total_logits = slot_logits + self.plastic_scale * queried_P
         else:
             total_logits = slot_logits

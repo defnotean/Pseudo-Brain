@@ -83,7 +83,7 @@ class SemanticTokenizer:
         tokens: List[int] = []
         if add_bos:
             tokens.append(self.bos_id)
-        if thread_id is not None:
+        if thread_id is not None and not text.startswith("[THREAD:"):
             tokens.append(self.thread_id_to_token_id(thread_id))
 
         # Check for control tokens in text or parse bytes

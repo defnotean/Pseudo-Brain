@@ -73,6 +73,20 @@ def train_semantic_model(
     return losses
 
 
+TASK_NAME_MAP = {
+    "stage_a_copy": "stage_a_copy",
+    "stage_a_associative_binding": "stage_a_binding",
+    "stage_a_binding": "stage_a_binding",
+    "stage_b_delayed_recall": "stage_b_recall",
+    "stage_b_recall": "stage_b_recall",
+    "stage_b_interleaved_conversations": "stage_b_interleaved",
+    "stage_b_interleaved": "stage_b_interleaved",
+    "stage_b_preemption": "stage_b_preemption",
+    "stage_b_cross_thread_dependency": "stage_b_dependency",
+    "stage_b_dependency": "stage_b_dependency",
+}
+
+
 def evaluate_semantic_model(
     model: nn.Module,
     generator: LanguageCurriculumGenerator,
@@ -132,9 +146,10 @@ def evaluate_semantic_model(
                 total_tokens_tested += int(mask.sum().item())
                 total_tokens_correct += int(matches.sum().item())
 
-                # Track by task
-                if ep.task_name in task_results:
-                    task_results[ep.task_name].append(seq_acc)
+                # Track by task with normalized mapping
+                norm_task = TASK_NAME_MAP.get(ep.task_name, ep.task_name)
+                if norm_task in task_results:
+                    task_results[norm_task].append(seq_acc)
 
     overall_token_acc = (total_tokens_correct / max(1, total_tokens_tested)) * 100.0
     preemption_rec = float(np.mean(task_results["stage_b_preemption"])) if task_results["stage_b_preemption"] else 0.0
@@ -144,7 +159,28 @@ def evaluate_semantic_model(
     copy_acc = float(np.mean(task_results["stage_a_copy"])) if task_results["stage_a_copy"] else 0.0
     binding_acc = float(np.mean(task_results["stage_a_binding"])) if task_results["stage_a_binding"] else 0.0
 
-    lats = np.array(latencies_ms) if latencies_ms else np.array([0.0])
+    # Benchmark per-token update latency via streaming single-token steps (B=1)
+    streaming_lats_ms: List[float] = []
+    with torch.no_grad():
+        s_state = model.init_state(1, dev) if hasattr(model, "init_state") else None
+        dummy_tok = torch.tensor([15], dtype=torch.long, device=dev)
+        dummy_th = torch.tensor([0], dtype=torch.long, device=dev)
+        # Warmup
+        for _ in range(15):
+            if isinstance(model, NativeSemanticPseudoBrain):
+                _, s_state = model.step(dummy_tok, s_state, thread_ids=dummy_th, allow_routing=True)
+            elif hasattr(model, "step"):
+                _, s_state = model.step(dummy_tok, s_state)
+        # Benchmark 100 streaming token iterations
+        for _ in range(100):
+            t0 = time.perf_counter()
+            if isinstance(model, NativeSemanticPseudoBrain):
+                _, s_state = model.step(dummy_tok, s_state, thread_ids=dummy_th, allow_routing=True)
+            elif hasattr(model, "step"):
+                _, s_state = model.step(dummy_tok, s_state)
+            streaming_lats_ms.append((time.perf_counter() - t0) * 1000.0)
+
+    lats = np.array(streaming_lats_ms) if streaming_lats_ms else (np.array(latencies_ms) if latencies_ms else np.array([0.0]))
 
     # K_eff for multi-threaded models: K * Recovery * Isolation
     K_val = getattr(model, "K", 1)
@@ -244,23 +280,98 @@ def run_language_cognitive_benchmark(
     return results
 
 
+def run_scaling_sweep(
+    K_values: Optional[List[int]] = None,
+    W_values: Optional[List[int]] = None,
+    num_train_steps: int = 80,
+    device_str: str = "cpu",
+) -> Dict[str, Any]:
+    """Execute Concurrency and Width Scaling Sweep for Native Semantic Pseudo-Brain."""
+    if K_values is None:
+        K_values = [2, 4, 8, 16, 32, 64]
+    if W_values is None:
+        W_values = [12, 24, 48]
+
+    device = torch.device(device_str)
+    results: Dict[str, Any] = {
+        "sweep_config": {
+            "K_values": K_values,
+            "W_values": W_values,
+            "train_steps": num_train_steps,
+            "device": device_str,
+        },
+        "grid": {},
+    }
+
+    print("\n" + "=" * 95)
+    print(f"PSEUDO-BRAIN CONCURRENCY & WIDTH SCALING SWEEP (K in {K_values}, W in {W_values})")
+    print("=" * 95)
+
+    for K in K_values:
+        tokenizer = SemanticTokenizer(max_threads=K)
+        generator = LanguageCurriculumGenerator(tokenizer=tokenizer, max_threads=K)
+
+        for W in W_values:
+            key = f"K{K}_W{W}"
+            print(f"\n--- Running Sweep Configuration: {key} (K={K}, W={W}) ---")
+            model = make_semantic_model(
+                "pseudo_brain",
+                vocab_size=tokenizer.vocab_size,
+                K=K,
+                thought_size=W,
+                embed_dim=64,
+                proj_dim=128,
+            )
+            p_count = sum(p.numel() for p in model.parameters())
+
+            t0 = time.perf_counter()
+            losses = train_semantic_model(model, generator, num_steps=num_train_steps, device=device)
+            train_time = time.perf_counter() - t0
+
+            metrics = evaluate_semantic_model(model, generator, num_eval_episodes=80, device=device)
+            metrics["K"] = K
+            metrics["W"] = W
+            metrics["final_train_loss"] = round(losses[-1], 4)
+            metrics["train_time_sec"] = round(train_time, 2)
+            results["grid"][key] = metrics
+
+            print(f"  K_eff: {metrics['effective_threads_Keff']:.2f} | Recovery: {metrics['preemption_recovery_accuracy']}% | Isolation: {metrics['thread_isolation_accuracy']}% | Dependency: {metrics['cross_thread_dependency_accuracy']}%")
+            print(f"  Latency mean: {metrics['latency_mean_ms']:.3f} ms (p90: {metrics['latency_p90_ms']:.3f} ms, 60Hz: {metrics['under_16_67ms']})")
+
+    return results
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--steps", type=int, default=240)
     parser.add_argument("--threads", type=int, default=16)
     parser.add_argument("--device", type=str, default="cpu")
     parser.add_argument("--output", type=str, default=None)
+    parser.add_argument("--sweep", action="store_true", help="Run K and W scaling sweep")
+    parser.add_argument("--sweep-output", type=str, default=None)
     args = parser.parse_args()
 
-    benchmark_data = run_language_cognitive_benchmark(
-        K=args.threads,
-        num_train_steps=args.steps,
-        device_str=args.device,
-    )
+    if args.sweep:
+        sweep_data = run_scaling_sweep(
+            num_train_steps=args.steps,
+            device_str=args.device,
+        )
+        if args.sweep_output:
+            out_p = Path(args.sweep_output)
+            out_p.parent.mkdir(parents=True, exist_ok=True)
+            with open(out_p, "w", encoding="utf-8") as f:
+                json.dump(sweep_data, f, indent=2)
+            print(f"\nSaved scaling sweep results to {out_p}")
+    else:
+        benchmark_data = run_language_cognitive_benchmark(
+            K=args.threads,
+            num_train_steps=args.steps,
+            device_str=args.device,
+        )
 
-    if args.output:
-        out_p = Path(args.output)
-        out_p.parent.mkdir(parents=True, exist_ok=True)
-        with open(out_p, "w", encoding="utf-8") as f:
-            json.dump(benchmark_data, f, indent=2)
-        print(f"\nSaved benchmark results to {out_p}")
+        if args.output:
+            out_p = Path(args.output)
+            out_p.parent.mkdir(parents=True, exist_ok=True)
+            with open(out_p, "w", encoding="utf-8") as f:
+                json.dump(benchmark_data, f, indent=2)
+            print(f"\nSaved benchmark results to {out_p}")

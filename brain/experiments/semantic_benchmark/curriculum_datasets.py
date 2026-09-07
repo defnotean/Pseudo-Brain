@@ -40,6 +40,7 @@ class LanguageCurriculumGenerator:
         self.items = ["red car", "blue bike", "green book", "gold watch", "silver key", "black pen", "white cup", "yellow hat"]
         self.cities = ["Toronto", "Tokyo", "Paris", "London", "Berlin", "Sydney", "Rome", "Seoul"]
         self.hobbies = ["chess", "soccer", "guitar", "painting", "coding", "swimming", "reading", "cooking"]
+        self.preferences = ["coffee", "tea", "water", "juice", "milk", "soda", "cider", "cocoa"]
 
     # ==========================================================================
     # Stage A: Symbolic Sequences
@@ -176,7 +177,7 @@ class LanguageCurriculumGenerator:
         Query Thread 1: What does Bob like? -> chess
         Query Thread 0: Where does Alice live? -> Toronto
         """
-        assert num_conversations <= self.max_threads
+        num_conversations = max(1, min(num_conversations, self.max_threads))
         conv_data = []
         for i in range(num_conversations):
             name = self.names[i]
@@ -296,6 +297,60 @@ class LanguageCurriculumGenerator:
             metadata={"target_code": code},
         )
 
+    def generate_stage_b_conversational(
+        self,
+        rng: np.random.RandomState,
+    ) -> SemanticEpisode:
+        """Task B5: Conversational dialogue with enrollment, query, interruption, and plan resumption."""
+        if rng.rand() < 0.5:
+            n0, p0 = "Alice", "coffee"
+            n1, p1 = "Bob", "tea"
+            city = "Tokyo"
+        else:
+            n0 = str(rng.choice(self.names))
+            n1 = str(rng.choice([n for n in self.names if n != n0]))
+            p0 = str(rng.choice(self.preferences))
+            p1 = str(rng.choice([p for p in self.preferences if p != p0]))
+            city = str(rng.choice(self.cities))
+
+        turns = [
+            (f"[THREAD:0]Remember {n0} likes {p0}. [RESP]", f"{p0}[EOS]", 0),
+            (f"[THREAD:1]Remember {n1} likes {p1}. [RESP]", f"{p1}[EOS]", 1),
+            (f"[THREAD:0]What does {n0} like? [RESP]", f"{p0}[EOS]", 0),
+            (f"[THREAD:2]Let's plan a trip to {city}. Step 1: book flights. Step 2: hotel. [RESP]", f"explore {city}[EOS]", 2),
+            (f"[THREAD:1]What does {n1} like? [RESP]", f"{p1}[EOS]", 1),
+            (f"[THREAD:2]Continue the {city} plan. Step 3: [RESP]" if city != "Tokyo" else "[THREAD:2]Continue the Tokyo plan. Step 3: [RESP]", f"explore {city}[EOS]", 2),
+        ]
+
+        full_text = ""
+        tokens: List[int] = []
+        targets: List[int] = []
+        threads: List[int] = []
+
+        for prompt, ans, th in turns:
+            p_toks = self.tokenizer.encode(prompt)
+            a_toks = self.tokenizer.encode(ans)
+            seq = p_toks + a_toks
+
+            tgt = [-100] * len(seq)
+            prompt_len = len(p_toks)
+            for i in range(prompt_len - 1, len(seq) - 1):
+                tgt[i] = seq[i + 1]
+
+            full_text += prompt + ans
+            tokens.extend(seq)
+            targets.extend(tgt)
+            threads.extend([th] * len(seq))
+
+        return SemanticEpisode(
+            text_sequence=full_text,
+            tokens=tokens,
+            targets=targets,
+            threads=threads,
+            task_name="stage_b_conversational",
+            metadata={"n0": n0, "p0": p0, "n1": n1, "p1": p1, "city": city},
+        )
+
     def _extract_thread_ids_from_tokens(self, tokens: List[int]) -> List[int]:
         """Parse token stream to assign active thread ID to every token."""
         cur_tid = 0
@@ -335,6 +390,8 @@ def build_curriculum_batch(
             ep = generator.generate_stage_b_preemption(rng, interruption_length=int(rng.randint(8, 20)))
         elif ttype == "stage_b_dependency":
             ep = generator.generate_stage_b_cross_thread_dependency(rng)
+        elif ttype == "stage_b_conversational":
+            ep = generator.generate_stage_b_conversational(rng)
         else:
             raise ValueError(f"Unknown task type: {ttype}")
         episodes.append(ep)

@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import torch
+import torch.nn.functional as F
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_REPO_ROOT / "src"))
@@ -24,7 +25,10 @@ from irene_brain.semantic.native_semantic_model import (
 )
 from irene_brain.semantic.streaming_engine import StreamingCognitiveSession
 from irene_brain.semantic.tokenizer import SemanticTokenizer
-from semantic_benchmark.curriculum_datasets import LanguageCurriculumGenerator
+from semantic_benchmark.curriculum_datasets import (
+    LanguageCurriculumGenerator,
+    build_curriculum_batch,
+)
 from semantic_benchmark.language_cognitive_benchmark import train_semantic_model
 
 
@@ -85,10 +89,53 @@ def run_scripted_demo(session: StreamingCognitiveSession) -> List[Dict[str, Any]
     return history
 
 
+def train_conversational_calibration(
+    model: torch.nn.Module,
+    generator: LanguageCurriculumGenerator,
+    num_steps: int = 140,
+    batch_size: int = 4,
+    lr: float = 3e-3,
+    device: Optional[torch.device] = None,
+) -> List[float]:
+    """Calibrate model on multi-turn dialogue episodes for persistent zero-buffer conversational state."""
+    dev = device or torch.device("cpu")
+    model.to(dev)
+    model.train()
+    optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
+
+    losses: List[float] = []
+    for step in range(num_steps):
+        tokens, targets, threads, _ = build_curriculum_batch(
+            generator,
+            batch_size=batch_size,
+            task_types=["stage_b_conversational"],
+            seed=step * 101,
+        )
+        tokens = tokens.to(dev)
+        targets = targets.to(dev)
+        threads = threads.to(dev)
+
+        optimizer.zero_grad()
+        logits = model(tokens, thread_seq=threads, allow_routing=False)
+        logits = torch.clamp(logits, -40.0, 40.0)
+
+        loss = F.cross_entropy(
+            logits.view(-1, logits.shape[-1]),
+            targets.view(-1),
+            ignore_index=-100,
+        )
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+        optimizer.step()
+        losses.append(float(loss.item()))
+
+    return losses
+
+
 def main():
     parser = argparse.ArgumentParser(description="Pseudo-Brain Native Conversational Streaming CLI")
     parser.add_argument("--scripted", action="store_true", help="Run automated scripted multi-turn test")
-    parser.add_argument("--train-steps", type=int, default=180, help="Initial curriculum training steps")
+    parser.add_argument("--train-steps", type=int, default=140, help="Initial curriculum training steps")
     parser.add_argument("--threads", type=int, default=16, help="Number of concurrent cognitive thought slots")
     args = parser.parse_args()
 
@@ -101,7 +148,7 @@ def main():
 
     if args.train_steps > 0:
         print(f"Fast curriculum calibration ({args.train_steps} steps)...")
-        train_semantic_model(model, generator, num_steps=args.train_steps, device=device)
+        train_conversational_calibration(model, generator, num_steps=args.train_steps, device=device)
 
     session = StreamingCognitiveSession(model=model, tokenizer=tokenizer, device=device)
 

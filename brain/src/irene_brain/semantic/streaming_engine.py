@@ -94,10 +94,11 @@ class StreamingCognitiveSession:
                 last_logits, dt = self.step_token(tid, thread_id=thread_id, allow_routing=allow_routing)
                 prompt_latencies.append(dt)
 
-        # Ingest [RESP] token marker to switch to response phase
+        # Ingest [RESP] token marker to switch to response phase if not already stepped
         resp_tok = self.tokenizer.resp_id
-        last_logits, dt = self.step_token(resp_tok, thread_id=thread_id, allow_routing=allow_routing)
-        prompt_latencies.append(dt)
+        if not (prompt_text and token_ids and token_ids[-1] == resp_tok):
+            last_logits, dt = self.step_token(resp_tok, thread_id=thread_id, allow_routing=allow_routing)
+            prompt_latencies.append(dt)
 
         generated_token_ids: List[int] = []
         gen_latencies = []

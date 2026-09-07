@@ -1,0 +1,191 @@
+{
+  "timestamp": "2026-09-07T15:30:00-05:00",
+  "benchmark_name": "streaming_conversational_benchmark",
+  "configuration": {
+    "threads": 16,
+    "vocab_size": 281,
+    "thought_size": 32,
+    "parameters": 79589,
+    "train_steps": 140,
+    "num_eval_sessions": 10,
+    "device": "cpu",
+    "calibration_time_sec": 56.76,
+    "final_train_loss": 0.2118
+  },
+  "streaming_latency": {
+    "mean_ms": 0.423,
+    "p50_ms": 0.399,
+    "p90_ms": 0.479,
+    "p99_ms": 0.611,
+    "max_ms": 0.95,
+    "min_ms": 0.366,
+    "throughput_tokens_per_sec": 2364.6,
+    "budget_60hz_sla_ms": 16.67,
+    "compliant_60hz": true,
+    "headroom_multiplier": 39.4,
+    "total_tokens_profiled": 2490
+  },
+  "conversational_accuracy": {
+    "session_success_rate_pct": 100.0,
+    "sessions_passed": 10,
+    "total_sessions": 10,
+    "preemption_recovery_rate_pct": 100.0,
+    "resumption_rate_pct": 100.0
+  },
+  "failure_attribution": {
+    "input_encoding": {
+      "status": "PASS",
+      "total_checks": 30,
+      "failures": 0,
+      "failure_rate_pct": 0.0,
+      "fidelity_accuracy_pct": 100.0,
+      "zero_oov_guarantee": true
+    },
+    "semantic_representation": {
+      "status": "PASS",
+      "total_checks": 3,
+      "failures": 0,
+      "has_nan_or_inf": false,
+      "mean_slot_norm": 5.4571,
+      "min_slot_norm": 4.4971,
+      "max_slot_norm": 6.6712,
+      "max_pairwise_cosine_sim": 0.3904,
+      "dimensional_collapse_detected": false,
+      "failure_rate_pct": 0.0
+    },
+    "thread_selection": {
+      "status": "PASS",
+      "total_checks": 32,
+      "failures": 0,
+      "addressing_accuracy_pct": 100.0,
+      "failure_rate_pct": 0.0
+    },
+    "memory_persistence": {
+      "status": "PASS",
+      "total_checks": 2,
+      "failures": 0,
+      "memory_retention_pct": 100.0,
+      "failure_rate_pct": 0.0
+    },
+    "cross_thread_interference": {
+      "status": "PASS",
+      "total_checks": 2,
+      "failures": 0,
+      "cross_thread_isolation_pct": 100.0,
+      "slot_shielding_efficiency_pct": 100.0,
+      "failure_rate_pct": 0.0
+    },
+    "output_decoding": {
+      "status": "PASS",
+      "total_checks": 6,
+      "failures": 0,
+      "exact_match_accuracy_pct": 100.0,
+      "failure_rate_pct": 0.0,
+      "turns": [
+        {
+          "turn": 1,
+          "thread_id": 0,
+          "expected": "coffee",
+          "generated": "coffee",
+          "matched": true,
+          "mean_step_latency_ms": 0.407
+        },
+        {
+          "turn": 2,
+          "thread_id": 1,
+          "expected": "tea",
+          "generated": "tea",
+          "matched": true,
+          "mean_step_latency_ms": 0.372
+        },
+        {
+          "turn": 3,
+          "thread_id": 0,
+          "expected": "coffee",
+          "generated": "coffee",
+          "matched": true,
+          "mean_step_latency_ms": 0.47
+        },
+        {
+          "turn": 4,
+          "thread_id": 2,
+          "expected": "explore Tokyo",
+          "generated": "explore Tokyo",
+          "matched": true,
+          "mean_step_latency_ms": 0.441
+        },
+        {
+          "turn": 5,
+          "thread_id": 1,
+          "expected": "tea",
+          "generated": "tea",
+          "matched": true,
+          "mean_step_latency_ms": 0.4
+        },
+        {
+          "turn": 6,
+          "thread_id": 2,
+          "expected": "explore Tokyo",
+          "generated": "explore Tokyo",
+          "matched": true,
+          "mean_step_latency_ms": 0.408
+        }
+      ]
+    }
+  },
+  "summary": {
+    "total_subsystem_failures": 0,
+    "all_subsystems_healthy": true,
+    "epistemic_status": "[MEASURED]"
+  },
+  "session_sample": [
+    {
+      "turn": 1,
+      "thread_id": 0,
+      "expected": "coffee",
+      "generated": "coffee",
+      "matched": true,
+      "mean_step_latency_ms": 0.407
+    },
+    {
+      "turn": 2,
+      "thread_id": 1,
+      "expected": "tea",
+      "generated": "tea",
+      "matched": true,
+      "mean_step_latency_ms": 0.372
+    },
+    {
+      "turn": 3,
+      "thread_id": 0,
+      "expected": "coffee",
+      "generated": "coffee",
+      "matched": true,
+      "mean_step_latency_ms": 0.47
+    },
+    {
+      "turn": 4,
+      "thread_id": 2,
+      "expected": "explore Tokyo",
+      "generated": "explore Tokyo",
+      "matched": true,
+      "mean_step_latency_ms": 0.441
+    },
+    {
+      "turn": 5,
+      "thread_id": 1,
+      "expected": "tea",
+      "generated": "tea",
+      "matched": true,
+      "mean_step_latency_ms": 0.4
+    },
+    {
+      "turn": 6,
+      "thread_id": 2,
+      "expected": "explore Tokyo",
+      "generated": "explore Tokyo",
+      "matched": true,
+      "mean_step_latency_ms": 0.408
+    }
+  ]
+}
