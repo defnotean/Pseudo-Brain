@@ -119,8 +119,8 @@
 
 ### Workstream 10: Cognitive Scaling Ladder Benchmark (131k -> 8M)
 * **Multi-Scale Empirical Validation vs. Monolithic GRU and Modern Diagonal SSM (GLRU)**:
-  - **Brute-Force Scaling Falsification**: Monolithic GRU ($10.9\% - 14.7\%$) and Modern Diagonal SSM ($11.5\% - 13.3\%$) remain permanently collapsed to chance (~12.5%) even when scaled to **$10.7\text{ MILLION parameters}$** (+55x scale).
-  - **Pseudo-Brain Multi-Scale Invariance**: Pseudo-Brain CGP Thoughtlets sustain **$38.0\% - 39.4\%$ retention at $L=128$** (+25.5% to +27.9% margin over GRU/SSM) and graceful degradation at $M=32$ (**$20.9\% - 21.7\%$**) across all tiers from 131k up to 8M.
+  - **Empirical Baseline Non-Improvement**: Scaling the tested Monolithic GRU and Modern Diagonal SSM baselines from ~0.19M to ~10.7M parameters (+55x scale) did not materially improve performance on this MTLD configuration (remaining trapped at chance: $10.9\% - 14.7\%$).
+  - **Pseudo-Brain Multi-Scale Invariance**: Pseudo-Brain CGP Thoughtlets sustain **$38.0\% - 39.4\%$ retention at $L=128$** (+25.5% to +27.9% margin over GRU/SSM) and graceful degradation at $M=32$ (**$20.9\% - 21.7\%$**) across tiers 131k to 2M.
   - **Sub-2ms CPU Inference**: Latency scales gracefully from **$0.96\text{ ms}$** at 131k to **$1.92\text{ ms}$** at 8M on single-threaded CPU.
 * **Reproduction Command**:
   ```bash
@@ -131,9 +131,11 @@
 
 ## 3. Known Weaknesses & Critical Caveats
 
-1. **Closed-Loop 60 Hz Bottleneck**:
+1. **The $M=32$ Capacity & Optimization Wall**:
+   - While CGP degrades gracefully from $M=2$ ($42.9\%$) to $M=16$ ($22.3\%$) and holds ~21% at $M=32$ across 131k–2M tiers, the 8M model dips to **15.8%** at $M=32$. With $K=32$ and slot width $W=96$, monolithic flattened readouts ($K \cdot W = 3,072$ dimensions) suffer sample-starvation under standard training budgets, demonstrating an architectural boundary where slot-wise readouts or cross-slot attention are needed.
+2. **Closed-Loop 60 Hz Bottleneck**:
    - While the planner in isolation is sub-10ms ($9.83\text{ ms}$ at $H=2$, $18.28\text{ ms}$ at $H=3$), the full embodied tick loop (Encoder + CGP Recurrent + Lookahead + Env Step) is **$25.24\text{ ms}$ at $H=3$** and **$39.53\text{ ms}$ at $H=5$** on single-threaded CPU. To achieve strictly $<16.67\text{ ms}$ closed-loop execution, the agent requires reflexive execution ($H=0$, $8.54\text{ ms}$), 1-step lookahead ($H=1$, $13.01\text{ ms}$), or dual-rate planning decimation.
-2. **Horizon Dead-End Utility Calibration**:
+3. **Horizon Dead-End Utility Calibration**:
    - When evaluating deep lookaheads ($H \ge 5$), fixed negative pruning thresholds can trigger spurious dead-end classification due to unnormalized cumulative discounting. Dynamic lookahead requires horizon-scaled thresholds ($\theta_{\text{dead}} = -20 \cdot H$).
-3. **Multi-Step Unassisted Pipeline Recovery**:
+4. **Multi-Step Unassisted Pipeline Recovery**:
    - Endogenous parameter inference achieves 60.0% SR on multi-step pipelines, leaving 40.0% where persistent exploration or explicit DAG sub-goal tracking is required.

@@ -155,6 +155,7 @@ We maintain strict claim discipline ([MEASURED], [INFERRED], [HYPOTHESIS], [ASPI
 
 7. **Cognitive Scaling Ladder Benchmark (131k $\to$ 500k $\to$ 2M $\to$ 8M)**: [COMPLETE & REPORTED]
    - Benchmarked Pseudo-Brain CGP Thoughtlets against parameter-matched Monolithic GRU and Modern Diagonal SSM (GLRU) across 4 parameter tiers and 3 stress regimes (Baseline $M=4, L=16$; Delay Stress $L=128$; Massive Load $M=32, L=32$).
-   - **Brute-Force Scaling Falsification**: Even when scaled to **$10.7\text{ MILLION parameters}$** (+55x scale), Monolithic GRU ($10.9\% - 14.7\%$) and Modern Diagonal SSM ($11.5\% - 13.3\%$) remain permanently trapped at chance (~12.5%) under multi-threaded latent dependency load.
-   - **Pseudo-Brain Multi-Scale Invariance**: CGP Thoughtlets sustain **$38.0\% - 39.4\%$ retention at $L=128$** (+25.5% to +27.9% margin over GRU/SSM) and graceful degradation at $M=32$ (**$20.9\% - 21.7\%$**) at sub-2ms CPU inference latency ($0.96\text{ ms} - 1.92\text{ ms}$).
+   - **Empirical Baseline Non-Improvement**: Scaling the tested Monolithic GRU and Modern Diagonal SSM baselines from ~0.19M to ~10.7M parameters (+55x scale) did not materially improve performance on this MTLD configuration (remaining trapped at chance: $10.9\% - 14.7\%$).
+   - **Pseudo-Brain Multi-Scale Invariance**: CGP Thoughtlets sustain **$38.0\% - 39.4\%$ retention at $L=128$** (+25.5% to +27.9% margin over GRU/SSM) and graceful degradation at $M=32$ (**$20.9\% - 21.7\%$**) across tiers 131k to 2M at sub-2ms CPU inference latency ($0.96\text{ ms} - 1.92\text{ ms}$).
+   - **Discovery of the $M=32$ Boundary**: At $M=32$, the 8M model dips to $15.8\%$, identifying an architectural boundary where monolithic flattened readout layers ($K \cdot W = 3,072$ dims) suffer sample starvation under standard training budgets.
    - Documented in `brain/docs/runs/2026-09-07-cognitive-scaling-ladder.md` and `.json`.
