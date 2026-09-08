@@ -15,6 +15,18 @@ The implementation, experiment configurations, tests, and research records are
 under [brain](./brain/README.md). The Irene desktop/chat project is separate and
 is not a dependency or training-data source for Pseudo-Brain.
 
+## Unified Model Architecture & Scaling Tiers
+
+Pseudo-Brain implements a unified architecture spanning 3 model parameter tiers, all strictly complying with **Law 1 (Working Memory Invariance: $K=16, W=64$, strictly 4,096 bytes)**:
+
+| Tier | Trainable Parameters | Working Memory | Target Capabilities | Checkpoint |
+| :--- | :--- | :--- | :--- | :--- |
+| **Tier 1 (Base)** | **3.09M** | 4.0 KB | 60 Hz POMDP Sensory Control, Basic Tool Calling | `pb_unified_champion.pt` |
+| **Tier 2 (Mid)** | **36.7M** | 4.0 KB | Deep Recurrence, BPE Vocab, Multi-Turn CoT Reasoning | `pb_35m_champion.pt` |
+| **Tier 3 (Large)** | **1.02B** | 4.0 KB | Fused Triton Associative Scan, Hierarchical Memory, Mental Lookahead, Multi-Task Pretraining | `pb_1b_champion.pt` |
+
+For full scaling experiments, benchmarks, and Colab A100 training logs, see [docs/SCALING_1B_WALKTHROUGH.md](./docs/SCALING_1B_WALKTHROUGH.md).
+
 ## Google Colab Remote Training & Watching
 
 Pseudo-Brain supports remote execution on Google Colab with background execution (Google AI Ultra), automatic Google Drive persistence (`MyDrive/PseudoBrain/`), resumable training, and real-time local monitoring:
