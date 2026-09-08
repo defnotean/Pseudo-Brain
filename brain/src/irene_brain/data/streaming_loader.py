@@ -239,11 +239,23 @@ class SyntheticLanguageStream:
 
     def sample(self) -> RawDocument:
         thread_id = self.rng.randint(0, self.max_threads - 1)
-        if self.corpus_lines and self.rng.random() < 0.35:
+        if self.corpus_lines and self.rng.random() < 0.30:
             raw_text = self.rng.choice(self.corpus_lines)
             if not raw_text.startswith("[THREAD:"):
                 raw_text = f"[THREAD:{thread_id}]{raw_text}"
             return RawDocument(text=raw_text, task_type=TaskType.LANGUAGE, thread_id=thread_id, is_dialogue=True)
+
+        if self.rng.random() < 0.45:
+            try:
+                from .synthetic_distill import SyntheticDistillationEngine
+                if not hasattr(self, "_distill"):
+                    self._distill = SyntheticDistillationEngine(seed=self.rng.randint(0, 100000), max_threads=self.max_threads)
+                if self.rng.random() < 0.5:
+                    return RawDocument(text=self._distill.sample_geography(), task_type=TaskType.LANGUAGE, thread_id=thread_id, is_dialogue=True)
+                else:
+                    return RawDocument(text=self._distill.sample_science(), task_type=TaskType.LANGUAGE, thread_id=thread_id, is_dialogue=True)
+            except Exception:
+                pass
 
         mode = self.rng.choice(["knowledge", "dialogue", "query"])
         if mode == "knowledge":
@@ -490,8 +502,17 @@ class SyntheticCodeStream:
         ]
 
     def sample(self) -> RawDocument:
-        snippet = self.rng.choice(self.code_templates)
         thread_id = self.rng.randint(0, self.max_threads - 1)
+        if self.rng.random() < 0.45:
+            try:
+                from .synthetic_distill import SyntheticDistillationEngine
+                if not hasattr(self, "_distill"):
+                    self._distill = SyntheticDistillationEngine(seed=self.rng.randint(0, 100000), max_threads=self.max_threads)
+                return RawDocument(text=self._distill.sample_code(), task_type=TaskType.CODE, thread_id=thread_id, is_dialogue=False)
+            except Exception:
+                pass
+
+        snippet = self.rng.choice(self.code_templates)
         variant = self.rng.randint(10, 99999)
 
         code_text = (
@@ -533,10 +554,10 @@ class SyntheticReasoningStream:
             c = a * self.rng.randint(1, 12) + b
             x_val = (c - b) // a
             text = (
-                f"[THREAD:{thread_id}]Problem: Solve the linear equation {a}*x + {b} = {c} for x. "
-                f"<thought> Step 1: Subtract {b} from both sides: {a}*x = {c} - {b} = {c - b}. "
+                f"[THREAD:{thread_id}]Solve for x: {a}*x + {b} = {c} "
+                f"[RESP]<thought> Step 1: Subtract {b} from both sides: {a}*x = {c} - {b} = {c - b}. "
                 f"Step 2: Divide both sides by {a}: x = {c - b} / {a} = {x_val}. </thought> "
-                f"[RESP]<solution>x = {x_val}</solution>[EOS]"
+                f"<solution>x = {x_val}</solution>[EOS]"
             )
         elif mode == "quadratic_math":
             r1 = self.rng.randint(1, 7)
@@ -546,19 +567,19 @@ class SyntheticReasoningStream:
             c_coef = r1 * r2
             sign_b = f"- {abs(b_coef)}" if b_coef < 0 else f"+ {b_coef}"
             text = (
-                f"[THREAD:{thread_id}]Problem: Find the positive roots of x^2 {sign_b}*x + {c_coef} = 0. "
-                f"<thought> Factoring the quadratic: (x - {r1}) * (x - {r2}) = 0. "
+                f"[THREAD:{thread_id}]Solve for x: x^2 {sign_b}*x + {c_coef} = 0 "
+                f"[RESP]<thought> Factoring the quadratic: (x - {r1}) * (x - {r2}) = 0. "
                 f"Setting each factor to zero gives roots x = {r1} and x = {r2}. </thought> "
-                f"[RESP]<solution>roots = [{min(r1, r2)}, {max(r1, r2)}]</solution>[EOS]"
+                f"<solution>roots = [{min(r1, r2)}, {max(r1, r2)}]</solution>[EOS]"
             )
         elif mode == "arithmetic_word":
             speed = self.rng.randint(30, 80)
             hours = self.rng.randint(2, 8)
             dist = speed * hours
             text = (
-                f"[THREAD:{thread_id}]Question: A vehicle travels at a constant velocity of {speed} km/h for {hours} hours. What is the total distance traveled? "
-                f"<thought> Distance = velocity * time. distance = {speed} km/h * {hours} h = {dist} km. </thought> "
-                f"[RESP]<solution>{dist} kilometers</solution>[EOS]"
+                f"[THREAD:{thread_id}]If a vehicle travels at a constant velocity of {speed} km/h for {hours} hours, how far does it go? "
+                f"[RESP]<thought> Distance = velocity * time. distance = {speed} km/h * {hours} h = {dist} km. </thought> "
+                f"<solution>{dist} kilometers</solution>[EOS]"
             )
         elif mode == "tool_call":
             tool_name, tool_args = self.rng.choice(self.tools)
