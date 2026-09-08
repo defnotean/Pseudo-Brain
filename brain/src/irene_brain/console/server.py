@@ -168,22 +168,17 @@ def create_console_app(checkpoint_path: Optional[str] = None) -> FastAPI:
 
         # Run single-step autoregressive generation
         with torch.no_grad():
+            # Initialize sequence with prompt tokens
             cur_tokens = list(prompt_tokens)
-            recent_tokens: List[int] = list(prompt_tokens)
-
-            # Initialize recurrent state
-            brain_state = state.model.init_state(batch_size=1, device=state.device)
-
-            # Burn in prompt
-            prompt_tensor = torch.tensor([cur_tokens], dtype=torch.long, device=state.device)
-            out = state.model.forward_sequence_parallel(token_seq=prompt_tensor)
-            logits = out["logits"][:, -1, :]  # [1, V]
+            recent_tokens = list(prompt_tokens)
 
             # Slot state representation from model slot identities
             slot_matrix = state.model.slot_identities.detach().cpu()  # [16, 64]
 
             for step_idx in range(req.max_tokens):
-                step_logits = logits[0].clone()
+                prompt_tensor = torch.tensor([cur_tokens], dtype=torch.long, device=state.device)
+                out = state.model.forward_sequence_parallel(token_seq=prompt_tensor)
+                step_logits = out["logits"][0, -1, :].clone()
 
                 # Apply anti-repetition penalty
                 if req.repetition_penalty > 1.0:
@@ -212,12 +207,8 @@ def create_console_app(checkpoint_path: Optional[str] = None) -> FastAPI:
                     break
 
                 tokens_generated.append(next_tok)
+                cur_tokens.append(next_tok)
                 recent_tokens.append(next_tok)
-
-                # Single-step forward
-                next_tensor = torch.tensor([[next_tok]], dtype=torch.long, device=state.device)
-                step_out = state.model.forward_sequence_parallel(token_seq=next_tensor)
-                logits = step_out["logits"][:, -1, :]
 
             elapsed_ms = (time.time() - t0) * 1000
             decoded_text = state.tokenizer.decode(tokens_generated).strip()
