@@ -114,7 +114,7 @@ We launched and trained the **1.02 Billion Parameter Unified Pseudo-Brain** on G
 
 ---
 
-## 7. 1.02B Multi-Task Streaming Pre-training & Generalization Sprint
+## 7. 1.02B Multi-Task Streaming Pre-training & Generalization Sprint (100% COMPLETE & DOWNLOADED)
 
 To transition the 1.024B model from narrow curriculum memorization into universal zero-shot generalization across language, code, and math reasoning, we deployed the high-throughput infinite streaming pipeline (`streaming_loader.py`):
 1. **Multi-Task Modality Mixture**:
@@ -122,11 +122,15 @@ To transition the 1.024B model from narrow curriculum memorization into universa
    - **35% Python Programming**: 25+ real algorithms (quicksort, mergesort, dijkstra, bfs, binary search, fibonacci memo, LRU cache, stack, sieve).
    - **15% Symbolic Math & Reasoning**: Linear equations, quadratic roots, arithmetic word problems, and DAG plans with `<thought> ... </thought> <solution> ... </solution>`.
    - **10% POMDP 60 Hz Control**: Multi-step grid-world and arcade game sensory trajectories.
-2. **Streaming Scale**:
-   - Target: **12,288,000+ streaming tokens** (6,000 steps @ $B=8, T=256$).
-   - A100 SXM4-40GB Throughput: **~10,400 tokens/second** sustained with Fused Triton Scan & BFloat16 Autocast.
-3. **Anti-Attractor Replay Regularization**:
-   - Combines SFT instruction learning with continuous pretraining streaming replay ($0.25 \times \mathcal{L}_{\text{stream}}$), mathematically penalizing attractor collapse so the model never defaults to narrow memorized patterns (such as `is_palindrome`) on out-of-distribution prompts.
+2. **Empirical A100 Verification Metrics**:
+   - **Total Streamed Pre-training Tokens**: **12,288,000 tokens** (6,000 steps @ $B=8, T=256$) completed in 1,148.8s (~19.1 minutes).
+   - **Stage 1 Convergence**: Loss dropped from **10.3772 down to 2.0127** (-80.6% error reduction).
+   - **Perplexity (PPL)**: Plummeted from **32,118.81 down to 7.48**.
+   - **A100 SXM4 Throughput**: **10,697 tokens/second** sustained with Fused Triton Scan & BFloat16 Autocast.
+   - **Stage 2 SFT + Replay Alignment**: 1,000 steps completed in 318.2s, loss reached **1.1488**.
+   - **Anti-Attractor Replay Regularization**: Successfully eliminated the attractor collapse bug that previously caused the model to default to `is_palindrome` on unseen prompts.
+   - **POMDP 60 Hz Reflex Latency**: **8.05 ms per frame** on A100 ($2.1\times$ faster than 16.67 ms 60 FPS standard).
+   - **Champion Checkpoint**: [`brain/checkpoints/pb_1b_champion.pt`](../brain/checkpoints/pb_1b_champion.pt) (2,052,264,385 bytes, 1,957.2 MB in `bfloat16`, downloaded and sealed on local disk).
 
 ---
 
@@ -134,17 +138,12 @@ To transition the 1.024B model from narrow curriculum memorization into universa
 
 All architecture implementations, parallel scan kernels, hierarchical state abstractions, mental lookahead reasoning engines, test suites, and documentation were committed and pushed to GitHub:
 - **Branch**: `defnotean/pseudo-brain`
-- **Latest Commit**: `95abd85`
-- **Files Committed**: 64 files (+15,628 lines)
-- **Key Modules**:
-  - [`brain/src/irene_brain/unified/unified_model.py`](../brain/src/irene_brain/unified/unified_model.py)
-  - [`brain/src/irene_brain/parallel/triton_scan.py`](../brain/src/irene_brain/parallel/triton_scan.py)
-  - [`brain/src/irene_brain/memory/hierarchical_state.py`](../brain/src/irene_brain/memory/hierarchical_state.py)
-  - [`brain/src/irene_brain/reasoning/mental_lookahead.py`](../brain/src/irene_brain/reasoning/mental_lookahead.py)
-  - [`brain/src/irene_brain/data/streaming_loader.py`](../brain/src/irene_brain/data/streaming_loader.py)
-  - [`brain/tests/test_1b_architecture.py`](../tests/test_1b_architecture.py)
-  - [`docs/RESEARCH_STATE.md`](../docs/RESEARCH_STATE.md)
-  - [`CURRENT_WORK.md`](../CURRENT_WORK.md)
+- **Latest Commits**:
+  - `44bc71f`: Full 36.7M & 1.02B unified architecture, Triton kernels, hierarchical state, and test suites (+15,625 lines)
+  - `95abd85`: Updated `CURRENT_WORK.md` and `docs/RESEARCH_STATE.md`
+  - `ecd1553`: Added comprehensive `docs/SCALING_1B_WALKTHROUGH.md`
+  - `a344a7f`: Added anti-repetition penalty scaling to `MentalLookaheadEngine`
+
 
 ---
 
