@@ -42,12 +42,14 @@ class MentalLookaheadEngine:
         horizon: int = 4,
         entropy_threshold: float = 1.2,
         value_weight: float = 0.5,
+        repetition_penalty: float = 1.25,
     ) -> None:
         self.model = model
         self.branch_factor = branch_factor
         self.horizon = horizon
         self.entropy_threshold = entropy_threshold
         self.value_weight = value_weight
+        self.repetition_penalty = repetition_penalty
 
     def evaluate_entropy(self, logits: Tensor) -> float:
         """Compute Shannon entropy of next-token distribution."""
@@ -84,7 +86,15 @@ class MentalLookaheadEngine:
 
         # Step 2..H: greedy rollout forward in latent state
         for _ in range(1, self.horizon):
-            next_t = int(logits.argmax(dim=-1).item())
+            scaled_logits = logits.clone()
+            if self.repetition_penalty != 1.0 and tokens_unrolled:
+                for tok in set(tokens_unrolled):
+                    if scaled_logits[0, tok] > 0:
+                        scaled_logits[0, tok] /= self.repetition_penalty
+                    else:
+                        scaled_logits[0, tok] *= self.repetition_penalty
+
+            next_t = int(scaled_logits.argmax(dim=-1).item())
             if next_t == self.model.vocab_size - 1 or next_t == 2:  # EOS or PAD
                 break
             tokens_unrolled.append(next_t)
@@ -163,8 +173,17 @@ class MentalLookaheadEngine:
 
         # 2. Adaptive streaming generation
         for _ in range(max_new_tokens):
+            scaled_logits = current_logits.clone()
+            if self.repetition_penalty != 1.0 and generated_tokens:
+                recent_tokens = set(generated_tokens[-32:])
+                for tok in recent_tokens:
+                    if scaled_logits[0, tok] > 0:
+                        scaled_logits[0, tok] /= self.repetition_penalty
+                    else:
+                        scaled_logits[0, tok] *= self.repetition_penalty
+
             next_token, used_lookahead, ent = self.select_next_token_adaptive(
-                current_logits=current_logits,
+                current_logits=scaled_logits,
                 current_state=state,
                 device=dev,
             )
