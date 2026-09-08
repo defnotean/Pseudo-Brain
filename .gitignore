@@ -28,3 +28,7 @@ brain/data/
 *.zip
 scratch/
 /runs/
+*.log
+run_log.txt
+test_output.txt
+scratch_debug_worker.py

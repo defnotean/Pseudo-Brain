@@ -48,6 +48,19 @@ from .splits import (
     audit_split_integrity,
     require_split_integrity,
 )
+from .streaming_loader import (
+    MultiTaskMixtureStream,
+    PackedSequenceBlock,
+    SequencePacker,
+    StreamingBatch,
+    StreamingConfig,
+    StreamingMultiTaskDataset,
+    TaskType,
+    TaskWeights,
+    collate_streaming_batch,
+    create_streaming_dataloader,
+)
+
 
 __all__ = [
     "BranchRecord",
@@ -94,5 +107,15 @@ __all__ = [
     "solver_environment_factory",
     "split_episode_seed",
     "split_for_episode_seed",
+    "MultiTaskMixtureStream",
+    "PackedSequenceBlock",
+    "SequencePacker",
+    "StreamingBatch",
+    "StreamingConfig",
+    "StreamingMultiTaskDataset",
+    "TaskType",
+    "TaskWeights",
+    "collate_streaming_batch",
+    "create_streaming_dataloader",
     "verify_trace",
 ]

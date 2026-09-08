@@ -21,6 +21,13 @@ from .tools import (
     TestVerifyTool,
 )
 from .loop import PseudoBrainAgent, AgentStepLog, run_autonomous_task
+from .unified_agent_loop import (
+    CodeExecutionEngine,
+    CognitiveAgentStepLog,
+    CognitiveTaskReport,
+    ExecutionResult,
+    UnifiedCognitiveAgent,
+)
 
 __all__ = [
     "GoalSpecification",
@@ -40,4 +47,9 @@ __all__ = [
     "PseudoBrainAgent",
     "AgentStepLog",
     "run_autonomous_task",
+    "CodeExecutionEngine",
+    "CognitiveAgentStepLog",
+    "CognitiveTaskReport",
+    "ExecutionResult",
+    "UnifiedCognitiveAgent",
 ]

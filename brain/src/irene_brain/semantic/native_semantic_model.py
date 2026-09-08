@@ -49,15 +49,26 @@ class NativeSemanticPseudoBrain(nn.Module):
         num_deep_layers: int = 3,
         conditional_recurrence: bool = False,
         epsilon_dormant: float = 0.05,
+        recurrent_norm: bool = False,
+        spectral_constraint: bool = False,
+        thread_token_start: int = 9,
     ):
         super().__init__()
         self.tier = tier
-        if tier == "tier2":
-            # Apply Law 1 (Bounded W=64) & Law 2 (Rank r=32, Proj_dim=4096)
+        self.recurrent_norm = recurrent_norm
+        self.spectral_constraint = spectral_constraint
+        self.thread_token_start = thread_token_start
+        if tier in ("tier2", "1b", "tier3"):
+            # Apply Law 1 (Bounded W=64) & Law 2 (Rank r=32)
             thought_size = 64
             rank = 32 if rank is None else rank
-            proj_dim = 4096 if proj_dim == 128 else proj_dim
-            embed_dim = 128 if embed_dim == 64 else embed_dim
+            if tier in ("1b", "tier3"):
+                proj_dim = 6144 if proj_dim == 128 else proj_dim
+                embed_dim = 2048 if embed_dim == 64 else embed_dim
+                num_deep_layers = 24 if num_deep_layers == 3 else num_deep_layers
+            else:
+                proj_dim = 4096 if proj_dim == 128 else proj_dim
+                embed_dim = 128 if embed_dim == 64 else embed_dim
 
         self.vocab_size = vocab_size
         self.K = K
@@ -85,7 +96,22 @@ class NativeSemanticPseudoBrain(nn.Module):
             proj_dim=proj_dim,
             tier=tier,
             num_deep_layers=num_deep_layers,
+            recurrent_norm=recurrent_norm,
+            spectral_constraint=spectral_constraint,
         )
+
+        if recurrent_norm:
+            from irene_brain.stability.recurrent_norm import RecurrentSlotNorm
+
+            self.slot_norm: nn.Module | None = RecurrentSlotNorm(
+                dim=thought_size,
+                norm_type="rms",
+                min_bound=0.90,
+                max_bound=1.10,
+                enforce_hard_bounds=True,
+            )
+        else:
+            self.slot_norm = None
 
         # 3. Cognitive Input Gating with T=0.5 sharpening
         self.cig_gate = nn.Sequential(
@@ -178,14 +204,14 @@ class NativeSemanticPseudoBrain(nn.Module):
         B = token_ids.shape[0]
         dev = token_ids.device
 
-        # Update active thread if explicit or if token is thread token [THREAD:i] (tokens 9 .. 9+K-1)
+        # Update active thread if explicit or if token is thread token [THREAD:i]
         if thread_ids is not None:
             state.active_thread = thread_ids.clamp(0, self.K - 1)
         else:
-            # Check if token is thread marker (base_thread_offset is 9 in tokenizer)
-            is_thread_tok = (token_ids >= 9) & (token_ids < 9 + self.K)
+            # Check if token is thread marker
+            is_thread_tok = (token_ids >= self.thread_token_start) & (token_ids < self.thread_token_start + self.K)
             if is_thread_tok.any():
-                new_tids = (token_ids - 9).clamp(0, self.K - 1)
+                new_tids = (token_ids - self.thread_token_start).clamp(0, self.K - 1)
                 state.active_thread = torch.where(is_thread_tok, new_tids, state.active_thread)
 
         # 1. Embed & Project
@@ -235,6 +261,8 @@ class NativeSemanticPseudoBrain(nn.Module):
 
         # 6. Gated State Update
         next_thoughts = (1.0 - salience) * state.thoughts + salience * t_candidate
+        if self.slot_norm is not None:
+            next_thoughts = self.slot_norm(next_thoughts)
 
         # 7. Fast Synaptic Latching (CGSL)
         if self.use_cgp and self.surprise_encoder is not None:
@@ -425,6 +453,32 @@ def make_semantic_model(
             use_routing=True,
             **kwargs,
         )
+    elif model_type in ("pseudo_brain_parallel", "parallel"):
+        from irene_brain.parallel.fused_cell import ParallelNativeSemanticPseudoBrain
+
+        return ParallelNativeSemanticPseudoBrain(
+            vocab_size=vocab_size,
+            K=kwargs.get("K", K),
+            thought_size=kwargs.get("thought_size", thought_size),
+            embed_dim=kwargs.get("embed_dim", embed_dim),
+            proj_dim=kwargs.get("proj_dim", proj_dim),
+            tier=kwargs.get("tier", kwargs.get("tier", None)),
+            rank=kwargs.get("rank", None),
+            num_deep_layers=kwargs.get("num_deep_layers", 3),
+        )
+    elif model_type in ("pseudo_brain_stable", "stable"):
+        return NativeSemanticPseudoBrain(
+            vocab_size=vocab_size,
+            K=kwargs.get("K", K),
+            thought_size=kwargs.get("thought_size", thought_size),
+            embed_dim=embed_dim,
+            proj_dim=proj_dim,
+            use_cgp=True,
+            use_routing=True,
+            recurrent_norm=True,
+            spectral_constraint=True,
+            **{k: v for k, v in kwargs.items() if k not in ("K", "thought_size")},
+        )
     elif model_type in ("pseudo_brain_tier2", "tier2"):
         return NativeSemanticPseudoBrain(
             vocab_size=vocab_size,
@@ -437,6 +491,21 @@ def make_semantic_model(
             use_cgp=True,
             use_routing=True,
             conditional_recurrence=kwargs.get("conditional_recurrence", True),
+        )
+    elif model_type in ("pseudo_brain_1b", "1b", "tier3"):
+        return NativeSemanticPseudoBrain(
+            vocab_size=vocab_size,
+            K=kwargs.get("K", K),
+            thought_size=64,
+            tier="1b",
+            embed_dim=kwargs.get("embed_dim", 2048),
+            proj_dim=kwargs.get("proj_dim", 6144),
+            rank=kwargs.get("rank", 32),
+            num_deep_layers=kwargs.get("num_deep_layers", 24),
+            use_cgp=True,
+            use_routing=True,
+            conditional_recurrence=kwargs.get("conditional_recurrence", False),
+            **{k: v for k, v in kwargs.items() if k not in ("K", "thought_size", "embed_dim", "proj_dim", "rank", "num_deep_layers", "tier")},
         )
     elif model_type == "pseudo_brain_no_cgp":
         return NativeSemanticPseudoBrain(

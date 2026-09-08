@@ -176,6 +176,7 @@ def main():
     parser.add_argument("--tier", type=str, default="tier0", choices=["tier0", "tier2"], help="Model parameter tier")
     parser.add_argument("--checkpoint", type=str, default=None, help="Path to trained checkpoint (.pt)")
     parser.add_argument("--device", type=str, default="cpu", help="Compute device (cpu, directml)")
+    parser.add_argument("--repetition-penalty", type=float, default=1.25, help="Repetition penalty for decoding (default: 1.25)")
     args = parser.parse_args()
 
     # Device selection
@@ -252,6 +253,7 @@ def main():
             thread_id=cur_thread,
             max_new_tokens=24,
             temperature=0.0,
+            repetition_penalty=args.repetition_penalty,
         )
         print(f"Pseudo-Brain: {res['response_text'].strip()}")
         print(f"  [Latency: {res['mean_step_latency_ms']:.3f} ms | P_t Norm: {session.get_telemetry()['active_plastic_norm']:.3f}]")

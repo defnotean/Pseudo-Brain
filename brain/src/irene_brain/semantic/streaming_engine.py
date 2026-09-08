@@ -89,6 +89,10 @@ class StreamingCognitiveSession:
         prompt_latencies = []
         last_logits = None
 
+        # Gentle synaptic latch reset at the beginning of each turn to prevent logit drift
+        if self.state is not None and hasattr(self.state, "P_t") and self.state.P_t is not None:
+            self.state.P_t = self.state.P_t * 0.2
+
         active_tid = thread_id if thread_id is not None else 0
         if prompt_text:
             token_ids = self.tokenizer.encode(prompt_text, thread_id=active_tid)

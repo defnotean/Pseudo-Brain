@@ -1,0 +1,100 @@
+{
+  "model_parameters": {
+    "pseudo_brain": 26122937,
+    "transformer": 42220544
+  },
+  "memory_scaling": [
+    {
+      "sequence_length": 16,
+      "pseudo_brain_fast_kb": 4.0,
+      "pseudo_brain_total_kb": 36.0,
+      "transformer_kv_kb": 256.0,
+      "memory_ratio": 64.0
+    },
+    {
+      "sequence_length": 64,
+      "pseudo_brain_fast_kb": 4.0,
+      "pseudo_brain_total_kb": 36.0,
+      "transformer_kv_kb": 1024.0,
+      "memory_ratio": 256.0
+    },
+    {
+      "sequence_length": 256,
+      "pseudo_brain_fast_kb": 4.0,
+      "pseudo_brain_total_kb": 36.0,
+      "transformer_kv_kb": 4096.0,
+      "memory_ratio": 1024.0
+    },
+    {
+      "sequence_length": 512,
+      "pseudo_brain_fast_kb": 4.0,
+      "pseudo_brain_total_kb": 36.0,
+      "transformer_kv_kb": 8192.0,
+      "memory_ratio": 2048.0
+    },
+    {
+      "sequence_length": 1024,
+      "pseudo_brain_fast_kb": 4.0,
+      "pseudo_brain_total_kb": 36.0,
+      "transformer_kv_kb": 16384.0,
+      "memory_ratio": 4096.0
+    },
+    {
+      "sequence_length": 2048,
+      "pseudo_brain_fast_kb": 4.0,
+      "pseudo_brain_total_kb": 36.0,
+      "transformer_kv_kb": 32768.0,
+      "memory_ratio": 8192.0
+    }
+  ],
+  "latency_scaling": [
+    {
+      "context_length": 16,
+      "pseudo_brain_latency_ms": 6.7168499997933395,
+      "transformer_latency_ms": 6.609800000539205,
+      "pb_60hz_compliant": true,
+      "tf_60hz_compliant": true,
+      "speedup": 0.9840624698694436
+    },
+    {
+      "context_length": 64,
+      "pseudo_brain_latency_ms": 6.898169999961586,
+      "transformer_latency_ms": 6.815933333321785,
+      "pb_60hz_compliant": true,
+      "tf_60hz_compliant": true,
+      "speedup": 0.988078480721661
+    },
+    {
+      "context_length": 256,
+      "pseudo_brain_latency_ms": 7.574469999963185,
+      "transformer_latency_ms": 6.852166666794801,
+      "pb_60hz_compliant": true,
+      "tf_60hz_compliant": true,
+      "speedup": 0.9046397525936608
+    },
+    {
+      "context_length": 512,
+      "pseudo_brain_latency_ms": 6.862579999869922,
+      "transformer_latency_ms": 6.769356666579067,
+      "pb_60hz_compliant": true,
+      "tf_60hz_compliant": true,
+      "speedup": 0.9864157017779578
+    }
+  ],
+  "long_horizon_retention": {
+    "distractor_tokens": 500,
+    "pseudo_brain_episodic_retention_cos_sim": 1.0,
+    "pseudo_brain_working_retention_cos_sim": 0.28726452589035034,
+    "transformer_kv_cache_kb_at_500": 8000.0,
+    "retention_success": true
+  },
+  "autonomous_code_repair": {
+    "task": "arithmetic_bug_repair",
+    "success": true,
+    "iterations_to_pass": 2,
+    "consequence_surprises": [
+      0.26747581362724304,
+      1.2122152149677277
+    ]
+  }
+}

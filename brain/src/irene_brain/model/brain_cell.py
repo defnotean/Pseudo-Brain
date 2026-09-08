@@ -359,18 +359,31 @@ class BrainCellCore(nn.Module):
         proj_dim: int | None = None,
         tier: str | None = None,
         num_deep_layers: int = 3,
+        recurrent_norm: bool = False,
+        spectral_constraint: bool = False,
+        spectral_mode: str = "cayley",
+        max_spectral_radius: float = 1.0,
     ) -> None:
         super().__init__()
         self.tier = tier
+        self.recurrent_norm = recurrent_norm
+        self.spectral_constraint = spectral_constraint
+        self.spectral_mode = spectral_mode
+        self.max_spectral_radius = max_spectral_radius
 
         # Tier-specific architectural scaling laws
-        if tier == "tier2":
-            # Law 1 (Slot Width Clamping): W=64, K=128 slots (32 KB state memory)
+        if tier in ("tier2", "1b", "tier3"):
+            # Law 1 (Slot Width Clamping): W=64
             thought_size = 64
-            # Law 2 (Factorized Deep Projections): W=64 -> rank r=32 -> proj_dim=4096 (~50M capacity)
-            rank = 32
-            proj_dim = 4096
-            input_size = 4096 if input_size in (48, 256, 512) else input_size
+            # Law 2 (Factorized Deep Projections)
+            rank = 32 if rank is None else rank
+            if tier in ("1b", "tier3"):
+                proj_dim = 6144 if proj_dim is None else proj_dim
+                input_size = proj_dim if input_size in (48, 256, 512, 4096) else input_size
+                num_deep_layers = 24 if num_deep_layers == 3 else num_deep_layers
+            else:
+                proj_dim = 4096 if proj_dim is None else proj_dim
+                input_size = 4096 if input_size in (48, 256, 512) else input_size
 
         self.input_size = input_size
         self.thought_size = thought_size
@@ -378,8 +391,8 @@ class BrainCellCore(nn.Module):
         self.proj_dim = proj_dim
         self.num_deep_layers = num_deep_layers
 
-        # Law 2: Deep projection parameter core delivering Tier 2 ~50M capacity
-        if tier == "tier2" and proj_dim is not None and proj_dim > 0:
+        # Law 2: Deep projection parameter core delivering Tier 2 (~50M) or 1B capacity
+        if tier in ("tier2", "1b", "tier3") and proj_dim is not None and proj_dim > 0:
             deep_layers: list[nn.Module] = []
             for _ in range(num_deep_layers):
                 deep_layers.append(nn.Linear(proj_dim, proj_dim))
@@ -399,9 +412,47 @@ class BrainCellCore(nn.Module):
             self.W_in = nn.Linear(input_size, thought_size)
 
         # Recurrent hidden transitions (thought_size -> thought_size)
-        self.W_hr = nn.Linear(thought_size, thought_size)
-        self.W_hz = nn.Linear(thought_size, thought_size)
-        self.W_hn = nn.Linear(thought_size, thought_size)
+        if spectral_constraint:
+            from irene_brain.stability.spectral_norm import CayleyLinear, SpectralNormalizedLinear
+
+            if spectral_mode == "cayley":
+                self.W_hr: nn.Module = CayleyLinear(
+                    thought_size, max_spectral_radius=max_spectral_radius
+                )
+                self.W_hz: nn.Module = CayleyLinear(
+                    thought_size, max_spectral_radius=max_spectral_radius
+                )
+                self.W_hn: nn.Module = CayleyLinear(
+                    thought_size, max_spectral_radius=max_spectral_radius
+                )
+            else:
+                self.W_hr = SpectralNormalizedLinear(
+                    thought_size, thought_size, max_spectral_radius=max_spectral_radius
+                )
+                self.W_hz = SpectralNormalizedLinear(
+                    thought_size, thought_size, max_spectral_radius=max_spectral_radius
+                )
+                self.W_hn = SpectralNormalizedLinear(
+                    thought_size, thought_size, max_spectral_radius=max_spectral_radius
+                )
+        else:
+            self.W_hr = nn.Linear(thought_size, thought_size)
+            self.W_hz = nn.Linear(thought_size, thought_size)
+            self.W_hn = nn.Linear(thought_size, thought_size)
+
+        # Recurrent Slot Normalization (keeps internal norms within [0.9, 1.1])
+        if recurrent_norm:
+            from irene_brain.stability.recurrent_norm import RecurrentSlotNorm
+
+            self.slot_norm: nn.Module | None = RecurrentSlotNorm(
+                dim=thought_size,
+                norm_type="rms",
+                min_bound=0.90,
+                max_bound=1.10,
+                enforce_hard_bounds=True,
+            )
+        else:
+            self.slot_norm = None
 
         # Telemetry & FLOP tracking
         self.eval_count: int = 0
@@ -459,7 +510,10 @@ class BrainCellCore(nn.Module):
         r = torch.sigmoid(self.W_ir(x_eff) + self.W_hr(thought))
         z = torch.sigmoid(self.W_iz(x_eff) + self.W_hz(thought))
         n = torch.tanh(self.W_in(x_eff) + r * self.W_hn(thought))
-        return (1.0 - z) * n + z * thought
+        out = (1.0 - z) * n + z * thought
+        if self.slot_norm is not None:
+            out = self.slot_norm(out)
+        return out
 
     def forward_conditional(
         self,
