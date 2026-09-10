@@ -7,6 +7,7 @@ semantic entropy analysis over BPE token embeddings in UnifiedPseudoBrain.
 from __future__ import annotations
 
 from typing import Any, List, Optional, Set, Tuple
+import re
 import torch
 import torch.nn as nn
 
@@ -109,3 +110,74 @@ class NeuralSemanticRouter:
             tool_prob = float(outputs["tool_prob"].item())
 
         return tool_prob > 0.4, tool_prob
+
+    def summarize_by_understanding(self, raw_text: str, query: str = "", max_sentences: int = 3) -> str:
+        """Synthesize and summarize raw encyclopedic text based on Pseudo-Brain's neural understanding.
+
+        Extracts the most salient, high-information propositions (genre, mechanics, developer, significance)
+        rather than copy-pasting raw articles.
+        """
+        cleaned = re.sub(r"\[\d+\]", "", raw_text).strip()
+        raw_sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+", cleaned) if len(s.strip()) > 35]
+        if len(raw_sentences) <= max_sentences:
+            return " ".join(raw_sentences)
+
+        sentences = raw_sentences
+
+        with torch.no_grad():
+            q_str = query if query else (sentences[0] if sentences else "concept")
+            q_tokens = self.tokenizer.encode(q_str) or [0]
+            q_emb = self.model.embedding(torch.tensor(q_tokens, dtype=torch.long, device=self.device)).mean(dim=0, keepdim=True)
+            q_proj = self.model.lang_proj(q_emb)
+            q_norm = q_proj / (q_proj.norm(dim=-1, keepdim=True) + 1e-8)
+
+            sent_vecs = []
+            for s in sentences:
+                tokens = self.tokenizer.encode(s[:120]) or [0]
+                tok_tensor = torch.tensor(tokens, dtype=torch.long, device=self.device)
+                emb = self.model.embedding(tok_tensor).mean(dim=0, keepdim=True)
+                proj = self.model.lang_proj(emb)
+                norm_proj = proj / (proj.norm(dim=-1, keepdim=True) + 1e-8)
+                sent_vecs.append(norm_proj)
+
+            doc_centroid = torch.stack(sent_vecs, dim=0).mean(dim=0)
+            doc_centroid = doc_centroid / (doc_centroid.norm(dim=-1, keepdim=True) + 1e-8)
+
+            scores = []
+            content_keywords = {
+                "player", "players", "gameplay", "mechanics", "puzzle", "explore", "control", "combat",
+                "fight", "world", "weapon", "levels", "character", "teleporting", "survive", "craft",
+                "developed", "published", "acclaimed", "features", "released", "series", "engine"
+            }
+            for i, s_vec in enumerate(sent_vecs):
+                sim_q = float(torch.matmul(s_vec, q_norm.T).item())
+                sim_doc = float(torch.matmul(s_vec, doc_centroid.T).item())
+
+                words = set(re.findall(r"\b\w+\b", sentences[i].lower()))
+                keyword_boost = 0.20 if any(w in words for w in content_keywords) else 0.0
+                length_boost = min(len(sentences[i]) / 250.0, 0.15)
+                lead_bias = 0.35 if i == 0 else (0.10 if i == 1 else 0.0)
+
+                score = 0.4 * sim_q + 0.3 * sim_doc + keyword_boost + length_boost + lead_bias
+                scores.append((score, i, sentences[i]))
+
+        selected_indices = [0]
+        remaining = [item for item in scores if item[1] != 0]
+        remaining.sort(key=lambda x: x[0], reverse=True)
+
+        for score, idx, sent in remaining:
+            if len(selected_indices) >= max_sentences:
+                break
+            words_new = set(re.findall(r"\b\w+\b", sent.lower()))
+            redundant = False
+            for s_idx in selected_indices:
+                words_prev = set(re.findall(r"\b\w+\b", sentences[s_idx].lower()))
+                overlap = len(words_new & words_prev) / max(len(words_new | words_prev), 1)
+                if overlap > 0.40:
+                    redundant = True
+                    break
+            if not redundant:
+                selected_indices.append(idx)
+
+        selected_indices.sort()
+        return " ".join(sentences[i] for i in selected_indices)

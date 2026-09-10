@@ -714,10 +714,16 @@ class AutonomousLifelongAgent:
             else:
                 code_exec_ok = True
 
-        # Step 7: Formulate grounded, non-hallucinated response
+        # Step 7: Formulate grounded response via neural understanding (not copy-paste)
+        synthesized_summary = self.neural_router.summarize_by_understanding(
+            research_res.summary,
+            query=search_topic,
+            max_sentences=3,
+        )
+
         response_parts = [
             epistemic_acknowledgment.strip(),
-            f"Here is what I found:\n{research_res.summary}",
+            f"Here is what I gathered about {search_topic.title()}:\n{synthesized_summary}",
         ]
         if verified_code:
             response_parts.append(f"\nWorking {lang.title()} Example:\n```{lang}\n{verified_code}\n```")
@@ -729,7 +735,7 @@ class AutonomousLifelongAgent:
         # Step 8: Continuous Episodic Consolidation (Learning like a human!)
         self._consolidate_to_episodic(
             topic=search_topic,
-            summary=research_res.summary,
+            summary=synthesized_summary,
             code_example=verified_code,
             language=lang,
             canonical_topic=research_res.topic,

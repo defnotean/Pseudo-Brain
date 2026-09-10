@@ -440,16 +440,35 @@ class WebSearchTool(Tool):
     name = "web_search"
     description = "Perform live web and encyclopedia search to retrieve accurate facts, overviews, and source references for real-world entities, concepts, games, technologies, or science."
 
-    def execute(self, query: str, timeout: float = 6.0, **kwargs) -> ToolResult:
+    def execute(self, query: str, timeout: float = 10.0, **kwargs) -> ToolResult:
         clean_q = query.strip()
         if not clean_q:
             return ToolResult(success=False, output="", error="Query cannot be empty.", reward=-0.2)
 
-        headers = {"User-Agent": "PseudoBrainResearchBot/1.0 (Autonomous Cognitive Research Agent)"}
+        headers = {"User-Agent": "PseudoBrainResearchBot/1.0 (Autonomous Cognitive Research Agent; contact@pseudobrain.ai)"}
         encoded = urllib.parse.quote(clean_q)
 
-        # 1. First attempt: Direct Wikipedia Page Summary / Lead Extract
+        # 1. First attempt: Direct Wikipedia REST Page Summary
         title_encoded = urllib.parse.quote(clean_q.replace(" ", "_"))
+        rest_url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{title_encoded}"
+        try:
+            req = urllib.request.Request(rest_url, headers=headers)
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                extract = data.get("extract", "").strip()
+                if extract and data.get("type") != "disambiguation":
+                    title = data.get("title", clean_q)
+                    url = data.get("content_urls", {}).get("desktop", {}).get("page") or f"https://en.wikipedia.org/wiki/{title_encoded}"
+                    out = (
+                        f"WEB SEARCH RESULT: {title}\n\n"
+                        f"SUMMARY:\n{extract}\n\n"
+                        f"SOURCE: {url}"
+                    )
+                    return ToolResult(success=True, output=out, reward=0.5)
+        except Exception:
+            pass
+
+        # 1b. Direct Wikipedia Action Query fallback
         wiki_extract_url = f"https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exintro=1&explaintext=1&titles={title_encoded}&format=json"
         try:
             req = urllib.request.Request(wiki_extract_url, headers=headers)
@@ -477,26 +496,48 @@ class WebSearchTool(Tool):
             with urllib.request.urlopen(req, timeout=timeout) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
                 hits = data.get("query", {}).get("search", [])
-                if hits:
-                    top = hits[0]
+                for top in hits[:3]:
                     top_title = top["title"]
                     top_encoded = urllib.parse.quote(top_title.replace(" ", "_"))
-                    summary_url = f"https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exintro=1&explaintext=1&titles={top_encoded}&format=json"
-                    req2 = urllib.request.Request(summary_url, headers=headers)
-                    with urllib.request.urlopen(req2, timeout=timeout) as resp2:
-                        d2 = json.loads(resp2.read().decode("utf-8"))
-                        pages2 = d2.get("query", {}).get("pages", {})
-                        for pid2, pdata2 in pages2.items():
-                            if pid2 != "-1" and pdata2.get("extract"):
-                                title = pdata2.get("title", top_title)
-                                extract = pdata2.get("extract", "").strip()
-                                url = f"https://en.wikipedia.org/wiki/{top_encoded}"
+
+                    # Try REST summary first for the top hit
+                    try:
+                        rest_hit_url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{top_encoded}"
+                        req_h = urllib.request.Request(rest_hit_url, headers=headers)
+                        with urllib.request.urlopen(req_h, timeout=timeout) as resp_h:
+                            dh = json.loads(resp_h.read().decode("utf-8"))
+                            eh = dh.get("extract", "").strip()
+                            if eh and dh.get("type") != "disambiguation":
+                                uh = dh.get("content_urls", {}).get("desktop", {}).get("page") or f"https://en.wikipedia.org/wiki/{top_encoded}"
                                 out = (
-                                    f"WEB SEARCH RESULT: {title}\n\n"
-                                    f"SUMMARY:\n{extract}\n\n"
-                                    f"SOURCE: {url}"
+                                    f"WEB SEARCH RESULT: {dh.get('title', top_title)}\n\n"
+                                    f"SUMMARY:\n{eh}\n\n"
+                                    f"SOURCE: {uh}"
                                 )
                                 return ToolResult(success=True, output=out, reward=0.5)
+                    except Exception:
+                        pass
+
+                    # Fallback to action query for the top hit
+                    summary_url = f"https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exintro=1&explaintext=1&titles={top_encoded}&format=json"
+                    try:
+                        req2 = urllib.request.Request(summary_url, headers=headers)
+                        with urllib.request.urlopen(req2, timeout=timeout) as resp2:
+                            d2 = json.loads(resp2.read().decode("utf-8"))
+                            pages2 = d2.get("query", {}).get("pages", {})
+                            for pid2, pdata2 in pages2.items():
+                                if pid2 != "-1" and pdata2.get("extract"):
+                                    title = pdata2.get("title", top_title)
+                                    extract = pdata2.get("extract", "").strip()
+                                    url = f"https://en.wikipedia.org/wiki/{top_encoded}"
+                                    out = (
+                                        f"WEB SEARCH RESULT: {title}\n\n"
+                                        f"SUMMARY:\n{extract}\n\n"
+                                        f"SOURCE: {url}"
+                                    )
+                                    return ToolResult(success=True, output=out, reward=0.5)
+                    except Exception:
+                        pass
         except Exception:
             pass
 
