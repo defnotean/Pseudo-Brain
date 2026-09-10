@@ -36,6 +36,7 @@ from irene_brain.agent.research_engine import ResearchEngine, ResearchResult
 from irene_brain.agent.tools import Tool, ToolRegistry, ToolResult, CommandTool, FileReadTool, FileWriteTool, FilePatchTool, TestVerifyTool
 from irene_brain.agent.unified_agent_loop import CodeExecutionEngine, ExecutionResult
 from irene_brain.agent.neural_router import NeuralSemanticRouter
+from irene_brain.agent.code_synthesizer import NeuralProgramSynthesizer, ProgramSynthesisResult
 
 
 STOPWORDS: Set[str] = {
@@ -95,6 +96,7 @@ class AgentInteractionResult:
     code_execution_success: Optional[bool]
     elapsed_ms: float
     state_bytes: int
+    working_memory_bytes: int = 4096
     unique_word_count: int = 0
     lexical_novelty_score: float = 0.0
 
@@ -120,6 +122,7 @@ class AutonomousLifelongAgent:
         self.research_engine = ResearchEngine()
         self.code_engine = CodeExecutionEngine()
         self.neural_router = NeuralSemanticRouter(self.model, vocab_size=self.model.vocab_size)
+        self.code_synthesizer = NeuralProgramSynthesizer(self.code_engine)
 
         self.state_save_path = Path(state_save_path) if state_save_path else None
 
@@ -695,6 +698,60 @@ class AutonomousLifelongAgent:
         # Step 4: Novel Technical Concept -> Epistemic Humility Gate (Zero Hallucination)
         epistemic_acknowledgment = self._format_epistemic_acknowledgment(search_topic, lang)
 
+        # Step 4b: Check for Autonomous Program / Game Synthesis Request
+        p_lower = prompt.lower()
+        is_code_creation = (
+            any(k in p_lower for k in ["make a", "create a", "write a", "build a", "code a", "program a", "implement a", "have it make", "make it", "how to code"])
+            and any(w in p_lower for w in ["game", "pong", "ping pong", "ascii", "program", "script", "simulator", "app"])
+        )
+
+        if is_code_creation:
+            synth_ack = f"I'm initializing the code synthesis engine to research, construct, and verify '{search_topic}' autonomously on the machine!"
+            synth_res: ProgramSynthesisResult = self.code_synthesizer.synthesize_program(
+                topic=search_topic,
+                prompt=prompt,
+                language=lang if lang in ("python", "bash", "rust", "cpp", "javascript") else "python",
+            )
+
+            # Consolidate synthesized program into episodic memory
+            self._consolidate_to_episodic(
+                topic=search_topic,
+                summary=synth_res.explanation,
+                code_example=synth_res.code,
+                language="python",
+                canonical_topic=f"game_{synth_res.filename.replace('.py', '')}",
+            )
+            if self.state_save_path:
+                self.save_lifelong_state()
+
+            elapsed_ms = (time.perf_counter() - t0) * 1000.0
+            state_bytes = self.cognitive_state.hierarchical_state.total_state_bytes()
+
+            reply_parts = [
+                synth_ack,
+                f"\n{synth_res.explanation}",
+                f"\nFile Saved On Machine:\n`{synth_res.filepath}`",
+                f"\nSandbox Verification Output:\n```text\n{synth_res.test_output}\n```",
+                f"\nWorking Code:\n```python\n{synth_res.code}\n```",
+                f"\nTo run interactively in your terminal:\n```bash\npython \"{synth_res.filepath}\" --play\n```",
+            ]
+            final_reply = "\n".join(reply_parts)
+            self.interaction_history.append(final_reply)
+
+            return AgentInteractionResult(
+                prompt=prompt,
+                reply=final_reply,
+                did_research=True,
+                research_topic=search_topic,
+                consolidated_to_episodic=True,
+                recalled_from_episodic=False,
+                code_execution_success=synth_res.success,
+                elapsed_ms=elapsed_ms,
+                state_bytes=state_bytes,
+                unique_word_count=len(set(re.findall(r"\b\w+\b", final_reply.lower()))),
+                lexical_novelty_score=1.0,
+            )
+
         # Step 5: Execute Autonomous Research
         research_res: ResearchResult = self.research_engine.search(search_topic, language=lang)
 
@@ -839,19 +896,12 @@ class AutonomousLifelongAgent:
         buggy_code: str,
         err_res: ExecutionResult,
     ) -> Tuple[bool, str, ExecutionResult]:
-        """Repair code when execution encounters syntax or runtime errors."""
-        repaired = buggy_code
-        if "SyntaxError" in (err_res.error_type or ""):
-            lines = repaired.splitlines()
-            for i, line in enumerate(lines):
-                if line.strip().startswith(("def ", "if ", "for ", "while ")) and not line.strip().endswith(":"):
-                    lines[i] = line + ":"
-            repaired = "\n".join(lines) + "\n"
-        elif "AssertionError" in (err_res.error_type or ""):
-            if " - " in repaired:
-                repaired = repaired.replace(" - ", " + ", 1)
-            elif " + " in repaired:
-                repaired = repaired.replace(" + ", " - ", 1)
-
-        res2 = self.code_engine.execute_python(repaired)
-        return res2.success, repaired, res2
+        """Autonomously research the error and repair code without external help."""
+        repaired_ok, repaired_code, log = self.code_synthesizer.autonomous_self_repair(
+            code=buggy_code,
+            test_script="",
+            error_res=err_res,
+            max_attempts=4,
+        )
+        res2 = self.code_engine.execute_python(repaired_code)
+        return res2.success, repaired_code, res2

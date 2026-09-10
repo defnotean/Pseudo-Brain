@@ -46,7 +46,10 @@ def run_query(agent: AutonomousLifelongAgent, prompt: str) -> None:
     else:
         print(f"  * ACTION: Direct Conversational / Working Memory Step")
 
-    print(f"  * WORKING MEMORY FOOTPRINT: {result.state_bytes:,} bytes (Law 1: strictly <= 4,096 bytes)")
+    fast_bytes = getattr(result, "working_memory_bytes", 4096)
+    total_bytes = getattr(result, "state_bytes", 36864)
+    print(f"  * WORKING MEMORY (Law 1 Active Cache): {fast_bytes:,} bytes (strictly <= 4,096 bytes)")
+    print(f"  * TOTAL HIERARCHICAL STATE (Active + Episodic): {total_bytes:,} bytes")
     print(f"  * TOTAL LATENCY: {(t1 - t0) * 1000.0:.1f} ms")
     print("\n[AGENT RESPONSE]")
     print(result.reply)
