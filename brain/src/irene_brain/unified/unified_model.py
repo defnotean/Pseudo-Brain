@@ -101,6 +101,7 @@ class UnifiedPseudoBrain(nn.Module):
         use_readout_norm: bool = False,
         use_token_skip: bool = False,
         use_gated_token_skip: bool = False,
+        use_pointer_copy: bool = False,
     ):
         super().__init__()
         self.vocab_size = vocab_size
@@ -331,7 +332,23 @@ class UnifiedPseudoBrain(nn.Module):
             self.token_skip = None
             self.skip_gate = None
 
-        # (c) Game / POMDP Action Policy Head (discrete 0..n_actions-1)
+        # (c) In-Context Pointer-Copy Head
+        # Allows recurrent state to attend back to observed prompt spans for verbatim symbolic copying
+        self.use_pointer_copy = use_pointer_copy
+        if use_pointer_copy:
+            ptr_dim = 64
+            self.ptr_q = nn.Linear(W_fast + embed_dim, ptr_dim)
+            self.ptr_k = nn.Linear(embed_dim, ptr_dim)
+            self.ptr_gate = nn.Linear(W_fast + embed_dim, 1)
+            self.ptr_scale = 25.0
+            nn.init.constant_(self.ptr_gate.bias, -2.0)
+        else:
+            self.ptr_q = None
+            self.ptr_k = None
+            self.ptr_gate = None
+            self.ptr_scale = 25.0
+
+        # (d) Game / POMDP Action Policy Head (discrete 0..n_actions-1)
         self.action_head = nn.Sequential(
             nn.Linear(W_fast, head_hidden),
             nn.GELU(),
@@ -433,6 +450,7 @@ class UnifiedPseudoBrain(nn.Module):
         salience: Optional[Tensor] = None,
         token_id: Optional[Tensor] = None,
         token_embed: Optional[Tensor] = None,
+        prompt_tokens: Optional[Tensor] = None,
     ) -> Tuple[Dict[str, Tensor], UnifiedCognitiveState]:
         """Single O(1) streaming cognitive update step (<1 ms latency)."""
         B = sensory_input.shape[0]
@@ -498,6 +516,27 @@ class UnifiedPseudoBrain(nn.Module):
                 else:
                     scale = getattr(self, "token_skip_scale", 1.0)
                     language_logits = language_logits + scale * skip_logits
+
+        # 5b. In-Context Pointer-Copy Readout
+        ptr_gamma = None
+        ptr_attn = None
+        if self.use_pointer_copy and self.ptr_q is not None and prompt_tokens is not None:
+            if token_embed is None and token_id is not None:
+                token_embed = self.embedding(token_id)
+            if token_embed is not None:
+                gate_in = torch.cat([contextualized_slot, token_embed], dim=-1)
+                ptr_gamma = torch.sigmoid(self.ptr_gate(gate_in))
+                q_ptr = self.ptr_q(gate_in)
+                prompt_embeds = self.embedding(prompt_tokens)
+                k_ptr = self.ptr_k(prompt_embeds)
+                ptr_dim = q_ptr.shape[-1]
+                scores = torch.bmm(q_ptr.unsqueeze(1), k_ptr.transpose(1, 2)).squeeze(1) / (ptr_dim ** 0.5)
+                pad_mask = (prompt_tokens == 0)
+                scores = scores.masked_fill(pad_mask, -1e9)
+                ptr_attn = torch.softmax(scores, dim=-1)
+                ptr_boost = ptr_attn * (ptr_gamma * self.ptr_scale)
+                language_logits = language_logits.scatter_add(dim=-1, index=prompt_tokens, src=ptr_boost)
+
         action_logits = self.action_head(contextualized_slot)
         predicted_value = self.value_head(contextualized_slot)
         tool_call_prob = self.tool_gate(contextualized_slot)
@@ -523,6 +562,8 @@ class UnifiedPseudoBrain(nn.Module):
             "predicted_value": predicted_value,
             "tool_prob": tool_call_prob,
             "skip_beta": skip_beta,
+            "ptr_gamma": ptr_gamma,
+            "ptr_attn": ptr_attn,
         }
         return outputs, next_state
 
@@ -532,6 +573,7 @@ class UnifiedPseudoBrain(nn.Module):
         pixel_seq: Optional[Tensor] = None,
         action_seq: Optional[Tensor] = None,
         reset_mask: Optional[Tensor] = None,
+        prompt_tokens: Optional[Tensor] = None,
     ) -> Dict[str, Tensor]:
         """O(log T) Parallel Associative Scan Sequence Evaluation for High-Throughput GPU Training."""
         B = None
@@ -593,6 +635,25 @@ class UnifiedPseudoBrain(nn.Module):
             else:
                 scale = getattr(self, "token_skip_scale", 1.0)
                 language_logits = language_logits + scale * skip_logits
+
+        # In-Context Pointer-Copy Readout
+        ptr_gamma = None
+        ptr_attn = None
+        if self.use_pointer_copy and self.ptr_q is not None and prompt_tokens is not None and tok_emb is not None:
+            gate_in = torch.cat([H_scanned, tok_emb], dim=-1)
+            ptr_gamma = torch.sigmoid(self.ptr_gate(gate_in))  # [B, T, 1]
+            q_ptr = self.ptr_q(gate_in)  # [B, T, ptr_dim]
+            prompt_embeds = self.embedding(prompt_tokens)  # [B, N, embed_dim]
+            k_ptr = self.ptr_k(prompt_embeds)  # [B, N, ptr_dim]
+            ptr_dim = q_ptr.shape[-1]
+            scores = torch.einsum("btd,bnd->btn", q_ptr, k_ptr) / (ptr_dim ** 0.5)  # [B, T, N]
+            pad_mask = (prompt_tokens == 0).unsqueeze(1).expand(-1, scores.shape[1], -1)
+            scores = scores.masked_fill(pad_mask, -1e9)
+            ptr_attn = torch.softmax(scores, dim=-1)  # [B, T, N]
+            ptr_boost = ptr_attn * (ptr_gamma * self.ptr_scale)  # [B, T, N]
+            expanded_prompt_tokens = prompt_tokens.unsqueeze(1).expand(-1, scores.shape[1], -1)  # [B, T, N]
+            language_logits = language_logits.scatter_add(dim=2, index=expanded_prompt_tokens, src=ptr_boost)
+
         action_logits = self.action_head(H_scanned)
         values = self.value_head(H_scanned).squeeze(-1)
 
@@ -603,6 +664,8 @@ class UnifiedPseudoBrain(nn.Module):
             "H_scanned": H_scanned,
             "A_gates": A_gates,
             "skip_beta": beta,
+            "ptr_gamma": ptr_gamma,
+            "ptr_attn": ptr_attn,
         }
 
     def forward(
@@ -612,6 +675,7 @@ class UnifiedPseudoBrain(nn.Module):
         action_seq: Optional[Tensor] = None,
         parallel: bool = True,
         reset_mask: Optional[Tensor] = None,
+        prompt_tokens: Optional[Tensor] = None,
     ) -> Dict[str, Tensor]:
         """Unified forward pass."""
         if parallel and (token_seq is not None or pixel_seq is not None):
@@ -620,6 +684,7 @@ class UnifiedPseudoBrain(nn.Module):
                 pixel_seq=pixel_seq,
                 action_seq=action_seq,
                 reset_mask=reset_mask,
+                prompt_tokens=prompt_tokens,
             )
 
         if token_seq is not None:

@@ -56,10 +56,13 @@ def build_pomdp_batches_calibrated(
         max_len = max(len(toks) for toks in chunk)
 
         padded_seqs = []
+        padded_prompts = []
         target_seqs = []
         loss_masks = []
         target_masks = []
         resp_indices = []
+
+        max_prompt_len = max(toks.index(resp_id) if resp_id in toks else 0 for toks in chunk)
 
         for toks in chunk:
             seq = toks + [tokenizer.pad_id] * (max_len - len(toks))
@@ -70,6 +73,11 @@ def build_pomdp_batches_calibrated(
             # Record first [RESP] position
             first_resp = toks.index(resp_id) if resp_id in toks else 0
             resp_indices.append(first_resp)
+
+            # Prompt tokens up to [RESP]
+            p_toks = toks[:first_resp]
+            padded_p = p_toks + [tokenizer.pad_id] * (max_prompt_len - len(p_toks))
+            padded_prompts.append(padded_p)
 
             mask = [0.0] * len(seq)
             tmask = [0.0] * len(seq)
@@ -110,6 +118,7 @@ def build_pomdp_batches_calibrated(
             "M": torch.tensor(loss_masks, dtype=torch.float32),
             "target_masks": torch.tensor(target_masks, dtype=torch.float32),
             "resp_indices": torch.tensor(resp_indices, dtype=torch.long),
+            "prompt_tokens": torch.tensor(padded_prompts, dtype=torch.long),
         })
 
     return batches
@@ -144,12 +153,15 @@ def train_calibrated_pomdp_policy(
         X, Y, M = batch["X"], batch["Y"], batch["M"]
         target_masks = batch["target_masks"]
         resp_indices = batch["resp_indices"]
+        prompt_tokens = batch.get("prompt_tokens")
 
         optimizer.zero_grad()
-        out = model(token_seq=X, parallel=True)
+        out = model(token_seq=X, prompt_tokens=prompt_tokens, parallel=True)
         logits = out["logits"]
         A_gates = out["A_gates"]
         H_scanned = out["H_scanned"]
+        ptr_gamma = out.get("ptr_gamma")
+        ptr_attn = out.get("ptr_attn")
         B, T, V = logits.shape
 
         # 1. Weighted Token Loss
@@ -182,7 +194,25 @@ def train_calibrated_pomdp_policy(
         else:
             L_gate = torch.tensor(0.0, device=X.device)
 
-        loss = L_token + lambda_ret * L_ret + lambda_sep * L_sep + 1.0 * L_gate
+        # 5. In-Context Pointer-Copy Loss (Exact Symbolic Target Binding)
+        if ptr_gamma is not None and ptr_attn is not None and prompt_tokens is not None:
+            gamma_s = ptr_gamma.squeeze(-1)
+            L_pgate_tgt = F.binary_cross_entropy(gamma_s, torch.ones_like(gamma_s), weight=target_masks, reduction="sum") / (target_masks.sum() + 1e-6)
+            bg_mask = (M - target_masks).clamp(min=0.0)
+            L_pgate_bg = F.binary_cross_entropy(gamma_s, torch.zeros_like(gamma_s), weight=bg_mask, reduction="sum") / (bg_mask.sum() + 1e-6)
+            L_pgate = L_pgate_tgt + 0.2 * L_pgate_bg
+
+            # Pointer Attention: match Y in prompt_tokens
+            match_matrix = (prompt_tokens.unsqueeze(1) == Y.unsqueeze(2)).float()
+            p_match = (ptr_attn * match_matrix).sum(dim=-1)
+            L_pattn = -(torch.log(p_match + 1e-6) * target_masks).sum() / (target_masks.sum() + 1e-6)
+            L_ptr = L_pattn + L_pgate
+            ptr_match_acc = ((p_match > 0.5).float() * target_masks).sum() / (target_masks.sum() + 1e-6)
+        else:
+            L_ptr = torch.tensor(0.0, device=X.device)
+            ptr_match_acc = torch.tensor(0.0, device=X.device)
+
+        loss = L_token + lambda_ret * L_ret + lambda_sep * L_sep + 1.0 * L_gate + 2.0 * L_ptr
 
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
@@ -192,7 +222,8 @@ def train_calibrated_pomdp_policy(
         final_loss = float(loss.item())
         if (step + 1) % 25 == 0 or step == 0:
             b_val = L_gate.item()
-            print(f"Step {step+1:3d}/{steps} | Loss: {final_loss:.4f} (Tok: {L_token.item():.4f}, Ret: {L_ret.item():.4f}, Sep: {L_sep.item():.4f}, Gate: {b_val:.4f}) | A_gate: {mean_ret.item():.3f} | Cos: {mean_cos:.3f}")
+            acc_val = ptr_match_acc.item()
+            print(f"Step {step+1:3d}/{steps} | Loss: {final_loss:.4f} (Tok: {L_token.item():.4f}, Ret: {L_ret.item():.4f}, Sep: {L_sep.item():.4f}, Gate: {b_val:.4f}, Ptr: {L_ptr.item():.4f}) | A_gate: {mean_ret.item():.3f} | Cos: {mean_cos:.3f} | PtrAcc: {acc_val*100:.1f}%")
 
         if final_loss <= target_loss and step >= 200:
             print(f"Target loss {target_loss} reached at step {step+1}! Final loss: {final_loss:.4f}")
@@ -242,6 +273,7 @@ def main():
         vocab_size=32000,
         use_token_skip=True,
         use_gated_token_skip=True,
+        use_pointer_copy=True,
     )
     param_count = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print(f"Model parameters: {param_count:,} (~{param_count/1e6:.2f}M)")
@@ -267,8 +299,9 @@ def main():
         "vocab_size": 32000,
         "use_token_skip": True,
         "use_gated_token_skip": True,
+        "use_pointer_copy": True,
         "model_state_dict": model.state_dict(),
-        "trained_on": "procedural_multiturn_8domains_tier2_gated_skip_calibrated",
+        "trained_on": "procedural_multiturn_8domains_tier2_pointer_copy_calibrated",
     }, ckpt_path)
     print(f"Saved Champion Checkpoint to: {ckpt_path}")
 
@@ -316,8 +349,9 @@ def main():
         "vocab_size": 32000,
         "use_token_skip": True,
         "use_gated_token_skip": True,
+        "use_pointer_copy": True,
         "checkpoint": str(ckpt_path),
-        "trained_on": "procedural_multiturn_8domains_tier2_gated_skip_calibrated",
+        "trained_on": "procedural_multiturn_8domains_tier2_pointer_copy_calibrated",
         "evaluation_mode": "zero_shot",
         "state_isolation_per_task": True,
         "elapsed_seconds": elapsed,

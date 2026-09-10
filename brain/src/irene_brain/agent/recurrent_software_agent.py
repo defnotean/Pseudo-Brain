@@ -70,11 +70,13 @@ class RecurrentSoftwareAgent:
                 model_vocab = ckpt.get("vocab_size", vocab_size)
                 use_skip = ckpt.get("use_token_skip", False)
                 use_gated = ckpt.get("use_gated_token_skip", False)
+                use_ptr = ckpt.get("use_pointer_copy", False)
                 model = make_unified_model(
                     tier=model_tier,
                     vocab_size=model_vocab,
                     use_token_skip=use_skip,
                     use_gated_token_skip=use_gated,
+                    use_pointer_copy=use_ptr,
                 )
                 model.load_state_dict(ckpt["model_state_dict"], strict=False)
                 self.checkpoint_loaded = True
@@ -87,14 +89,17 @@ class RecurrentSoftwareAgent:
 
         self.tokenizer = BpeSemanticTokenizer(vocab_size=self.model.vocab_size)
         self.cognitive_state: UnifiedCognitiveState = self.model.init_state(batch_size=1, device=self.device)
+        self.active_prompt_tokens: List[int] = []
 
     def reset(self) -> None:
         """Reset internal cognitive state to clean initial state."""
         self.cognitive_state = self.model.init_state(batch_size=1, device=self.device)
+        self.active_prompt_tokens = []
 
     def _ingest_text_into_slot(self, text: str, slot_id: int = 0) -> Optional[Tensor]:
         """Project text sequentially into sensory features and step the designated recurrent slot."""
         tokens = self.tokenizer.encode(text) or [0]
+        self.active_prompt_tokens.extend(tokens)
         tid = torch.tensor([slot_id % self.model.K_fast], dtype=torch.long, device=self.device)
         last_logits: Optional[Tensor] = None
 
@@ -123,6 +128,11 @@ class RecurrentSoftwareAgent:
         """
         tid = torch.tensor([slot_id % self.model.K_fast], dtype=torch.long, device=self.device)
         last_logits: Optional[Tensor] = None
+        prompt_t = (
+            torch.tensor([self.active_prompt_tokens], dtype=torch.long, device=self.device)
+            if self.active_prompt_tokens
+            else None
+        )
 
         if prompt_prefix:
             prefix_tokens = self.tokenizer.encode(prompt_prefix) or [0]
@@ -131,7 +141,8 @@ class RecurrentSoftwareAgent:
                     tok_t = torch.tensor([tok], dtype=torch.long, device=self.device)
                     sensory = self.model.encode_sensory(token_ids=tok_t)
                     outputs, self.cognitive_state = self.model.step(
-                        sensory, self.cognitive_state, thread_id=tid, allow_routing=False, token_id=tok_t
+                        sensory, self.cognitive_state, thread_id=tid, allow_routing=False, token_id=tok_t,
+                        prompt_tokens=prompt_t,
                     )
                     last_logits = outputs["logits"][0]
 
@@ -168,7 +179,8 @@ class RecurrentSoftwareAgent:
                 tok_t = torch.tensor([next_tok], dtype=torch.long, device=self.device)
                 sensory = self.model.encode_sensory(token_ids=tok_t)
                 outputs, self.cognitive_state = self.model.step(
-                    sensory, self.cognitive_state, thread_id=tid, allow_routing=False, token_id=tok_t
+                    sensory, self.cognitive_state, thread_id=tid, allow_routing=False, token_id=tok_t,
+                    prompt_tokens=prompt_t,
                 )
                 last_logits = outputs["logits"][0]
 
