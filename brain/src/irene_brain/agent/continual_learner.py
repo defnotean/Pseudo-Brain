@@ -35,6 +35,7 @@ from irene_brain.memory.hierarchical_state import HierarchicalCognitiveState, Hi
 from irene_brain.agent.research_engine import ResearchEngine, ResearchResult
 from irene_brain.agent.tools import Tool, ToolRegistry, ToolResult, CommandTool, FileReadTool, FileWriteTool, FilePatchTool, TestVerifyTool
 from irene_brain.agent.unified_agent_loop import CodeExecutionEngine, ExecutionResult
+from irene_brain.agent.neural_router import NeuralSemanticRouter
 
 
 STOPWORDS: Set[str] = {
@@ -118,6 +119,7 @@ class AutonomousLifelongAgent:
 
         self.research_engine = ResearchEngine()
         self.code_engine = CodeExecutionEngine()
+        self.neural_router = NeuralSemanticRouter(self.model, vocab_size=self.model.vocab_size)
 
         self.state_save_path = Path(state_save_path) if state_save_path else None
 
@@ -139,6 +141,23 @@ class AutonomousLifelongAgent:
                     h_state = HierarchicalCognitiveState.from_dict(data["hierarchical_state"], device=self.device)
                     self.episodic_lessons = data.get("episodic_lessons", {})
                     self.episodic_topic_index = data.get("episodic_topic_index", {})
+
+                    # Clean up failed entries and auto-backfill aliases for existing lessons
+                    bad_keys = [k for k, v in self.episodic_lessons.items() if "couldn't find" in v.get("summary", "").lower()]
+                    for k in bad_keys:
+                        del self.episodic_lessons[k]
+                        self.episodic_topic_index.pop(k, None)
+
+                    for k, lesson in self.episodic_lessons.items():
+                        if "aliases" not in lesson:
+                            summary = lesson.get("summary", "")
+                            paren_acronyms = re.findall(r"\(([A-Z0-9]{2,8})\)", summary[:400])
+                            capital_acronyms = re.findall(r"\b([A-Z0-9]{2,8})\b", summary[:200])
+                            aliases = []
+                            for ac in set(paren_acronyms + capital_acronyms):
+                                if ac.lower() not in {"the", "and", "for", "was", "are", "utc", "est", "gmt", "all", "its", "not"}:
+                                    aliases.append(ac.lower())
+                            lesson["aliases"] = aliases
                 elif isinstance(data, dict):
                     h_state = HierarchicalCognitiveState.from_dict(data, device=self.device)
                 else:
@@ -169,15 +188,17 @@ class AutonomousLifelongAgent:
         clean_p = prompt.lower()
         clean_tokens = set(re.findall(r"\b\w+\b", clean_p))
 
-        # 1. Direct memory lookup: check if any consolidated concept/topic is directly referenced in prompt
+        # 1. Direct memory lookup: check if any consolidated concept/topic/alias is directly referenced in prompt
         for topic_key, lesson in self.episodic_lessons.items():
             key_lower = topic_key.lower().replace("_", " ")
             canon_lower = lesson.get("canonical_topic", "").lower().replace("_", " ")
             orig_topic = lesson.get("topic", "").lower().replace("_", " ")
+            aliases = [a.lower() for a in lesson.get("aliases", [])]
             if (
                 (len(key_lower) > 3 and (key_lower in clean_p or key_lower in clean_tokens))
                 or (canon_lower and len(canon_lower) > 3 and (canon_lower in clean_p or canon_lower in clean_tokens))
                 or (orig_topic and len(orig_topic) > 3 and orig_topic in clean_p)
+                or any(alias in clean_tokens for alias in aliases if len(alias) >= 2)
             ):
                 return True, topic_key, lesson
 
@@ -187,17 +208,19 @@ class AutonomousLifelongAgent:
 
         # 2. Check by extracted search topic (bidirectional match for compound topics)
         search_clean = search_topic.lower().strip()
-        if len(search_clean) >= 4:
+        if len(search_clean) >= 2:
             for topic_key, lesson in self.episodic_lessons.items():
                 key_lower = topic_key.lower().replace("_", " ")
                 canon_lower = lesson.get("canonical_topic", "").lower().replace("_", " ")
                 orig_lower = lesson.get("topic", "").lower().replace("_", " ")
+                aliases = [a.lower() for a in lesson.get("aliases", [])]
                 if (
                     search_clean in key_lower
                     or search_clean in canon_lower
                     or search_clean in orig_lower
                     or key_lower in search_clean
                     or orig_lower in search_clean
+                    or search_clean in aliases
                 ):
                     return True, topic_key, lesson
 
@@ -541,40 +564,9 @@ class AutonomousLifelongAgent:
             or (language == "general" and len(prompt.split()) >= 3 and not any(w in p_lower for w in ["hello", "hi", "hey", "good morning", "thanks", "thank you", "bye"]))
         )
 
-        topic = prompt.strip()
-        changed = True
-        while changed:
-            prev = topic
-            topic = re.sub(r"^(?:then|so|well|now|okay|ok|and|also|next|cool|alright)[,:\s]+", "", topic, flags=re.IGNORECASE).strip()
-            topic = re.sub(
-                r"^(?:how about|what about|can you tell me about|tell me about|what can you tell me about|"
-                r"can you tell me what you know about|what do you know about|do you know about|"
-                r"can you tell me what you remember about|what do you remember about|tell me what you remember about|"
-                r"can you research what is|can you research|research|"
-                r"could you explain what is|can you explain what is|could you explain how to|can you explain how to|"
-                r"could you walk me through how to|can you walk me through|"
-                r"can you provide a clean example of how to|can you show me how to|could you show me how to|"
-                r"can you explain what|can you explain how|can you explain|"
-                r"what is the scientific explanation for|in physics and biology, how does|in python, how does one|"
-                r"what is the cleanest way to|what is the safest pattern to|what is the recommended way to|"
-                r"what's an idiomatic way to|what's the recommended way to|"
-                r"how does one properly|how can someone properly|how does a|how does one|how does|"
-                r"why do|why does|how can i|how do i|how can someone|can you show me|"
-                r"what is a|what is an|what is the|what is|"
-                r"what was a|what was an|what was the|what was|"
-                r"what are the|what are|"
-                r"what's a|what's an|what's the|what's|"
-                r"who is|who was)[,:\s]+",
-                "",
-                topic,
-                flags=re.IGNORECASE,
-            ).strip(" ?.:,`'\"")
-            topic = re.sub(r"^(?:a|an|the)\s+", "", topic, flags=re.IGNORECASE).strip()
-            if topic == prev:
-                changed = False
-
-        if not topic:
-            topic = prompt.strip(" ?.:,`'\"")
+        # Extract the core semantic entity using Neural Attention Saliency (Zero Regex)
+        neural_topic = self.neural_router.extract_semantic_topic(prompt)
+        topic = neural_topic if neural_topic else prompt.strip(" ?.:,`'\"")
 
         return needs_research, topic, language
 
@@ -799,11 +791,20 @@ class AutonomousLifelongAgent:
         h_state = self.cognitive_state.hierarchical_state
         canon_id = canonical_topic or topic
 
+        # Auto-index abbreviations, acronyms, and aliases from summary and topic
+        aliases: List[str] = []
+        paren_acronyms = re.findall(r"\(([A-Z0-9]{2,8})\)", summary[:400])
+        capital_acronyms = re.findall(r"\b([A-Z0-9]{2,8})\b", summary[:200])
+        for ac in set(paren_acronyms + capital_acronyms):
+            if ac.lower() not in {"the", "and", "for", "was", "are", "utc", "est", "gmt", "all", "its", "not"}:
+                aliases.append(ac.lower())
+
         slot_idx = len(self.episodic_lessons) % h_state.episodic_memory.shape[1]
         self.episodic_topic_index[canon_id] = slot_idx
         self.episodic_lessons[canon_id] = {
             "canonical_topic": canon_id,
             "topic": topic,
+            "aliases": aliases,
             "summary": summary,
             "code_example": code_example,
             "language": language,

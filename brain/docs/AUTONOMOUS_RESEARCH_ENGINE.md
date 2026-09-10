@@ -81,14 +81,16 @@ In `brain/src/irene_brain/agent/continual_learner.py`, the agent gates every que
 - *"I haven't encountered that specific topic yet — let me check '{topic}' right now!"*
 - *"That's unfamiliar territory for me — give me a second to look up '{topic}'!"*
 
-### B. Conversational Query Cleaner
-Users frequently ask questions with multi-layered lead-in phrases:
-`"then, how about what is the fortnite save the world"`
-A naive lookup for that raw string fails. The query cleaner iteratively removes:
-1. Discourse markers / conjunctions: `then`, `so`, `well`, `now`, `okay`, `and`.
-2. Query framing prefixes: `how about`, `what about`, `can you tell me about`, `what is the`, `what is a`, `who is`.
-3. Articles: `a`, `an`, `the`.
-This cleanly isolates the core topic: `fortnite save the world`.
+### B. Neural Saliency & Semantic Intent Router (`NeuralSemanticRouter`)
+Located in `brain/src/irene_brain/agent/neural_router.py`:
+Pseudo-Brain completely eliminates brittle heuristic regex peeling. The agent routes queries and extracts semantic target entities directly through its neural sensory projection:
+1. **Token Ingestion & Embedding**: The user prompt is broken down into subword tokens using `BpeSemanticTokenizer` and projected into the neural sensory embedding space via `UnifiedPseudoBrain.embedding` and `UnifiedPseudoBrain.lang_proj`.
+2. **Dot-Product Attention Saliency**: Computes the contextual centroid vector of the prompt:
+   $$\mathbf{c} = \frac{1}{N} \sum_{i=1}^N \mathbf{s}_i$$
+   and projects each token against $\mathbf{c}$ to obtain attention logits:
+   $$\alpha_i = \text{softmax}\left(\frac{\mathbf{s}_i^\top \mathbf{c}}{\sqrt{d_{\text{proj}}}}\right)$$
+3. **Information Salience Thresholding**: Tokens with below-average salience (closed-class grammatical glue, syntactic discourse fillers) are suppressed, isolating high-entropy entity spans (e.g. `"then, how about what is the fortnite save the world"` $\rightarrow$ `"fortnite save the world"`).
+4. **Zero External LLMs**: Entity extraction, intent discrimination, and memory routing occur 100% locally within Pseudo-Brain's own neural weights.
 
 ### C. Multi-Tier Live Web Search (`WebSearchTool`)
 Located in `brain/src/irene_brain/agent/tools.py`:
@@ -96,12 +98,13 @@ Located in `brain/src/irene_brain/agent/tools.py`:
 2. **Tier 2 (Wikipedia Search API)**: If direct lookup 404s, queries `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch={query}` to find matching page titles, then fetches the intro extract.
 3. **Tier 3 (DuckDuckGo Instant Answer API)**: Queries `https://api.duckduckgo.com/?q={query}&format=json&no_html=1&skip_disambig=1` as an authoritative fallback.
 
-### D. Persistent Episodic Consolidation
+### D. Persistent Episodic Consolidation & Acronym Auto-Indexing
 When research succeeds, the agent calls `_consolidate_to_episodic()`:
 - Stores the canonical topic, summary, and source citations into `episodic_lessons`.
+- **Acronym & Alias Auto-Indexing**: Automatically parses parenthetical abbreviations (e.g. `(JWST)`, `(HST)`) and capital acronyms from the retrieved summary, indexing them as aliases. Follow-up queries referencing the abbreviation (e.g. `"Can you explain JWST?"` or `"Tell me about the HST"`) instantly resolve to the full episodic lesson.
 - Updates the recurrent working memory state tensor ($K=16, W=64$).
 - Persists the entire cognitive state bundle via `torch.save()` to `brain/data/agent_cli_state.pt`.
-- Subsequent inquiries match in memory and recall in **~8 ms** without accessing the internet.
+- Subsequent inquiries match in memory and recall in **~8-10 ms** without accessing the internet (zero HTTP calls).
 
 ### E. Natural Conversational Tone
 Robotic tropes like *"I remember this from earlier!"* or *"I already have this in my episodic memory!"* have been completely removed. The agent delivers responses with natural human openings:
