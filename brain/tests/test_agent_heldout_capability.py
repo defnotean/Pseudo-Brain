@@ -129,11 +129,40 @@ def test_benchmark_receipt_provenance_and_generalization_boundary():
     assert receipt["total_tasks"] == 10
 
     # Capability vs Generalization boundary assertions:
-    # 1. Valid action rate proves actuator syntax is learned (>70%)
-    assert receipt["valid_action_rate"] >= 0.70, f"Valid action rate too low: {receipt['valid_action_rate']}"
-    # 2. Honest zero-shot reporting on unseen families without data leakage
-    assert receipt["completion_rate"] == 0.0, "Zero-shot unseen tasks must reflect honest baseline"
-    # 3. All failures are tracked and categorized
+    # 1. Action Hierarchy proves protocol mastery alongside out-of-distribution cliff:
+    hierarchy = receipt["action_hierarchy"]
+    assert hierarchy["level_1_verb_grammar_rate"] >= 0.70, f"Verb grammar too low: {hierarchy['level_1_verb_grammar_rate']}"
+    assert hierarchy["level_2_parsable_action_rate"] >= 0.70, f"Parsable rate too low: {hierarchy['level_2_parsable_action_rate']}"
+    assert hierarchy["level_3_executable_action_rate"] >= 0.70, f"Executable rate too low: {hierarchy['level_3_executable_action_rate']}"
+    # 2. Honest zero-shot reporting on unseen families: zero attractor escape
+    assert hierarchy["level_4_task_relevant_rate"] == 0.0, "Zero-shot model must not hallucinate ground truth"
+    assert hierarchy["level_5_task_progressing_rate"] == 0.0, "Zero-shot unseen tasks must reflect honest baseline"
+    assert receipt["completion_rate"] == 0.0
+
+    # 3. State isolation confirmed
+    assert receipt["mode"] == "zero_shot"
+    assert receipt["state_isolation_per_task"] is True
+
+    # 4. All failures are tracked and categorized
     assert "failure_mode_breakdown" in receipt
     assert receipt["failure_mode_breakdown"].get("TARGET_FILE_NOT_WRITTEN", 0) > 0
+
+
+def test_zero_shot_vs_lifelong_mode_dispatch():
+    """Verify evaluator cleanly differentiates zero-shot state isolation from lifelong persistence."""
+    agent = RecurrentSoftwareAgent()
+    benchmark = ProceduralSoftwareBenchmark(seed=505)
+    tasks = benchmark.generate_tasks(count=2)
+
+    # 1. Zero-shot mode: runs with agent.reset() per task
+    report_zs = evaluate_agent_on_benchmark(agent=agent, tasks=tasks, max_cycles_per_task=2, mode="zero_shot")
+    assert report_zs.mode == "zero_shot"
+    assert report_zs.total_tasks == 2
+
+    # 2. Lifelong mode: state persists across tasks
+    from irene_brain.agent.procedural_evaluator import evaluate_agent_lifelong_benchmark
+    report_life = evaluate_agent_lifelong_benchmark(agent=agent, tasks=tasks, max_cycles_per_task=2)
+    assert report_life.mode == "lifelong"
+    assert report_life.total_tasks == 2
+
 

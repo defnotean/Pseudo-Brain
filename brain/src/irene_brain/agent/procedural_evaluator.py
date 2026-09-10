@@ -45,18 +45,44 @@ class ProceduralTask:
 
 
 @dataclass
+class ActionQualityMetrics:
+    """Multi-tiered evaluation of an agent's actuator decisions."""
+    verb_grammar_valid: bool       # Level 1: Matches valid verb (WRITE_FILE, FINISH, etc.)
+    parsable_action_valid: bool    # Level 2: Syntactically sound arguments (valid path/query)
+    executable_action_valid: bool  # Level 3: Executed by env without OS/syntax crash
+    task_relevant_valid: bool      # Level 4: Targets task's module, function, or domain
+    task_progressing_valid: bool   # Level 5: Produces working code or passes tests
+
+
+@dataclass
 class BenchmarkEvaluationReport:
     """Rigorous evaluation telemetry across held-out procedural tasks."""
     total_tasks: int
     tasks_completed: int
     completion_rate: float
     total_actions: int
+
+    # 5-Tier Action Quality Hierarchy
+    verb_grammar_count: int
+    verb_grammar_rate: float
+    parsable_action_count: int
+    parsable_action_rate: float
+    executable_action_count: int
+    executable_action_rate: float
+    task_relevant_count: int
+    task_relevant_rate: float
+    task_progressing_count: int
+    task_progressing_rate: float
+
+    # Backward compatibility aliases
     valid_action_count: int
     valid_action_rate: float
     useful_first_action_count: int
     useful_first_action_rate: float
+
     error_recoveries: int
     mean_cycles: float
+    mode: str = "zero_shot"  # "zero_shot" or "lifelong"
     task_results: List[Dict[str, Any]] = field(default_factory=list)
 
 
@@ -713,24 +739,126 @@ def make_hidden_task_validator(
     return validator
 
 
+def evaluate_action_quality(
+    action: str,
+    observation: str,
+    task: ProceduralTask,
+) -> ActionQualityMetrics:
+    """Classify an action according to the 5-tier Action Quality Hierarchy.
+
+    Hierarchy:
+    1. Verb Grammar: Starts with recognized actuator command (WRITE_FILE, FINISH, etc.)
+    2. Parsable Action: Contains structurally sound arguments (plausible path, query, summary)
+    3. Environment-Executable: Executed without OS argument failure or unparseable format
+    4. Task-Relevant: Targets the specific module, function, or domain of this task (not an attractor)
+    5. Task-Progressing: Successfully compiles, satisfies checks, or passes hidden tests
+    """
+    valid_verbs = ("READ_FILE", "WRITE_FILE", "EDIT_FILE", "RUN_TESTS", "RETRIEVE_MEMORY", "FINISH")
+
+    # Level 1: Verb Grammar
+    parts = action.strip().split()
+    verb_valid = len(parts) >= 2 and parts[0] == "ACTION:" and parts[1] in valid_verbs
+
+    # Level 2: Parsable Action (Arguments format)
+    parsable_valid = False
+    if verb_valid:
+        verb = parts[1]
+        if verb in ("RUN_TESTS", "RETRIEVE_MEMORY", "FINISH"):
+            if verb == "RUN_TESTS":
+                parsable_valid = True
+            elif len(parts) >= 3:
+                parsable_valid = True
+        elif verb in ("WRITE_FILE", "READ_FILE", "EDIT_FILE"):
+            lines = action.strip().split("\n", 1)
+            header_parts = lines[0].strip().split()
+            if len(header_parts) >= 3:
+                target_path = header_parts[2]
+                # Valid path: no spaces in filename, reasonable length, no illegal characters
+                if not any(c in target_path for c in ('"', "'", '<', '>', '|', '?', '*')) and len(target_path) < 80:
+                    if verb == "WRITE_FILE":
+                        parsable_valid = len(lines) > 1 and len(lines[1].strip()) > 0
+                    else:
+                        parsable_valid = True
+
+    # Level 3: Executable Action
+    # Executable if the environment didn't reject it as unrecognized format or OS error (Errno 22)
+    exec_valid = False
+    if verb_valid:
+        unrecognized = (
+            "Unrecognized action format" in observation
+            or "failed with OS error" in observation
+            or "Errno 22" in observation
+        )
+        exec_valid = not unrecognized
+
+    # Level 4: Task Relevant Action
+    # Does the action target this task's module, function, or intent rather than a foreign attractor?
+    task_rel_valid = False
+    if verb_valid and parsable_valid:
+        verb = parts[1]
+        if verb in ("WRITE_FILE", "READ_FILE", "EDIT_FILE"):
+            lines = action.strip().split("\n", 1)
+            target_path = lines[0].strip().split()[2] if len(lines[0].strip().split()) >= 3 else ""
+            if target_path == task.target_module:
+                task_rel_valid = True
+        elif verb == "FINISH":
+            if task.target_function in action or task.target_module in action:
+                task_rel_valid = True
+        elif verb == "RETRIEVE_MEMORY":
+            if any(term in action for term in (task.target_function, task.domain, task.target_module)):
+                task_rel_valid = True
+
+    # Level 5: Task Progressing Action
+    task_prog_valid = False
+    if task_rel_valid:
+        if "Successfully wrote" in observation or "Task verified and passed" in observation:
+            task_prog_valid = True
+
+    return ActionQualityMetrics(
+        verb_grammar_valid=verb_valid,
+        parsable_action_valid=parsable_valid,
+        executable_action_valid=exec_valid,
+        task_relevant_valid=task_rel_valid,
+        task_progressing_valid=task_prog_valid,
+    )
+
+
 def evaluate_agent_on_benchmark(
     agent: RecurrentSoftwareAgent,
     tasks: List[ProceduralTask],
     max_cycles_per_task: int = 8,
+    mode: str = "zero_shot",
 ) -> BenchmarkEvaluationReport:
-    """Run an honest, leak-free capability evaluation across held-out procedural tasks."""
+    """Run an honest, leak-free capability evaluation across held-out procedural tasks.
+
+    Parameters:
+    - agent: The RecurrentSoftwareAgent instance.
+    - tasks: List of ProceduralTask challenges to evaluate.
+    - max_cycles_per_task: Max POMDP cycles per task.
+    - mode: "zero_shot" (pure state isolation, resets agent state between tasks) or
+            "lifelong" (persists recurrent and hierarchical memory across tasks).
+    """
     total_tasks = len(tasks)
     tasks_completed = 0
     total_actions = 0
-    valid_action_count = 0
+
+    # 5-Tier Action Quality Counters
+    verb_grammar_count = 0
+    parsable_action_count = 0
+    executable_action_count = 0
+    task_relevant_count = 0
+    task_progressing_count = 0
+
     useful_first_action_count = 0
     error_recoveries = 0
     cycle_counts: List[int] = []
     task_results: List[Dict[str, Any]] = []
 
-    valid_verbs = ("READ_FILE", "WRITE_FILE", "EDIT_FILE", "RUN_TESTS", "RETRIEVE_MEMORY", "FINISH")
-
     for task in tasks:
+        # Zero-shot contract: explicitly reset agent state before each task
+        if mode == "zero_shot":
+            agent.reset()
+
         temp_dir = Path(tempfile.mkdtemp(prefix=f"eval_{task.task_id}_"))
         validator = make_hidden_task_validator(task.hidden_tests_code, task.target_module)
         env = NeuralSoftwareEnvironment(workspace_dir=temp_dir, task_validator=validator)
@@ -741,7 +869,13 @@ def evaluate_agent_on_benchmark(
             (temp_dir / fname).write_text(content, encoding="utf-8")
 
         # Run episode with autonomous policy generation (action_plan=None)
-        res = agent.execute_pomdp_episode(goal=task.goal, env=env, action_plan=None, max_cycles=max_cycles_per_task)
+        res = agent.execute_pomdp_episode(
+            goal=task.goal,
+            env=env,
+            action_plan=None,
+            max_cycles=max_cycles_per_task,
+            reset_state=(mode == "zero_shot"),
+        )
 
         task_passed = res.success
         if task_passed:
@@ -750,11 +884,19 @@ def evaluate_agent_on_benchmark(
         total_actions += len(res.actions_taken)
         cycle_counts.append(res.cycles_completed)
 
-        # Track valid actions vs invalid actions
-        for act in res.actions_taken:
-            parts = act.strip().split()
-            if len(parts) >= 2 and parts[1] in valid_verbs:
-                valid_action_count += 1
+        # Track 5-tier action hierarchy
+        for act, obs in zip(res.actions_taken, res.observations):
+            q = evaluate_action_quality(act, obs, task)
+            if q.verb_grammar_valid:
+                verb_grammar_count += 1
+            if q.parsable_action_valid:
+                parsable_action_count += 1
+            if q.executable_action_valid:
+                executable_action_count += 1
+            if q.task_relevant_valid:
+                task_relevant_count += 1
+            if q.task_progressing_valid:
+                task_progressing_count += 1
 
         # Track useful first action
         if res.actions_taken:
@@ -779,7 +921,11 @@ def evaluate_agent_on_benchmark(
         })
 
     completion_rate = (tasks_completed / total_tasks) if total_tasks > 0 else 0.0
-    valid_action_rate = (valid_action_count / total_actions) if total_actions > 0 else 0.0
+    verb_grammar_rate = (verb_grammar_count / total_actions) if total_actions > 0 else 0.0
+    parsable_action_rate = (parsable_action_count / total_actions) if total_actions > 0 else 0.0
+    executable_action_rate = (executable_action_count / total_actions) if total_actions > 0 else 0.0
+    task_relevant_rate = (task_relevant_count / total_actions) if total_actions > 0 else 0.0
+    task_progressing_rate = (task_progressing_count / total_actions) if total_actions > 0 else 0.0
     useful_first_action_rate = (useful_first_action_count / total_tasks) if total_tasks > 0 else 0.0
     mean_cycles = (sum(cycle_counts) / len(cycle_counts)) if cycle_counts else 0.0
 
@@ -788,11 +934,36 @@ def evaluate_agent_on_benchmark(
         tasks_completed=tasks_completed,
         completion_rate=completion_rate,
         total_actions=total_actions,
-        valid_action_count=valid_action_count,
-        valid_action_rate=valid_action_rate,
+        verb_grammar_count=verb_grammar_count,
+        verb_grammar_rate=verb_grammar_rate,
+        parsable_action_count=parsable_action_count,
+        parsable_action_rate=parsable_action_rate,
+        executable_action_count=executable_action_count,
+        executable_action_rate=executable_action_rate,
+        task_relevant_count=task_relevant_count,
+        task_relevant_rate=task_relevant_rate,
+        task_progressing_count=task_progressing_count,
+        task_progressing_rate=task_progressing_rate,
+        valid_action_count=verb_grammar_count,
+        valid_action_rate=verb_grammar_rate,
         useful_first_action_count=useful_first_action_count,
         useful_first_action_rate=useful_first_action_rate,
         error_recoveries=error_recoveries,
         mean_cycles=mean_cycles,
+        mode=mode,
         task_results=task_results,
+    )
+
+
+def evaluate_agent_lifelong_benchmark(
+    agent: RecurrentSoftwareAgent,
+    tasks: List[ProceduralTask],
+    max_cycles_per_task: int = 8,
+) -> BenchmarkEvaluationReport:
+    """Run continual lifelong learning evaluation where recurrent state persists across tasks."""
+    return evaluate_agent_on_benchmark(
+        agent=agent,
+        tasks=tasks,
+        max_cycles_per_task=max_cycles_per_task,
+        mode="lifelong",
     )

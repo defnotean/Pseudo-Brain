@@ -26,6 +26,7 @@ from irene_brain.agent.procedural_evaluator import (
     ProceduralSoftwareBenchmark,
     ProceduralTask,
     make_hidden_task_validator,
+    evaluate_action_quality,
 )
 
 
@@ -100,15 +101,21 @@ def run_heldout_evaluation(
     print(f"  FROZEN MODEL: {ckpt_path.name} (Zero Fine-Tuning)")
     print(f"=======================================================\n")
 
-    valid_verbs = ("READ_FILE", "WRITE_FILE", "EDIT_FILE", "RUN_TESTS", "RETRIEVE_MEMORY", "FINISH")
-    
     total_actions = 0
-    valid_actions = 0
+    verb_grammar_count = 0
+    parsable_action_count = 0
+    executable_action_count = 0
+    task_relevant_count = 0
+    task_progressing_count = 0
+
     useful_first_actions = 0
     tasks_passed = 0
     task_details: List[Dict[str, Any]] = []
 
     for idx, task in enumerate(heldout_tasks):
+        # Strict zero-shot isolation: clear recurrent and hierarchical memory before each task
+        agent.reset()
+
         print(f"\n--- Task [{idx+1}/{len(heldout_tasks)}]: {task.task_id} ({task.domain}) ---")
         print(f"Goal: {task.goal}")
         
@@ -118,17 +125,32 @@ def run_heldout_evaluation(
 
         # Run POMDP episode
         t_start = time.perf_counter()
-        result = agent.execute_pomdp_episode(goal=task.goal, env=env, action_plan=None, max_cycles=max_cycles)
+        result = agent.execute_pomdp_episode(goal=task.goal, env=env, action_plan=None, max_cycles=max_cycles, reset_state=True)
         duration = time.perf_counter() - t_start
 
-        # Analyze actions
-        task_action_valid = 0
-        for act in result.actions_taken:
+        # Analyze action quality across the 5 tiers
+        task_action_tiers = []
+        for act, obs in zip(result.actions_taken, result.observations):
             total_actions += 1
-            parts = act.strip().split()
-            if len(parts) >= 2 and parts[1] in valid_verbs:
-                valid_actions += 1
-                task_action_valid += 1
+            q = evaluate_action_quality(act, obs, task)
+            if q.verb_grammar_valid:
+                verb_grammar_count += 1
+            if q.parsable_action_valid:
+                parsable_action_count += 1
+            if q.executable_action_valid:
+                executable_action_count += 1
+            if q.task_relevant_valid:
+                task_relevant_count += 1
+            if q.task_progressing_valid:
+                task_progressing_count += 1
+            task_action_tiers.append({
+                "action": act,
+                "verb_grammar": q.verb_grammar_valid,
+                "parsable": q.parsable_action_valid,
+                "executable": q.executable_action_valid,
+                "task_relevant": q.task_relevant_valid,
+                "task_progressing": q.task_progressing_valid,
+            })
 
         if result.actions_taken:
             first_act_parts = result.actions_taken[0].strip().split()
@@ -177,6 +199,7 @@ def run_heldout_evaluation(
             "duration_seconds": duration,
             "actions_taken": result.actions_taken,
             "observations": result.observations,
+            "action_tiers": task_action_tiers,
             "written_code": written_code,
             "final_summary": result.final_summary,
             "slot_0_delta": result.slot_0_delta,
@@ -184,15 +207,23 @@ def run_heldout_evaluation(
         })
 
     completion_rate = (tasks_passed / len(heldout_tasks)) if heldout_tasks else 0.0
-    valid_action_rate = (valid_actions / total_actions) if total_actions > 0 else 0.0
+    verb_grammar_rate = (verb_grammar_count / total_actions) if total_actions > 0 else 0.0
+    parsable_action_rate = (parsable_action_count / total_actions) if total_actions > 0 else 0.0
+    executable_action_rate = (executable_action_count / total_actions) if total_actions > 0 else 0.0
+    task_relevant_rate = (task_relevant_count / total_actions) if total_actions > 0 else 0.0
+    task_progressing_rate = (task_progressing_count / total_actions) if total_actions > 0 else 0.0
     useful_first_action_rate = (useful_first_actions / len(heldout_tasks)) if heldout_tasks else 0.0
 
     print(f"\n=======================================================")
-    print(f"  FINAL HELDOUT BENCHMARK RECEIPT")
+    print(f"  FINAL HELDOUT BENCHMARK RECEIPT (ACTION HIERARCHY)")
     print(f"=======================================================")
     print(f"Total Held-Out Tasks:        {len(heldout_tasks)}")
     print(f"Tasks Completed (100% pass): {tasks_passed} / {len(heldout_tasks)} ({completion_rate*100:.1f}%)")
-    print(f"Valid Action Rate:           {valid_actions} / {total_actions} ({valid_action_rate*100:.1f}%)")
+    print(f"Level 1: Verb Grammar:       {verb_grammar_count} / {total_actions} ({verb_grammar_rate*100:.1f}%)")
+    print(f"Level 2: Parsable Action:    {parsable_action_count} / {total_actions} ({parsable_action_rate*100:.1f}%)")
+    print(f"Level 3: Executable Action:  {executable_action_count} / {total_actions} ({executable_action_rate*100:.1f}%)")
+    print(f"Level 4: Task Relevant:      {task_relevant_count} / {total_actions} ({task_relevant_rate*100:.1f}%)")
+    print(f"Level 5: Task Progressing:   {task_progressing_count} / {total_actions} ({task_progressing_rate*100:.1f}%)")
     print(f"Useful First Action Rate:    {useful_first_actions} / {len(heldout_tasks)} ({useful_first_action_rate*100:.1f}%)")
 
     # Failure mode distribution
@@ -213,13 +244,27 @@ def run_heldout_evaluation(
         "use_token_skip": use_token_skip,
         "trained_on": trained_on,
         "evaluation_type": "zero_shot_unseen_families",
+        "mode": "zero_shot",
+        "state_isolation_per_task": True,
         "seed": seed,
         "total_tasks": len(heldout_tasks),
         "tasks_completed": tasks_passed,
         "completion_rate": completion_rate,
         "total_actions": total_actions,
-        "valid_action_count": valid_actions,
-        "valid_action_rate": valid_action_rate,
+        "action_hierarchy": {
+            "level_1_verb_grammar_count": verb_grammar_count,
+            "level_1_verb_grammar_rate": verb_grammar_rate,
+            "level_2_parsable_action_count": parsable_action_count,
+            "level_2_parsable_action_rate": parsable_action_rate,
+            "level_3_executable_action_count": executable_action_count,
+            "level_3_executable_action_rate": executable_action_rate,
+            "level_4_task_relevant_count": task_relevant_count,
+            "level_4_task_relevant_rate": task_relevant_rate,
+            "level_5_task_progressing_count": task_progressing_count,
+            "level_5_task_progressing_rate": task_progressing_rate,
+        },
+        "valid_action_count": verb_grammar_count,
+        "valid_action_rate": verb_grammar_rate,
         "useful_first_action_rate": useful_first_action_rate,
         "failure_mode_breakdown": failure_counts,
         "tasks": task_details,

@@ -1,16 +1,30 @@
 {
-  "timestamp": "2026-09-10T21:11:44Z",
+  "timestamp": "2026-09-10T21:18:36Z",
   "checkpoint": "pb_pomdp_champion.pt",
   "tier": "tier2",
   "vocab_size": 32000,
   "use_token_skip": true,
   "trained_on": "pomdp_episodes_tier2_phased",
   "evaluation_type": "zero_shot_unseen_families",
+  "mode": "zero_shot",
+  "state_isolation_per_task": true,
   "seed": 42,
   "total_tasks": 10,
   "tasks_completed": 0,
   "completion_rate": 0.0,
   "total_actions": 40,
+  "action_hierarchy": {
+    "level_1_verb_grammar_count": 35,
+    "level_1_verb_grammar_rate": 0.875,
+    "level_2_parsable_action_count": 33,
+    "level_2_parsable_action_rate": 0.825,
+    "level_3_executable_action_count": 33,
+    "level_3_executable_action_rate": 0.825,
+    "level_4_task_relevant_count": 0,
+    "level_4_task_relevant_rate": 0.0,
+    "level_5_task_progressing_count": 0,
+    "level_5_task_progressing_rate": 0.0
+  },
   "valid_action_count": 35,
   "valid_action_rate": 0.875,
   "useful_first_action_rate": 0.5,
@@ -27,7 +41,7 @@
       "success": false,
       "failure_mode": "TARGET_FILE_NOT_WRITTEN",
       "cycles_completed": 4,
-      "duration_seconds": 9.107921299990267,
+      "duration_seconds": 8.852373100002296,
       "actions_taken": [
         "ACTION: WRITE_FILE matrix_util_2.py\ndef reverse_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_",
         "ACTION: FINISH Verified implementation of reverse_words_0",
@@ -39,6 +53,40 @@
         "[OBSERVATION: Task incomplete: Target file 'math_gcd_0.py' does not exist in workspace. Continue working.]",
         "[OBSERVATION: Task incomplete: Target file 'math_gcd_0.py' does not exist in workspace. Continue working.]",
         "[OBSERVATION: Task incomplete: Target file 'math_gcd_0.py' does not exist in workspace. Continue working.]"
+      ],
+      "action_tiers": [
+        {
+          "action": "ACTION: WRITE_FILE matrix_util_2.py\ndef reverse_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_words_",
+          "verb_grammar": true,
+          "parsable": true,
+          "executable": true,
+          "task_relevant": false,
+          "task_progressing": false
+        },
+        {
+          "action": "ACTION: FINISH Verified implementation of reverse_words_0",
+          "verb_grammar": true,
+          "parsable": true,
+          "executable": true,
+          "task_relevant": false,
+          "task_progressing": false
+        },
+        {
+          "action": "ACTION: FINISH Verified implementation of reverse_words_0",
+          "verb_grammar": true,
+          "parsable": true,
+          "executable": true,
+          "task_relevant": false,
+          "task_progressing": false
+        },
+        {
+          "action": "ACTION: FINISH Verified implementation of reverse_words_0",
+          "verb_grammar": true,
+          "parsable": true,
+          "executable": true,
+          "task_relevant": false,
+          "task_progressing": false
+        }
       ],
       "written_code": "",
       "final_summary": "[OBSERVATION: Task incomplete: Target file 'math_gcd_0.py' does not exist in workspace. Continue working.]",
@@ -54,7 +102,7 @@
       "success": false,
       "failure_mode": "TARGET_FILE_NOT_WRITTEN",
       "cycles_completed": 4,
-      "duration_seconds": 7.694803099962883,
+      "duration_seconds": 7.508539400005247,
       "actions_taken": [
         "ACTION: WRITE_FILE syntax_check_3.py\ndef is_balanced_brackets_3",
         "ACTION: FINISH Verified implementation of reverse_words_0",
@@ -66,6 +114,40 @@
         "[OBSERVATION: Task incomplete: Target file 'codec_rle_1.py' does not exist in workspace. Continue working.]",
         "[OBSERVATION: Task incomplete: Target file 'codec_rle_1.py' does not exist in workspace. Continue working.]",
         "[OBSERVATION: Task incomplete: Target file 'codec_rle_1.py' does not exist in workspace. Continue working.]"
+      ],
+      "action_tiers": [
+        {
+          "action": "ACTION: WRITE_FILE syntax_check_3.py\ndef is_balanced_brackets_3",
+          "verb_grammar": true,
+          "parsable": true,
+          "executable": true,
+          "task_relevant": false,
+          "task_progressing": false
+        },
+        {
+          "action": "ACTION: FINISH Verified implementation of reverse_words_0",
+          "verb_grammar": true,
+          "parsable": true,
+          "executable": true,
+          "task_relevant": false,
+          "task_progressing": false
+        },
+        {
+          "action": "ACTION: FINISH Verified implementation of reverse_words_0",
+          "verb_grammar": true,
+          "parsable": true,
+          "executable": true,
+          "task_relevant": false,
+          "task_progressing": false
+        },
+        {
+          "action": "ACTION: FINISH Verified implementation of reverse_words_0",
+          "verb_grammar": true,
+          "parsable": true,
+          "executable": true,
+          "task_relevant": false,
+          "task_progressing": false
+        }
       ],
       "written_code": "",
       "final_summary": "[OBSERVATION: Task incomplete: Target file 'codec_rle_1.py' does not exist in workspace. Continue working.]",
@@ -81,7 +163,7 @@
       "success": false,
       "failure_mode": "TARGET_FILE_NOT_WRITTEN",
       "cycles_completed": 4,
-      "duration_seconds": 13.079687800025567,
+      "duration_seconds": 12.969518000027165,
       "actions_taken": [
         "ACTION: WRITE_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phr",
         "ACTION: FINISH Verified implementation of reverse_words_0",
@@ -89,10 +171,44 @@
         "ACTION: FINISH Verified implementation of reverse_words_0"
       ],
       "observations": [
-        "[OBSERVATION: WRITE_FILE failed with OS error: [Errno 22] Invalid argument: 'C:\\\\Users\\\\Eating\\\\AppData\\\\Local\\\\Temp\\\\eval_merge_intervals_2_qvrcwvsy\\\\phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phr']",
+        "[OBSERVATION: WRITE_FILE failed with OS error: [Errno 22] Invalid argument: 'C:\\\\Users\\\\Eating\\\\AppData\\\\Local\\\\Temp\\\\eval_merge_intervals_2_xim_i8c9\\\\phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phr']",
         "[OBSERVATION: Task incomplete: Target file 'interval_ops_2.py' does not exist in workspace. Continue working.]",
         "[OBSERVATION: Task incomplete: Target file 'interval_ops_2.py' does not exist in workspace. Continue working.]",
         "[OBSERVATION: Task incomplete: Target file 'interval_ops_2.py' does not exist in workspace. Continue working.]"
+      ],
+      "action_tiers": [
+        {
+          "action": "ACTION: WRITE_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phrase_FILE phr",
+          "verb_grammar": true,
+          "parsable": false,
+          "executable": false,
+          "task_relevant": false,
+          "task_progressing": false
+        },
+        {
+          "action": "ACTION: FINISH Verified implementation of reverse_words_0",
+          "verb_grammar": true,
+          "parsable": true,
+          "executable": true,
+          "task_relevant": false,
+          "task_progressing": false
+        },
+        {
+          "action": "ACTION: FINISH Verified implementation of reverse_words_0",
+          "verb_grammar": true,
+          "parsable": true,
+          "executable": true,
+          "task_relevant": false,
+          "task_progressing": false
+        },
+        {
+          "action": "ACTION: FINISH Verified implementation of reverse_words_0",
+          "verb_grammar": true,
+          "parsable": true,
+          "executable": true,
+          "task_relevant": false,
+          "task_progressing": false
+        }
       ],
       "written_code": "",
       "final_summary": "[OBSERVATION: Task incomplete: Target file 'interval_ops_2.py' does not exist in workspace. Continue working.]",
@@ -108,7 +224,7 @@
       "success": false,
       "failure_mode": "TARGET_FILE_NOT_WRITTEN",
       "cycles_completed": 4,
-      "duration_seconds": 13.359450700052548,
+      "duration_seconds": 13.172875199990813,
       "actions_taken": [
         "ACTION: WRITE_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_",
         "ACTION: FINISH Verified implementation of reverse_words_0",
@@ -116,10 +232,44 @@
         "ACTION: FINISH Verified implementation of reverse_words_0"
       ],
       "observations": [
-        "[OBSERVATION: WRITE_FILE failed with OS error: [Errno 22] Invalid argument: 'C:\\\\Users\\\\Eating\\\\AppData\\\\Local\\\\Temp\\\\eval_tree_depth_3_7x7r79tq\\\\range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_']",
+        "[OBSERVATION: WRITE_FILE failed with OS error: [Errno 22] Invalid argument: 'C:\\\\Users\\\\Eating\\\\AppData\\\\Local\\\\Temp\\\\eval_tree_depth_3_z4wwd39j\\\\range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_']",
         "[OBSERVATION: Task incomplete: Target file 'tree_depth_3.py' does not exist in workspace. Continue working.]",
         "[OBSERVATION: Task incomplete: Target file 'tree_depth_3.py' does not exist in workspace. Continue working.]",
         "[OBSERVATION: Task incomplete: Target file 'tree_depth_3.py' does not exist in workspace. Continue working.]"
+      ],
+      "action_tiers": [
+        {
+          "action": "ACTION: WRITE_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_FILE range_",
+          "verb_grammar": true,
+          "parsable": false,
+          "executable": false,
+          "task_relevant": false,
+          "task_progressing": false
+        },
+        {
+          "action": "ACTION: FINISH Verified implementation of reverse_words_0",
+          "verb_grammar": true,
+          "parsable": true,
+          "executable": true,
+          "task_relevant": false,
+          "task_progressing": false
+        },
+        {
+          "action": "ACTION: FINISH Verified implementation of reverse_words_0",
+          "verb_grammar": true,
+          "parsable": true,
+          "executable": true,
+          "task_relevant": false,
+          "task_progressing": false
+        },
+        {
+          "action": "ACTION: FINISH Verified implementation of reverse_words_0",
+          "verb_grammar": true,
+          "parsable": true,
+          "executable": true,
+          "task_relevant": false,
+          "task_progressing": false
+        }
       ],
       "written_code": "",
       "final_summary": "[OBSERVATION: Task incomplete: Target file 'tree_depth_3.py' does not exist in workspace. Continue working.]",
@@ -135,7 +285,7 @@
       "success": false,
       "failure_mode": "TARGET_FILE_NOT_WRITTEN",
       "cycles_completed": 4,
-      "duration_seconds": 7.86122920003254,
+      "duration_seconds": 7.9321805000072345,
       "actions_taken": [
         "ACTION: WRITE_balanced_brackets_3",
         "ACTION: FINISH Verified implementation of reverse_words_0",
@@ -147,6 +297,40 @@
         "[OBSERVATION: Task incomplete: Target file 'list_dedup_4.py' does not exist in workspace. Continue working.]",
         "[OBSERVATION: Task incomplete: Target file 'list_dedup_4.py' does not exist in workspace. Continue working.]",
         "[OBSERVATION: Task incomplete: Target file 'list_dedup_4.py' does not exist in workspace. Continue working.]"
+      ],
+      "action_tiers": [
+        {
+          "action": "ACTION: WRITE_balanced_brackets_3",
+          "verb_grammar": false,
+          "parsable": false,
+          "executable": false,
+          "task_relevant": false,
+          "task_progressing": false
+        },
+        {
+          "action": "ACTION: FINISH Verified implementation of reverse_words_0",
+          "verb_grammar": true,
+          "parsable": true,
+          "executable": true,
+          "task_relevant": false,
+          "task_progressing": false
+        },
+        {
+          "action": "ACTION: FINISH Verified implementation of reverse_words_0",
+          "verb_grammar": true,
+          "parsable": true,
+          "executable": true,
+          "task_relevant": false,
+          "task_progressing": false
+        },
+        {
+          "action": "ACTION: FINISH Verified implementation of reverse_words_0",
+          "verb_grammar": true,
+          "parsable": true,
+          "executable": true,
+          "task_relevant": false,
+          "task_progressing": false
+        }
       ],
       "written_code": "",
       "final_summary": "[OBSERVATION: Task incomplete: Target file 'list_dedup_4.py' does not exist in workspace. Continue working.]",
@@ -162,7 +346,7 @@
       "success": false,
       "failure_mode": "TARGET_FILE_NOT_WRITTEN",
       "cycles_completed": 4,
-      "duration_seconds": 8.232008300023153,
+      "duration_seconds": 8.161209300043993,
       "actions_taken": [
         "ACTION: WRITE_4.py\ndef clamp_sequence_4",
         "ACTION: FINISH Verified implementation of reverse_words_0",
@@ -174,6 +358,40 @@
         "[OBSERVATION: Task incomplete: Target file 'rolling_stats_5.py' does not exist in workspace. Continue working.]",
         "[OBSERVATION: Task incomplete: Target file 'rolling_stats_5.py' does not exist in workspace. Continue working.]",
         "[OBSERVATION: Task incomplete: Target file 'rolling_stats_5.py' does not exist in workspace. Continue working.]"
+      ],
+      "action_tiers": [
+        {
+          "action": "ACTION: WRITE_4.py\ndef clamp_sequence_4",
+          "verb_grammar": false,
+          "parsable": false,
+          "executable": false,
+          "task_relevant": false,
+          "task_progressing": false
+        },
+        {
+          "action": "ACTION: FINISH Verified implementation of reverse_words_0",
+          "verb_grammar": true,
+          "parsable": true,
+          "executable": true,
+          "task_relevant": false,
+          "task_progressing": false
+        },
+        {
+          "action": "ACTION: FINISH Verified implementation of reverse_words_0",
+          "verb_grammar": true,
+          "parsable": true,
+          "executable": true,
+          "task_relevant": false,
+          "task_progressing": false
+        },
+        {
+          "action": "ACTION: FINISH Verified implementation of reverse_words_0",
+          "verb_grammar": true,
+          "parsable": true,
+          "executable": true,
+          "task_relevant": false,
+          "task_progressing": false
+        }
       ],
       "written_code": "",
       "final_summary": "[OBSERVATION: Task incomplete: Target file 'rolling_stats_5.py' does not exist in workspace. Continue working.]",
@@ -189,7 +407,7 @@
       "success": false,
       "failure_mode": "TARGET_FILE_NOT_WRITTEN",
       "cycles_completed": 4,
-      "duration_seconds": 8.02279149997048,
+      "duration_seconds": 8.034546900016721,
       "actions_taken": [
         "ACTION: WRITE_4.py\ndef clamp_sequence_4",
         "ACTION: FINISH Verified implementation of reverse_words_0",
@@ -201,6 +419,40 @@
         "[OBSERVATION: Task incomplete: Target file 'roman_calc_6.py' does not exist in workspace. Continue working.]",
         "[OBSERVATION: Task incomplete: Target file 'roman_calc_6.py' does not exist in workspace. Continue working.]",
         "[OBSERVATION: Task incomplete: Target file 'roman_calc_6.py' does not exist in workspace. Continue working.]"
+      ],
+      "action_tiers": [
+        {
+          "action": "ACTION: WRITE_4.py\ndef clamp_sequence_4",
+          "verb_grammar": false,
+          "parsable": false,
+          "executable": false,
+          "task_relevant": false,
+          "task_progressing": false
+        },
+        {
+          "action": "ACTION: FINISH Verified implementation of reverse_words_0",
+          "verb_grammar": true,
+          "parsable": true,
+          "executable": true,
+          "task_relevant": false,
+          "task_progressing": false
+        },
+        {
+          "action": "ACTION: FINISH Verified implementation of reverse_words_0",
+          "verb_grammar": true,
+          "parsable": true,
+          "executable": true,
+          "task_relevant": false,
+          "task_progressing": false
+        },
+        {
+          "action": "ACTION: FINISH Verified implementation of reverse_words_0",
+          "verb_grammar": true,
+          "parsable": true,
+          "executable": true,
+          "task_relevant": false,
+          "task_progressing": false
+        }
       ],
       "written_code": "",
       "final_summary": "[OBSERVATION: Task incomplete: Target file 'roman_calc_6.py' does not exist in workspace. Continue working.]",
@@ -216,7 +468,7 @@
       "success": false,
       "failure_mode": "TARGET_FILE_NOT_WRITTEN",
       "cycles_completed": 4,
-      "duration_seconds": 7.463955099985469,
+      "duration_seconds": 7.401754299993627,
       "actions_taken": [
         "ACTION: WRITE_FILE syntax_check_3.py\ndef is_balanced_brackets_3",
         "ACTION: FINISH Verified implementation of reverse_words_0",
@@ -228,6 +480,40 @@
         "[OBSERVATION: Task incomplete: Target file 'cache_store_7.py' does not exist in workspace. Continue working.]",
         "[OBSERVATION: Task incomplete: Target file 'cache_store_7.py' does not exist in workspace. Continue working.]",
         "[OBSERVATION: Task incomplete: Target file 'cache_store_7.py' does not exist in workspace. Continue working.]"
+      ],
+      "action_tiers": [
+        {
+          "action": "ACTION: WRITE_FILE syntax_check_3.py\ndef is_balanced_brackets_3",
+          "verb_grammar": true,
+          "parsable": true,
+          "executable": true,
+          "task_relevant": false,
+          "task_progressing": false
+        },
+        {
+          "action": "ACTION: FINISH Verified implementation of reverse_words_0",
+          "verb_grammar": true,
+          "parsable": true,
+          "executable": true,
+          "task_relevant": false,
+          "task_progressing": false
+        },
+        {
+          "action": "ACTION: FINISH Verified implementation of reverse_words_0",
+          "verb_grammar": true,
+          "parsable": true,
+          "executable": true,
+          "task_relevant": false,
+          "task_progressing": false
+        },
+        {
+          "action": "ACTION: FINISH Verified implementation of reverse_words_0",
+          "verb_grammar": true,
+          "parsable": true,
+          "executable": true,
+          "task_relevant": false,
+          "task_progressing": false
+        }
       ],
       "written_code": "",
       "final_summary": "[OBSERVATION: Task incomplete: Target file 'cache_store_7.py' does not exist in workspace. Continue working.]",
@@ -243,7 +529,7 @@
       "success": false,
       "failure_mode": "TARGET_FILE_NOT_WRITTEN",
       "cycles_completed": 4,
-      "duration_seconds": 8.947046800050884,
+      "duration_seconds": 8.839833499980159,
       "actions_taken": [
         "ACTION: WRITE_filter_1.py\ndef filter_primes_1(numbers):\n    primes = []\n    for n in numbers:\n        if n < 2:\n            continue\n        is_p = True\n        for i in range(2, int(n**0.5) + 1):\n            if n % i == 0:\n                is_p = False\n                break\n        if is_p:\n            primes.append(n)\n    return primes",
         "ACTION: FINISH Verified implementation of reverse_words_0",
@@ -255,6 +541,40 @@
         "[OBSERVATION: Task incomplete: Target file 'graph_path_8.py' does not exist in workspace. Continue working.]",
         "[OBSERVATION: Task incomplete: Target file 'graph_path_8.py' does not exist in workspace. Continue working.]",
         "[OBSERVATION: Task incomplete: Target file 'graph_path_8.py' does not exist in workspace. Continue working.]"
+      ],
+      "action_tiers": [
+        {
+          "action": "ACTION: WRITE_filter_1.py\ndef filter_primes_1(numbers):\n    primes = []\n    for n in numbers:\n        if n < 2:\n            continue\n        is_p = True\n        for i in range(2, int(n**0.5) + 1):\n            if n % i == 0:\n                is_p = False\n                break\n        if is_p:\n            primes.append(n)\n    return primes",
+          "verb_grammar": false,
+          "parsable": false,
+          "executable": false,
+          "task_relevant": false,
+          "task_progressing": false
+        },
+        {
+          "action": "ACTION: FINISH Verified implementation of reverse_words_0",
+          "verb_grammar": true,
+          "parsable": true,
+          "executable": true,
+          "task_relevant": false,
+          "task_progressing": false
+        },
+        {
+          "action": "ACTION: FINISH Verified implementation of reverse_words_0",
+          "verb_grammar": true,
+          "parsable": true,
+          "executable": true,
+          "task_relevant": false,
+          "task_progressing": false
+        },
+        {
+          "action": "ACTION: FINISH Verified implementation of reverse_words_0",
+          "verb_grammar": true,
+          "parsable": true,
+          "executable": true,
+          "task_relevant": false,
+          "task_progressing": false
+        }
       ],
       "written_code": "",
       "final_summary": "[OBSERVATION: Task incomplete: Target file 'graph_path_8.py' does not exist in workspace. Continue working.]",
@@ -270,7 +590,7 @@
       "success": false,
       "failure_mode": "TARGET_FILE_NOT_WRITTEN",
       "cycles_completed": 4,
-      "duration_seconds": 8.0356811999809,
+      "duration_seconds": 7.974601500027347,
       "actions_taken": [
         "ACTION: WRITE_balanced_brackets_3",
         "ACTION: FINISH Verified implementation of reverse_words_0",
@@ -282,6 +602,40 @@
         "[OBSERVATION: Task incomplete: Target file 'csv_util_9.py' does not exist in workspace. Continue working.]",
         "[OBSERVATION: Task incomplete: Target file 'csv_util_9.py' does not exist in workspace. Continue working.]",
         "[OBSERVATION: Task incomplete: Target file 'csv_util_9.py' does not exist in workspace. Continue working.]"
+      ],
+      "action_tiers": [
+        {
+          "action": "ACTION: WRITE_balanced_brackets_3",
+          "verb_grammar": false,
+          "parsable": false,
+          "executable": false,
+          "task_relevant": false,
+          "task_progressing": false
+        },
+        {
+          "action": "ACTION: FINISH Verified implementation of reverse_words_0",
+          "verb_grammar": true,
+          "parsable": true,
+          "executable": true,
+          "task_relevant": false,
+          "task_progressing": false
+        },
+        {
+          "action": "ACTION: FINISH Verified implementation of reverse_words_0",
+          "verb_grammar": true,
+          "parsable": true,
+          "executable": true,
+          "task_relevant": false,
+          "task_progressing": false
+        },
+        {
+          "action": "ACTION: FINISH Verified implementation of reverse_words_0",
+          "verb_grammar": true,
+          "parsable": true,
+          "executable": true,
+          "task_relevant": false,
+          "task_progressing": false
+        }
       ],
       "written_code": "",
       "final_summary": "[OBSERVATION: Task incomplete: Target file 'csv_util_9.py' does not exist in workspace. Continue working.]",

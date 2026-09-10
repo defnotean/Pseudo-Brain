@@ -185,15 +185,20 @@ class RecurrentSoftwareAgent:
         env: NeuralSoftwareEnvironment,
         action_plan: Optional[List[str]] = None,
         max_cycles: int = 10,
+        reset_state: bool = True,
     ) -> AgentPOMDPEpisodeResult:
         """Execute a full Action-Observation POMDP software engineering cycle.
 
         If action_plan is provided, steps through the sequence of candidate actions,
         monitoring environment observations and state updates. If action_plan is None,
         unrolls the policy autoregressively from the recurrent core.
+
+        If reset_state is True, internal state is cleared to ensure pure zero-shot isolation.
+        If reset_state is False, state persists across episodes for lifelong learning.
         """
         t0 = time.perf_counter()
-        self.reset()
+        if reset_state:
+            self.reset()
 
         # Capture initial slot tensors to verify state transitions
         init_slots = self.cognitive_state.hierarchical_state.working_thoughts.clone()
