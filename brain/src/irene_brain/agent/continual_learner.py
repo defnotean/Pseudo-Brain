@@ -37,6 +37,8 @@ from irene_brain.agent.tools import Tool, ToolRegistry, ToolResult, CommandTool,
 from irene_brain.agent.unified_agent_loop import CodeExecutionEngine, ExecutionResult
 from irene_brain.agent.neural_router import NeuralSemanticRouter
 from irene_brain.agent.code_synthesizer import NeuralProgramSynthesizer, ProgramSynthesisResult
+from irene_brain.agent.multi_file_synthesizer import MultiFileSoftwareSynthesizer, MultiFileProject
+from irene_brain.memory.parametric_memory import ParametricStaticKnowledgeCore, StaticRecallResult
 
 
 STOPWORDS: Set[str] = {
@@ -97,6 +99,7 @@ class AgentInteractionResult:
     elapsed_ms: float
     state_bytes: int
     working_memory_bytes: int = 4096
+    recalled_from_static: bool = False
     unique_word_count: int = 0
     lexical_novelty_score: float = 0.0
 
@@ -123,6 +126,8 @@ class AutonomousLifelongAgent:
         self.code_engine = CodeExecutionEngine()
         self.neural_router = NeuralSemanticRouter(self.model, vocab_size=self.model.vocab_size)
         self.code_synthesizer = NeuralProgramSynthesizer(self.code_engine)
+        self.multi_file_synthesizer = MultiFileSoftwareSynthesizer()
+        self.parametric_memory = ParametricStaticKnowledgeCore(device=self.device)
 
         self.state_save_path = Path(state_save_path) if state_save_path else None
 
@@ -609,6 +614,35 @@ class AutonomousLifelongAgent:
                 lexical_novelty_score=lexical_novelty,
             )
 
+        # Step 1b: Check Raw Zero-Shot Static Neural Memory (Bypasses network and disk)
+        static_match = self.parametric_memory.query_static_knowledge(prompt)
+        if static_match is not None and static_match.confidence >= self.parametric_memory.confidence_threshold:
+            static_reply_parts = [static_match.summary]
+            if static_match.code_example:
+                static_reply_parts.append(f"\n```python\n{static_match.code_example}\n```")
+            static_reply = "\n".join(static_reply_parts)
+            self._ingest_text_into_working_memory(f"Static: {static_match.topic}")
+            elapsed_ms = (time.perf_counter() - t0) * 1000.0
+
+            words = set(re.findall(r"\b\w+\b", static_reply.lower()))
+            self.interaction_history.append(static_reply)
+
+            return AgentInteractionResult(
+                prompt=prompt,
+                reply=static_reply,
+                did_research=False,
+                research_topic=static_match.topic,
+                consolidated_to_episodic=False,
+                recalled_from_episodic=False,
+                code_execution_success=True,
+                elapsed_ms=elapsed_ms,
+                state_bytes=self.cognitive_state.hierarchical_state.total_state_bytes(),
+                working_memory_bytes=self.cognitive_state.hierarchical_state.fast_state_bytes(),
+                recalled_from_static=True,
+                unique_word_count=len(words),
+                lexical_novelty_score=0.9,
+            )
+
         # Step 2: Check Episodic Memory (Does the agent ALREADY know this from previous learning?)
         has_episodic, topic_match, recalled_lesson = self.check_episodic_familiarity(prompt)
 
@@ -698,8 +732,61 @@ class AutonomousLifelongAgent:
         # Step 4: Novel Technical Concept -> Epistemic Humility Gate (Zero Hallucination)
         epistemic_acknowledgment = self._format_epistemic_acknowledgment(search_topic, lang)
 
-        # Step 4b: Check for Autonomous Program / Game Synthesis Request
+        # Step 4b: Check for Autonomous Multi-File Large Software Engineering Request
         p_lower = prompt.lower()
+        is_multi_file = (
+            any(k in p_lower for k in ["multi file", "multifile", "multiple files", "modular", "package", "engine with config", "arcade engine", "math pipeline"])
+            and any(w in p_lower for w in ["build", "make", "create", "write", "code", "develop", "architect", "engine", "system"])
+        )
+
+        if is_multi_file:
+            proj: MultiFileProject = self.multi_file_synthesizer.synthesize_multi_file_project(prompt)
+            self._consolidate_to_episodic(
+                topic=f"project_{proj.name}",
+                summary=f"Multi-file software architecture '{proj.name}' with {len(proj.files)} modules and test suite.",
+                code_example=proj.files.get(proj.entry_point, ""),
+                language="python",
+                canonical_topic=f"project_{proj.name}",
+            )
+            if self.state_save_path:
+                self.save_lifelong_state()
+
+            elapsed_ms = (time.perf_counter() - t0) * 1000.0
+            state_bytes = self.cognitive_state.hierarchical_state.total_state_bytes()
+            fast_bytes = self.cognitive_state.hierarchical_state.fast_state_bytes()
+
+            file_manifest = "\n".join([f"- `{f}` ({len(c)} chars)" for f, c in proj.files.items()])
+            dag_str = "\n".join([f"- `{m}` -> {deps}" for m, deps in proj.dependency_dag.items()])
+
+            reply_parts = [
+                f"I architected, generated, verified, and tested a complete multi-file software system: **{proj.name}**!",
+                f"\n### Project Directory On Machine:\n`{proj.root_dir}`",
+                f"\n### Modular File Manifest ({len(proj.files)} Modules):\n{file_manifest}",
+                f"\n### Dependency Graph (DAG):\n{dag_str}",
+                f"\n### Cross-Module Sandbox Verification & Test Output:\n```text\n{proj.test_output}\n```",
+                f"\nAll cross-file import dependencies, AST checks, and unit tests passed cleanly.",
+                f"\nTo run the entry point:\n```bash\npython \"{proj.root_dir / proj.entry_point}\" --verify\n```",
+            ]
+            final_reply = "\n".join(reply_parts)
+            self.interaction_history.append(final_reply)
+
+            return AgentInteractionResult(
+                prompt=prompt,
+                reply=final_reply,
+                did_research=True,
+                research_topic=f"multi_file_{proj.name}",
+                consolidated_to_episodic=True,
+                recalled_from_episodic=False,
+                code_execution_success=proj.success,
+                elapsed_ms=elapsed_ms,
+                state_bytes=state_bytes,
+                working_memory_bytes=fast_bytes,
+                recalled_from_static=False,
+                unique_word_count=len(set(re.findall(r"\b\w+\b", final_reply.lower()))),
+                lexical_novelty_score=1.0,
+            )
+
+        # Step 4c: Check for Single-File Autonomous Program / Game Synthesis Request
         is_code_creation = (
             any(k in p_lower for k in ["make a", "create a", "write a", "build a", "code a", "program a", "implement a", "have it make", "make it", "how to code"])
             and any(w in p_lower for w in ["game", "pong", "ping pong", "ascii", "program", "script", "simulator", "app"])

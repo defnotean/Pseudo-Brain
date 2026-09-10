@@ -34,10 +34,15 @@ def run_query(agent: AutonomousLifelongAgent, prompt: str) -> None:
     t1 = time.perf_counter()
 
     print("\n[LIVE TELEMETRY LOGS]")
-    if result.did_research:
-        print(f"  * ACTION: Live Autonomous Web Research triggered for topic: '{result.research_topic}'")
-        print(f"  * PROTOCOL: HTTP GET to Wikipedia REST API / DuckDuckGo Instant Answer")
-        print(f"  * GROUNDING: Verified factual extraction (zero model hallucinations)")
+    if getattr(result, "recalled_from_static", False):
+        print(f"  * ACTION: Raw Zero-Shot Static Neural Weight Recall (0 network, 0 disk I/O)")
+        print(f"  * SOURCE: High-Density Associative Parameter Weights (Parametric Core)")
+        print(f"  * TOPIC: '{result.research_topic}'")
+        print(f"  * RETRIEVAL LATENCY: {result.elapsed_ms:.2f} ms")
+    elif result.did_research:
+        print(f"  * ACTION: Live Autonomous Web Research / Synthesis triggered for topic: '{result.research_topic}'")
+        print(f"  * PROTOCOL: Local Sandbox Execution & Verified Synthesis Engine")
+        print(f"  * GROUNDING: Verified execution (zero model hallucinations)")
         print(f"  * CONSOLIDATION: Consolidated to persistent episodic state (Topic: '{result.research_topic}')")
     elif result.recalled_from_episodic:
         print(f"  * ACTION: Instant Episodic Recall (0 network requests made)")
