@@ -50,6 +50,8 @@ class UnifiedCognitiveState:
     active_thread: Tensor          # [B] integer thread index
     P_t: Optional[Tensor] = None   # [B, K, V] synaptic plasticity matrix if enabled
     last_action: Optional[Tensor] = None # [B] last executed action index
+    ptr_prev_alpha: Optional[Tensor] = None # [B, N] previous pointer attention distribution
+    ptr_prev_gamma: Optional[Tensor] = None # [B, 1] previous pointer copy gate
 
 
 class DeepHighwayResidual(nn.Module):
@@ -341,12 +343,14 @@ class UnifiedPseudoBrain(nn.Module):
             self.ptr_k = nn.Linear(embed_dim, ptr_dim)
             self.ptr_gate = nn.Linear(W_fast + embed_dim, 1)
             self.ptr_scale = 25.0
+            self.ptr_seq_boost = nn.Parameter(torch.tensor(15.0))
             nn.init.constant_(self.ptr_gate.bias, -2.0)
         else:
             self.ptr_q = None
             self.ptr_k = None
             self.ptr_gate = None
             self.ptr_scale = 25.0
+            self.ptr_seq_boost = None
 
         # (d) Game / POMDP Action Policy Head (discrete 0..n_actions-1)
         self.action_head = nn.Sequential(
@@ -406,6 +410,8 @@ class UnifiedPseudoBrain(nn.Module):
             hierarchical_state=h_state,
             active_thread=active_thread,
             last_action=torch.zeros(batch_size, dtype=torch.long, device=device),
+            ptr_prev_alpha=None,
+            ptr_prev_gamma=None,
         )
 
     def encode_sensory(
@@ -517,7 +523,7 @@ class UnifiedPseudoBrain(nn.Module):
                     scale = getattr(self, "token_skip_scale", 1.0)
                     language_logits = language_logits + scale * skip_logits
 
-        # 5b. In-Context Pointer-Copy Readout
+        # 5b. In-Context Sequential Pointer-Copy Readout
         ptr_gamma = None
         ptr_attn = None
         if self.use_pointer_copy and self.ptr_q is not None and prompt_tokens is not None:
@@ -533,6 +539,20 @@ class UnifiedPseudoBrain(nn.Module):
                 scores = torch.bmm(q_ptr.unsqueeze(1), k_ptr.transpose(1, 2)).squeeze(1) / (ptr_dim ** 0.5)
                 pad_mask = (prompt_tokens == 0)
                 scores = scores.masked_fill(pad_mask, -1e9)
+
+                # Sequential shift prior from previous pointer attention
+                if state.ptr_prev_alpha is not None and state.ptr_prev_gamma is not None and self.ptr_seq_boost is not None:
+                    prev_a = state.ptr_prev_alpha
+                    cur_n = prompt_tokens.shape[1]
+                    if prev_a.shape[1] != cur_n:
+                        padded_prev_a = torch.zeros(B, cur_n, device=dev)
+                        min_n = min(prev_a.shape[1], cur_n)
+                        padded_prev_a[:, :min_n] = prev_a[:, :min_n]
+                        prev_a = padded_prev_a
+                    shift_prior = torch.zeros_like(prev_a)
+                    shift_prior[:, 1:] = prev_a[:, :-1]
+                    scores = scores + self.ptr_seq_boost * state.ptr_prev_gamma * shift_prior
+
                 ptr_attn = torch.softmax(scores, dim=-1)
                 ptr_boost = ptr_attn * (ptr_gamma * self.ptr_scale)
                 language_logits = language_logits.scatter_add(dim=-1, index=prompt_tokens, src=ptr_boost)
@@ -554,6 +574,8 @@ class UnifiedPseudoBrain(nn.Module):
             hierarchical_state=next_hierarchical,
             active_thread=active_tid,
             last_action=action_logits.argmax(dim=-1),
+            ptr_prev_alpha=ptr_attn.detach() if ptr_attn is not None else None,
+            ptr_prev_gamma=ptr_gamma.detach() if ptr_gamma is not None else None,
         )
 
         outputs = {
@@ -636,7 +658,7 @@ class UnifiedPseudoBrain(nn.Module):
                 scale = getattr(self, "token_skip_scale", 1.0)
                 language_logits = language_logits + scale * skip_logits
 
-        # In-Context Pointer-Copy Readout
+        # In-Context Sequential Pointer-Copy Readout
         ptr_gamma = None
         ptr_attn = None
         if self.use_pointer_copy and self.ptr_q is not None and prompt_tokens is not None and tok_emb is not None:
@@ -646,12 +668,27 @@ class UnifiedPseudoBrain(nn.Module):
             prompt_embeds = self.embedding(prompt_tokens)  # [B, N, embed_dim]
             k_ptr = self.ptr_k(prompt_embeds)  # [B, N, ptr_dim]
             ptr_dim = q_ptr.shape[-1]
-            scores = torch.einsum("btd,bnd->btn", q_ptr, k_ptr) / (ptr_dim ** 0.5)  # [B, T, N]
-            pad_mask = (prompt_tokens == 0).unsqueeze(1).expand(-1, scores.shape[1], -1)
-            scores = scores.masked_fill(pad_mask, -1e9)
-            ptr_attn = torch.softmax(scores, dim=-1)  # [B, T, N]
+            content_scores = torch.einsum("btd,bnd->btn", q_ptr, k_ptr) / (ptr_dim ** 0.5)  # [B, T, N]
+            pad_mask = (prompt_tokens == 0).unsqueeze(1).expand(-1, content_scores.shape[1], -1)
+            content_scores = content_scores.masked_fill(pad_mask, -1e9)
+
+            # Vectorized sequential pointer advancement scan over T
+            alphas = []
+            alpha_prev = torch.zeros(B, prompt_tokens.shape[1], device=content_scores.device)
+            gamma_prev = torch.zeros(B, 1, device=content_scores.device)
+            boost = self.ptr_seq_boost if self.ptr_seq_boost is not None else 15.0
+            for t in range(T):
+                shift_prior = torch.zeros_like(alpha_prev)
+                shift_prior[:, 1:] = alpha_prev[:, :-1]
+                s_t = content_scores[:, t] + boost * gamma_prev * shift_prior
+                alpha_t = torch.softmax(s_t, dim=-1)
+                alphas.append(alpha_t)
+                alpha_prev = alpha_t
+                gamma_prev = ptr_gamma[:, t]
+            ptr_attn = torch.stack(alphas, dim=1)  # [B, T, N]
+
             ptr_boost = ptr_attn * (ptr_gamma * self.ptr_scale)  # [B, T, N]
-            expanded_prompt_tokens = prompt_tokens.unsqueeze(1).expand(-1, scores.shape[1], -1)  # [B, T, N]
+            expanded_prompt_tokens = prompt_tokens.unsqueeze(1).expand(-1, T, -1)  # [B, T, N]
             language_logits = language_logits.scatter_add(dim=2, index=expanded_prompt_tokens, src=ptr_boost)
 
         action_logits = self.action_head(H_scanned)

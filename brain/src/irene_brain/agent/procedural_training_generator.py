@@ -21,8 +21,8 @@ class ProceduralTrainingGenerator:
     def __init__(self, seed: int = 1337):
         self.rng = random.Random(seed)
 
-    def generate_training_tasks(self, count: int = 60) -> List[ProceduralTask]:
-        """Generate `count` varied procedural tasks across the 8 open domains."""
+    def generate_training_tasks(self, count: int = 60, diversify_indices: bool = True) -> List[ProceduralTask]:
+        """Generate `count` varied procedural tasks across the 8 open domains with multi-digit span diversity."""
         generators = [
             self._gen_string_task,
             self._gen_numeric_task,
@@ -33,10 +33,17 @@ class ProceduralTrainingGenerator:
             self._gen_queues_stacks_task,
             self._gen_math_aggregates_task,
         ]
+        index_buckets = [
+            lambda: self.rng.randint(0, 9),
+            lambda: self.rng.randint(10, 99),
+            lambda: self.rng.randint(100, 999),
+            lambda: self.rng.randint(1000, 2500),
+        ]
         tasks = []
         for i in range(count):
             gen = generators[i % len(generators)]
-            tasks.append(gen(task_idx=i))
+            task_idx = index_buckets[i % len(index_buckets)]() if diversify_indices else i
+            tasks.append(gen(task_idx=task_idx))
         return tasks
 
     # -------------------------------------------------------------------------
@@ -736,7 +743,7 @@ def {fn_name}(vals: list[float]):
                     f"[RESP]ACTION: WRITE_FILE {t.target_module}\n{stub_code}[EOS]\n"
                     f"[OBSERVATION: Successfully wrote {len(stub_code)} bytes to {t.target_module}]\n"
                     f"[PHASE: RUN_TESTS]\n"
-                    f"[RESP]ACTION: RUN_TESTS\n"
+                    f"[RESP]ACTION: RUN_TESTS[EOS]\n"
                     f"[OBSERVATION: Tests failed: AssertionError at line 3: expected non-None result]\n"
                     f"[PHASE: REPAIR_LOGIC]\n"
                     f"[TARGET_MODULE: {t.target_module}]\n"
@@ -752,7 +759,7 @@ def {fn_name}(vals: list[float]):
                     f"[GOAL: {t.goal}]\n"
                     f"[TARGET_FUNCTION: {t.target_function}]\n"
                     f"[PHASE: EXPLORE]\n"
-                    f"[RESP]ACTION: RETRIEVE_MEMORY {t.target_function} algorithm\n"
+                    f"[RESP]ACTION: RETRIEVE_MEMORY {t.target_function} algorithm[EOS]\n"
                     f"[OBSERVATION: {doc_concept}]\n"
                     f"[PHASE: WRITE_CODE]\n"
                     f"[TARGET_MODULE: {t.target_module}]\n"

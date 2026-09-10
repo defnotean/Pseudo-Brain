@@ -71,8 +71,8 @@ def test_reference_solutions_pass_hidden_validators():
 
 def test_agent_heldout_capability_evaluation_telemetry():
     """Run honest, leak-free capability evaluation on held-out tasks and record telemetry."""
-    pomdp_ckpt = Path("brain/checkpoints/pb_pomdp_champion.pt").resolve()
-    champion_ckpt = Path("brain/checkpoints/pb_35m_champion.pt").resolve()
+    pomdp_ckpt = Path("checkpoints/pb_pomdp_champion.pt").resolve() if Path("checkpoints/pb_pomdp_champion.pt").exists() else Path("brain/checkpoints/pb_pomdp_champion.pt").resolve()
+    champion_ckpt = Path("checkpoints/pb_35m_champion.pt").resolve() if Path("checkpoints/pb_35m_champion.pt").exists() else Path("brain/checkpoints/pb_35m_champion.pt").resolve()
     ckpt_path = pomdp_ckpt if pomdp_ckpt.exists() else champion_ckpt
 
     if ckpt_path.exists():
@@ -116,7 +116,7 @@ def test_heldout_ten_unseen_families_ground_truth_solvability():
 def test_benchmark_receipt_provenance_and_generalization_boundary():
     """Verify held-out benchmark receipt: proves tier2 provenance and honest out-of-distribution boundary."""
     import json
-    receipt_path = Path("brain/experiments/heldout_benchmark_receipt.json")
+    receipt_path = Path("experiments/heldout_benchmark_receipt.json") if Path("experiments/heldout_benchmark_receipt.json").exists() else Path("brain/experiments/heldout_benchmark_receipt.json")
     assert receipt_path.exists(), "Heldout benchmark receipt must exist"
 
     with open(receipt_path, "r", encoding="utf-8") as f:

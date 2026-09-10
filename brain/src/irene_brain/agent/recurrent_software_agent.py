@@ -133,6 +133,10 @@ class RecurrentSoftwareAgent:
             if self.active_prompt_tokens
             else None
         )
+        # Reset pointer sequential state so that new action generation starts with clean global span acquisition
+        if hasattr(self.cognitive_state, "ptr_prev_alpha"):
+            self.cognitive_state.ptr_prev_alpha = None
+            self.cognitive_state.ptr_prev_gamma = None
 
         if prompt_prefix:
             prefix_tokens = self.tokenizer.encode(prompt_prefix) or [0]

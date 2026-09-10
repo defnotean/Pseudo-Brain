@@ -52,6 +52,7 @@ def build_pomdp_batches_calibrated(
 
     batches = []
     for i in range(0, len(encoded_list), batch_size):
+        chunk_tasks = tasks[i : i + batch_size]
         chunk = encoded_list[i : i + batch_size]
         max_len = max(len(toks) for toks in chunk)
 
@@ -61,10 +62,12 @@ def build_pomdp_batches_calibrated(
         loss_masks = []
         target_masks = []
         resp_indices = []
+        ptr_targets = []
 
         max_prompt_len = max(toks.index(resp_id) if resp_id in toks else 0 for toks in chunk)
 
-        for toks in chunk:
+        for b_idx, toks in enumerate(chunk):
+            t_obj = chunk_tasks[b_idx]
             seq = toks + [tokenizer.pad_id] * (max_len - len(toks))
             padded_seqs.append(seq)
             targets = seq[1:] + [tokenizer.pad_id]
@@ -79,8 +82,19 @@ def build_pomdp_batches_calibrated(
             padded_p = p_toks + [tokenizer.pad_id] * (max_prompt_len - len(p_toks))
             padded_prompts.append(padded_p)
 
+            # Find exact span of target module in p_toks
+            mod_toks = tokenizer.encode(f" {t_obj.target_module}")
+            L_mod = len(mod_toks)
+            p_start = -1
+            for p_idx in range(len(p_toks) - L_mod, -1, -1):
+                if p_toks[p_idx : p_idx + L_mod] == mod_toks:
+                    p_start = p_idx
+                    break
+
             mask = [0.0] * len(seq)
             tmask = [0.0] * len(seq)
+            ptarg = [-1] * len(seq)
+
             in_resp = False
             for idx, tok in enumerate(seq):
                 if tok == resp_id:
@@ -104,13 +118,16 @@ def build_pomdp_batches_calibrated(
                 except ValueError:
                     nl_pos = len(seq) - 1
 
-                for p in range(f_pos, min(nl_pos, len(seq))):
+                for offset, p in enumerate(range(f_pos, min(nl_pos, len(seq)))):
                     if p < len(tmask):
                         tmask[p] = 1.0
+                        if p_start >= 0 and offset < L_mod:
+                            ptarg[p] = p_start + offset
                 curr = nl_pos + 1
 
             loss_masks.append(mask)
             target_masks.append(tmask)
+            ptr_targets.append(ptarg)
 
         batches.append({
             "X": torch.tensor(padded_seqs, dtype=torch.long),
@@ -119,6 +136,7 @@ def build_pomdp_batches_calibrated(
             "target_masks": torch.tensor(target_masks, dtype=torch.float32),
             "resp_indices": torch.tensor(resp_indices, dtype=torch.long),
             "prompt_tokens": torch.tensor(padded_prompts, dtype=torch.long),
+            "ptr_targets": torch.tensor(ptr_targets, dtype=torch.long),
         })
 
     return batches
@@ -127,10 +145,10 @@ def build_pomdp_batches_calibrated(
 def train_calibrated_pomdp_policy(
     model: UnifiedPseudoBrain,
     batches: List[Dict[str, torch.Tensor]],
-    steps: int = 400,
-    lr: float = 3e-3,
-    target_loss: float = 0.025,
-    target_weight: float = 15.0,
+    steps: int = 250,
+    lr: float = 1.5e-3,
+    target_loss: float = 0.010,
+    target_weight: float = 8.0,
     lambda_ret: float = 5.0,
     lambda_sep: float = 1.0,
 ) -> float:
@@ -154,6 +172,7 @@ def train_calibrated_pomdp_policy(
         target_masks = batch["target_masks"]
         resp_indices = batch["resp_indices"]
         prompt_tokens = batch.get("prompt_tokens")
+        ptr_targets = batch.get("ptr_targets")
 
         optimizer.zero_grad()
         out = model(token_seq=X, prompt_tokens=prompt_tokens, parallel=True)
@@ -195,24 +214,24 @@ def train_calibrated_pomdp_policy(
             L_gate = torch.tensor(0.0, device=X.device)
 
         # 5. In-Context Pointer-Copy Loss (Exact Symbolic Target Binding)
-        if ptr_gamma is not None and ptr_attn is not None and prompt_tokens is not None:
+        if ptr_gamma is not None and ptr_attn is not None and ptr_targets is not None:
             gamma_s = ptr_gamma.squeeze(-1)
             L_pgate_tgt = F.binary_cross_entropy(gamma_s, torch.ones_like(gamma_s), weight=target_masks, reduction="sum") / (target_masks.sum() + 1e-6)
             bg_mask = (M - target_masks).clamp(min=0.0)
             L_pgate_bg = F.binary_cross_entropy(gamma_s, torch.zeros_like(gamma_s), weight=bg_mask, reduction="sum") / (bg_mask.sum() + 1e-6)
-            L_pgate = L_pgate_tgt + 0.2 * L_pgate_bg
+            L_pgate = L_pgate_tgt + 0.3 * L_pgate_bg
 
-            # Pointer Attention: match Y in prompt_tokens
-            match_matrix = (prompt_tokens.unsqueeze(1) == Y.unsqueeze(2)).float()
-            p_match = (ptr_attn * match_matrix).sum(dim=-1)
-            L_pattn = -(torch.log(p_match + 1e-6) * target_masks).sum() / (target_masks.sum() + 1e-6)
+            valid_ptr_mask = (ptr_targets >= 0)
+            ptr_targets_clamped = ptr_targets.clamp(min=0)
+            p_target = torch.gather(ptr_attn, dim=2, index=ptr_targets_clamped.unsqueeze(2)).squeeze(2)
+            L_pattn = -(torch.log(p_target + 1e-6) * valid_ptr_mask.float()).sum() / (valid_ptr_mask.float().sum() + 1e-6)
             L_ptr = L_pattn + L_pgate
-            ptr_match_acc = ((p_match > 0.5).float() * target_masks).sum() / (target_masks.sum() + 1e-6)
+            ptr_match_acc = ((p_target > 0.5).float() * valid_ptr_mask.float()).sum() / (valid_ptr_mask.float().sum() + 1e-6)
         else:
             L_ptr = torch.tensor(0.0, device=X.device)
             ptr_match_acc = torch.tensor(0.0, device=X.device)
 
-        loss = L_token + lambda_ret * L_ret + lambda_sep * L_sep + 1.0 * L_gate + 2.0 * L_ptr
+        loss = L_token + lambda_ret * L_ret + lambda_sep * L_sep + 1.0 * L_gate + 1.0 * L_ptr
 
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
@@ -225,7 +244,7 @@ def train_calibrated_pomdp_policy(
             acc_val = ptr_match_acc.item()
             print(f"Step {step+1:3d}/{steps} | Loss: {final_loss:.4f} (Tok: {L_token.item():.4f}, Ret: {L_ret.item():.4f}, Sep: {L_sep.item():.4f}, Gate: {b_val:.4f}, Ptr: {L_ptr.item():.4f}) | A_gate: {mean_ret.item():.3f} | Cos: {mean_cos:.3f} | PtrAcc: {acc_val*100:.1f}%")
 
-        if final_loss <= target_loss and step >= 200:
+        if final_loss <= target_loss and step >= 150:
             print(f"Target loss {target_loss} reached at step {step+1}! Final loss: {final_loss:.4f}")
             break
 
@@ -250,6 +269,8 @@ def report_to_dict(r: BenchmarkEvaluationReport) -> Dict[str, Any]:
         "level_4_task_relevant_rate": r.task_relevant_rate,
         "level_5_task_progressing_count": r.task_progressing_count,
         "level_5_task_progressing_rate": r.task_progressing_rate,
+        "mean_target_span_token_accuracy": r.mean_target_span_token_accuracy,
+        "mean_target_span_char_similarity": r.mean_target_span_char_similarity,
         "useful_first_action_count": r.useful_first_action_count,
         "useful_first_action_rate": r.useful_first_action_rate,
         "error_recoveries": r.error_recoveries,
@@ -262,7 +283,7 @@ def report_to_dict(r: BenchmarkEvaluationReport) -> Dict[str, Any]:
 def main():
     print("=== Pseudo-Brain POMDP Policy: Target-Pointing Calibration ===")
     gen = ProceduralTrainingGenerator(seed=1337)
-    training_tasks = gen.generate_training_tasks(count=40)
+    training_tasks = gen.generate_training_tasks(count=40, diversify_indices=True)
     print(f"Generated {len(training_tasks)} training tasks across 8 open domains.")
 
     tokenizer = BpeSemanticTokenizer(vocab_size=32000)
@@ -275,22 +296,31 @@ def main():
         use_gated_token_skip=True,
         use_pointer_copy=True,
     )
+
+    ckpt_dir = Path("checkpoints").resolve() if Path("checkpoints").exists() else Path("brain/checkpoints").resolve()
+    ckpt_dir.mkdir(parents=True, exist_ok=True)
+    ckpt_path = ckpt_dir / "pb_pomdp_champion.pt"
+    if ckpt_path.exists():
+        ckpt_data = torch.load(ckpt_path, map_location="cpu")
+        model.load_state_dict(ckpt_data["model_state_dict"], strict=False)
+        print(f"Loaded existing champion weights from {ckpt_path} as warm start.")
+
     param_count = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print(f"Model parameters: {param_count:,} (~{param_count/1e6:.2f}M)")
 
     train_calibrated_pomdp_policy(
         model,
         batches,
-        steps=350,
-        lr=3e-3,
-        target_loss=0.025,
-        target_weight=15.0,
+        steps=250,
+        lr=1.5e-3,
+        target_loss=0.010,
+        target_weight=8.0,
         lambda_ret=5.0,
         lambda_sep=1.0,
     )
 
     # Save to champion checkpoint location
-    ckpt_dir = Path("brain/checkpoints").resolve()
+    ckpt_dir = Path("checkpoints").resolve() if Path("checkpoints").exists() else Path("brain/checkpoints").resolve()
     ckpt_dir.mkdir(parents=True, exist_ok=True)
     ckpt_path = ckpt_dir / "pb_pomdp_champion.pt"
 
@@ -339,6 +369,8 @@ def main():
     print(f"{'Level 3: Executable Action':<30} | {rep_a.executable_action_rate*100:>5.1f}%     | {rep_b.executable_action_rate*100:>5.1f}%     | {rep_c.executable_action_rate*100:>5.1f}%")
     print(f"{'Level 4: Task Relevant':<30} | {rep_a.task_relevant_rate*100:>5.1f}%     | {rep_b.task_relevant_rate*100:>5.1f}%     | {rep_c.task_relevant_rate*100:>5.1f}%")
     print(f"{'Level 5: Task Progressing':<30} | {rep_a.task_progressing_rate*100:>5.1f}%     | {rep_b.task_progressing_rate*100:>5.1f}%     | {rep_c.task_progressing_rate*100:>5.1f}%")
+    print(f"{'Target Span Token Acc':<30} | {rep_a.mean_target_span_token_accuracy*100:>5.1f}%     | {rep_b.mean_target_span_token_accuracy*100:>5.1f}%     | {rep_c.mean_target_span_token_accuracy*100:>5.1f}%")
+    print(f"{'Target Span Char Sim':<30} | {rep_a.mean_target_span_char_similarity*100:>5.1f}%     | {rep_b.mean_target_span_char_similarity*100:>5.1f}%     | {rep_c.mean_target_span_char_similarity*100:>5.1f}%")
     print(f"{'Useful First Action':<30} | {rep_a.useful_first_action_rate*100:>5.1f}%     | {rep_b.useful_first_action_rate*100:>5.1f}%     | {rep_c.useful_first_action_rate*100:>5.1f}%")
     print("=" * 65)
 
@@ -362,7 +394,9 @@ def main():
         },
     }
 
-    receipt_path = Path("brain/experiments/three_tier_benchmark_receipt.json")
+    receipt_dir = Path("experiments").resolve() if Path("experiments").exists() else Path("brain/experiments").resolve()
+    receipt_dir.mkdir(parents=True, exist_ok=True)
+    receipt_path = receipt_dir / "three_tier_benchmark_receipt.json"
     with open(receipt_path, "w", encoding="utf-8") as f:
         json.dump(receipt, f, indent=2)
     print(f"\nSaved 3-Tier Benchmark Receipt to: {receipt_path}")

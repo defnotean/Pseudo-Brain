@@ -52,6 +52,8 @@ class ActionQualityMetrics:
     executable_action_valid: bool  # Level 3: Executed by env without OS/syntax crash
     task_relevant_valid: bool      # Level 4: Targets task's module, function, or domain
     task_progressing_valid: bool   # Level 5: Produces working code or passes tests
+    target_span_token_accuracy: float = 0.0  # Continuous subword token accuracy against target module
+    target_span_char_similarity: float = 0.0 # Normalized character similarity (1 - edit_distance / max_len)
 
 
 @dataclass
@@ -74,14 +76,18 @@ class BenchmarkEvaluationReport:
     task_progressing_count: int
     task_progressing_rate: float
 
-    # Backward compatibility aliases
-    valid_action_count: int
-    valid_action_rate: float
-    useful_first_action_count: int
-    useful_first_action_rate: float
+    # Continuous Target Span Similarity
+    mean_target_span_token_accuracy: float = 0.0
+    mean_target_span_char_similarity: float = 0.0
 
-    error_recoveries: int
-    mean_cycles: float
+    # Backward compatibility aliases
+    valid_action_count: int = 0
+    valid_action_rate: float = 0.0
+    useful_first_action_count: int = 0
+    useful_first_action_rate: float = 0.0
+
+    error_recoveries: int = 0
+    mean_cycles: float = 0.0
     mode: str = "zero_shot"  # "zero_shot" or "lifelong"
     task_results: List[Dict[str, Any]] = field(default_factory=list)
 
@@ -765,6 +771,41 @@ def make_hidden_task_validator(
     return validator
 
 
+def compute_span_similarities(generated_str: str, target_str: str) -> Tuple[float, float]:
+    """Compute token-level precision/recall and character-level edit similarity."""
+    if not target_str:
+        return 0.0, 0.0
+    if generated_str == target_str:
+        return 1.0, 1.0
+
+    # Levenshtein distance
+    m, n = len(generated_str), len(target_str)
+    dp = [[0] * (n + 1) for _ in range(m + 1)]
+    for i in range(m + 1):
+        dp[i][0] = i
+    for j in range(n + 1):
+        dp[0][j] = j
+    for i in range(1, m + 1):
+        for j in range(1, n + 1):
+            if generated_str[i - 1] == target_str[j - 1]:
+                dp[i][j] = dp[i - 1][j - 1]
+            else:
+                dp[i][j] = 1 + min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1])
+    edit_dist = dp[m][n]
+    char_sim = max(0.0, 1.0 - edit_dist / max(m, n, 1))
+
+    # Token/subword overlap similarity (split on '_' and '.')
+    gen_parts = [p for p in generated_str.replace('.', '_').split('_') if p]
+    tgt_parts = [p for p in target_str.replace('.', '_').split('_') if p]
+    if tgt_parts:
+        common = sum(1 for p in gen_parts if p in tgt_parts)
+        tok_acc = common / len(tgt_parts)
+    else:
+        tok_acc = 1.0 if not gen_parts else 0.0
+
+    return tok_acc, char_sim
+
+
 def evaluate_action_quality(
     action: str,
     observation: str,
@@ -774,7 +815,7 @@ def evaluate_action_quality(
 
     Hierarchy:
     1. Verb Grammar: Starts with recognized actuator command (WRITE_FILE, FINISH, etc.)
-    2. Parsable Action: Contains structurally sound arguments (plausible path, query, summary)
+    2. Parsable Action: Contains structurally sound arguments (valid path, query, summary)
     3. Environment-Executable: Executed without OS argument failure or unparseable format
     4. Task-Relevant: Targets the specific module, function, or domain of this task (not an attractor)
     5. Task-Progressing: Successfully compiles, satisfies checks, or passes hidden tests
@@ -817,14 +858,16 @@ def evaluate_action_quality(
         )
         exec_valid = not unrecognized
 
-    # Level 4: Task Relevant Action
-    # Does the action target this task's module, function, or intent rather than a foreign attractor?
+    # Level 4: Task Relevant Action & Continuous Span Similarities
     task_rel_valid = False
+    span_tok_acc = 0.0
+    span_char_sim = 0.0
     if verb_valid and parsable_valid:
         verb = parts[1]
         if verb in ("WRITE_FILE", "READ_FILE", "EDIT_FILE"):
             lines = action.strip().split("\n", 1)
             target_path = lines[0].strip().split()[2] if len(lines[0].strip().split()) >= 3 else ""
+            span_tok_acc, span_char_sim = compute_span_similarities(target_path, task.target_module)
             if target_path == task.target_module:
                 task_rel_valid = True
         elif verb == "FINISH":
@@ -846,6 +889,8 @@ def evaluate_action_quality(
         executable_action_valid=exec_valid,
         task_relevant_valid=task_rel_valid,
         task_progressing_valid=task_prog_valid,
+        target_span_token_accuracy=span_tok_acc,
+        target_span_char_similarity=span_char_sim,
     )
 
 
@@ -874,6 +919,8 @@ def evaluate_agent_on_benchmark(
     executable_action_count = 0
     task_relevant_count = 0
     task_progressing_count = 0
+    span_tok_accs: List[float] = []
+    span_char_sims: List[float] = []
 
     useful_first_action_count = 0
     error_recoveries = 0
@@ -912,7 +959,9 @@ def evaluate_agent_on_benchmark(
         total_actions += len(res.actions_taken)
         cycle_counts.append(res.cycles_completed)
 
-        # Track 5-tier action hierarchy
+        # Track 5-tier action hierarchy & span similarities
+        task_tok_accs: List[float] = []
+        task_char_sims: List[float] = []
         for act, obs in zip(res.actions_taken, res.observations):
             q = evaluate_action_quality(act, obs, task)
             if q.verb_grammar_valid:
@@ -925,6 +974,11 @@ def evaluate_agent_on_benchmark(
                 task_relevant_count += 1
             if q.task_progressing_valid:
                 task_progressing_count += 1
+            if q.target_span_char_similarity > 0.0 or "WRITE_FILE" in act:
+                span_tok_accs.append(q.target_span_token_accuracy)
+                span_char_sims.append(q.target_span_char_similarity)
+                task_tok_accs.append(q.target_span_token_accuracy)
+                task_char_sims.append(q.target_span_char_similarity)
 
         # Track useful first action
         if res.actions_taken:
@@ -946,6 +1000,8 @@ def evaluate_agent_on_benchmark(
             "final_summary": res.final_summary,
             "slot_0_delta": res.slot_0_delta,
             "slot_1_delta": res.slot_1_delta,
+            "max_span_char_similarity": max(task_char_sims, default=0.0),
+            "max_span_token_accuracy": max(task_tok_accs, default=0.0),
         })
 
     completion_rate = (tasks_completed / total_tasks) if total_tasks > 0 else 0.0
@@ -956,6 +1012,8 @@ def evaluate_agent_on_benchmark(
     task_progressing_rate = (task_progressing_count / total_actions) if total_actions > 0 else 0.0
     useful_first_action_rate = (useful_first_action_count / total_tasks) if total_tasks > 0 else 0.0
     mean_cycles = (sum(cycle_counts) / len(cycle_counts)) if cycle_counts else 0.0
+    mean_target_span_token_accuracy = (sum(span_tok_accs) / len(span_tok_accs)) if span_tok_accs else 0.0
+    mean_target_span_char_similarity = (sum(span_char_sims) / len(span_char_sims)) if span_char_sims else 0.0
 
     return BenchmarkEvaluationReport(
         total_tasks=total_tasks,
@@ -972,6 +1030,8 @@ def evaluate_agent_on_benchmark(
         task_relevant_rate=task_relevant_rate,
         task_progressing_count=task_progressing_count,
         task_progressing_rate=task_progressing_rate,
+        mean_target_span_token_accuracy=mean_target_span_token_accuracy,
+        mean_target_span_char_similarity=mean_target_span_char_similarity,
         valid_action_count=verb_grammar_count,
         valid_action_rate=verb_grammar_rate,
         useful_first_action_count=useful_first_action_count,
