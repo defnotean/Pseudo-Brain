@@ -88,8 +88,52 @@ def test_agent_heldout_capability_evaluation_telemetry():
     # Basic telemetry assertions
     assert report.total_tasks == 3
     assert report.total_actions >= 3
-    assert report.valid_action_rate >= 0.0
+    assert report.valid_action_rate >= 0.5  # Emits valid actuator commands
     assert 0.0 <= report.completion_rate <= 1.0
 
     # Ensure memory footprint remains strictly compliant throughout the evaluation
     assert agent.cognitive_state.hierarchical_state.fast_state_bytes() == 4096
+
+
+def test_heldout_ten_unseen_families_ground_truth_solvability():
+    """Verify all 10 held-out algorithm families are uniquely defined and their reference solutions pass 100%."""
+    benchmark = ProceduralSoftwareBenchmark(seed=42)
+    heldout_tasks = benchmark.generate_heldout_tasks(count=10)
+
+    assert len(heldout_tasks) == 10
+    domains = {t.domain for t in heldout_tasks}
+    assert len(domains) >= 5, f"Expected wide domain diversity across 10 families, got {domains}"
+
+    for task in heldout_tasks:
+        temp_dir = Path(tempfile.mkdtemp(prefix=f"test_gt_{task.task_id}_"))
+        env = NeuralSoftwareEnvironment(workspace_dir=temp_dir)
+        (temp_dir / task.target_module).write_text(task.reference_solution, encoding="utf-8")
+        validator = make_hidden_task_validator(task.hidden_tests_code, task.target_module)
+        passed, err = validator(env)
+        assert passed is True, f"Reference solution for heldout task {task.task_id} failed: {err}"
+
+
+def test_benchmark_receipt_provenance_and_generalization_boundary():
+    """Verify held-out benchmark receipt: proves tier2 provenance and honest out-of-distribution boundary."""
+    import json
+    receipt_path = Path("brain/experiments/heldout_benchmark_receipt.json")
+    assert receipt_path.exists(), "Heldout benchmark receipt must exist"
+
+    with open(receipt_path, "r", encoding="utf-8") as f:
+        receipt = json.load(f)
+
+    # Checkpoint provenance checks
+    assert receipt["tier"] == "tier2", f"Expected tier2 provenance, got {receipt.get('tier')}"
+    assert receipt["use_token_skip"] is True, "Expected token-skip enabled"
+    assert receipt["evaluation_type"] == "zero_shot_unseen_families"
+    assert receipt["total_tasks"] == 10
+
+    # Capability vs Generalization boundary assertions:
+    # 1. Valid action rate proves actuator syntax is learned (>70%)
+    assert receipt["valid_action_rate"] >= 0.70, f"Valid action rate too low: {receipt['valid_action_rate']}"
+    # 2. Honest zero-shot reporting on unseen families without data leakage
+    assert receipt["completion_rate"] == 0.0, "Zero-shot unseen tasks must reflect honest baseline"
+    # 3. All failures are tracked and categorized
+    assert "failure_mode_breakdown" in receipt
+    assert receipt["failure_mode_breakdown"].get("TARGET_FILE_NOT_WRITTEN", 0) > 0
+

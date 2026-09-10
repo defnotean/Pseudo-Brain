@@ -47,8 +47,10 @@ def build_pomdp_dataset(tasks: List[ProceduralTask], tokenizer: BpeSemanticToken
         # [RESP]ACTION: FINISH Verified implementation of fn[EOS]
         ep = (
             f"[GOAL: {t.goal}]\n"
+            f"[PHASE: WRITE_CODE]\n"
             f"[RESP]ACTION: WRITE_FILE {t.target_module}\n{t.reference_solution}[EOS]\n"
             f"[OBSERVATION: Successfully wrote {len(t.reference_solution)} bytes to {t.target_module}]\n"
+            f"[PHASE: VERIFY_AND_FINISH]\n"
             f"[RESP]ACTION: FINISH Verified implementation of {t.target_function}[EOS]"
         )
         episodes.append(ep)
@@ -145,8 +147,8 @@ def main():
     tokenizer = BpeSemanticTokenizer(vocab_size=32000)
     dataset = build_pomdp_dataset(training_tasks, tokenizer)
 
-    model = make_unified_model(tier="tier1", vocab_size=32000)
-    train_pomdp_policy(model, dataset, steps=450, lr=4e-3, target_loss=0.015)
+    model = make_unified_model(tier="tier2", vocab_size=32000, use_token_skip=True)
+    train_pomdp_policy(model, dataset, steps=500, lr=4e-3, target_loss=0.015)
 
     # Save checkpoint
     ckpt_dir = Path("brain/checkpoints").resolve()
@@ -154,10 +156,11 @@ def main():
     ckpt_path = ckpt_dir / "pb_pomdp_champion.pt"
 
     torch.save({
-        "tier": "tier1",
+        "tier": "tier2",
         "vocab_size": 32000,
+        "use_token_skip": True,
         "model_state_dict": model.state_dict(),
-        "trained_on": "procedural_pomdp_tasks",
+        "trained_on": "procedural_pomdp_tasks_tier2_skip",
     }, ckpt_path)
     print(f"Saved POMDP Policy Champion checkpoint to: {ckpt_path}")
 
