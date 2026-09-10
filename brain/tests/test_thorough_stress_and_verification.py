@@ -146,6 +146,7 @@ def test_multi_file_autonomous_self_repair_on_injected_missing_export():
     # Write repaired files and re-verify
     project.files = repaired_files
     synthesizer._write_project_files_to_disk(project)
+    second_res = verifier.execute_project_tests(project)
     try:
         assert second_res.success is True, f"Repaired project failed execution: {second_res.test_output}"
     finally:

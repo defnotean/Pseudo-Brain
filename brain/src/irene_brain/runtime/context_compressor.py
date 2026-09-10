@@ -49,11 +49,9 @@ import time
 from dataclasses import dataclass, field
 from typing import Callable, Sequence
 
-try:  # vision is optional; only needed for T4 re-summary
-    from PIL import Image, ImageDraw, ImageFont
-    _HAVE_PIL = True
-except Exception:  # pragma: no cover - PIL is present in this env
-    _HAVE_PIL = False
+# PIL is optional and only loaded on-demand during T4 image rasterization
+_HAVE_PIL = True
+
 
 try:  # tiktoken gives accurate counts; fall back to char/4 if unavailable/offline
     import tiktoken
@@ -269,7 +267,9 @@ def rasterize_to_images(text: str, max_tokens: int, out_dir: str | None = None) 
     Excess text beyond the capped pages is dropped (recorded by caller).
     Requires PIL; raises only if PIL is missing (caller guards).
     """
-    if not _HAVE_PIL:
+    try:
+        from PIL import Image, ImageDraw, ImageFont
+    except ImportError:
         raise RuntimeError("PIL unavailable; cannot rasterize (T4)")
     if out_dir is None:
         out_dir = tempfile.mkdtemp(prefix="pb_ctx_img_")
@@ -385,7 +385,7 @@ def compress(
 
     # T4 image rasterization (preferred when allowed: fixed-cost vision ingestion
     # can never breach the budget, per owner directive). Always tries before T3.
-    if allow_images and _HAVE_PIL:
+    if allow_images:
         try:
             paths, ingest = rasterize_to_images(text, max_tokens, tmp_dir)
             if paths and ingest <= max_tokens:

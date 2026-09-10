@@ -48,18 +48,24 @@ from .splits import (
     audit_split_integrity,
     require_split_integrity,
 )
-from .streaming_loader import (
-    MultiTaskMixtureStream,
-    PackedSequenceBlock,
-    SequencePacker,
-    StreamingBatch,
-    StreamingConfig,
-    StreamingMultiTaskDataset,
-    TaskType,
-    TaskWeights,
-    collate_streaming_batch,
-    create_streaming_dataloader,
-)
+# Lazy export of streaming loader to keep Phase 0 modules lightweight and dependency-free
+def __getattr__(name: str):
+    if name in {
+        "MultiTaskMixtureStream",
+        "PackedSequenceBlock",
+        "SequencePacker",
+        "StreamingBatch",
+        "StreamingConfig",
+        "StreamingMultiTaskDataset",
+        "TaskType",
+        "TaskWeights",
+        "collate_streaming_batch",
+        "create_streaming_dataloader",
+    }:
+        from . import streaming_loader
+        return getattr(streaming_loader, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 
 __all__ = [

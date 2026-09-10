@@ -558,9 +558,17 @@ class SyntheticReasoningStream:
             except Exception:
                 pass
 
-        mode = self.rng.choice(["linear_math", "quadratic_math", "arithmetic_word", "tool_call", "dag"])
+        mode = self.rng.choice(["linear_math", "quadratic_math", "arithmetic_word", "tool_call", "dag", "software_pomdp"])
 
-        if mode == "linear_math":
+        if mode == "software_pomdp":
+            from irene_brain.agent.pomdp_trajectory_generator import POMDPTrajectoryGenerator
+            if not hasattr(self, "_pomdp_gen"):
+                self._pomdp_gen = POMDPTrajectoryGenerator(seed=self.rng.randint(0, 100000))
+            traj = self._pomdp_gen.sample_trajectory()
+            text = traj.to_training_text(thread_id=thread_id)
+            return RawDocument(text=text, task_type=TaskType.REASONING, thread_id=thread_id, is_dialogue=True)
+
+        elif mode == "linear_math":
             a = self.rng.randint(2, 15)
             b = self.rng.randint(3, 30)
             c = a * self.rng.randint(1, 12) + b

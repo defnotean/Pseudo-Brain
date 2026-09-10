@@ -105,6 +105,11 @@ class TestCognitiveLossesAndAblation(unittest.TestCase):
 
     def test_ablation_model_variants_instantiation(self) -> None:
         """Verify that all 5 ablation variants construct with exact isolated heads."""
+        import sys
+        from pathlib import Path
+        brain_dir = Path(__file__).resolve().parents[1]
+        if str(brain_dir) not in sys.path:
+            sys.path.insert(0, str(brain_dir))
         from scripts.run_cognitive_ablation_battery import build_ablation_model
 
         # A: Baseline (no adaptive cognition)
