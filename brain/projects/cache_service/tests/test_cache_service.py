@@ -1,4 +1,10 @@
 # tests/test_cache_service.py - Cross-Module Verification
+import sys
+from pathlib import Path
+root = Path(__file__).parent.parent.resolve()
+if str(root) not in sys.path:
+    sys.path.insert(0, str(root))
+
 from config import ServiceConfig
 from models import DataRecord
 from core import ServiceEngine

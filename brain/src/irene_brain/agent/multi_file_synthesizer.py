@@ -756,6 +756,11 @@ class MultiFileSoftwareSynthesizer:
         )
         files["tests/test_tasks.py"] = (
             "# tests/test_tasks.py - Unit Tests for Task Manager\n"
+            "import sys\n"
+            "from pathlib import Path\n"
+            "root = Path(__file__).parent.parent.resolve()\n"
+            "if str(root) not in sys.path:\n"
+            "    sys.path.insert(0, str(root))\n\n"
             "from config import TaskConfig\n"
             "from models import TaskItem\n"
             "from storage import TaskStorage\n"
@@ -863,6 +868,11 @@ class MultiFileSoftwareSynthesizer:
         )
         files[f"tests/test_{project_name}.py"] = (
             f"# tests/test_{project_name}.py - Cross-Module Verification\n"
+            "import sys\n"
+            "from pathlib import Path\n"
+            "root = Path(__file__).parent.parent.resolve()\n"
+            "if str(root) not in sys.path:\n"
+            "    sys.path.insert(0, str(root))\n\n"
             "from config import ServiceConfig\n"
             "from models import DataRecord\n"
             "from core import ServiceEngine\n"
