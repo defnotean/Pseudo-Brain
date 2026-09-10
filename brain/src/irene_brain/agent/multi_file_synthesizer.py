@@ -160,11 +160,11 @@ class MultiFileSandboxVerifier:
             if not target_test.exists():
                 continue
 
-            cmd = [self.python_exe, str(target_test)]
+            cmd = [self.python_exe, str(target_test.resolve())]
             try:
                 proc = subprocess.run(
                     cmd,
-                    cwd=str(project.root_dir),
+                    cwd=str(project.root_dir.resolve()),
                     capture_output=True,
                     text=True,
                     timeout=15,
@@ -189,11 +189,11 @@ class MultiFileSandboxVerifier:
         # Also verify entry point runs headlessly
         entry_path = project.root_dir / project.entry_point
         if entry_path.exists() and overall_success:
-            cmd = [self.python_exe, str(entry_path), "--verify"]
+            cmd = [self.python_exe, str(entry_path.resolve()), "--verify"]
             try:
                 proc = subprocess.run(
                     cmd,
-                    cwd=str(project.root_dir),
+                    cwd=str(project.root_dir.resolve()),
                     capture_output=True,
                     text=True,
                     timeout=10,
@@ -633,7 +633,8 @@ class MultiFileSoftwareSynthesizer:
         err_msg = error_res.test_output
         search_query = f"Python {err_msg.splitlines()[-1]}" if err_msg else "Python cross module import error"
         search_res = self.search_tool.execute(search_query[:80])
-        repair_log_lines.append(f"[RESEARCH COMPLETE] Retrieved diagnostic: {search_res[:100]}...")
+        diag_text = search_res.output if hasattr(search_res, "output") else str(search_res)
+        repair_log_lines.append(f"[RESEARCH COMPLETE] Retrieved diagnostic: {diag_text[:100]}...")
 
         # Apply targeted cross-file repairs based on traceback
         if "ImportError" in err_msg or "cannot import name" in err_msg:
