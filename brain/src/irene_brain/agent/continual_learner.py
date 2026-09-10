@@ -583,10 +583,13 @@ class AutonomousLifelongAgent:
         """Process a user prompt with epistemic honesty, research gating, and continual learning."""
         t0 = time.perf_counter()
 
+        # Step 0: Ingest User Prompt into Thoughtlet Slot 0 (Goal / Context)
+        self._ingest_text_into_working_memory(prompt, thread_id=0)
+
         # Step 1: Check for Natural Conversational Dialogue & Everyday Questions
         conv_reply = self._generate_conversational_response(prompt)
         if conv_reply is not None:
-            self._ingest_text_into_working_memory(prompt)
+            self._ingest_text_into_working_memory(f"[OUTPUT: {conv_reply[:100]}]", thread_id=3)
             elapsed_ms = (time.perf_counter() - t0) * 1000.0
             state_bytes = self.cognitive_state.hierarchical_state.total_state_bytes()
 
@@ -614,14 +617,20 @@ class AutonomousLifelongAgent:
                 lexical_novelty_score=lexical_novelty,
             )
 
-        # Step 1b: Check Raw Zero-Shot Static Neural Memory (Bypasses network and disk)
+        # Step 1b: Query Parametric Static Knowledge as a Sensory Perception
         static_match = self.parametric_memory.query_static_knowledge(prompt)
         if static_match is not None and static_match.confidence >= self.parametric_memory.confidence_threshold:
+            # Feed retrieved memory into Thoughtlet Slot 1 (Perception / Knowledge)
+            obs_text = f"[PERCEPTION: Static memory fact on '{static_match.topic}' ({static_match.category}): {static_match.summary}]"
+            self._ingest_text_into_working_memory(obs_text, thread_id=1)
+
             static_reply_parts = [static_match.summary]
             if static_match.code_example:
                 static_reply_parts.append(f"\n```python\n{static_match.code_example}\n```")
             static_reply = "\n".join(static_reply_parts)
-            self._ingest_text_into_working_memory(f"Static: {static_match.topic}")
+
+            # Step output action into Thoughtlet Slot 3 (Action / History)
+            self._ingest_text_into_working_memory(f"[OUTPUT: {static_reply[:100]}]", thread_id=3)
             elapsed_ms = (time.perf_counter() - t0) * 1000.0
 
             words = set(re.findall(r"\b\w+\b", static_reply.lower()))
@@ -643,13 +652,17 @@ class AutonomousLifelongAgent:
                 lexical_novelty_score=0.9,
             )
 
-        # Step 2: Check Episodic Memory (Does the agent ALREADY know this from previous learning?)
+        # Step 2: Query Episodic Memory as a Sensory Perception
         has_episodic, topic_match, recalled_lesson = self.check_episodic_familiarity(prompt)
 
         if has_episodic and recalled_lesson is not None:
             recalled_code = recalled_lesson.get("code_example", "")
             recalled_explanation = recalled_lesson.get("summary", "")
             recalled_lang = recalled_lesson.get("language", "python")
+
+            # Feed episodic recall into Thoughtlet Slot 1 (Perception / Knowledge)
+            obs_text = f"[PERCEPTION: Episodic lesson on '{topic_match}': {recalled_explanation[:150]}]"
+            self._ingest_text_into_working_memory(obs_text, thread_id=1)
 
             reply = self._format_recall_reply(
                 topic=topic_match or prompt,
@@ -658,7 +671,8 @@ class AutonomousLifelongAgent:
                 lang=recalled_lang,
             )
 
-            self._ingest_text_into_working_memory(f"Recalled: {topic_match}")
+            # Step output action into Thoughtlet Slot 3 (Action / History)
+            self._ingest_text_into_working_memory(f"[OUTPUT: {reply[:100]}]", thread_id=3)
 
             elapsed_ms = (time.perf_counter() - t0) * 1000.0
             state_bytes = self.cognitive_state.hierarchical_state.total_state_bytes()
@@ -916,18 +930,20 @@ class AutonomousLifelongAgent:
         )
 
 
-    def _ingest_text_into_working_memory(self, text: str) -> None:
-        """Project text into sensory features and step the working memory slots."""
-        chars = [ord(c) % self.model.vocab_size for c in text[:64]]
-        if not chars:
-            chars = [0]
-        toks = torch.tensor(chars, dtype=torch.long, device=self.device)
+    def _ingest_text_into_working_memory(self, text: str, thread_id: int = 0) -> None:
+        """Project text into sensory features and step the designated working memory slot."""
+        if hasattr(self, "neural_router") and hasattr(self.neural_router, "tokenizer") and self.neural_router.tokenizer is not None:
+            tok_list = self.neural_router.tokenizer.encode(text[:256]) or [0]
+        else:
+            tok_list = [ord(c) % self.model.vocab_size for c in text[:64]] or [0]
+        toks = torch.tensor(tok_list, dtype=torch.long, device=self.device)
         emb = self.model.embedding(toks).mean(dim=0, keepdim=True)
         sensory = self.model.lang_proj(emb)
         if self.model.deep_proj is not None:
             sensory = sensory + self.model.deep_proj(sensory)
+        tid = torch.tensor([thread_id % self.model.K_fast], dtype=torch.long, device=self.device)
         with torch.no_grad():
-            _, self.cognitive_state = self.model.step(sensory, self.cognitive_state, allow_routing=True)
+            _, self.cognitive_state = self.model.step(sensory, self.cognitive_state, thread_id=tid, allow_routing=True)
 
     def _consolidate_to_episodic(
         self,
