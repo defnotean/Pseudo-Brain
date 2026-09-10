@@ -69,7 +69,13 @@ class RecurrentSoftwareAgent:
                 model_tier = ckpt.get("tier", tier)
                 model_vocab = ckpt.get("vocab_size", vocab_size)
                 use_skip = ckpt.get("use_token_skip", False)
-                model = make_unified_model(tier=model_tier, vocab_size=model_vocab, use_token_skip=use_skip)
+                use_gated = ckpt.get("use_gated_token_skip", False)
+                model = make_unified_model(
+                    tier=model_tier,
+                    vocab_size=model_vocab,
+                    use_token_skip=use_skip,
+                    use_gated_token_skip=use_gated,
+                )
                 model.load_state_dict(ckpt["model_state_dict"], strict=False)
                 self.checkpoint_loaded = True
                 self.active_checkpoint = str(checkpoint_path)
@@ -226,11 +232,11 @@ class RecurrentSoftwareAgent:
 
         # 1. Step 0: Ingest Goal and Target Specification into Slot 0 (Goal Intent)
         init_prompt = f"[GOAL: {goal}]\n"
-        if target_module:
-            init_prompt += f"[TARGET_MODULE: {target_module}]\n"
         if target_function:
             init_prompt += f"[TARGET_FUNCTION: {target_function}]\n"
         init_prompt += "[PHASE: WRITE_CODE]\n"
+        if target_module:
+            init_prompt += f"[TARGET_MODULE: {target_module}]\n"
         self._ingest_text_into_slot(init_prompt, slot_id=0)
 
         actions_taken: List[str] = []
@@ -255,16 +261,16 @@ class RecurrentSoftwareAgent:
             # 3. Step observation dynamically into Slot 0 (Continuous POMDP trajectory)
             if not obs.success:
                 if "SyntaxError" in obs.observation_text:
-                    next_phase = "[PHASE: REPAIR_SYNTAX]"
+                    next_phase = f"[PHASE: REPAIR_SYNTAX]\n[TARGET_MODULE: {target_module or ''}]"
                 elif "failed" in obs.observation_text.lower() or "incomplete" in obs.observation_text.lower() or "error" in obs.observation_text.lower():
-                    next_phase = "[PHASE: REPAIR_LOGIC]"
+                    next_phase = f"[PHASE: REPAIR_LOGIC]\n[TARGET_MODULE: {target_module or ''}]"
                 else:
-                    next_phase = "[PHASE: WRITE_CODE]"
+                    next_phase = f"[PHASE: WRITE_CODE]\n[TARGET_MODULE: {target_module or ''}]"
             else:
                 if obs.action_type == "RUN_TESTS":
                     next_phase = "[PHASE: VERIFY_AND_FINISH]"
                 elif obs.action_type == "RETRIEVE_MEMORY":
-                    next_phase = "[PHASE: WRITE_CODE]"
+                    next_phase = f"[PHASE: WRITE_CODE]\n[TARGET_MODULE: {target_module or ''}]"
                 else:
                     next_phase = "[PHASE: VERIFY_AND_FINISH]"
 

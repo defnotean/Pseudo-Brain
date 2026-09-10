@@ -1,497 +1,504 @@
 {
-  "timestamp": "2026-09-10T21:52:23Z",
-  "checkpoint": "pb_pomdp_champion.pt",
+  "timestamp": "2026-09-10T22:37:29Z",
   "tier": "tier2",
+  "parameters": 34335546,
   "vocab_size": 32000,
-  "trained_on": "procedural_multiturn_8domains_tier2_skip",
-  "evaluation_duration_seconds": 230.79591489996528,
-  "level_a_lexical": {
-    "total_tasks": 10,
-    "tasks_completed": 0,
-    "completion_rate": 0.0,
-    "total_actions": 40,
-    "level_1_verb_grammar_count": 40,
-    "level_1_verb_grammar_rate": 1.0,
-    "level_2_parsable_action_count": 40,
-    "level_2_parsable_action_rate": 1.0,
-    "level_3_executable_action_count": 40,
-    "level_3_executable_action_rate": 1.0,
-    "level_4_task_relevant_count": 0,
-    "level_4_task_relevant_rate": 0.0,
-    "level_5_task_progressing_count": 0,
-    "level_5_task_progressing_rate": 0.0,
-    "useful_first_action_count": 10,
-    "useful_first_action_rate": 1.0,
-    "error_recoveries": 0,
-    "mean_cycles": 4.0,
-    "mode": "zero_shot",
-    "task_results": [
-      {
-        "task_id": "reverse_words_1000",
-        "success": false,
-        "cycles": 4,
-        "actions": [
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34",
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34"
-        ],
-        "final_summary": "[OBSERVATION: Task incomplete: Target file 'phrase_ops_1000.py' does not exist in workspace. Continue working.]",
-        "slot_0_delta": 11.407745361328125,
-        "slot_1_delta": 12.189215660095215
-      },
-      {
-        "task_id": "prime_filter_1001",
-        "success": false,
-        "cycles": 4,
-        "actions": [
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34",
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34"
-        ],
-        "final_summary": "[OBSERVATION: Task incomplete: Target file 'math_filter_1001.py' does not exist in workspace. Continue working.]",
-        "slot_0_delta": 11.407745361328125,
-        "slot_1_delta": 12.188323020935059
-      },
-      {
-        "task_id": "matrix_transpose_1002",
-        "success": false,
-        "cycles": 4,
-        "actions": [
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34",
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34"
-        ],
-        "final_summary": "[OBSERVATION: Task incomplete: Target file 'matrix_util_1002.py' does not exist in workspace. Continue working.]",
-        "slot_0_delta": 11.407745361328125,
-        "slot_1_delta": 12.189379692077637
-      },
-      {
-        "task_id": "bracket_check_1003",
-        "success": false,
-        "cycles": 4,
-        "actions": [
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34",
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34"
-        ],
-        "final_summary": "[OBSERVATION: Task incomplete: Target file 'syntax_check_1003.py' does not exist in workspace. Continue working.]",
-        "slot_0_delta": 11.407745361328125,
-        "slot_1_delta": 12.188529968261719
-      },
-      {
-        "task_id": "clamp_seq_1004",
-        "success": false,
-        "cycles": 4,
-        "actions": [
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34",
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34"
-        ],
-        "final_summary": "[OBSERVATION: Task incomplete: Target file 'range_ops_1004.py' does not exist in workspace. Continue working.]",
-        "slot_0_delta": 11.407745361328125,
-        "slot_1_delta": 12.189596176147461
-      },
-      {
-        "task_id": "reverse_words_1005",
-        "success": false,
-        "cycles": 4,
-        "actions": [
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34",
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34"
-        ],
-        "final_summary": "[OBSERVATION: Task incomplete: Target file 'phrase_ops_1005.py' does not exist in workspace. Continue working.]",
-        "slot_0_delta": 11.407745361328125,
-        "slot_1_delta": 12.189386367797852
-      },
-      {
-        "task_id": "prime_filter_1006",
-        "success": false,
-        "cycles": 4,
-        "actions": [
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34",
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34"
-        ],
-        "final_summary": "[OBSERVATION: Task incomplete: Target file 'math_filter_1006.py' does not exist in workspace. Continue working.]",
-        "slot_0_delta": 11.407745361328125,
-        "slot_1_delta": 12.187952995300293
-      },
-      {
-        "task_id": "matrix_transpose_1007",
-        "success": false,
-        "cycles": 4,
-        "actions": [
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34",
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34"
-        ],
-        "final_summary": "[OBSERVATION: Task incomplete: Target file 'matrix_util_1007.py' does not exist in workspace. Continue working.]",
-        "slot_0_delta": 11.407745361328125,
-        "slot_1_delta": 12.189382553100586
-      },
-      {
-        "task_id": "bracket_check_1008",
-        "success": false,
-        "cycles": 4,
-        "actions": [
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34",
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34"
-        ],
-        "final_summary": "[OBSERVATION: Task incomplete: Target file 'syntax_check_1008.py' does not exist in workspace. Continue working.]",
-        "slot_0_delta": 11.407745361328125,
-        "slot_1_delta": 12.18852710723877
-      },
-      {
-        "task_id": "clamp_seq_1009",
-        "success": false,
-        "cycles": 4,
-        "actions": [
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34",
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34"
-        ],
-        "final_summary": "[OBSERVATION: Task incomplete: Target file 'range_ops_1009.py' does not exist in workspace. Continue working.]",
-        "slot_0_delta": 11.407745361328125,
-        "slot_1_delta": 12.18949031829834
-      }
-    ]
-  },
-  "level_b_domain_transfer": {
-    "total_tasks": 10,
-    "tasks_completed": 0,
-    "completion_rate": 0.0,
-    "total_actions": 40,
-    "level_1_verb_grammar_count": 40,
-    "level_1_verb_grammar_rate": 1.0,
-    "level_2_parsable_action_count": 40,
-    "level_2_parsable_action_rate": 1.0,
-    "level_3_executable_action_count": 40,
-    "level_3_executable_action_rate": 1.0,
-    "level_4_task_relevant_count": 0,
-    "level_4_task_relevant_rate": 0.0,
-    "level_5_task_progressing_count": 0,
-    "level_5_task_progressing_rate": 0.0,
-    "useful_first_action_count": 10,
-    "useful_first_action_rate": 1.0,
-    "error_recoveries": 0,
-    "mean_cycles": 4.0,
-    "mode": "zero_shot",
-    "task_results": [
-      {
-        "task_id": "str_0",
-        "success": false,
-        "cycles": 4,
-        "actions": [
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34",
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34"
-        ],
-        "final_summary": "[OBSERVATION: Task incomplete: Target file 'str_ops_0.py' does not exist in workspace. Continue working.]",
-        "slot_0_delta": 11.407745361328125,
-        "slot_1_delta": 12.183883666992188
-      },
-      {
-        "task_id": "num_1",
-        "success": false,
-        "cycles": 4,
-        "actions": [
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34",
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34"
-        ],
-        "final_summary": "[OBSERVATION: Task incomplete: Target file 'num_algo_1.py' does not exist in workspace. Continue working.]",
-        "slot_0_delta": 11.407745361328125,
-        "slot_1_delta": 12.186710357666016
-      },
-      {
-        "task_id": "sort_2",
-        "success": false,
-        "cycles": 4,
-        "actions": [
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34",
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34"
-        ],
-        "final_summary": "[OBSERVATION: Task incomplete: Target file 'search_sort_2.py' does not exist in workspace. Continue working.]",
-        "slot_0_delta": 11.407745361328125,
-        "slot_1_delta": 12.185545921325684
-      },
-      {
-        "task_id": "seq_3",
-        "success": false,
-        "cycles": 4,
-        "actions": [
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34",
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34"
-        ],
-        "final_summary": "[OBSERVATION: Task incomplete: Target file 'seq_utils_3.py' does not exist in workspace. Continue working.]",
-        "slot_0_delta": 11.407745361328125,
-        "slot_1_delta": 12.18270492553711
-      },
-      {
-        "task_id": "map_4",
-        "success": false,
-        "cycles": 4,
-        "actions": [
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34",
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34"
-        ],
-        "final_summary": "[OBSERVATION: Task incomplete: Target file 'dict_ops_4.py' does not exist in workspace. Continue working.]",
-        "slot_0_delta": 11.407745361328125,
-        "slot_1_delta": 12.185623168945312
-      },
-      {
-        "task_id": "val_5",
-        "success": false,
-        "cycles": 4,
-        "actions": [
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34",
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34"
-        ],
-        "final_summary": "[OBSERVATION: Task incomplete: Target file 'validator_5.py' does not exist in workspace. Continue working.]",
-        "slot_0_delta": 11.407745361328125,
-        "slot_1_delta": 12.186981201171875
-      },
-      {
-        "task_id": "queue_6",
-        "success": false,
-        "cycles": 4,
-        "actions": [
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34",
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34"
-        ],
-        "final_summary": "[OBSERVATION: Task incomplete: Target file 'queue_util_6.py' does not exist in workspace. Continue working.]",
-        "slot_0_delta": 11.407745361328125,
-        "slot_1_delta": 12.186793327331543
-      },
-      {
-        "task_id": "math_7",
-        "success": false,
-        "cycles": 4,
-        "actions": [
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34",
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34"
-        ],
-        "final_summary": "[OBSERVATION: Task incomplete: Target file 'matrix_math_7.py' does not exist in workspace. Continue working.]",
-        "slot_0_delta": 11.407745361328125,
-        "slot_1_delta": 12.149413108825684
-      },
-      {
-        "task_id": "str_8",
-        "success": false,
-        "cycles": 4,
-        "actions": [
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34",
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34"
-        ],
-        "final_summary": "[OBSERVATION: Task incomplete: Target file 'str_ops_8.py' does not exist in workspace. Continue working.]",
-        "slot_0_delta": 11.407745361328125,
-        "slot_1_delta": 12.183883666992188
-      },
-      {
-        "task_id": "num_9",
-        "success": false,
-        "cycles": 4,
-        "actions": [
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34",
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34"
-        ],
-        "final_summary": "[OBSERVATION: Task incomplete: Target file 'num_algo_9.py' does not exist in workspace. Continue working.]",
-        "slot_0_delta": 11.407745361328125,
-        "slot_1_delta": 12.186606407165527
-      }
-    ]
-  },
-  "level_c_sealed_ood": {
-    "total_tasks": 10,
-    "tasks_completed": 0,
-    "completion_rate": 0.0,
-    "total_actions": 40,
-    "level_1_verb_grammar_count": 40,
-    "level_1_verb_grammar_rate": 1.0,
-    "level_2_parsable_action_count": 40,
-    "level_2_parsable_action_rate": 1.0,
-    "level_3_executable_action_count": 40,
-    "level_3_executable_action_rate": 1.0,
-    "level_4_task_relevant_count": 0,
-    "level_4_task_relevant_rate": 0.0,
-    "level_5_task_progressing_count": 0,
-    "level_5_task_progressing_rate": 0.0,
-    "useful_first_action_count": 10,
-    "useful_first_action_rate": 1.0,
-    "error_recoveries": 0,
-    "mean_cycles": 4.0,
-    "mode": "zero_shot",
-    "task_results": [
-      {
-        "task_id": "gcd_0",
-        "success": false,
-        "cycles": 4,
-        "actions": [
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34",
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34"
-        ],
-        "final_summary": "[OBSERVATION: Task incomplete: Target file 'math_gcd_0.py' does not exist in workspace. Continue working.]",
-        "slot_0_delta": 11.407745361328125,
-        "slot_1_delta": 12.154824256896973
-      },
-      {
-        "task_id": "rle_1",
-        "success": false,
-        "cycles": 4,
-        "actions": [
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34",
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34"
-        ],
-        "final_summary": "[OBSERVATION: Task incomplete: Target file 'codec_rle_1.py' does not exist in workspace. Continue working.]",
-        "slot_0_delta": 11.407745361328125,
-        "slot_1_delta": 12.183500289916992
-      },
-      {
-        "task_id": "merge_intervals_2",
-        "success": false,
-        "cycles": 4,
-        "actions": [
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34",
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34"
-        ],
-        "final_summary": "[OBSERVATION: Task incomplete: Target file 'interval_ops_2.py' does not exist in workspace. Continue working.]",
-        "slot_0_delta": 11.407745361328125,
-        "slot_1_delta": 12.186971664428711
-      },
-      {
-        "task_id": "tree_depth_3",
-        "success": false,
-        "cycles": 4,
-        "actions": [
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34",
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34"
-        ],
-        "final_summary": "[OBSERVATION: Task incomplete: Target file 'tree_depth_3.py' does not exist in workspace. Continue working.]",
-        "slot_0_delta": 11.407745361328125,
-        "slot_1_delta": 12.175912857055664
-      },
-      {
-        "task_id": "dedup_order_4",
-        "success": false,
-        "cycles": 4,
-        "actions": [
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34",
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34"
-        ],
-        "final_summary": "[OBSERVATION: Task incomplete: Target file 'list_dedup_4.py' does not exist in workspace. Continue working.]",
-        "slot_0_delta": 11.407745361328125,
-        "slot_1_delta": 12.152036666870117
-      },
-      {
-        "task_id": "moving_average_5",
-        "success": false,
-        "cycles": 4,
-        "actions": [
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34",
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34"
-        ],
-        "final_summary": "[OBSERVATION: Task incomplete: Target file 'rolling_stats_5.py' does not exist in workspace. Continue working.]",
-        "slot_0_delta": 11.407745361328125,
-        "slot_1_delta": 12.18693733215332
-      },
-      {
-        "task_id": "roman_numeral_6",
-        "success": false,
-        "cycles": 4,
-        "actions": [
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34",
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34"
-        ],
-        "final_summary": "[OBSERVATION: Task incomplete: Target file 'roman_calc_6.py' does not exist in workspace. Continue working.]",
-        "slot_0_delta": 11.407745361328125,
-        "slot_1_delta": 12.189196586608887
-      },
-      {
-        "task_id": "lru_cache_7",
-        "success": false,
-        "cycles": 4,
-        "actions": [
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34",
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34"
-        ],
-        "final_summary": "[OBSERVATION: Task incomplete: Target file 'cache_store_7.py' does not exist in workspace. Continue working.]",
-        "slot_0_delta": 11.407745361328125,
-        "slot_1_delta": 12.18694019317627
-      },
-      {
-        "task_id": "graph_bfs_8",
-        "success": false,
-        "cycles": 4,
-        "actions": [
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34",
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34"
-        ],
-        "final_summary": "[OBSERVATION: Task incomplete: Target file 'graph_path_8.py' does not exist in workspace. Continue working.]",
-        "slot_0_delta": 11.407745361328125,
-        "slot_1_delta": 12.182958602905273
-      },
-      {
-        "task_id": "csv_parser_9",
-        "success": false,
-        "cycles": 4,
-        "actions": [
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34",
-          "ACTION: WRITE_FILE search_sort_10.py\ndef is_ascending_10(items: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-          "ACTION: FINISH Verified implementation of is_ascending_34"
-        ],
-        "final_summary": "[OBSERVATION: Task incomplete: Target file 'csv_util_9.py' does not exist in workspace. Continue working.]",
-        "slot_0_delta": 11.407745361328125,
-        "slot_1_delta": 12.183672904968262
-      }
-    ]
+  "use_token_skip": true,
+  "use_gated_token_skip": true,
+  "checkpoint": "C:\\Users\\Eating\\Documents\\Default Project\\Pseudo-Brain\\brain\\checkpoints\\pb_pomdp_champion.pt",
+  "trained_on": "procedural_multiturn_8domains_tier2_gated_skip_calibrated",
+  "evaluation_mode": "zero_shot",
+  "state_isolation_per_task": true,
+  "elapsed_seconds": 253.60286479996284,
+  "tiers": {
+    "level_a_lexical": {
+      "total_tasks": 10,
+      "tasks_completed": 0,
+      "completion_rate": 0.0,
+      "total_actions": 40,
+      "level_1_verb_grammar_count": 40,
+      "level_1_verb_grammar_rate": 1.0,
+      "level_2_parsable_action_count": 40,
+      "level_2_parsable_action_rate": 1.0,
+      "level_3_executable_action_count": 40,
+      "level_3_executable_action_rate": 1.0,
+      "level_4_task_relevant_count": 0,
+      "level_4_task_relevant_rate": 0.0,
+      "level_5_task_progressing_count": 0,
+      "level_5_task_progressing_rate": 0.0,
+      "useful_first_action_count": 10,
+      "useful_first_action_rate": 1.0,
+      "error_recoveries": 3,
+      "mean_cycles": 4.0,
+      "mode": "zero_shot",
+      "task_results": [
+        {
+          "task_id": "reverse_words_1000",
+          "success": false,
+          "cycles": 4,
+          "actions": [
+            "ACTION: WRITE_FILE queue_algo_14.py\ndef SimpleQueue_14(*args, **kwargs):\n    return None",
+            "ACTION: FINISH Verified implementation of get_min_max_18",
+            "ACTION: WRITE_FILE queue_algo_14.py\ndef SimpleQueue_14(*args, **kwargs):\n    return None",
+            "ACTION: FINISH Verified implementation of get_min_max_18"
+          ],
+          "final_summary": "[OBSERVATION: Task incomplete: Target file 'phrase_ops_1000.py' does not exist in workspace. Continue working.]",
+          "slot_0_delta": 9.464193344116211,
+          "slot_1_delta": 10.229635238647461
+        },
+        {
+          "task_id": "prime_filter_1001",
+          "success": false,
+          "cycles": 4,
+          "actions": [
+            "ACTION: WRITE_FILE math_util_25.py\ndef sum_digits_25(n: int) -> int\n    return sum(int(ch) for ch in str(abs(n))))))))",
+            "ACTION: WRITE_FILE math_util_9.py\ndef collatz_len_9(n: int) -> int:\n    steps = 0\n    while n > 1:\n        n = (n // 2) if n % 2 == 0 else (3 * n + 1)\n        steps += 1\n    return steps",
+            "ACTION: FINISH Verified implementation of SimpleQueue_2",
+            "ACTION: WRITE_FILE math_util_25.py\ndef sum_digits_25(n: int) -> int\n    return sum(int(ch) for ch in str(abs(n))))))))"
+          ],
+          "final_summary": "[OBSERVATION: Task incomplete: Target file 'math_filter_1001.py' does not exist in workspace. Continue working.]",
+          "slot_0_delta": 9.81315803527832,
+          "slot_1_delta": 10.842735290527344
+        },
+        {
+          "task_id": "matrix_transpose_1002",
+          "success": false,
+          "cycles": 4,
+          "actions": [
+            "ACTION: WRITE_FILE math_util_25.py\ndef sum_digits_25(n: int) -> int\n    return sum(int(ch) for ch in str(abs(n))))))))",
+            "ACTION: WRITE_FILE math_util_9.py\ndef collatz_len_9(n: int) -> int:\n    steps = 0\n    while n > 1:\n        n = (n // 2) if n % 2 == 0 else (3 * n + 1)\n        steps += 1\n    return steps",
+            "ACTION: FINISH Verified implementation of SimpleQueue_2",
+            "ACTION: WRITE_FILE math_util_25.py\ndef sum_digits_25(n: int) -> int\n    return sum(int(ch) for ch in str(abs(n))))))))"
+          ],
+          "final_summary": "[OBSERVATION: Task incomplete: Target file 'matrix_util_1002.py' does not exist in workspace. Continue working.]",
+          "slot_0_delta": 9.54982852935791,
+          "slot_1_delta": 10.842735290527344
+        },
+        {
+          "task_id": "bracket_check_1003",
+          "success": false,
+          "cycles": 4,
+          "actions": [
+            "ACTION: WRITE_FILE math_util_9.py\ndef collatz_len_9(n: int) -> int:\n    steps = 0\n    while n > 1:\n        n = (n // 2) if n % 2 == 0 else (3 * n + 1)\n        steps += 1\n    return steps",
+            "ACTION: FINISH Verified implementation of SimpleQueue_2",
+            "ACTION: WRITE_FILE math_util_9.py\ndef collatz_len_9(n: int) -> int:\n    steps = 0\n    while n > 1:\n        n = (n // 2) if n % 2 == 0 else (3 * n + 1)\n        steps += 1\n    return steps",
+            "ACTION: FINISH Verified implementation of SimpleQueue_2"
+          ],
+          "final_summary": "[OBSERVATION: Task incomplete: Target file 'syntax_check_1003.py' does not exist in workspace. Continue working.]",
+          "slot_0_delta": 8.617629051208496,
+          "slot_1_delta": 10.09200668334961
+        },
+        {
+          "task_id": "clamp_seq_1004",
+          "success": false,
+          "cycles": 4,
+          "actions": [
+            "ACTION: WRITE_FILE stat_calc_39.py\ndef mean_variance_39(val: list[float]):\n    n = len(vals)\n    if n < 2:\n        return None\n    mean = sum(vals) / n\n    variance = sum(x - mean) ** 2 for x in vals) / (n - 1)\n    return (mean, variance)",
+            "ACTION: WRITE_FILE stat_calc_39.py\ndef mean_variance_39(val: list[float]):\n    n = len(vals)\n    if n < 2:\n        return None\n    mean = sum(vals) / n\n    variance = sum(x - mean) ** 2 for x in vals) / (n - 1)\n    return (mean, variance)",
+            "ACTION: WRITE_FILE stat_calc_39.py\ndef mean_variance_39(val: list[float]):\n    n = len(vals)\n    if n < 2:\n        return None\n    mean = sum(vals) / n\n    variance = sum(x - mean) ** 2 for x in vals) / (n - 1)\n    return (mean, variance)",
+            "ACTION: WRITE_FILE stat_calc_39.py\ndef mean_variance_39(val: list[float]):\n    n = len(vals)\n    if n < 2:\n        return None\n    mean = sum(vals) / n\n    variance = sum(x - mean) ** 2 for x in vals) / (n - 1)\n    return (mean, variance)"
+          ],
+          "final_summary": "",
+          "slot_0_delta": 9.356910705566406,
+          "slot_1_delta": 10.872465133666992
+        },
+        {
+          "task_id": "reverse_words_1005",
+          "success": false,
+          "cycles": 4,
+          "actions": [
+            "ACTION: WRITE_FILE queue_algo_14.py\ndef SimpleQueue_14(*args, **kwargs):\n    return None",
+            "ACTION: FINISH Verified implementation of get_min_max_18",
+            "ACTION: WRITE_FILE queue_algo_14.py\ndef SimpleQueue_14(*args, **kwargs):\n    return None",
+            "ACTION: FINISH Verified implementation of get_min_max_18"
+          ],
+          "final_summary": "[OBSERVATION: Task incomplete: Target file 'phrase_ops_1005.py' does not exist in workspace. Continue working.]",
+          "slot_0_delta": 9.665367126464844,
+          "slot_1_delta": 10.290688514709473
+        },
+        {
+          "task_id": "prime_filter_1006",
+          "success": false,
+          "cycles": 4,
+          "actions": [
+            "ACTION: WRITE_FILE queue_util_30.py\nclass SimpleQueue_2:\n    def ________",
+            "ACTION: WRITE_FILE valid_lib_21.py\ndef check_parens_21(s: str) -> bool\n    if not name:\n        return False\n    if not (name[0].isalpha() or name[0] == '_'):\n        return False\n    return all(ch.isalnum() or ch == '_' for ch in name[1:])",
+            "ACTION: WRITE_FILE valid_lib_21.py\ndef check_parens_21(s: str) -> bool\n    if not name:\n        return False\n    if not (name[0].isalpha() or name[0] == '_'):\n        return False\n    return all(ch.isalnum() or ch == '_' for ch in name[1:])",
+            "ACTION: WRITE_FILE valid_lib_21.py\ndef check_parens_21(s: str) -> bool\n    if not name:\n        return False\n    if not (name[0].isalpha() or name[0] == '_'):\n        return False\n    return all(ch.isalnum() or ch == '_' for ch in name[1:])"
+          ],
+          "final_summary": "",
+          "slot_0_delta": 9.415846824645996,
+          "slot_1_delta": 10.808004379272461
+        },
+        {
+          "task_id": "matrix_transpose_1007",
+          "success": false,
+          "cycles": 4,
+          "actions": [
+            "ACTION: WRITE_FILE math_util_25.py\ndef sum_digits_25(n: int) -> int\n    return sum(int(ch) for ch in str(abs(n))))))))",
+            "ACTION: WRITE_FILE math_util_9.py\ndef collatz_len_9(n: int) -> int:\n    steps = 0\n    while n > 1:\n        n = (n // 2) if n % 2 == 0 else (3 * n + 1)\n        steps += 1\n    return steps",
+            "ACTION: FINISH Verified implementation of SimpleQueue_2",
+            "ACTION: WRITE_FILE math_util_25.py\ndef sum_digits_25(n: int) -> int\n    return sum(int(ch) for ch in str(abs(n))))))))"
+          ],
+          "final_summary": "[OBSERVATION: Task incomplete: Target file 'matrix_util_1007.py' does not exist in workspace. Continue working.]",
+          "slot_0_delta": 9.96972370147705,
+          "slot_1_delta": 10.842735290527344
+        },
+        {
+          "task_id": "bracket_check_1008",
+          "success": false,
+          "cycles": 4,
+          "actions": [
+            "ACTION: WRITE_FILE math_util_9.py\ndef collatz_len_9(n: int) -> int:\n    steps = 0\n    while n > 1:\n        n = (n // 2) if n % 2 == 0 else (3 * n + 1)\n        steps += 1\n    return steps",
+            "ACTION: FINISH Verified implementation of SimpleQueue_2",
+            "ACTION: WRITE_FILE math_util_9.py\ndef collatz_len_9(n: int) -> int:\n    steps = 0\n    while n > 1:\n        n = (n // 2) if n % 2 == 0 else (3 * n + 1)\n        steps += 1\n    return steps",
+            "ACTION: FINISH Verified implementation of SimpleQueue_2"
+          ],
+          "final_summary": "[OBSERVATION: Task incomplete: Target file 'syntax_check_1008.py' does not exist in workspace. Continue working.]",
+          "slot_0_delta": 8.6168851852417,
+          "slot_1_delta": 10.09200382232666
+        },
+        {
+          "task_id": "clamp_seq_1009",
+          "success": false,
+          "cycles": 4,
+          "actions": [
+            "ACTION: WRITE_FILE stat_calc_39.py\ndef mean_variance_39(val: list[float]):\n    n = len(vals)\n    if n < 2:\n        return None\n    mean = sum(vals) / n\n    variance = sum(x - mean) ** 2 for x in vals) / (n - 1)\n    return (mean, variance)",
+            "ACTION: WRITE_FILE stat_calc_39.py\ndef mean_variance_39(val: list[float]):\n    n = len(vals)\n    if n < 2:\n        return None\n    mean = sum(vals) / n\n    variance = sum(x - mean) ** 2 for x in vals) / (n - 1)\n    return (mean, variance)",
+            "ACTION: WRITE_FILE stat_calc_39.py\ndef mean_variance_39(val: list[float]):\n    n = len(vals)\n    if n < 2:\n        return None\n    mean = sum(vals) / n\n    variance = sum(x - mean) ** 2 for x in vals) / (n - 1)\n    return (mean, variance)",
+            "ACTION: WRITE_FILE stat_calc_39.py\ndef mean_variance_39(val: list[float]):\n    n = len(vals)\n    if n < 2:\n        return None\n    mean = sum(vals) / n\n    variance = sum(x - mean) ** 2 for x in vals) / (n - 1)\n    return (mean, variance)"
+          ],
+          "final_summary": "",
+          "slot_0_delta": 9.223649024963379,
+          "slot_1_delta": 10.872465133666992
+        }
+      ]
+    },
+    "level_b_domain_transfer": {
+      "total_tasks": 10,
+      "tasks_completed": 0,
+      "completion_rate": 0.0,
+      "total_actions": 40,
+      "level_1_verb_grammar_count": 40,
+      "level_1_verb_grammar_rate": 1.0,
+      "level_2_parsable_action_count": 40,
+      "level_2_parsable_action_rate": 1.0,
+      "level_3_executable_action_count": 40,
+      "level_3_executable_action_rate": 1.0,
+      "level_4_task_relevant_count": 0,
+      "level_4_task_relevant_rate": 0.0,
+      "level_5_task_progressing_count": 0,
+      "level_5_task_progressing_rate": 0.0,
+      "useful_first_action_count": 10,
+      "useful_first_action_rate": 1.0,
+      "error_recoveries": 3,
+      "mean_cycles": 4.0,
+      "mode": "zero_shot",
+      "task_results": [
+        {
+          "task_id": "str_0",
+          "success": false,
+          "cycles": 4,
+          "actions": [
+            "ACTION: WRITE_FILE queue_algo_14.py\ndef SimpleQueue_14(*args, **kwargs):\n    return None",
+            "ACTION: FINISH Verified implementation of get_min_max_18",
+            "ACTION: WRITE_FILE queue_util_30.py\ndef SimpleQueue_38(*args, **kwargs):\n    return None",
+            "ACTION: FINISH Verified implementation of get_min_max_3"
+          ],
+          "final_summary": "[OBSERVATION: Task incomplete: Target file 'string_util_0.py' does not exist in workspace. Continue working.]",
+          "slot_0_delta": 10.355050086975098,
+          "slot_1_delta": 10.092896461486816
+        },
+        {
+          "task_id": "num_1",
+          "success": false,
+          "cycles": 4,
+          "actions": [
+            "ACTION: WRITE_FILE math_util_9.py\ndef collatz_len_9(n: int) -> int:\n    steps = 0\n    while n > 1:\n        n = (n // 2) if n % 2 == 0 else (3 * n + 1)\n        steps += 1\n    return steps",
+            "ACTION: FINISH Verified implementation of SimpleQueue_2",
+            "ACTION: WRITE_FILE math_util_25.py\ndef sum_digits_25(n: int) -> int\n    return sum(int(ch) for ch in str(abs(n))))))))",
+            "ACTION: WRITE_FILE math_util_9.py\ndef collatz_len_9(n: int) -> int:\n    steps = 0\n    while n > 1:\n        n = (n // 2) if n % 2 == 0 else (3 * n + 1)\n        steps += 1\n    return steps"
+          ],
+          "final_summary": "[OBSERVATION: Task incomplete: Target file 'math_util_1.py' does not exist in workspace. Continue working.]",
+          "slot_0_delta": 10.30746841430664,
+          "slot_1_delta": 10.308469772338867
+        },
+        {
+          "task_id": "sort_2",
+          "success": false,
+          "cycles": 4,
+          "actions": [
+            "ACTION: WRITE_FILE search_sort_10.py\ndef get_min_max_18(nums: list[float]):\n    if not nums:\n        return None\n    return (min(nums), max(nums)",
+            "ACTION: WRITE_FILE search_sort_34.py\ndef get_min_max_10(*args, **kwargs):\n    return None",
+            "ACTION: FINISH Verified implementation of get_min_max_18",
+            "ACTION: WRITE_FILE search_sort_10.py\ndef get_min_max_18(nums: list[float]):\n    if not nums:\n        return None\n    return (min(nums), max(nums)"
+          ],
+          "final_summary": "[OBSERVATION: Task incomplete: Target file 'search_sort_2.py' does not exist in workspace. Continue working.]",
+          "slot_0_delta": 8.832782745361328,
+          "slot_1_delta": 11.219197273254395
+        },
+        {
+          "task_id": "seq_3",
+          "success": false,
+          "cycles": 4,
+          "actions": [
+            "ACTION: WRITE_FILE math_util_25.py\ndef sum_digits_25(n: int) -> int\n    return sum(int(ch) for ch in str(abs(n))))))))",
+            "ACTION: WRITE_FILE math_util_9.py\ndef collatz_len_9(n: int) -> int:\n    steps = 0\n    while n > 1:\n        n = (n // 2) if n % 2 == 0 else (3 * n + 1)\n        steps += 1\n    return steps",
+            "ACTION: FINISH Verified implementation of SimpleQueue_2",
+            "ACTION: WRITE_FILE math_util_25.py\ndef sum_digits_25(n: int) -> int\n    return sum(int(ch) for ch in str(abs(n))))))))"
+          ],
+          "final_summary": "[OBSERVATION: Task incomplete: Target file 'matrix_util_3.py' does not exist in workspace. Continue working.]",
+          "slot_0_delta": 10.340202331542969,
+          "slot_1_delta": 10.842735290527344
+        },
+        {
+          "task_id": "map_4",
+          "success": false,
+          "cycles": 4,
+          "actions": [
+            "ACTION: WRITE_FILE queue_algo_14.py\ndef SimpleQueue_14(*args, **kwargs):\n    return None",
+            "ACTION: FINISH Verified implementation of get_min_max_18",
+            "ACTION: WRITE_FILE queue_algo_14.py\ndef SimpleQueue_14(*args, **kwargs):\n    return None",
+            "ACTION: FINISH Verified implementation of get_min_max_18"
+          ],
+          "final_summary": "[OBSERVATION: Task incomplete: Target file 'key_val_ops_4.py' does not exist in workspace. Continue working.]",
+          "slot_0_delta": 9.715659141540527,
+          "slot_1_delta": 10.263303756713867
+        },
+        {
+          "task_id": "val_5",
+          "success": false,
+          "cycles": 4,
+          "actions": [
+            "ACTION: WRITE_FILE array_sort_18.py\ndef get_min_max_10(*args, **kwargs):\n    return None",
+            "ACTION: FINISH Verified implementation of get_min_max_18",
+            "ACTION: WRITE_FILE array_sort_18.py\ndef get_min_max_10(*args, **kwargs):\n    return None",
+            "ACTION: FINISH Verified implementation of get_min_max_18"
+          ],
+          "final_summary": "[OBSERVATION: Task incomplete: Target file 'syntax_check_5.py' does not exist in workspace. Continue working.]",
+          "slot_0_delta": 8.869840621948242,
+          "slot_1_delta": 10.140066146850586
+        },
+        {
+          "task_id": "queue_6",
+          "success": false,
+          "cycles": 4,
+          "actions": [
+            "ACTION: WRITE_FILE queue_util_30.py\nclass SimpleQueue_22:\n    def ________",
+            "ACTION: WRITE_FILE valid_lib_21.py\ndef check_parens_21(s: str) -> bool\n    if not name:\n        return False\n    if not (name[0].isalpha() or name[0] == '_'):\n        return False\n    return all(ch.isalnum() or ch == '_' for ch in name[1:])",
+            "ACTION: WRITE_FILE valid_lib_21.py\ndef check_parens_21(s: str) -> bool\n    if not name:\n        return False\n    if not (name[0].isalpha() or name[0] == '_'):\n        return False\n    return all(ch.isalnum() or ch == '_' for ch in name[1:])",
+            "ACTION: WRITE_FILE valid_lib_21.py\ndef check_parens_21(s: str) -> bool\n    if not name:\n        return False\n    if not (name[0].isalpha() or name[0] == '_'):\n        return False\n    return all(ch.isalnum() or ch == '_' for ch in name[1:])"
+          ],
+          "final_summary": "",
+          "slot_0_delta": 9.478571891784668,
+          "slot_1_delta": 10.808004379272461
+        },
+        {
+          "task_id": "math_7",
+          "success": false,
+          "cycles": 4,
+          "actions": [
+            "ACTION: WRITE_FILE stat_calc_39.py\ndef mean_variance_39(val: list[float]):\n    n = len(vals)\n    if n < 2:\n        return None\n    mean = sum(vals) / n\n    variance = sum(x - mean) ** 2 for x in vals) / (n - 1)\n    return (mean, variance)",
+            "ACTION: WRITE_FILE stat_calc_39.py\ndef mean_variance_39(val: list[float]):\n    n = len(vals)\n    if n < 2:\n        return None\n    mean = sum(vals) / n\n    variance = sum(x - mean) ** 2 for x in vals) / (n - 1)\n    return (mean, variance)",
+            "ACTION: WRITE_FILE stat_calc_39.py\ndef mean_variance_39(val: list[float]):\n    n = len(vals)\n    if n < 2:\n        return None\n    mean = sum(vals) / n\n    variance = sum(x - mean) ** 2 for x in vals) / (n - 1)\n    return (mean, variance)",
+            "ACTION: WRITE_FILE stat_calc_39.py\ndef mean_variance_39(val: list[float]):\n    n = len(vals)\n    if n < 2:\n        return None\n    mean = sum(vals) / n\n    variance = sum(x - mean) ** 2 for x in vals) / (n - 1)\n    return (mean, variance)"
+          ],
+          "final_summary": "",
+          "slot_0_delta": 9.335980415344238,
+          "slot_1_delta": 10.872465133666992
+        },
+        {
+          "task_id": "str_8",
+          "success": false,
+          "cycles": 4,
+          "actions": [
+            "ACTION: WRITE_FILE queue_algo_14.py\ndef SimpleQueue_14(*args, **kwargs):\n    return None",
+            "ACTION: FINISH Verified implementation of get_min_max_18",
+            "ACTION: WRITE_FILE queue_algo_14.py\ndef SimpleQueue_14(*args, **kwargs):\n    return None",
+            "ACTION: FINISH Verified implementation of get_min_max_18"
+          ],
+          "final_summary": "[OBSERVATION: Task incomplete: Target file 'phrase_ops_8.py' does not exist in workspace. Continue working.]",
+          "slot_0_delta": 9.705677032470703,
+          "slot_1_delta": 10.262505531311035
+        },
+        {
+          "task_id": "num_9",
+          "success": false,
+          "cycles": 4,
+          "actions": [
+            "ACTION: WRITE_FILE valid_lib_21.py\ndef check_parens_21(s: str) -> bool\n    if not name:\n        return False\n    if not (name[0].isalpha() or name[0] == '_'):\n        return False\n    return all(ch.isalnum() or ch == '_' for ch in name[1:])",
+            "ACTION: WRITE_FILE valid_lib_21.py\ndef check_parens_21(s: str) -> bool\n    if not name:\n        return False\n    if not (name[0].isalpha() or name[0] == '_'):\n        return False\n    return all(ch.isalnum() or ch == '_' for ch in name[1:])",
+            "ACTION: WRITE_FILE valid_lib_21.py\ndef check_parens_21(s: str) -> bool\n    if not name:\n        return False\n    if not (name[0].isalpha() or name[0] == '_'):\n        return False\n    return all(ch.isalnum() or ch == '_' for ch in name[1:])",
+            "ACTION: WRITE_FILE valid_lib_21.py\ndef check_parens_21(s: str) -> bool\n    if not name:\n        return False\n    if not (name[0].isalpha() or name[0] == '_'):\n        return False\n    return all(ch.isalnum() or ch == '_' for ch in name[1:])"
+          ],
+          "final_summary": "",
+          "slot_0_delta": 9.930822372436523,
+          "slot_1_delta": 10.808004379272461
+        }
+      ]
+    },
+    "level_c_sealed_ood": {
+      "total_tasks": 10,
+      "tasks_completed": 0,
+      "completion_rate": 0.0,
+      "total_actions": 40,
+      "level_1_verb_grammar_count": 39,
+      "level_1_verb_grammar_rate": 0.975,
+      "level_2_parsable_action_count": 39,
+      "level_2_parsable_action_rate": 0.975,
+      "level_3_executable_action_count": 39,
+      "level_3_executable_action_rate": 0.975,
+      "level_4_task_relevant_count": 0,
+      "level_4_task_relevant_rate": 0.0,
+      "level_5_task_progressing_count": 0,
+      "level_5_task_progressing_rate": 0.0,
+      "useful_first_action_count": 10,
+      "useful_first_action_rate": 1.0,
+      "error_recoveries": 1,
+      "mean_cycles": 4.0,
+      "mode": "zero_shot",
+      "task_results": [
+        {
+          "task_id": "gcd_0",
+          "success": false,
+          "cycles": 4,
+          "actions": [
+            "ACTION: WRITE_FILE str_ops_.py\ndef bubble_sort_26(*args, **kwargs):\n    return None",
+            "ACTION: FINISH Verified implementation of get_min_max_18",
+            "ACTION: WRITE_FILE str_ops_.py\ndef bubble_sort_26(*args, **kwargs):\n    return None",
+            "ACTION: FINISH Verified implementation of get_min_max_18"
+          ],
+          "final_summary": "[OBSERVATION: Task incomplete: Target file 'math_gcd_0.py' does not exist in workspace. Continue working.]",
+          "slot_0_delta": 9.144022941589355,
+          "slot_1_delta": 10.229397773742676
+        },
+        {
+          "task_id": "rle_1",
+          "success": false,
+          "cycles": 4,
+          "actions": [
+            "ACTION: WRITE_FILE dict_tools_12.py\ndef combine_counts_2d14(d1: dict[str, int], d2: dict[str, int]) -> dict[str, int]:\n    out = dict(d1)\n    for k, v in d2.items():\n        out[k] = out.get(k, 0) + v\n    return out",
+            "ACTION: FINISH Verified implementation of mean_variance_39",
+            "ACTION: WRITE_FILE find_tools_2.py\ndef find_first_index_2(*args, **kwargs):\n    return None",
+            "ACTION: FINISH Verified implementation of combine_counts_28"
+          ],
+          "final_summary": "[OBSERVATION: Task incomplete: Target file 'codec_rle_1.py' does not exist in workspace. Continue working.]",
+          "slot_0_delta": 9.486834526062012,
+          "slot_1_delta": 10.059253692626953
+        },
+        {
+          "task_id": "merge_intervals_2",
+          "success": false,
+          "cycles": 4,
+          "actions": [
+            "ACTION: WRITE_FILE list_ops_26.py\ndef bubble_sort_26(*args, **kwargs):\n    return None",
+            "ACTION: FINISH Verified implementation of get_min_max_18",
+            "ACTION: WRITE_FILE stat_calc_39.py\ndef clamp_val_val_val_val",
+            "ACTION: WRITE_FILE stat_calc_39.py\ndef clamp_val_val_val_val"
+          ],
+          "final_summary": "[OBSERVATION: Task incomplete: Target file 'interval_ops_2.py' does not exist in workspace. Continue working.]",
+          "slot_0_delta": 8.68364143371582,
+          "slot_1_delta": 10.69919204711914
+        },
+        {
+          "task_id": "tree_depth_3",
+          "success": false,
+          "cycles": 4,
+          "actions": [
+            "ACTION: WRITE_FILE find_tools_2.py\ndef find_first_index_2(*args, **kwargs):\n    return None",
+            "ACTION: FINISH Verified implementation of combine_counts_28",
+            "ACTION: WRITE_FILE valid_lib_37.py\ndef check_parens_sort_c_37: str) -> bool\n    return 0 <= r < num_rows and 0 <= c < num_cols",
+            "ACTION: WRITE_FILE valid_lib_37.py\ndef validate_name_29(name: str) -> bool:\n    depth = 0\n    for ch in s:\n        if ch == '(':\n            depth += 1\n        elif ch == ')':\n            depth -= 1\n            if depth < 0:\n                return False\n    return depth == 0"
+          ],
+          "final_summary": "[OBSERVATION: Task incomplete: Target file 'tree_depth_3.py' does not exist in workspace. Continue working.]",
+          "slot_0_delta": 10.162337303161621,
+          "slot_1_delta": 10.375016212463379
+        },
+        {
+          "task_id": "dedup_order_4",
+          "success": false,
+          "cycles": 4,
+          "actions": [
+            "ACTION: WRITE_FILE math_util_9.py\ndef collatz_len_9(n: int) -> int:\n    steps = 0\n    while n > 1:\n        n = (n // 2) if n % 2 == 0 else (3 * n + 1)\n        steps += 1\n    return steps",
+            "ACTION: FINISH Verified implementation of SimpleQueue_2",
+            "ACTION: WRITE_FILE valid_lib_29.py\ndef_parens_sort_c_37: str) -> bool\n    return 0 <= r < num_rows and 0 <= c < num_cols",
+            "ACTION: WRITE_FILE valid_lib_29.py\ndef check_parens_sort_c_37: str) -> bool\n    return 0 <= r < num_rows and 0 <= c < num_cols"
+          ],
+          "final_summary": "[OBSERVATION: Task incomplete: Target file 'list_dedup_4.py' does not exist in workspace. Continue working.]",
+          "slot_0_delta": 9.007835388183594,
+          "slot_1_delta": 11.043383598327637
+        },
+        {
+          "task_id": "moving_average_5",
+          "success": false,
+          "cycles": 4,
+          "actions": [
+            "ACTION: WRITE_FILE math_util_9.py\ndef collatz_len_9(n: int) -> int:\n    steps = 0\n    while n > 1:\n        n = (n // 2) if n % 2 == 0 else (3 * n + 1)\n        steps += 1\n    return steps",
+            "ACTION: FINISH Verified implementation of SimpleQueue_2",
+            "ACTION: WRITE_FILE find_tools_2.py\ndef find_first_index_2(*args, **kwargs):\n    return None",
+            "ACTION: FINISH Verified implementation of combine_counts_28"
+          ],
+          "final_summary": "[OBSERVATION: Task incomplete: Target file 'rolling_stats_5.py' does not exist in workspace. Continue working.]",
+          "slot_0_delta": 10.269320487976074,
+          "slot_1_delta": 10.12222957611084
+        },
+        {
+          "task_id": "roman_numeral_6",
+          "success": false,
+          "cycles": 4,
+          "actions": [
+            "ACTION: WRITE_FILE valid_lib_21.py\ndef check_parens_21(s: str) -> bool\n    if not name:\n        return False\n    if not (name[0].isalpha() or name[0] == '_'):\n        return False\n    return all(ch.isalnum() or ch == '_' for ch in name[1:])",
+            "ACTION: WRITE_FILE valid_lib_21.py\ndef check_parens_21(s: str) -> bool\n    if not name:\n        return False\n    if not (name[0].isalpha() or name[0] == '_'):\n        return False\n    return all(ch.isalnum() or ch == '_' for ch in name[1:])",
+            "ACTION: WRITE_FILE valid_lib_21.py\ndef check_parens_21(s: str) -> bool\n    if not name:\n        return False\n    if not (name[0].isalpha() or name[0] == '_'):\n        return False\n    return all(ch.isalnum() or ch == '_' for ch in name[1:])",
+            "ACTION: WRITE_FILE valid_lib_21.py\ndef check_parens_21(s: str) -> bool\n    if not name:\n        return False\n    if not (name[0].isalpha() or name[0] == '_'):\n        return False\n    return all(ch.isalnum() or ch == '_' for ch in name[1:])"
+          ],
+          "final_summary": "",
+          "slot_0_delta": 9.489458084106445,
+          "slot_1_delta": 10.808004379272461
+        },
+        {
+          "task_id": "lru_cache_7",
+          "success": false,
+          "cycles": 4,
+          "actions": [
+            "ACTION: WRITE_FILE valid_lib_21.py\ndef check_parens_21(s: str) -> bool\n    if not name:\n        return False\n    if not (name[0].isalpha() or name[0] == '_'):\n        return False\n    return all(ch.isalnum() or ch == '_' for ch in name[1:])",
+            "ACTION: WRITE_FILE valid_lib_21.py\ndef check_parens_21(s: str) -> bool\n    if not name:\n        return False\n    if not (name[0].isalpha() or name[0] == '_'):\n        return False\n    return all(ch.isalnum() or ch == '_' for ch in name[1:])",
+            "ACTION: WRITE_FILE valid_lib_21.py\ndef check_parens_21(s: str) -> bool\n    if not name:\n        return False\n    if not (name[0].isalpha() or name[0] == '_'):\n        return False\n    return all(ch.isalnum() or ch == '_' for ch in name[1:])",
+            "ACTION: WRITE_FILE valid_lib_21.py\ndef check_parens_21(s: str) -> bool\n    if not name:\n        return False\n    if not (name[0].isalpha() or name[0] == '_'):\n        return False\n    return all(ch.isalnum() or ch == '_' for ch in name[1:])"
+          ],
+          "final_summary": "",
+          "slot_0_delta": 9.357234954833984,
+          "slot_1_delta": 10.808004379272461
+        },
+        {
+          "task_id": "graph_bfs_8",
+          "success": false,
+          "cycles": 4,
+          "actions": [
+            "ACTION: WRITE_FILE stack_ops_6.py\ndef combine_counts_28(d1: dict[str, int], d2: dict[str, int], d2: dict[str, int) -> dict[str, int]:\n    out = dict(d1)\n    for k, v in d2.items():\n        out[k] = out.get(k, 0) + v\n    return out",
+            "ACTION: UNPARSED ACTITITITI",
+            "ACTION: WRITE_FILE valid_lib_21.py\ndef check_parens_21(s: str) -> bool\n    if not name:\n        return False\n    if not (name[0].isalpha() or name[0] == '_'):\n        return False\n    return all(ch.isalnum() or ch == '_' for ch in name[1:])",
+            "ACTION: WRITE_FILE valid_lib_21.py\ndef check_parens_21(s: str) -> bool\n    if not name:\n        return False\n    if not (name[0].isalpha() or name[0] == '_'):\n        return False\n    return all(ch.isalnum() or ch == '_' for ch in name[1:])"
+          ],
+          "final_summary": "",
+          "slot_0_delta": 9.379575729370117,
+          "slot_1_delta": 10.808004379272461
+        },
+        {
+          "task_id": "csv_parser_9",
+          "success": false,
+          "cycles": 4,
+          "actions": [
+            "ACTION: WRITE_FILE queue_util_38.py\ndef SimpleQueue_38(*args, **kwargs):\n    return None",
+            "ACTION: FINISH Verified implementation of get_min_max_3",
+            "ACTION: WRITE_FILE queue_util_30.py\ndef SimpleQueue_38(*args, **kwargs):\n    return None",
+            "ACTION: FINISH Verified implementation of get_min_max_3"
+          ],
+          "final_summary": "[OBSERVATION: Task incomplete: Target file 'csv_util_9.py' does not exist in workspace. Continue working.]",
+          "slot_0_delta": 10.15781021118164,
+          "slot_1_delta": 10.091167449951172
+        }
+      ]
+    }
   }
 }

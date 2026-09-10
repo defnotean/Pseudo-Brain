@@ -44,8 +44,10 @@ class ProceduralTrainingGenerator:
     # -------------------------------------------------------------------------
     def _gen_string_task(self, task_idx: int) -> ProceduralTask:
         subtypes = ["capitalize_words", "count_vowels", "strip_punctuation", "is_palindrome", "reverse_words"]
+        prefixes = ["str_ops", "phrase_ops", "string_util", "text_tools", "clean_text", "word_ops"]
+        prefix = self.rng.choice(prefixes)
+        mod_name = f"{prefix}_{task_idx}.py"
         stype = self.rng.choice(subtypes)
-        mod_name = f"str_ops_{task_idx}.py"
 
         if stype == "capitalize_words":
             fn_name = f"capitalize_words_{task_idx}"
@@ -137,8 +139,10 @@ def {fn_name}(s: str) -> str:
     # -------------------------------------------------------------------------
     def _gen_numeric_task(self, task_idx: int) -> ProceduralTask:
         subtypes = ["is_prime", "sum_of_digits", "factorial", "collatz_steps", "clamp_number"]
+        prefixes = ["num_algo", "math_filter", "numeric_calc", "num_tools", "calc_helpers", "math_util"]
+        prefix = self.rng.choice(prefixes)
+        mod_name = f"{prefix}_{task_idx}.py"
         stype = self.rng.choice(subtypes)
-        mod_name = f"num_algo_{task_idx}.py"
 
         if stype == "is_prime":
             fn_name = f"is_prime_{task_idx}"
@@ -240,8 +244,10 @@ def {fn_name}(val: float, low: float, high: float) -> float:
     # -------------------------------------------------------------------------
     def _gen_sorting_searching_task(self, task_idx: int) -> ProceduralTask:
         subtypes = ["bubble_sort", "linear_search", "find_min_max", "is_sorted"]
+        prefixes = ["search_sort", "sort_ops", "search_utils", "array_sort", "find_tools", "order_lib"]
+        prefix = self.rng.choice(prefixes)
+        mod_name = f"{prefix}_{task_idx}.py"
         stype = self.rng.choice(subtypes)
-        mod_name = f"search_sort_{task_idx}.py"
 
         if stype == "bubble_sort":
             fn_name = f"bubble_sort_{task_idx}"
@@ -327,8 +333,10 @@ def {fn_name}(items: list[int]) -> bool:
     # -------------------------------------------------------------------------
     def _gen_lists_sequences_task(self, task_idx: int) -> ProceduralTask:
         subtypes = ["flatten_list", "chunk_list", "cumulative_sum", "remove_item"]
+        prefixes = ["seq_utils", "matrix_util", "list_ops", "array_tools", "seq_lib", "list_helpers"]
+        prefix = self.rng.choice(prefixes)
+        mod_name = f"{prefix}_{task_idx}.py"
         stype = self.rng.choice(subtypes)
-        mod_name = f"seq_utils_{task_idx}.py"
 
         if stype == "flatten_list":
             fn_name = f"flatten_nested_{task_idx}"
@@ -413,8 +421,10 @@ def {fn_name}(items: list, target) -> list:
     # -------------------------------------------------------------------------
     def _gen_dict_maps_task(self, task_idx: int) -> ProceduralTask:
         subtypes = ["frequency_map", "invert_dict", "merge_dict_sums"]
+        prefixes = ["dict_ops", "map_utils", "dict_tools", "key_val_ops", "mapping_lib"]
+        prefix = self.rng.choice(prefixes)
+        mod_name = f"{prefix}_{task_idx}.py"
         stype = self.rng.choice(subtypes)
-        mod_name = f"dict_ops_{task_idx}.py"
 
         if stype == "frequency_map":
             fn_name = f"count_frequencies_{task_idx}"
@@ -478,8 +488,10 @@ def {fn_name}(d1: dict[str, int], d2: dict[str, int]) -> dict[str, int]:
     # -------------------------------------------------------------------------
     def _gen_validation_task(self, task_idx: int) -> ProceduralTask:
         subtypes = ["is_balanced_parens", "is_valid_identifier", "in_bounds"]
+        prefixes = ["validator", "syntax_check", "val_check", "rule_check", "valid_lib"]
+        prefix = self.rng.choice(prefixes)
+        mod_name = f"{prefix}_{task_idx}.py"
         stype = self.rng.choice(subtypes)
-        mod_name = f"validator_{task_idx}.py"
 
         if stype == "is_balanced_parens":
             fn_name = f"check_parens_{task_idx}"
@@ -551,7 +563,9 @@ def {fn_name}(r: int, c: int, num_rows: int, num_cols: int) -> bool:
     # Domain 7: Stacks & Queues
     # -------------------------------------------------------------------------
     def _gen_queues_stacks_task(self, task_idx: int) -> ProceduralTask:
-        mod_name = f"queue_util_{task_idx}.py"
+        prefixes = ["queue_util", "stack_ops", "buffer_lib", "fifo_ops", "queue_algo"]
+        prefix = self.rng.choice(prefixes)
+        mod_name = f"{prefix}_{task_idx}.py"
         cls_name = f"SimpleQueue_{task_idx}"
         goal = (
             f"Implement class `{cls_name}` in `{mod_name}` with `__init__(self)`, `push(self, item)`, "
@@ -602,7 +616,9 @@ class {cls_name}:
     def _gen_math_aggregates_task(self, task_idx: int) -> ProceduralTask:
         subtypes = ["dot_product", "transpose_matrix", "mean_std"]
         stype = self.rng.choice(subtypes)
-        mod_name = f"matrix_math_{task_idx}.py"
+        prefixes = ["matrix_math", "range_ops", "math_stats", "stat_calc", "vector_ops"]
+        prefix = self.rng.choice(prefixes)
+        mod_name = f"{prefix}_{task_idx}.py"
 
         if stype == "dot_product":
             fn_name = f"vector_dot_{task_idx}"
@@ -675,15 +691,15 @@ def {fn_name}(vals: list[float]):
 
             header = (
                 f"[GOAL: {t.goal}]\n"
-                f"[TARGET_MODULE: {t.target_module}]\n"
                 f"[TARGET_FUNCTION: {t.target_function}]\n"
+                f"[PHASE: WRITE_CODE]\n"
+                f"[TARGET_MODULE: {t.target_module}]\n"
             )
 
             if p_type == 0:
                 # Pattern 1: Direct Clean Implementation (Single-shot success)
                 ep = (
                     f"{header}"
-                    f"[PHASE: WRITE_CODE]\n"
                     f"[RESP]ACTION: WRITE_FILE {t.target_module}\n{t.reference_solution}[EOS]\n"
                     f"[OBSERVATION: Successfully wrote {len(t.reference_solution)} bytes to {t.target_module}]\n"
                     f"[PHASE: VERIFY_AND_FINISH]\n"
@@ -703,10 +719,10 @@ def {fn_name}(vals: list[float]):
 
                 ep = (
                     f"{header}"
-                    f"[PHASE: WRITE_CODE]\n"
                     f"[RESP]ACTION: WRITE_FILE {t.target_module}\n{buggy_code}[EOS]\n"
                     f"[OBSERVATION: WRITE_FILE failed: SyntaxError at line 1, col 24: expected ':']\n"
                     f"[PHASE: REPAIR_SYNTAX]\n"
+                    f"[TARGET_MODULE: {t.target_module}]\n"
                     f"[RESP]ACTION: WRITE_FILE {t.target_module}\n{t.reference_solution}[EOS]\n"
                     f"[OBSERVATION: Successfully wrote {len(t.reference_solution)} bytes to {t.target_module}]\n"
                     f"[PHASE: VERIFY_AND_FINISH]\n"
@@ -717,13 +733,13 @@ def {fn_name}(vals: list[float]):
                 stub_code = f"def {t.target_function}(*args, **kwargs):\n    return None\n"
                 ep = (
                     f"{header}"
-                    f"[PHASE: WRITE_CODE]\n"
                     f"[RESP]ACTION: WRITE_FILE {t.target_module}\n{stub_code}[EOS]\n"
                     f"[OBSERVATION: Successfully wrote {len(stub_code)} bytes to {t.target_module}]\n"
                     f"[PHASE: RUN_TESTS]\n"
                     f"[RESP]ACTION: RUN_TESTS\n"
                     f"[OBSERVATION: Tests failed: AssertionError at line 3: expected non-None result]\n"
                     f"[PHASE: REPAIR_LOGIC]\n"
+                    f"[TARGET_MODULE: {t.target_module}]\n"
                     f"[RESP]ACTION: WRITE_FILE {t.target_module}\n{t.reference_solution}[EOS]\n"
                     f"[OBSERVATION: Successfully wrote {len(t.reference_solution)} bytes to {t.target_module}]\n"
                     f"[PHASE: VERIFY_AND_FINISH]\n"
@@ -733,11 +749,13 @@ def {fn_name}(vals: list[float]):
                 # Pattern 4: Research / Memory Retrieval Assisted Acquisition
                 doc_concept = f"Algorithm specification for {t.target_function}: implement logic for {t.domain}."
                 ep = (
-                    f"{header}"
+                    f"[GOAL: {t.goal}]\n"
+                    f"[TARGET_FUNCTION: {t.target_function}]\n"
                     f"[PHASE: EXPLORE]\n"
                     f"[RESP]ACTION: RETRIEVE_MEMORY {t.target_function} algorithm\n"
                     f"[OBSERVATION: {doc_concept}]\n"
                     f"[PHASE: WRITE_CODE]\n"
+                    f"[TARGET_MODULE: {t.target_module}]\n"
                     f"[RESP]ACTION: WRITE_FILE {t.target_module}\n{t.reference_solution}[EOS]\n"
                     f"[OBSERVATION: Successfully wrote {len(t.reference_solution)} bytes to {t.target_module}]\n"
                     f"[PHASE: VERIFY_AND_FINISH]\n"

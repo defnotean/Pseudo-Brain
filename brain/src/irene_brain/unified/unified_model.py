@@ -100,6 +100,7 @@ class UnifiedPseudoBrain(nn.Module):
         use_funnel: Optional[bool] = None,
         use_readout_norm: bool = False,
         use_token_skip: bool = False,
+        use_gated_token_skip: bool = False,
     ):
         super().__init__()
         self.vocab_size = vocab_size
@@ -309,14 +310,26 @@ class UnifiedPseudoBrain(nn.Module):
             nn.Linear(head_hidden, vocab_size),
         )
 
-        # (b) Local Token Skip Connection (Experiment B)
-        # logits = slot_head(RMSNorm(h_t)) + W_skip · embedding(previous_token)
+        # (b) Local Token Skip Connection (Contextually Gated)
+        # logits = slot_head(RMSNorm(h_t)) + beta_t * W_skip · embedding(previous_token)
+        # beta_t = sigmoid(W_beta · [contextualized_slot; embedding(previous_token)])
         self.use_token_skip = use_token_skip
+        self.use_gated_token_skip = use_gated_token_skip
         if use_token_skip:
             self.token_skip = nn.Linear(embed_dim, vocab_size, bias=False)
             nn.init.zeros_(self.token_skip.weight)
+            if use_gated_token_skip:
+                self.skip_gate = nn.Sequential(
+                    nn.Linear(W_fast + embed_dim, 64),
+                    nn.GELU(),
+                    nn.Linear(64, 1),
+                )
+                nn.init.constant_(self.skip_gate[-1].bias, 2.0)
+            else:
+                self.skip_gate = None
         else:
             self.token_skip = None
+            self.skip_gate = None
 
         # (c) Game / POMDP Action Policy Head (discrete 0..n_actions-1)
         self.action_head = nn.Sequential(
@@ -472,11 +485,19 @@ class UnifiedPseudoBrain(nn.Module):
 
         # 5. Decoupled Readout Predictions
         language_logits = self.slot_head(self.readout_norm(contextualized_slot))
+        skip_beta = None
         if self.use_token_skip and self.token_skip is not None:
+            if token_embed is None and token_id is not None:
+                token_embed = self.embedding(token_id)
             if token_embed is not None:
-                language_logits = language_logits + self.token_skip(token_embed)
-            elif token_id is not None:
-                language_logits = language_logits + self.token_skip(self.embedding(token_id))
+                skip_logits = self.token_skip(token_embed)
+                if hasattr(self, "skip_gate") and self.skip_gate is not None:
+                    gate_in = torch.cat([contextualized_slot, token_embed], dim=-1)
+                    skip_beta = torch.sigmoid(self.skip_gate(gate_in))
+                    language_logits = language_logits + skip_beta * skip_logits
+                else:
+                    scale = getattr(self, "token_skip_scale", 1.0)
+                    language_logits = language_logits + scale * skip_logits
         action_logits = self.action_head(contextualized_slot)
         predicted_value = self.value_head(contextualized_slot)
         tool_call_prob = self.tool_gate(contextualized_slot)
@@ -501,6 +522,7 @@ class UnifiedPseudoBrain(nn.Module):
             "action_logits": action_logits,
             "predicted_value": predicted_value,
             "tool_prob": tool_call_prob,
+            "skip_beta": skip_beta,
         }
         return outputs, next_state
 
@@ -561,8 +583,16 @@ class UnifiedPseudoBrain(nn.Module):
             H_scanned = triton_scan(A_gates, B_cands, h_init=h_init)
 
         language_logits = self.slot_head(self.readout_norm(H_scanned))
+        beta = None
         if self.use_token_skip and tok_emb is not None and self.token_skip is not None:
-            language_logits = language_logits + self.token_skip(tok_emb)
+            skip_logits = self.token_skip(tok_emb)
+            if hasattr(self, "skip_gate") and self.skip_gate is not None:
+                gate_in = torch.cat([H_scanned, tok_emb], dim=-1)
+                beta = torch.sigmoid(self.skip_gate(gate_in))
+                language_logits = language_logits + beta * skip_logits
+            else:
+                scale = getattr(self, "token_skip_scale", 1.0)
+                language_logits = language_logits + scale * skip_logits
         action_logits = self.action_head(H_scanned)
         values = self.value_head(H_scanned).squeeze(-1)
 
@@ -570,6 +600,9 @@ class UnifiedPseudoBrain(nn.Module):
             "logits": language_logits,
             "action_logits": action_logits,
             "values": values,
+            "H_scanned": H_scanned,
+            "A_gates": A_gates,
+            "skip_beta": beta,
         }
 
     def forward(
