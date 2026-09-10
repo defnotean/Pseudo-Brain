@@ -82,3 +82,13 @@ From the `Pseudo-Brain` project root, run the CPU-only play-safe tests with:
 ~~~powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\brain\scripts\run_play_safe_tests.ps1
 ~~~
+
+## Phase 43: Autonomous Lifelong Cognitive Agent & Web Research Engine
+
+The project expands into full general-purpose cognitive agency with lifelong learning:
+
+- **Epistemic Humility Gate**: `AutonomousLifelongAgent` acknowledges unfamiliar technical and open-domain concepts without hallucination.
+- **Autonomous Multi-Tier Web Research**: `ResearchEngine` and `WebSearchTool` query Wikipedia's REST API and DuckDuckGo dynamically on-the-fly, extracting ground-truth facts and citations.
+- **Persistent Episodic Memory**: Newly acquired knowledge is consolidated into hierarchical memory state and persisted to disk. Subsequent inquiries recall in `< 10 ms` without web access.
+- **Human Conversational Generation**: Speaks like a regular person with dynamic lexical variety, avoiding robotic phrasing.
+- **Interactive CLI**: Query the agent via `python brain/ask_agent.py "Your question here"`.

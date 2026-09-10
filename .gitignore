@@ -32,3 +32,4 @@ scratch/
 run_log.txt
 test_output.txt
 scratch_debug_worker.py
+brain/experiments/continuous_test_runs/

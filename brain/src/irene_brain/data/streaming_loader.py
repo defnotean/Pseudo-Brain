@@ -79,7 +79,7 @@ class StreamingConfig:
     batch_size: int = 16
     weights: TaskWeights = field(default_factory=TaskWeights)
     max_threads: int = 64
-    supervised_only_loss: bool = False
+    supervised_only_loss: bool = True
     mask_cross_document_boundary: bool = True
     seed: int = 42
     offline_mode: bool = False
@@ -116,6 +116,7 @@ class PackedSequenceBlock:
     loss_mask: torch.Tensor       # [T] float32 (1.0 where active, 0.0 where masked)
     thread_ids: torch.Tensor      # [T] long (cognitive thread slot per token)
     task_types: List[str]         # list of tasks contributing to this packed block
+    reset_mask: Optional[torch.Tensor] = None  # [T] float32 (1.0 at doc start, 0.0 elsewhere)
 
 
 @dataclass
@@ -126,6 +127,7 @@ class StreamingBatch:
     loss_mask: torch.Tensor       # [B, T] float32
     thread_ids: torch.Tensor      # [B, T] long
     task_types: List[List[str]]   # [B] list of task strings
+    reset_mask: Optional[torch.Tensor] = None  # [B, T] float32
 
     def to(self, device: Union[str, torch.device], non_blocking: bool = True) -> StreamingBatch:
         """Transfer all tensors to the target device."""
@@ -135,6 +137,7 @@ class StreamingBatch:
             loss_mask=self.loss_mask.to(device, non_blocking=non_blocking),
             thread_ids=self.thread_ids.to(device, non_blocking=non_blocking),
             task_types=self.task_types,
+            reset_mask=self.reset_mask.to(device, non_blocking=non_blocking) if self.reset_mask is not None else None,
         )
 
     def __getitem__(self, key: str) -> Any:
@@ -149,10 +152,12 @@ class StreamingBatch:
             return self.thread_ids
         elif key == "task_types":
             return self.task_types
+        elif key == "reset_mask":
+            return self.reset_mask
         raise KeyError(f"Key {key} not found in StreamingBatch")
 
     def keys(self) -> List[str]:
-        return ["input_ids", "labels", "loss_mask", "thread_ids", "task_types"]
+        return ["input_ids", "labels", "loss_mask", "thread_ids", "task_types", "reset_mask"]
 
 
 # ==============================================================================
@@ -245,7 +250,7 @@ class SyntheticLanguageStream:
                 raw_text = f"[THREAD:{thread_id}]{raw_text}"
             return RawDocument(text=raw_text, task_type=TaskType.LANGUAGE, thread_id=thread_id, is_dialogue=True)
 
-        if self.rng.random() < 0.45:
+        if self.rng.random() < 0.75:
             try:
                 from .synthetic_distill import SyntheticDistillationEngine
                 if not hasattr(self, "_distill"):
@@ -503,7 +508,7 @@ class SyntheticCodeStream:
 
     def sample(self) -> RawDocument:
         thread_id = self.rng.randint(0, self.max_threads - 1)
-        if self.rng.random() < 0.45:
+        if self.rng.random() < 0.80:
             try:
                 from .synthetic_distill import SyntheticDistillationEngine
                 if not hasattr(self, "_distill"):
@@ -516,12 +521,10 @@ class SyntheticCodeStream:
         variant = self.rng.randint(10, 99999)
 
         code_text = (
-            f"[THREAD:{thread_id}]# Specification: Implement algorithmic module pseudo_brain.algo_{variant}\n"
-            f"[RESP]from typing import List, Dict, Optional, Tuple, Sequence, Any\n"
-            f"import torch\n\n"
-            f"{snippet}\n\n"
-            f"# Verification assertion\n"
-            f"assert True, 'Integrity check passed'\n[EOS]"
+            f"[THREAD:{thread_id}]# Specification: Implement algorithmic module pseudo_brain.algo_{variant}\\n"
+            f"[RESP]from typing import List, Dict, Optional, Tuple, Sequence, Any\\n"
+            f"import torch\\n\\n"
+            f"{snippet}\\n[EOS]"
         )
         return RawDocument(text=code_text, task_type=TaskType.CODE, thread_id=thread_id, is_dialogue=False)
 
@@ -545,8 +548,17 @@ class SyntheticReasoningStream:
         ]
 
     def sample(self) -> RawDocument:
-        mode = self.rng.choice(["linear_math", "quadratic_math", "arithmetic_word", "tool_call", "dag"])
         thread_id = self.rng.randint(0, self.max_threads - 1)
+        if self.rng.random() < 0.70:
+            try:
+                from .synthetic_distill import SyntheticDistillationEngine
+                if not hasattr(self, "_distill"):
+                    self._distill = SyntheticDistillationEngine(seed=self.rng.randint(0, 100000), max_threads=self.max_threads)
+                return RawDocument(text=self._distill.sample_math(), task_type=TaskType.REASONING, thread_id=thread_id, is_dialogue=True)
+            except Exception:
+                pass
+
+        mode = self.rng.choice(["linear_math", "quadratic_math", "arithmetic_word", "tool_call", "dag"])
 
         if mode == "linear_math":
             a = self.rng.randint(2, 15)
@@ -770,6 +782,7 @@ class SequencePacker:
         self._target_buffer: List[int] = []
         self._thread_buffer: List[int] = []
         self._task_buffer: List[str] = []
+        self._boundary_buffer: List[float] = []
 
         self._cur_thread_id: int = 0
         self._in_resp: bool = False
@@ -780,6 +793,7 @@ class SequencePacker:
         self._target_buffer.clear()
         self._thread_buffer.clear()
         self._task_buffer.clear()
+        self._boundary_buffer.clear()
         self._cur_thread_id = 0
         self._in_resp = False
 
@@ -801,6 +815,9 @@ class SequencePacker:
         n = len(tokens)
         targets: List[int] = [-100] * n
         threads: List[int] = [0] * n
+        boundaries: List[float] = [0.0] * n
+        if n > 0:
+            boundaries[0] = 1.0  # Document start boundary
 
         in_resp = False
         cur_thread = doc.thread_id % self.max_threads
@@ -840,6 +857,7 @@ class SequencePacker:
         self._target_buffer.extend(targets)
         self._thread_buffer.extend(threads)
         self._task_buffer.extend([doc.task_type.value] * n)
+        self._boundary_buffer.extend(boundaries)
 
     def can_emit_block(self) -> bool:
         """Check if buffer has at least seq_len tokens."""
@@ -852,6 +870,7 @@ class SequencePacker:
         labels = torch.tensor(self._target_buffer[:T], dtype=torch.long)
         thread_ids = torch.tensor(self._thread_buffer[:T], dtype=torch.long)
         loss_mask = (labels != -100).to(torch.float32)
+        reset_mask = torch.tensor(self._boundary_buffer[:T], dtype=torch.float32)
 
         # Unique contributing task types in this block
         tasks_in_block = list(dict.fromkeys(self._task_buffer[:T]))
@@ -861,6 +880,7 @@ class SequencePacker:
         self._target_buffer = self._target_buffer[T:]
         self._thread_buffer = self._thread_buffer[T:]
         self._task_buffer = self._task_buffer[T:]
+        self._boundary_buffer = self._boundary_buffer[T:]
 
         return PackedSequenceBlock(
             input_ids=input_ids,
@@ -868,6 +888,7 @@ class SequencePacker:
             loss_mask=loss_mask,
             thread_ids=thread_ids,
             task_types=tasks_in_block,
+            reset_mask=reset_mask,
         )
 
 
@@ -970,6 +991,11 @@ def collate_streaming_batch(blocks: List[PackedSequenceBlock]) -> StreamingBatch
     loss_mask = torch.stack([b.loss_mask for b in blocks], dim=0)
     thread_ids = torch.stack([b.thread_ids for b in blocks], dim=0)
     task_types = [b.task_types for b in blocks]
+    reset_mask = (
+        torch.stack([b.reset_mask for b in blocks], dim=0)
+        if (blocks and blocks[0].reset_mask is not None)
+        else None
+    )
 
     return StreamingBatch(
         input_ids=input_ids,
@@ -977,6 +1003,7 @@ def collate_streaming_batch(blocks: List[PackedSequenceBlock]) -> StreamingBatch
         loss_mask=loss_mask,
         thread_ids=thread_ids,
         task_types=task_types,
+        reset_mask=reset_mask,
     )
 
 

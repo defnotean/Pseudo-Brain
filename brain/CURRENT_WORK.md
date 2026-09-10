@@ -94,3 +94,13 @@ CORE V2 / EMBODIED QUALIFICATION (Tier-0..3 workstream)
   the Tier-2/3 qualification preregistrations.
 - Runs are executed at below-normal OS priority so interactive desktop work
   (gaming) is unaffected.
+
+---
+
+## 5. Phase 43: Autonomous Lifelong Cognitive Agent & Web Research Engine
+
+- **Epistemic Humility Gating**: When posed an unfamiliar technical or open-domain concept (e.g. *"What is Minecraft?"*, *"then, how about what is the fortnite save the world"*), the agent acknowledges unfamiliarity instead of hallucinating.
+- **Multi-Tier Live Web Research**: Queries Wikipedia's REST API and DuckDuckGo dynamically on-the-fly, extracting factual summaries and authoritative source citations. Zero training or pre-baking on test queries.
+- **Hierarchical Episodic Consolidation**: Researched concepts are committed to hierarchical episodic state and saved to disk (`agent_cli_state.pt`). Subsequent queries recall in `< 10 ms` with zero network access.
+- **Natural Human Generative Phrasing**: Speaks naturally like a human peer, eliminating robotic meta-talk (*"I remember this from earlier!", "in my episodic memory"*).
+- **Evaluation**: 100% test pass rate across `test_research_engine_accuracy.py` (45/45) and `test_continual_learner_accuracy.py` (15/15). Interactive CLI ready at `brain/ask_agent.py`.

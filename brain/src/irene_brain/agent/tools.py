@@ -1,9 +1,12 @@
 """Controlled Tools and Registry for Pseudo-Brain Autonomous Agent."""
 from __future__ import annotations
 
+import json
 import os
 import re
 import subprocess
+import urllib.parse
+import urllib.request
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
@@ -433,6 +436,135 @@ class TestVerifyTool(Tool):
         except Exception as e:
             return ToolResult(success=False, output="", error=f"Verification exception: {e}", reward=-1.0)
 
+class WebSearchTool(Tool):
+    name = "web_search"
+    description = "Perform live web and encyclopedia search to retrieve accurate facts, overviews, and source references for real-world entities, concepts, games, technologies, or science."
+
+    def execute(self, query: str, timeout: float = 6.0, **kwargs) -> ToolResult:
+        clean_q = query.strip()
+        if not clean_q:
+            return ToolResult(success=False, output="", error="Query cannot be empty.", reward=-0.2)
+
+        headers = {"User-Agent": "PseudoBrainResearchBot/1.0 (Autonomous Cognitive Research Agent)"}
+        encoded = urllib.parse.quote(clean_q)
+
+        # 1. First attempt: Direct Wikipedia Page Summary / Lead Extract
+        title_encoded = urllib.parse.quote(clean_q.replace(" ", "_"))
+        wiki_extract_url = f"https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exintro=1&explaintext=1&titles={title_encoded}&format=json"
+        try:
+            req = urllib.request.Request(wiki_extract_url, headers=headers)
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                pages = data.get("query", {}).get("pages", {})
+                for pid, pdata in pages.items():
+                    if pid != "-1" and pdata.get("extract"):
+                        title = pdata.get("title", clean_q)
+                        extract = pdata.get("extract", "").strip()
+                        url = f"https://en.wikipedia.org/wiki/{urllib.parse.quote(title.replace(' ', '_'))}"
+                        out = (
+                            f"WEB SEARCH RESULT: {title}\n\n"
+                            f"SUMMARY:\n{extract}\n\n"
+                            f"SOURCE: {url}"
+                        )
+                        return ToolResult(success=True, output=out, reward=0.5)
+        except Exception:
+            pass
+
+        # 2. Second attempt: Wikipedia Search API to resolve non-exact queries
+        wiki_search_url = f"https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch={encoded}&format=json"
+        try:
+            req = urllib.request.Request(wiki_search_url, headers=headers)
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                hits = data.get("query", {}).get("search", [])
+                if hits:
+                    top = hits[0]
+                    top_title = top["title"]
+                    top_encoded = urllib.parse.quote(top_title.replace(" ", "_"))
+                    summary_url = f"https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exintro=1&explaintext=1&titles={top_encoded}&format=json"
+                    req2 = urllib.request.Request(summary_url, headers=headers)
+                    with urllib.request.urlopen(req2, timeout=timeout) as resp2:
+                        d2 = json.loads(resp2.read().decode("utf-8"))
+                        pages2 = d2.get("query", {}).get("pages", {})
+                        for pid2, pdata2 in pages2.items():
+                            if pid2 != "-1" and pdata2.get("extract"):
+                                title = pdata2.get("title", top_title)
+                                extract = pdata2.get("extract", "").strip()
+                                url = f"https://en.wikipedia.org/wiki/{top_encoded}"
+                                out = (
+                                    f"WEB SEARCH RESULT: {title}\n\n"
+                                    f"SUMMARY:\n{extract}\n\n"
+                                    f"SOURCE: {url}"
+                                )
+                                return ToolResult(success=True, output=out, reward=0.5)
+        except Exception:
+            pass
+
+        # 3. Third attempt: DuckDuckGo Instant Answer API fallback
+        ddg_url = f"https://api.duckduckgo.com/?q={encoded}&format=json&no_html=1&skip_disambig=1"
+        try:
+            req = urllib.request.Request(ddg_url, headers=headers)
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                abstract = data.get("AbstractText") or data.get("Abstract")
+                if abstract:
+                    heading = data.get("Heading", clean_q)
+                    source_url = data.get("AbstractURL") or f"https://duckduckgo.com/?q={encoded}"
+                    out = (
+                        f"WEB SEARCH RESULT: {heading}\n\n"
+                        f"SUMMARY:\n{abstract.strip()}\n\n"
+                        f"SOURCE: {source_url}"
+                    )
+                    return ToolResult(success=True, output=out, reward=0.4)
+        except Exception:
+            pass
+
+        return ToolResult(
+            success=False,
+            output="",
+            error=f"No web search results found for: {query}",
+            reward=-0.2,
+        )
+
+
+class ResearchLookupTool(Tool):
+    name = "research_lookup"
+    description = "Look up documentation, syntax, code examples, or explanations across programming languages and scientific topics."
+
+    def __init__(self, engine: Optional[Any] = None):
+        if engine is None:
+            from irene_brain.agent.research_engine import ResearchEngine
+            engine = ResearchEngine()
+        self.engine = engine
+
+    def execute(self, query: str, language: str = "python", **kwargs) -> ToolResult:
+        try:
+            res = self.engine.search(query, language=language)
+            out = f"RESEARCH [{res.language.upper()}]: {res.summary}\n"
+            if res.code_examples:
+                out += f"Example Code:\n{res.code_examples[0]}\n"
+            if res.doc_references:
+                out += f"References: {', '.join(res.doc_references)}"
+            return ToolResult(success=True, output=out, reward=0.3)
+        except Exception as e:
+            return ToolResult(success=False, output="", error=str(e), reward=-0.2)
+
+
+class ConsolidateLessonTool(Tool):
+    name = "consolidate_lesson"
+    description = "Commit a learned finding, code pattern, or bug fix into persistent episodic memory."
+
+    def __init__(self, callback: Optional[Callable[[str, str], Any]] = None):
+        self.callback = callback
+
+    def execute(self, topic: str, lesson: str, **kwargs) -> ToolResult:
+        try:
+            if self.callback is not None:
+                self.callback(topic, lesson)
+            return ToolResult(success=True, output=f"Lesson on '{topic}' consolidated into episodic memory.", reward=0.5)
+        except Exception as e:
+            return ToolResult(success=False, output="", error=str(e), reward=-0.2)
+
 
 class ToolRegistry:
     """Maintains indexed access to tools for policy selection."""
@@ -499,5 +631,8 @@ class ToolRegistry:
             GitStatusTool(),
             GitCommitTool(),
             GitBranchTool(),
+            ResearchLookupTool(),
+            WebSearchTool(),
+            ConsolidateLessonTool(),
             TestVerifyTool(verification_fn),
         ])

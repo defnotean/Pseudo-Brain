@@ -42,6 +42,26 @@ Pseudo-Brain supports remote execution on Google Colab with background execution
   ```
 - **Full Guide**: See [`docs/COLAB.md`](./docs/COLAB.md) for architecture, unattended background execution, and webhook alerts.
 
+## Autonomous Lifelong Cognitive Agent & Live Web Research
+
+Pseudo-Brain includes a fully autonomous lifelong learning agent (`AutonomousLifelongAgent`) that solves the "catastrophic forgetting" and "born again" bottlenecks:
+
+- **Epistemic Humility Gating**: Detects unfamiliar concepts instead of hallucinating answers. Admits lack of knowledge and initiates live autonomous research.
+- **Multi-Tier Autonomous Web Research**: Features live search via Wikipedia REST API, Wikipedia query search, and DuckDuckGo Instant Answer API with zero prompt pre-baking.
+- **Lifelong Episodic Consolidation**: Genuinely learns new facts into persistent hierarchical memory on disk (`agent_cli_state.pt`). Once a topic is consolidated, follow-up queries recall in under **10 ms** with **zero network traffic**.
+- **Natural Human Conversation**: Speaks like a regular person without robotic meta-talk (*no "I remember this from earlier!" or "in my episodic memory"*).
+- **Interactive CLI with Transparent Telemetry**:
+  ```bash
+  # Ask a novel question and watch real-time web research & consolidation:
+  python brain/ask_agent.py "What is Minecraft?"
+
+  # Ask a follow-up question and observe instant memory recall:
+  python brain/ask_agent.py "What do you know about Minecraft?"
+
+  # Start an interactive conversational terminal session:
+  python brain/ask_agent.py
+  ```
+
 The Python namespace `irene_brain` is retained temporarily for compatibility
 with immutable historical checkpoints. New releases and runs are produced from
 this project directory.

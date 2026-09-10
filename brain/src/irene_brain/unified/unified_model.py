@@ -82,14 +82,14 @@ class UnifiedPseudoBrain(nn.Module):
         self,
         vocab_size: int = 32000,
         tier: str = "tier2",
-        K_fast: int = 16,
-        W_fast: int = 64,
-        K_episodic: int = 64,
-        W_episodic: int = 128,
-        embed_dim: int = 256,
-        proj_dim: int = 1024,
-        rank: int = 32,
-        num_deep_layers: int = 4,
+        K_fast: Optional[int] = None,
+        W_fast: Optional[int] = None,
+        K_episodic: Optional[int] = None,
+        W_episodic: Optional[int] = None,
+        embed_dim: Optional[int] = None,
+        proj_dim: Optional[int] = None,
+        rank: Optional[int] = None,
+        num_deep_layers: Optional[int] = None,
         n_actions: int = 5,
         in_channels: int = 3,
         visual_dim: int = 192,
@@ -98,6 +98,8 @@ class UnifiedPseudoBrain(nn.Module):
         use_routing: bool = True,
         spectral_mode: str = "cayley",
         use_funnel: Optional[bool] = None,
+        use_readout_norm: bool = False,
+        use_token_skip: bool = False,
     ):
         super().__init__()
         self.vocab_size = vocab_size
@@ -108,36 +110,93 @@ class UnifiedPseudoBrain(nn.Module):
         else:
             self.use_funnel = bool(use_funnel)
 
-        # Tier 2 35M Scaling Laws (Law 1: K_fast=16, W_fast=64 working memory, proj_dim=4096, rank=32, num_deep_layers=4..8)
+        # 1. Establish tier presets as defaults
         if tier in ("tier2_35m", "35m"):
-            K_fast = 16
-            W_fast = 64
-            K_episodic = 64
-            W_episodic = 128
-            embed_dim = 384 if embed_dim == 256 else embed_dim
-            proj_dim = 4096 if proj_dim == 1024 else proj_dim
-            rank = 32 if rank is None else rank
+            tier_defaults = {
+                "K_fast": 16,
+                "W_fast": 64,
+                "K_episodic": 64,
+                "W_episodic": 128,
+                "embed_dim": 384,
+                "proj_dim": 4096,
+                "rank": 32,
+                "num_deep_layers": 4,
+            }
+        elif tier in ("tier3_1b", "1b", "tier5_1b"):
+            tier_defaults = {
+                "K_fast": 16,
+                "W_fast": 64,
+                "K_episodic": 128,
+                "W_episodic": 128,
+                "embed_dim": 1536,
+                "proj_dim": 6144,
+                "rank": 64,
+                "num_deep_layers": 24,
+            }
+        elif tier in ("tier0", "micro", "131k"):
+            tier_defaults = {
+                "K_fast": 8,
+                "W_fast": 32,
+                "K_episodic": 16,
+                "W_episodic": 64,
+                "embed_dim": 64,
+                "proj_dim": 128,
+                "rank": 16,
+                "num_deep_layers": 2,
+            }
+        elif tier in ("tier1", "embedded", "10m"):
+            tier_defaults = {
+                "K_fast": 16,
+                "W_fast": 64,
+                "K_episodic": 32,
+                "W_episodic": 64,
+                "embed_dim": 128,
+                "proj_dim": 512,
+                "rank": 32,
+                "num_deep_layers": 3,
+            }
+        elif tier in ("tier3", "agentic", "100m", "300m"):
+            tier_defaults = {
+                "K_fast": 16,
+                "W_fast": 64,
+                "K_episodic": 128,
+                "W_episodic": 128,
+                "embed_dim": 512,
+                "proj_dim": 2048,
+                "rank": 32,
+                "num_deep_layers": 12,
+            }
+        else: # tier2 / default
+            tier_defaults = {
+                "K_fast": 16,
+                "W_fast": 64,
+                "K_episodic": 64,
+                "W_episodic": 128,
+                "embed_dim": 256,
+                "proj_dim": 1024,
+                "rank": 32,
+                "num_deep_layers": 4,
+            }
 
-        # Tier 3 1B Scaling Laws (Law 1: K_fast=16, W_fast=64, K_episodic=128, W_episodic=128, embed_dim=1536, proj_dim=6144, rank=64, num_deep_layers=24)
-        if tier in ("tier3_1b", "1b", "tier5_1b"):
-            K_fast = 16
-            W_fast = 64
-            K_episodic = 128
-            W_episodic = 128
-            embed_dim = 1536 if embed_dim == 256 else embed_dim
-            proj_dim = 6144 if proj_dim == 1024 else proj_dim
-            rank = 64 if rank is None or rank == 32 else rank
-            num_deep_layers = 24 if num_deep_layers == 4 else num_deep_layers
-
-        self.K_fast = K_fast
-        self.W_fast = W_fast
-        self.K_episodic = K_episodic
-        self.W_episodic = W_episodic
-        self.embed_dim = embed_dim
-        self.proj_dim = proj_dim
-        self.rank = rank
-        self.num_deep_layers = num_deep_layers
+        # 2. Caller-supplied explicit values override tier presets cleanly
+        self.K_fast = K_fast if K_fast is not None else tier_defaults["K_fast"]
+        self.W_fast = W_fast if W_fast is not None else tier_defaults["W_fast"]
+        self.K_episodic = K_episodic if K_episodic is not None else tier_defaults["K_episodic"]
+        self.W_episodic = W_episodic if W_episodic is not None else tier_defaults["W_episodic"]
+        self.embed_dim = embed_dim if embed_dim is not None else tier_defaults["embed_dim"]
+        self.proj_dim = proj_dim if proj_dim is not None else tier_defaults["proj_dim"]
+        self.rank = rank if rank is not None else tier_defaults["rank"]
+        self.num_deep_layers = num_deep_layers if num_deep_layers is not None else tier_defaults["num_deep_layers"]
         self.n_actions = n_actions
+
+        K_fast = self.K_fast
+        W_fast = self.W_fast
+        K_episodic = self.K_episodic
+        W_episodic = self.W_episodic
+        embed_dim = self.embed_dim
+        proj_dim = self.proj_dim
+        rank = self.rank
+        num_deep_layers = self.num_deep_layers
         self.visual_dim = visual_dim
         self.use_cgp = use_cgp
         self.use_routing = use_routing
@@ -242,13 +301,24 @@ class UnifiedPseudoBrain(nn.Module):
         head_hidden = max(64, min(proj_dim // 2, 512))
 
         # (a) Language & Python Code Generation Head
+        self.use_readout_norm = use_readout_norm
+        self.readout_norm = RecurrentRMSNorm(W_fast) if use_readout_norm else nn.Identity()
         self.slot_head = nn.Sequential(
             nn.Linear(W_fast, head_hidden),
             nn.GELU(),
             nn.Linear(head_hidden, vocab_size),
         )
 
-        # (b) Game / POMDP Action Policy Head (discrete 0..n_actions-1)
+        # (b) Local Token Skip Connection (Experiment B)
+        # logits = slot_head(RMSNorm(h_t)) + W_skip · embedding(previous_token)
+        self.use_token_skip = use_token_skip
+        if use_token_skip:
+            self.token_skip = nn.Linear(embed_dim, vocab_size, bias=False)
+            nn.init.zeros_(self.token_skip.weight)
+        else:
+            self.token_skip = None
+
+        # (c) Game / POMDP Action Policy Head (discrete 0..n_actions-1)
         self.action_head = nn.Sequential(
             nn.Linear(W_fast, head_hidden),
             nn.GELU(),
@@ -348,6 +418,8 @@ class UnifiedPseudoBrain(nn.Module):
         thread_id: Optional[Tensor] = None,
         allow_routing: bool = False,
         salience: Optional[Tensor] = None,
+        token_id: Optional[Tensor] = None,
+        token_embed: Optional[Tensor] = None,
     ) -> Tuple[Dict[str, Tensor], UnifiedCognitiveState]:
         """Single O(1) streaming cognitive update step (<1 ms latency)."""
         B = sensory_input.shape[0]
@@ -399,7 +471,12 @@ class UnifiedPseudoBrain(nn.Module):
         contextualized_slot = working[batch_idx, active_tid]
 
         # 5. Decoupled Readout Predictions
-        language_logits = self.slot_head(contextualized_slot)
+        language_logits = self.slot_head(self.readout_norm(contextualized_slot))
+        if self.use_token_skip and self.token_skip is not None:
+            if token_embed is not None:
+                language_logits = language_logits + self.token_skip(token_embed)
+            elif token_id is not None:
+                language_logits = language_logits + self.token_skip(self.embedding(token_id))
         action_logits = self.action_head(contextualized_slot)
         predicted_value = self.value_head(contextualized_slot)
         tool_call_prob = self.tool_gate(contextualized_slot)
@@ -432,6 +509,7 @@ class UnifiedPseudoBrain(nn.Module):
         token_seq: Optional[Tensor] = None,
         pixel_seq: Optional[Tensor] = None,
         action_seq: Optional[Tensor] = None,
+        reset_mask: Optional[Tensor] = None,
     ) -> Dict[str, Tensor]:
         """O(log T) Parallel Associative Scan Sequence Evaluation for High-Throughput GPU Training."""
         B = None
@@ -439,10 +517,12 @@ class UnifiedPseudoBrain(nn.Module):
         dev = None
         sensory_components = []
 
+        tok_emb = None
         if token_seq is not None:
             B, T = token_seq.shape
             dev = token_seq.device
-            sensory_components.append(self.lang_proj(self.embedding(token_seq)))
+            tok_emb = self.embedding(token_seq)
+            sensory_components.append(self.lang_proj(tok_emb))
 
         if pixel_seq is not None:
             B, T, C, H, W = pixel_seq.shape
@@ -468,9 +548,21 @@ class UnifiedPseudoBrain(nn.Module):
         B_cands = (1.0 - A_gates) * torch.tanh(self.W_in_parallel(u_seq))
 
         h_init = self.slot_identities[0].unsqueeze(0).expand(B, -1)
-        H_scanned = triton_scan(A_gates, B_cands, h_init=h_init)
 
-        language_logits = self.slot_head(H_scanned)
+        if reset_mask is not None:
+            mask_3d = reset_mask.unsqueeze(-1).to(dtype=A_gates.dtype)  # [B, T, 1]
+            h_init_3d = h_init.unsqueeze(1).expand(-1, T, -1)  # [B, T, W]
+            # Fold h_init into B_cands at boundary positions BEFORE zeroing A_gates
+            B_cands = B_cands + mask_3d * (A_gates * h_init_3d)
+            # Sever recurrent state propagation across document boundaries
+            A_gates = A_gates * (1.0 - mask_3d)
+            H_scanned = triton_scan(A_gates, B_cands, h_init=None)
+        else:
+            H_scanned = triton_scan(A_gates, B_cands, h_init=h_init)
+
+        language_logits = self.slot_head(self.readout_norm(H_scanned))
+        if self.use_token_skip and tok_emb is not None and self.token_skip is not None:
+            language_logits = language_logits + self.token_skip(tok_emb)
         action_logits = self.action_head(H_scanned)
         values = self.value_head(H_scanned).squeeze(-1)
 
@@ -486,6 +578,7 @@ class UnifiedPseudoBrain(nn.Module):
         pixel_seq: Optional[Tensor] = None,
         action_seq: Optional[Tensor] = None,
         parallel: bool = True,
+        reset_mask: Optional[Tensor] = None,
     ) -> Dict[str, Tensor]:
         """Unified forward pass."""
         if parallel and (token_seq is not None or pixel_seq is not None):
@@ -493,6 +586,7 @@ class UnifiedPseudoBrain(nn.Module):
                 token_seq=token_seq,
                 pixel_seq=pixel_seq,
                 action_seq=action_seq,
+                reset_mask=reset_mask,
             )
 
         if token_seq is not None:
@@ -603,14 +697,6 @@ def make_unified_model(
         return UnifiedPseudoBrain(
             vocab_size=vocab_size,
             tier="tier3_1b",
-            K_fast=16,
-            W_fast=64,
-            K_episodic=128,
-            W_episodic=128,
-            embed_dim=1536,
-            proj_dim=6144,
-            rank=64,
-            num_deep_layers=24,
             **kwargs,
         )
     else:
