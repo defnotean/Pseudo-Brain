@@ -194,7 +194,17 @@ class NeuralSoftwareEnvironment:
                     return_code=1,
                 )
 
-        target_file.write_text(content, encoding="utf-8")
+        try:
+            target_file.write_text(content, encoding="utf-8")
+        except OSError as e:
+            return EnvironmentObservation(
+                action_type="WRITE_FILE",
+                success=False,
+                observation_text=f"[OBSERVATION: WRITE_FILE failed with OS error: {e}]",
+                stderr=str(e),
+                return_code=1,
+            )
+
         return EnvironmentObservation(
             action_type="WRITE_FILE",
             success=True,

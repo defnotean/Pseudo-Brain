@@ -71,7 +71,10 @@ def test_reference_solutions_pass_hidden_validators():
 
 def test_agent_heldout_capability_evaluation_telemetry():
     """Run honest, leak-free capability evaluation on held-out tasks and record telemetry."""
-    ckpt_path = Path("brain/checkpoints/pb_35m_champion.pt").resolve()
+    pomdp_ckpt = Path("brain/checkpoints/pb_pomdp_champion.pt").resolve()
+    champion_ckpt = Path("brain/checkpoints/pb_35m_champion.pt").resolve()
+    ckpt_path = pomdp_ckpt if pomdp_ckpt.exists() else champion_ckpt
+
     if ckpt_path.exists():
         agent = RecurrentSoftwareAgent(checkpoint_path=ckpt_path)
     else:

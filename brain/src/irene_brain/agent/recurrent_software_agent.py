@@ -68,7 +68,8 @@ class RecurrentSoftwareAgent:
                 ckpt = torch.load(checkpoint_path, map_location=self.device)
                 model_tier = ckpt.get("tier", tier)
                 model_vocab = ckpt.get("vocab_size", vocab_size)
-                model = make_unified_model(tier=model_tier, vocab_size=model_vocab)
+                use_skip = ckpt.get("use_token_skip", False)
+                model = make_unified_model(tier=model_tier, vocab_size=model_vocab, use_token_skip=use_skip)
                 model.load_state_dict(ckpt["model_state_dict"], strict=False)
                 self.checkpoint_loaded = True
                 self.active_checkpoint = str(checkpoint_path)
@@ -81,58 +82,72 @@ class RecurrentSoftwareAgent:
         self.tokenizer = BpeSemanticTokenizer(vocab_size=self.model.vocab_size)
         self.cognitive_state: UnifiedCognitiveState = self.model.init_state(batch_size=1, device=self.device)
 
-    def _ingest_text_into_slot(self, text: str, slot_id: int) -> None:
-        """Project text into sensory features and step the designated recurrent slot."""
-        tokens = self.tokenizer.encode(text[:256]) or [0]
-        toks_tensor = torch.tensor(tokens, dtype=torch.long, device=self.device)
+    def reset(self) -> None:
+        """Reset internal cognitive state to clean initial state."""
+        self.cognitive_state = self.model.init_state(batch_size=1, device=self.device)
+
+    def _ingest_text_into_slot(self, text: str, slot_id: int = 0) -> Optional[Tensor]:
+        """Project text sequentially into sensory features and step the designated recurrent slot."""
+        tokens = self.tokenizer.encode(text) or [0]
+        tid = torch.tensor([slot_id % self.model.K_fast], dtype=torch.long, device=self.device)
+        last_logits: Optional[Tensor] = None
 
         with torch.no_grad():
-            emb = self.model.embedding(toks_tensor).mean(dim=0, keepdim=True)
-            sensory = self.model.lang_proj(emb)
-            if self.model.deep_proj is not None:
-                sensory = sensory + self.model.deep_proj(sensory)
-
-            tid = torch.tensor([slot_id % self.model.K_fast], dtype=torch.long, device=self.device)
-            _, self.cognitive_state = self.model.step(
-                sensory, self.cognitive_state, thread_id=tid, allow_routing=True
-            )
+            for tok in tokens:
+                tok_t = torch.tensor([tok], dtype=torch.long, device=self.device)
+                sensory = self.model.encode_sensory(token_ids=tok_t)
+                outputs, self.cognitive_state = self.model.step(
+                    sensory, self.cognitive_state, thread_id=tid, allow_routing=False, token_id=tok_t
+                )
+                last_logits = outputs["logits"][0]
+        return last_logits
 
     def generate_action_autoregressive(
         self,
-        slot_id: int = 2,
-        prompt_prefix: str = "ACTION: ",
-        max_new_tokens: int = 32,
+        slot_id: int = 0,
+        prompt_prefix: str = "[RESP]",
+        max_new_tokens: int = 256,
         temperature: float = 0.0,
     ) -> str:
         """Autoregressively generate an action string directly from the recurrent state.
 
-        Steps prompt prefix into the designated slot (Slot 2: Active Subproblem / Action Candidate),
-        then sequentially unrolls single-token step transitions from the recurrent core,
-        sampling next tokens from the vocabulary logits.
+        Steps prompt prefix into the designated slot, then sequentially unrolls single-token
+        step transitions from the recurrent core until [EOS] or [PAD], sampling next tokens
+        from the vocabulary logits.
         """
-        prefix_tokens = self.tokenizer.encode(prompt_prefix) or [0]
         tid = torch.tensor([slot_id % self.model.K_fast], dtype=torch.long, device=self.device)
-
         last_logits: Optional[Tensor] = None
-        with torch.no_grad():
-            for tok in prefix_tokens:
-                tok_t = torch.tensor([tok], dtype=torch.long, device=self.device)
-                sensory = self.model.encode_sensory(token_ids=tok_t)
-                outputs, self.cognitive_state = self.model.step(
-                    sensory, self.cognitive_state, thread_id=tid, allow_routing=True
-                )
-                last_logits = outputs["logits"][0]
+
+        if prompt_prefix:
+            prefix_tokens = self.tokenizer.encode(prompt_prefix) or [0]
+            with torch.no_grad():
+                for tok in prefix_tokens:
+                    tok_t = torch.tensor([tok], dtype=torch.long, device=self.device)
+                    sensory = self.model.encode_sensory(token_ids=tok_t)
+                    outputs, self.cognitive_state = self.model.step(
+                        sensory, self.cognitive_state, thread_id=tid, allow_routing=False, token_id=tok_t
+                    )
+                    last_logits = outputs["logits"][0]
 
         if last_logits is None:
-            return f"{prompt_prefix}FINISH Goal evaluated"
+            return "ACTION: FINISH Goal evaluated"
 
         gen_tokens: List[int] = []
+        syntax_exempt = set(self.tokenizer.encode(" \n\t_():=,.-'\"[]{}0123456789") or [])
         with torch.no_grad():
             for _ in range(max_new_tokens):
+                step_logits = last_logits.clone()
+                # Apply repetition penalty only when sampling with temperature > 0 and only to non-syntax tokens
+                if temperature > 1e-4 and len(gen_tokens) >= 1:
+                    for prev_tok in set(gen_tokens[-8:]):
+                        if prev_tok not in syntax_exempt:
+                            if step_logits[prev_tok] > 0:
+                                step_logits[prev_tok] = step_logits[prev_tok] / 1.2
+
                 if temperature <= 1e-4:
-                    next_tok = int(last_logits.argmax().item())
+                    next_tok = int(step_logits.argmax().item())
                 else:
-                    probs = torch.softmax(last_logits / temperature, dim=-1)
+                    probs = torch.softmax(step_logits / temperature, dim=-1)
                     next_tok = int(torch.multinomial(probs, num_samples=1).item())
 
                 if next_tok in (self.tokenizer.eos_id, self.tokenizer.pad_id, self.tokenizer.sep_id):
@@ -140,19 +155,18 @@ class RecurrentSoftwareAgent:
 
                 gen_tokens.append(next_tok)
 
-                decoded_partial = self.tokenizer.decode(gen_tokens, skip_special=True)
-                if "\n" in decoded_partial:
+                # Attractor loop safeguard: if same 4-token sequence repeats twice consecutively, break
+                if len(gen_tokens) >= 8 and gen_tokens[-4:] == gen_tokens[-8:-4]:
                     break
 
                 tok_t = torch.tensor([next_tok], dtype=torch.long, device=self.device)
                 sensory = self.model.encode_sensory(token_ids=tok_t)
                 outputs, self.cognitive_state = self.model.step(
-                    sensory, self.cognitive_state, thread_id=tid, allow_routing=True
+                    sensory, self.cognitive_state, thread_id=tid, allow_routing=False, token_id=tok_t
                 )
                 last_logits = outputs["logits"][0]
 
-        body = self.tokenizer.decode(gen_tokens, skip_special=True).strip()
-        candidate = f"{prompt_prefix}{body}".strip()
+        candidate = self.tokenizer.decode(gen_tokens, skip_special=True).strip()
 
         # If generated action starts with a recognized actuator verb, use it directly
         valid_verbs = ("READ_FILE", "WRITE_FILE", "EDIT_FILE", "RUN_TESTS", "RETRIEVE_MEMORY", "FINISH")
@@ -161,7 +175,6 @@ class RecurrentSoftwareAgent:
             return candidate
 
         # DO NOT convert invalid or uncalibrated tokens into ACTION: FINISH!
-        # Return candidate action so environment produces an informative error observation
         if candidate.startswith("ACTION: "):
             return candidate
         return f"ACTION: UNPARSED {candidate}"
@@ -180,6 +193,7 @@ class RecurrentSoftwareAgent:
         unrolls the policy autoregressively from the recurrent core.
         """
         t0 = time.perf_counter()
+        self.reset()
 
         # Capture initial slot tensors to verify state transitions
         init_slots = self.cognitive_state.hierarchical_state.working_thoughts.clone()
@@ -188,8 +202,8 @@ class RecurrentSoftwareAgent:
         slot_2_init = init_slots[0, 2].clone()
         slot_3_init = init_slots[0, 3].clone()
 
-        # 1. Step 0: Ingest Goal into Slot 0 (Goal Intent)
-        self._ingest_text_into_slot(f"[GOAL: {goal}]", slot_id=0)
+        # 1. Step 0: Ingest Goal into Slot 0 (Goal Intent) with initial code writing phase
+        self._ingest_text_into_slot(f"[GOAL: {goal}]\n[PHASE: WRITE_CODE]\n", slot_id=0)
 
         actions_taken: List[str] = []
         observations: List[str] = []
@@ -202,7 +216,7 @@ class RecurrentSoftwareAgent:
                     break
                 current_action = action_plan[cycle]
             else:
-                current_action = self.generate_action_autoregressive(slot_id=2)
+                current_action = self.generate_action_autoregressive(slot_id=0, prompt_prefix="[RESP]")
 
             actions_taken.append(current_action)
 
@@ -210,7 +224,10 @@ class RecurrentSoftwareAgent:
             obs: EnvironmentObservation = env.execute_action(current_action)
             observations.append(obs.observation_text)
 
-            # 3. Step observation into Slot 1 (Perception/World Model)
+            # 3. Step observation into Slot 0 (Continuous POMDP trajectory) and Slot 1 (Perception)
+            self._ingest_text_into_slot(
+                f"\n[OBSERVATION: {obs.observation_text}]\n[PHASE: VERIFY_AND_FINISH]\n", slot_id=0
+            )
             self._ingest_text_into_slot(obs.observation_text, slot_id=1)
 
             # 4. Record action execution into Slot 3 (Action History)
