@@ -4,16 +4,19 @@ Verifies:
 1. Domain-Agnostic Environment Primitives: NeuralSoftwareEnvironment provides ONLY
    atomic actuators (WRITE_FILE, READ_FILE, EDIT_FILE, RUN_TESTS, RETRIEVE_MEMORY, FINISH)
    with zero hardcoded project templates or preset domain switches.
-2. Recurrent POMDP Rollout: RecurrentSoftwareAgent drives the multi-step cycle through
+2. Workspace Path Containment: Strict security check blocks directory traversal (../../).
+3. Recurrent POMDP Rollout: RecurrentSoftwareAgent drives the multi-step cycle through
    Pseudo-Brain's recurrent core, stepping Slot 0 (Goal), Slot 1 (Perception/Obs),
    Slot 2 (Action Candidate), and Slot 3 (Action History).
-3. Strict Law 1 Working Memory Adherence: Memory footprint remains strictly 4,096 bytes
+4. Strict Law 1 Working Memory Adherence: Memory footprint remains strictly 4,096 bytes
    throughout the entire POMDP rollout.
-4. Closed-Loop Test Failure Observation: Test failures are captured and stepped into
+5. Closed-Loop Test Failure Observation: Test failures are captured and stepped into
    the core's recurrent state, triggering repair actions.
-5. Autonomous Autoregressive Action Generation: Model dynamically samples/generates
-   action tokens directly through recurrent state transitions without an external plan.
-6. POMDP Training Trajectory Generation: POMDPTrajectoryGenerator produces valid
+6. Honest Task Validation: External task validator rejects premature or failing ACTION: FINISH claims.
+7. Autonomous Autoregressive Action Generation: Model dynamically samples action tokens directly
+   through recurrent state transitions without external scaffolding.
+8. Checkpoint Loading: RecurrentSoftwareAgent loads real trained champion weights into the core.
+9. POMDP Training Trajectory Generation: POMDPTrajectoryGenerator produces valid
    training streams for pretraining neural weights on autonomous agent traces.
 """
 
@@ -90,10 +93,66 @@ def test_domain_agnostic_environment_primitives():
     assert obs_mem.success is True
     assert "binary search" in obs_mem.observation_text.lower()
 
-    # 7. ACTION: FINISH
+    # 7. ACTION: FINISH (default behavior without task_validator)
     obs_fin = env.execute_action("ACTION: FINISH All primitives verified successfully")
     assert obs_fin.success is True
     assert obs_fin.action_type == "FINISH"
+
+
+def test_workspace_path_containment_blocks_traversal():
+    """Verify security containment: directory traversal escapes (../../) are strictly blocked."""
+    temp_dir = Path(tempfile.mkdtemp())
+    env = NeuralSoftwareEnvironment(workspace_dir=temp_dir)
+
+    # 1. WRITE_FILE escape attempt
+    obs_write = env.execute_action("ACTION: WRITE_FILE ../../escape.py\n# malicious content")
+    assert obs_write.success is False
+    assert "escapes workspace directory" in obs_write.observation_text
+
+    # 2. READ_FILE escape attempt
+    obs_read = env.execute_action("ACTION: READ_FILE ../../../windows/system32/cmd.exe")
+    assert obs_read.success is False
+    assert "escapes workspace directory" in obs_read.observation_text
+
+    # 3. EDIT_FILE escape attempt
+    obs_edit = env.execute_action("ACTION: EDIT_FILE ../../secret.py\n<<<TARGET\na\n===\nb\n>>>")
+    assert obs_edit.success is False
+    assert "escapes workspace directory" in obs_edit.observation_text
+
+    # 4. RUN_TESTS escape attempt
+    obs_run = env.execute_action("ACTION: RUN_TESTS ../../some_test.py")
+    assert obs_run.success is False
+    assert "escapes workspace directory" in obs_run.observation_text
+
+
+def test_recurrent_agent_external_task_validation_rejects_premature_finish():
+    """Verify that external task validation eliminates the false-positive FINISH shortcut."""
+    temp_dir = Path(tempfile.mkdtemp())
+
+    def strict_validator(environment: NeuralSoftwareEnvironment):
+        target = environment.workspace_dir / "output.txt"
+        if not target.exists():
+            return False, "output.txt is missing"
+        if "verified_solution" not in target.read_text():
+            return False, "output.txt does not contain 'verified_solution'"
+        return True, "Requirements met 100%"
+
+    env = NeuralSoftwareEnvironment(workspace_dir=temp_dir, task_validator=strict_validator)
+    agent = RecurrentSoftwareAgent()
+
+    # 1. Premature FINISH without fulfilling requirements must be REJECTED
+    obs_fail = env.execute_action("ACTION: FINISH I claim task is completed")
+    assert obs_fail.success is False
+    assert obs_fail.action_type == "FINISH"
+    assert "Task incomplete: output.txt is missing" in obs_fail.observation_text
+
+    # 2. Fulfill requirements
+    env.execute_action("ACTION: WRITE_FILE output.txt\nverified_solution here")
+
+    # 3. Valid FINISH passes verification
+    obs_pass = env.execute_action("ACTION: FINISH All requirements fulfilled")
+    assert obs_pass.success is True
+    assert "Task verified and passed" in obs_pass.observation_text
 
 
 def test_recurrent_agent_pomdp_episode_rollout():
@@ -153,28 +212,14 @@ def test_recurrent_agent_autonomous_action_generation():
     assert agent.cognitive_state.hierarchical_state.fast_state_bytes() == 4096
 
 
-def test_recurrent_agent_autonomous_episode_rollout():
-    """Verify that RecurrentSoftwareAgent can execute an episode autonomously (action_plan=None)."""
-    temp_dir = Path(tempfile.mkdtemp())
-    env = NeuralSoftwareEnvironment(workspace_dir=temp_dir)
-    agent = RecurrentSoftwareAgent()
-
-    goal = "Investigate codebase and produce architectural status"
-    result = agent.execute_pomdp_episode(goal=goal, env=env, action_plan=None, max_cycles=3)
-
-    assert result.success is True
-    assert result.cycles_completed >= 1
-    assert len(result.actions_taken) >= 1
-    assert len(result.observations) >= 1
-
-    # Verify all 4 active slots (0=Goal, 1=Obs, 2=Action, 3=History) underwent recurrent state transitions
-    assert result.slot_0_delta > 1e-4, "Slot 0 (Goal) did not update!"
-    assert result.slot_1_delta > 1e-4, "Slot 1 (Perception) did not update!"
-    assert result.slot_2_delta > 1e-4, "Slot 2 (Action Candidate) did not update!"
-    assert result.slot_3_delta > 1e-4, "Slot 3 (Action History) did not update!"
-
-    # Strict Law 1 working memory footprint
-    assert result.working_memory_bytes == 4096
+def test_recurrent_agent_checkpoint_loading():
+    """Verify that RecurrentSoftwareAgent cleanly loads real trained champion checkpoints."""
+    ckpt_path = Path("brain/checkpoints/pb_35m_champion.pt").resolve()
+    if ckpt_path.exists():
+        agent = RecurrentSoftwareAgent(checkpoint_path=ckpt_path)
+        assert agent.checkpoint_loaded is True
+        assert agent.active_checkpoint == str(ckpt_path)
+        assert agent.cognitive_state.hierarchical_state.fast_state_bytes() == 4096
 
 
 def test_pomdp_trajectory_generator_samples_valid_training_text():

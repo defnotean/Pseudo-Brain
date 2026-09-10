@@ -20,7 +20,7 @@ import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -54,13 +54,27 @@ class RecurrentSoftwareAgent:
     def __init__(
         self,
         model: Optional[UnifiedPseudoBrain] = None,
-        tier: str = "tier2",
+        checkpoint_path: Optional[Union[str, Path]] = None,
+        tier: str = "tier2_35m",
         vocab_size: int = 32000,
         device: Optional[torch.device] = None,
     ):
         self.device = device or torch.device("cpu")
+        self.checkpoint_loaded = False
+        self.active_checkpoint: Optional[str] = None
+
         if model is None:
-            model = make_unified_model(tier=tier, vocab_size=vocab_size)
+            if checkpoint_path is not None and Path(checkpoint_path).exists():
+                ckpt = torch.load(checkpoint_path, map_location=self.device)
+                model_tier = ckpt.get("tier", tier)
+                model_vocab = ckpt.get("vocab_size", vocab_size)
+                model = make_unified_model(tier=model_tier, vocab_size=model_vocab)
+                model.load_state_dict(ckpt["model_state_dict"], strict=False)
+                self.checkpoint_loaded = True
+                self.active_checkpoint = str(checkpoint_path)
+            else:
+                model = make_unified_model(tier=tier, vocab_size=vocab_size)
+
         self.model = model.to(self.device)
         self.model.eval()
 
@@ -140,16 +154,17 @@ class RecurrentSoftwareAgent:
         body = self.tokenizer.decode(gen_tokens, skip_special=True).strip()
         candidate = f"{prompt_prefix}{body}".strip()
 
-        # If generated action starts with a recognized actuator verb, use it
+        # If generated action starts with a recognized actuator verb, use it directly
         valid_verbs = ("READ_FILE", "WRITE_FILE", "EDIT_FILE", "RUN_TESTS", "RETRIEVE_MEMORY", "FINISH")
         parts = candidate.split()
         if len(parts) >= 2 and parts[1] in valid_verbs:
             return candidate
 
-        # When uncalibrated model produces non-action tokens, formulate safe finish or retrieval
-        if len(body) > 0:
-            return f"ACTION: FINISH Recurrent decision: {body[:60]}"
-        return "ACTION: FINISH Recurrent belief state converged"
+        # DO NOT convert invalid or uncalibrated tokens into ACTION: FINISH!
+        # Return candidate action so environment produces an informative error observation
+        if candidate.startswith("ACTION: "):
+            return candidate
+        return f"ACTION: UNPARSED {candidate}"
 
     def execute_pomdp_episode(
         self,
@@ -203,9 +218,15 @@ class RecurrentSoftwareAgent:
 
             # 5. Handle Terminal Action
             if obs.action_type == "FINISH":
-                episode_success = True
-                final_summary = obs.observation_text
-                break
+                if obs.success:
+                    episode_success = True
+                    final_summary = obs.observation_text
+                    break
+                else:
+                    # Model claimed completion, but task validation rejected it!
+                    # Ingest rejection details into Slot 1 (Perception) and Slot 2 (Self-Repair)
+                    self._ingest_text_into_slot(f"[FINISH_REJECTED: {obs.observation_text[:160]}]", slot_id=2)
+                    final_summary = obs.observation_text
 
             # 6. If test failure occurred, core observes the error in state and handles repair
             if obs.action_type == "RUN_TESTS" and not obs.success:

@@ -10,6 +10,11 @@ branching, zero preset templates, and zero keyword classifiers:
 4. ACTION: RUN_TESTS [optional args]
 5. ACTION: RETRIEVE_MEMORY <query>
 6. ACTION: FINISH <summary>
+
+Security & Safety:
+- Path Traversal Containment: All paths are strictly bounded inside `workspace_dir`.
+- External Task Validator: If configured, `ACTION: FINISH` verifies task success
+  against hidden criteria before declaring success.
 """
 
 from __future__ import annotations
@@ -22,7 +27,7 @@ import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from irene_brain.memory.parametric_memory import ParametricStaticKnowledgeCore, StaticRecallResult
 
@@ -44,10 +49,11 @@ class NeuralSoftwareEnvironment:
     """Domain-agnostic software execution environment.
 
     Provides ONLY execution primitives on the local machine with zero domain logic:
-    - File system read / write / patch
+    - File system read / write / patch (strictly sandboxed within workspace_dir)
     - Sandboxed AST syntax validation
     - Subprocess unit test runner
     - Memory knowledge retrieval
+    - External task completion validation
     """
 
     def __init__(
@@ -55,13 +61,29 @@ class NeuralSoftwareEnvironment:
         workspace_dir: Path,
         memory_core: Optional[ParametricStaticKnowledgeCore] = None,
         python_exe: Optional[str] = None,
+        task_validator: Optional[Callable[[NeuralSoftwareEnvironment], Tuple[bool, str]]] = None,
     ):
         self.workspace_dir = Path(workspace_dir).resolve()
         self.workspace_dir.mkdir(parents=True, exist_ok=True)
         self.memory_core = memory_core or ParametricStaticKnowledgeCore()
         self.python_exe = python_exe or sys.executable
+        self.task_validator = task_validator
         self.action_history: List[str] = []
         self.observation_history: List[EnvironmentObservation] = []
+
+    def _resolve_safe_path(self, rel_path: str) -> Optional[Path]:
+        """Safely resolve path ensuring it stays strictly inside workspace_dir.
+
+        Blocks directory traversal (e.g. '../../escape.py') and unauthorized filesystem writes.
+        """
+        try:
+            clean = rel_path.strip().lstrip("/\\")
+            target = (self.workspace_dir / clean).resolve()
+            if not target.is_relative_to(self.workspace_dir):
+                return None
+            return target
+        except Exception:
+            return None
 
     def execute_action(self, action_str: str) -> EnvironmentObservation:
         """Parse and execute a raw action string emitted by Pseudo-Brain."""
@@ -99,11 +121,28 @@ class NeuralSoftwareEnvironment:
         # 6. ACTION: FINISH <summary>
         elif raw.startswith("ACTION: FINISH"):
             summary = raw.replace("ACTION: FINISH", "").strip()
-            obs = EnvironmentObservation(
-                action_type="FINISH",
-                success=True,
-                observation_text=f"[OBSERVATION: Task completed successfully. Summary: {summary}]",
-            )
+            if self.task_validator is not None:
+                passed, details = self.task_validator(self)
+                if passed:
+                    obs = EnvironmentObservation(
+                        action_type="FINISH",
+                        success=True,
+                        observation_text=f"[OBSERVATION: Task verified and passed. Summary: {summary}. {details}]",
+                    )
+                else:
+                    obs = EnvironmentObservation(
+                        action_type="FINISH",
+                        success=False,
+                        observation_text=f"[OBSERVATION: Task incomplete: {details}. Continue working.]",
+                        stderr=details,
+                        return_code=1,
+                    )
+            else:
+                obs = EnvironmentObservation(
+                    action_type="FINISH",
+                    success=True,
+                    observation_text=f"[OBSERVATION: Model reported completion. Summary: {summary}]",
+                )
 
         # Unknown / Unparsable Action
         else:
@@ -130,7 +169,16 @@ class NeuralSoftwareEnvironment:
                 return_code=1,
             )
 
-        target_file = (self.workspace_dir / rel_path).resolve()
+        target_file = self._resolve_safe_path(rel_path)
+        if target_file is None:
+            return EnvironmentObservation(
+                action_type="WRITE_FILE",
+                success=False,
+                observation_text=f"[OBSERVATION: WRITE_FILE access denied: Path '{rel_path}' escapes workspace directory]",
+                stderr="Access Denied: Path Traversal",
+                return_code=1,
+            )
+
         target_file.parent.mkdir(parents=True, exist_ok=True)
 
         # Pre-validate AST syntax for Python files
@@ -156,7 +204,16 @@ class NeuralSoftwareEnvironment:
 
     def _handle_read_file(self, rel_path: str) -> EnvironmentObservation:
         """Read a file from disk."""
-        target_file = (self.workspace_dir / rel_path).resolve()
+        target_file = self._resolve_safe_path(rel_path)
+        if target_file is None:
+            return EnvironmentObservation(
+                action_type="READ_FILE",
+                success=False,
+                observation_text=f"[OBSERVATION: READ_FILE access denied: Path '{rel_path}' escapes workspace directory]",
+                stderr="Access Denied: Path Traversal",
+                return_code=1,
+            )
+
         if not target_file.exists():
             return EnvironmentObservation(
                 action_type="READ_FILE",
@@ -176,7 +233,16 @@ class NeuralSoftwareEnvironment:
 
     def _handle_edit_file(self, rel_path: str, diff_body: str) -> EnvironmentObservation:
         """Edit a target file by replacing target block with replacement block."""
-        target_file = (self.workspace_dir / rel_path).resolve()
+        target_file = self._resolve_safe_path(rel_path)
+        if target_file is None:
+            return EnvironmentObservation(
+                action_type="EDIT_FILE",
+                success=False,
+                observation_text=f"[OBSERVATION: EDIT_FILE access denied: Path '{rel_path}' escapes workspace directory]",
+                stderr="Access Denied: Path Traversal",
+                return_code=1,
+            )
+
         if not target_file.exists():
             return EnvironmentObservation(
                 action_type="EDIT_FILE",
@@ -194,7 +260,6 @@ class NeuralSoftwareEnvironment:
             target_str = m.group(1)
             replacement_str = m.group(2)
         else:
-            # Fallback simple split on ===
             parts = diff_body.split("===")
             if len(parts) == 2:
                 target_str = parts[0].strip("\n")
@@ -244,7 +309,15 @@ class NeuralSoftwareEnvironment:
         """Discover and execute test files in the workspace using subprocess."""
         test_files: List[Path] = []
         if target_arg:
-            specific_test = (self.workspace_dir / target_arg).resolve()
+            specific_test = self._resolve_safe_path(target_arg)
+            if specific_test is None:
+                return EnvironmentObservation(
+                    action_type="RUN_TESTS",
+                    success=False,
+                    observation_text=f"[OBSERVATION: RUN_TESTS access denied: Path '{target_arg}' escapes workspace directory]",
+                    stderr="Access Denied: Path Traversal",
+                    return_code=1,
+                )
             if specific_test.exists():
                 test_files.append(specific_test)
 
