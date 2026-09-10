@@ -186,6 +186,8 @@ class RecurrentSoftwareAgent:
         action_plan: Optional[List[str]] = None,
         max_cycles: int = 10,
         reset_state: bool = True,
+        target_module: Optional[str] = None,
+        target_function: Optional[str] = None,
     ) -> AgentPOMDPEpisodeResult:
         """Execute a full Action-Observation POMDP software engineering cycle.
 
@@ -196,9 +198,24 @@ class RecurrentSoftwareAgent:
         If reset_state is True, internal state is cleared to ensure pure zero-shot isolation.
         If reset_state is False, state persists across episodes for lifelong learning.
         """
+        import re
         t0 = time.perf_counter()
         if reset_state:
             self.reset()
+
+        # Extract target module and function if not explicitly passed
+        if not target_module:
+            m_mod = re.search(r'([a-zA-Z0-9_]+\.py)', goal)
+            if m_mod:
+                target_module = m_mod.group(1)
+        if not target_function:
+            m_fn = re.search(r'`([a-zA-Z0-9_]+)(?:\(.*?\)|`)', goal)
+            if m_fn:
+                target_function = m_fn.group(1)
+            else:
+                m_fn2 = re.search(r'(?:class|function|Implement|Write)\s+`?([a-zA-Z0-9_]+)', goal)
+                if m_fn2:
+                    target_function = m_fn2.group(1)
 
         # Capture initial slot tensors to verify state transitions
         init_slots = self.cognitive_state.hierarchical_state.working_thoughts.clone()
@@ -207,8 +224,14 @@ class RecurrentSoftwareAgent:
         slot_2_init = init_slots[0, 2].clone()
         slot_3_init = init_slots[0, 3].clone()
 
-        # 1. Step 0: Ingest Goal into Slot 0 (Goal Intent) with initial code writing phase
-        self._ingest_text_into_slot(f"[GOAL: {goal}]\n[PHASE: WRITE_CODE]\n", slot_id=0)
+        # 1. Step 0: Ingest Goal and Target Specification into Slot 0 (Goal Intent)
+        init_prompt = f"[GOAL: {goal}]\n"
+        if target_module:
+            init_prompt += f"[TARGET_MODULE: {target_module}]\n"
+        if target_function:
+            init_prompt += f"[TARGET_FUNCTION: {target_function}]\n"
+        init_prompt += "[PHASE: WRITE_CODE]\n"
+        self._ingest_text_into_slot(init_prompt, slot_id=0)
 
         actions_taken: List[str] = []
         observations: List[str] = []
@@ -229,9 +252,24 @@ class RecurrentSoftwareAgent:
             obs: EnvironmentObservation = env.execute_action(current_action)
             observations.append(obs.observation_text)
 
-            # 3. Step observation into Slot 0 (Continuous POMDP trajectory) and Slot 1 (Perception)
+            # 3. Step observation dynamically into Slot 0 (Continuous POMDP trajectory)
+            if not obs.success:
+                if "SyntaxError" in obs.observation_text:
+                    next_phase = "[PHASE: REPAIR_SYNTAX]"
+                elif "failed" in obs.observation_text.lower() or "incomplete" in obs.observation_text.lower() or "error" in obs.observation_text.lower():
+                    next_phase = "[PHASE: REPAIR_LOGIC]"
+                else:
+                    next_phase = "[PHASE: WRITE_CODE]"
+            else:
+                if obs.action_type == "RUN_TESTS":
+                    next_phase = "[PHASE: VERIFY_AND_FINISH]"
+                elif obs.action_type == "RETRIEVE_MEMORY":
+                    next_phase = "[PHASE: WRITE_CODE]"
+                else:
+                    next_phase = "[PHASE: VERIFY_AND_FINISH]"
+
             self._ingest_text_into_slot(
-                f"\n[OBSERVATION: {obs.observation_text}]\n[PHASE: VERIFY_AND_FINISH]\n", slot_id=0
+                f"\n[OBSERVATION: {obs.observation_text}]\n{next_phase}\n", slot_id=0
             )
             self._ingest_text_into_slot(obs.observation_text, slot_id=1)
 
@@ -246,7 +284,6 @@ class RecurrentSoftwareAgent:
                     break
                 else:
                     # Model claimed completion, but task validation rejected it!
-                    # Ingest rejection details into Slot 1 (Perception) and Slot 2 (Self-Repair)
                     self._ingest_text_into_slot(f"[FINISH_REJECTED: {obs.observation_text[:160]}]", slot_id=2)
                     final_summary = obs.observation_text
 

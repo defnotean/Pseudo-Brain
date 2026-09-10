@@ -116,6 +116,32 @@ class ProceduralSoftwareBenchmark:
             tasks.append(gen(task_index=i))
         return tasks
 
+    def generate_level_a_tasks(self, count: int = 10) -> List[ProceduralTask]:
+        """Level A Holdout: Same algorithms as training, but with randomized module names, function signatures, and docstrings."""
+        generators = [
+            self._generate_reverse_words_task,
+            self._generate_prime_filter_task,
+            self._generate_matrix_transpose_task,
+            self._generate_bracket_checker_task,
+            self._generate_clamp_numbers_task,
+        ]
+        tasks: List[ProceduralTask] = []
+        for i in range(count):
+            gen = generators[i % len(generators)]
+            # Use offset task index to ensure novel names
+            tasks.append(gen(task_index=1000 + i))
+        return tasks
+
+    def generate_level_b_tasks(self, count: int = 10) -> List[ProceduralTask]:
+        """Level B Holdout: Intra-domain transfer (unseen algorithms within trained domains)."""
+        from irene_brain.agent.procedural_training_generator import ProceduralTrainingGenerator
+        gen = ProceduralTrainingGenerator(seed=self.rng.randint(10000, 99999))
+        return gen.generate_training_tasks(count=count)
+
+    def generate_level_c_tasks(self, count: int = 10) -> List[ProceduralTask]:
+        """Level C Holdout: Permanently sealed unseen algorithm families."""
+        return self.generate_heldout_tasks(count=count)
+
     def generate_heldout_tasks(self, count: int = 10) -> List[ProceduralTask]:
         """Generate tasks exclusively from the 10 unseen held-out algorithm families."""
         generators = [
@@ -875,6 +901,8 @@ def evaluate_agent_on_benchmark(
             action_plan=None,
             max_cycles=max_cycles_per_task,
             reset_state=(mode == "zero_shot"),
+            target_module=task.target_module,
+            target_function=task.target_function,
         )
 
         task_passed = res.success
@@ -967,3 +995,33 @@ def evaluate_agent_lifelong_benchmark(
         max_cycles_per_task=max_cycles_per_task,
         mode="lifelong",
     )
+
+
+def evaluate_three_tier_benchmark(
+    agent: RecurrentSoftwareAgent,
+    benchmark: Optional[ProceduralSoftwareBenchmark] = None,
+    count_per_tier: int = 10,
+    max_cycles_per_task: int = 4,
+    mode: str = "zero_shot",
+) -> Dict[str, BenchmarkEvaluationReport]:
+    """Run comprehensive 3-tier capability evaluation across Lexical, Domain Transfer, and Sealed OOD families."""
+    bench = benchmark or ProceduralSoftwareBenchmark(seed=42)
+
+    print(f"\n>>> Running Level A (Lexical Variations, count={count_per_tier})...")
+    tasks_a = bench.generate_level_a_tasks(count=count_per_tier)
+    report_a = evaluate_agent_on_benchmark(agent, tasks_a, max_cycles_per_task=max_cycles_per_task, mode=mode)
+
+    print(f"\n>>> Running Level B (Intra-Domain Transfer, count={count_per_tier})...")
+    tasks_b = bench.generate_level_b_tasks(count=count_per_tier)
+    report_b = evaluate_agent_on_benchmark(agent, tasks_b, max_cycles_per_task=max_cycles_per_task, mode=mode)
+
+    print(f"\n>>> Running Level C (Permanently Sealed OOD Families, count={count_per_tier})...")
+    tasks_c = bench.generate_level_c_tasks(count=count_per_tier)
+    report_c = evaluate_agent_on_benchmark(agent, tasks_c, max_cycles_per_task=max_cycles_per_task, mode=mode)
+
+    return {
+        "level_a_lexical": report_a,
+        "level_b_domain_transfer": report_b,
+        "level_c_sealed_ood": report_c,
+    }
+

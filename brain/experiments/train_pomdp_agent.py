@@ -35,84 +35,85 @@ from irene_brain.agent.recurrent_software_agent import RecurrentSoftwareAgent
 from irene_brain.agent.software_environment import NeuralSoftwareEnvironment
 
 
-def build_pomdp_dataset(tasks: List[ProceduralTask], tokenizer: BpeSemanticTokenizer) -> Dict[str, torch.Tensor]:
-    """Format procedural tasks into POMDP action-observation sequences."""
-    episodes: List[str] = []
+from irene_brain.agent.procedural_training_generator import ProceduralTrainingGenerator
 
-    for t in tasks:
-        # Trajectory format:
-        # [GOAL: ... | Target: fn in module.py]
-        # [RESP]ACTION: WRITE_FILE module.py\n<ref_sol>[EOS]
-        # [OBSERVATION: Successfully wrote ... bytes to module.py]
-        # [RESP]ACTION: FINISH Verified implementation of fn[EOS]
-        ep = (
-            f"[GOAL: {t.goal}]\n"
-            f"[PHASE: WRITE_CODE]\n"
-            f"[RESP]ACTION: WRITE_FILE {t.target_module}\n{t.reference_solution}[EOS]\n"
-            f"[OBSERVATION: Successfully wrote {len(t.reference_solution)} bytes to {t.target_module}]\n"
-            f"[PHASE: VERIFY_AND_FINISH]\n"
-            f"[RESP]ACTION: FINISH Verified implementation of {t.target_function}[EOS]"
-        )
-        episodes.append(ep)
+
+def build_pomdp_batches(
+    tasks: List[ProceduralTask],
+    tokenizer: BpeSemanticTokenizer,
+    batch_size: int = 4,
+) -> List[Dict[str, torch.Tensor]]:
+    """Format procedural tasks into batched POMDP action-observation sequences with dynamic padding."""
+    gen = ProceduralTrainingGenerator(seed=1337)
+    episodes = gen.generate_multiturn_pomdp_trajectories(tasks)
 
     encoded_list = [tokenizer.encode(ep) for ep in episodes]
-    max_len = max(len(toks) for toks in encoded_list)
-
-    padded_seqs = []
-    target_seqs = []
-    loss_masks = []
-
     resp_id = tokenizer.resp_id
     eos_id = tokenizer.eos_id
 
-    for toks in encoded_list:
-        seq = toks + [tokenizer.pad_id] * (max_len - len(toks))
-        padded_seqs.append(seq)
-        targets = seq[1:] + [tokenizer.pad_id]
-        target_seqs.append(targets)
+    batches = []
+    for i in range(0, len(encoded_list), batch_size):
+        chunk = encoded_list[i : i + batch_size]
+        max_len = max(len(toks) for toks in chunk)
 
-        # Loss mask covers actuator tokens starting at [RESP] up to [EOS]
-        mask = [0.0] * len(seq)
-        in_resp = False
-        for i, tok in enumerate(seq):
-            if tok == resp_id:
-                in_resp = True
-                mask[i] = 1.0  # Predict first action token from [RESP]
-            elif tok == eos_id:
-                in_resp = False
-                mask[i] = 1.0  # Predict [EOS] at end of action
-            elif in_resp:
-                mask[i] = 1.0
-        loss_masks.append(mask)
+        padded_seqs = []
+        target_seqs = []
+        loss_masks = []
 
-    return {
-        "X": torch.tensor(padded_seqs, dtype=torch.long),
-        "Y": torch.tensor(target_seqs, dtype=torch.long),
-        "M": torch.tensor(loss_masks, dtype=torch.float32),
-    }
+        for toks in chunk:
+            seq = toks + [tokenizer.pad_id] * (max_len - len(toks))
+            padded_seqs.append(seq)
+            targets = seq[1:] + [tokenizer.pad_id]
+            target_seqs.append(targets)
+
+            # Loss mask covers actuator tokens starting at [RESP] up to [EOS]
+            mask = [0.0] * len(seq)
+            in_resp = False
+            for idx, tok in enumerate(seq):
+                if tok == resp_id:
+                    in_resp = True
+                    mask[idx] = 1.0
+                elif tok == eos_id:
+                    in_resp = False
+                    mask[idx] = 1.0
+                elif in_resp:
+                    mask[idx] = 1.0
+            loss_masks.append(mask)
+
+        batches.append({
+            "X": torch.tensor(padded_seqs, dtype=torch.long),
+            "Y": torch.tensor(target_seqs, dtype=torch.long),
+            "M": torch.tensor(loss_masks, dtype=torch.float32),
+        })
+
+    return batches
 
 
 def train_pomdp_policy(
     model: UnifiedPseudoBrain,
-    dataset: Dict[str, torch.Tensor],
-    steps: int = 450,
-    lr: float = 4e-3,
-    target_loss: float = 0.015,
+    batches: List[Dict[str, torch.Tensor]],
+    steps: int = 400,
+    lr: float = 3e-3,
+    target_loss: float = 0.02,
 ) -> float:
-    """Train the unified recurrent core on POMDP action-observation sequences."""
-    X, Y, M = dataset["X"], dataset["Y"], dataset["M"]
-    B, T = X.shape
-    print(f"Training POMDP Policy: Batch shape {X.shape}, Active action tokens: {int(M.sum().item())}")
+    """Train the unified recurrent core across batched POMDP multi-turn sequences."""
+    total_tokens = sum(int(b["M"].sum().item()) for b in batches)
+    print(f"Training POMDP Policy: {len(batches)} batches, Active action tokens: {total_tokens}")
 
-    # Long memory retention initialization for associative recurrence (S4 / Mamba style)
+    # Long memory retention initialization for associative recurrence
     torch.nn.init.constant_(model.W_iz_parallel.up.bias, 2.5)
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-5)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=steps, eta_min=5e-5)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=steps, eta_min=1e-4)
 
     t0 = time.perf_counter()
     final_loss = 999.0
+    num_batches = len(batches)
+
     for step in range(steps):
+        batch = batches[step % num_batches]
+        X, Y, M = batch["X"], batch["Y"], batch["M"]
+
         optimizer.zero_grad()
         out = model(token_seq=X, parallel=True)
         logits = out["logits"]
@@ -130,7 +131,7 @@ def train_pomdp_policy(
         if (step + 1) % 25 == 0 or step == 0:
             print(f"Step {step+1:3d}/{steps} | Loss: {final_loss:.4f}")
 
-        if final_loss <= target_loss:
+        if final_loss <= target_loss and step >= 200:
             print(f"Target loss {target_loss} reached at step {step+1}! Final loss: {final_loss:.4f}")
             break
 
@@ -140,15 +141,16 @@ def train_pomdp_policy(
 
 
 def main():
-    print("=== Pseudo-Brain Autonomous POMDP Policy Training ===")
-    benchmark = ProceduralSoftwareBenchmark(seed=42)
-    training_tasks = benchmark.generate_tasks(count=5)
+    print("=== Pseudo-Brain Multi-Domain POMDP Policy Training ===")
+    gen = ProceduralTrainingGenerator(seed=1337)
+    training_tasks = gen.generate_training_tasks(count=40)
+    print(f"Generated {len(training_tasks)} training tasks across 8 open domains.")
 
     tokenizer = BpeSemanticTokenizer(vocab_size=32000)
-    dataset = build_pomdp_dataset(training_tasks, tokenizer)
+    batches = build_pomdp_batches(training_tasks, tokenizer, batch_size=4)
 
     model = make_unified_model(tier="tier2", vocab_size=32000, use_token_skip=True)
-    train_pomdp_policy(model, dataset, steps=500, lr=4e-3, target_loss=0.015)
+    train_pomdp_policy(model, batches, steps=400, lr=3e-3, target_loss=0.02)
 
     # Save checkpoint
     ckpt_dir = Path("brain/checkpoints").resolve()
@@ -160,10 +162,11 @@ def main():
         "vocab_size": 32000,
         "use_token_skip": True,
         "model_state_dict": model.state_dict(),
-        "trained_on": "procedural_pomdp_tasks_tier2_skip",
+        "trained_on": "procedural_multiturn_8domains_tier2_skip",
     }, ckpt_path)
     print(f"Saved POMDP Policy Champion checkpoint to: {ckpt_path}")
 
 
 if __name__ == "__main__":
     main()
+
