@@ -555,13 +555,26 @@ class UnifiedPseudoBrain(nn.Module):
             salience=salience_3d,
         )
 
-        _, retrieved_ctx, *_ = self.retrieval_module(
+        augmented_slot, retrieved_ctx, *_ = self.retrieval_module(
             memory_input[batch_idx, active_tid].unsqueeze(1),
             ep_thoughts,
         )
-        contextualized_slot = working[batch_idx, active_tid]
-        if self.compensated_state:
-            contextualized_slot = contextualized_slot.double() + working[batch_idx, active_tid + self.logical_slots].double()
+        if allow_routing:
+            if self.compensated_state:
+                contextualized_slot = (
+                    working[batch_idx, active_tid].double()
+                    + working[batch_idx, active_tid + self.logical_slots].double()
+                    + retrieved_ctx.squeeze(1).double()
+                )
+            else:
+                contextualized_slot = augmented_slot.squeeze(1)
+        else:
+            contextualized_slot = working[batch_idx, active_tid]
+            if self.compensated_state:
+                contextualized_slot = (
+                    contextualized_slot.double()
+                    + working[batch_idx, active_tid + self.logical_slots].double()
+                )
 
         # 5. Decoupled Readout Predictions
         language_logits = (self.slot_head(self.readout_norm(contextualized_slot))

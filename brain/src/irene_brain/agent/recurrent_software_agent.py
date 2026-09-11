@@ -62,8 +62,10 @@ class RecurrentSoftwareAgent:
         tier: str = "tier2_35m",
         vocab_size: int = 32000,
         device: Optional[torch.device] = None,
+        allow_routing: bool = True,
     ):
         self.device = device or torch.device("cpu")
+        self.allow_routing = allow_routing
         self.checkpoint_loaded = False
         self.active_checkpoint: Optional[str] = None
         tokenizer_json = None
@@ -118,7 +120,7 @@ class RecurrentSoftwareAgent:
                 tok_t = torch.tensor([tok], dtype=torch.long, device=self.device)
                 sensory = self.model.encode_sensory(token_ids=tok_t)
                 outputs, self.cognitive_state = self.model.step(
-                    sensory, self.cognitive_state, thread_id=tid, allow_routing=False, token_id=tok_t,
+                    sensory, self.cognitive_state, thread_id=tid, allow_routing=self.allow_routing, token_id=tok_t,
                     read_language=token_index == len(tokens) - 1,
                 )
                 if outputs["logits"] is not None:
@@ -157,7 +159,7 @@ class RecurrentSoftwareAgent:
                     tok_t = torch.tensor([tok], dtype=torch.long, device=self.device)
                     sensory = self.model.encode_sensory(token_ids=tok_t)
                     outputs, self.cognitive_state = self.model.step(
-                        sensory, self.cognitive_state, thread_id=tid, allow_routing=False, token_id=tok_t,
+                        sensory, self.cognitive_state, thread_id=tid, allow_routing=self.allow_routing, token_id=tok_t,
                         prompt_tokens=prompt_t,
                     )
                     last_logits = outputs["logits"][0]
@@ -191,7 +193,7 @@ class RecurrentSoftwareAgent:
                 tok_t = torch.tensor([next_tok], dtype=torch.long, device=self.device)
                 sensory = self.model.encode_sensory(token_ids=tok_t)
                 outputs, self.cognitive_state = self.model.step(
-                    sensory, self.cognitive_state, thread_id=tid, allow_routing=False, token_id=tok_t,
+                    sensory, self.cognitive_state, thread_id=tid, allow_routing=self.allow_routing, token_id=tok_t,
                     prompt_tokens=prompt_t,
                 )
                 last_logits = outputs["logits"][0]
