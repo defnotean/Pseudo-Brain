@@ -1,24 +1,21 @@
 # CURRENT_WORK — ACTIVE FRONTIER
 
-## Latest remote outcome: broader matched training v2 is LIVE
+## Latest remote outcome: broader matched training v2 COMPLETE; TOOL EVALUATION LIVE
 
-NEWEST OBSERVATION: RNN completed7896/7896, childstatuscomplete,
-training507.466173s,totalchild629.241628s. Finalcheckpoint
-`training/recurrent/checkpoint-7896-trained.pt` SHA256
-fdd8e2f9c69ddc0ceb13e0b01a2c04680224466b5448ac5ce7b466f49cd64439.
-Finalparity31/257/2049errors3.9968e-14/4.26326e-14/7.10543e-14,4096B.
-Actual finaldev NLL improved vs policy-r2: policy.908981708→.738291694;
-reasoning3.120388863→2.853753467;code2.739398179→2.562061438;
-language4.725851852→4.618007805. Language is STILL worse than V4foundation
-baseline4.558786, so do not claim full restoration. No autonomousnewscoreyet.
-SamePAIRhandlePID135294stilllive, transformer now704/7896 at25.337s onlatestpoll.
-Bothcomplete stillrequiredforfullaudit/binding/evaluation. No trainingarchiveyet.
-New work/colab_broad_policy_development_status.py reads completeddev snapshots.
-
-LATEST CONTINUATION: previous turn classified progress. Actual training handle
-PID135294 remains live; latest recurrent6144/7896 at394.235813s; transformer not
-started yet. Usage NOW2%remaining, ZEROresetcredits; no reset can be redeemed.
-User authorized existing credits below10%, never purchase. Preserve goal ACTIVE.
+NEWEST OBSERVATION: Both models completed 7896/7896 updates on Colab A100.
+- Recurrent: 7896 updates in 507.47s, final checkpoint `checkpoint-7896-trained.pt`
+  SHA256 `fdd8e2f9c69ddc0ceb13e0b01a2c04680224466b5448ac5ce7b466f49cd64439`.
+  Parity errors across lengths 31/257/2049: 3.997e-14 / 4.263e-14 / 7.105e-14, state 4096B.
+  Dev NLL: policy 0.909->0.738, reasoning 3.120->2.854, code 2.739->2.562, language 4.726->4.618.
+- Transformer: 7896 updates in 283.97s, final checkpoint `checkpoint-7896-trained.pt`
+  SHA256 `104364668c3a090859097a21c9cfb1aa0f31a38fe88d0f197838b7fef137b18a`.
+  Dev NLL: policy 0.810->0.663, reasoning 3.067->2.808, code 2.673->2.526, language 4.700->4.601.
+- Training audit: `training-audit.json` PASSED, zero updates during audit, all checks complete.
+- Training evidence archive: `/content/pb-broad-policy-training-v2-r0/training-evidence.zip`
+  (517,485,101 bytes, SHA256 `828571510aa0404e588d440b01c381e37570b1689ac7b3e400d5a63cd0198ce1`).
+- Eligible checkpoint binding: PASSED on CPU, `eligible-checkpoint-binding.json` written.
+- LIVE HANDLE `_broad_policy_tool_evaluation_process`, PID 173052 running `run_broad_tool_policy_pair_v2.py`
+  evaluating 48 cases/model at `/content/pb-broad-policy-evaluation-v2-r0/tool-evaluation`.
 
 Evaluation preparation now COMPLETE on Colab at
 `/content/pb-broad-policy-evaluation-v2-r0`. No generation yet. New resolver/tool
