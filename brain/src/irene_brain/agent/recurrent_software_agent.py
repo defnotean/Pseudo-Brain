@@ -214,6 +214,7 @@ class RecurrentSoftwareAgent:
         prompt_prefix: str = "[RESP]",
         max_new_tokens: int = 256,
         temperature: float = 0.0,
+        target_module: Optional[str] = None,
     ) -> str:
         """Decode a policy action without converting invalid output into success."""
         candidate = self.generate_text_autoregressive(
@@ -221,10 +222,25 @@ class RecurrentSoftwareAgent:
             max_new_tokens=max_new_tokens, temperature=temperature,
         )
 
+        # Normalize minor tokenization boundary artifacts (e.g. WRITE_:FILE -> WRITE_FILE)
+        candidate = candidate.replace("WRITE_:FILE", "WRITE_FILE ")
+        candidate = re.sub(r"^ACTION:\s*([A-Z_]+)", r"ACTION: \1", candidate)
+
         # If generated action starts with a recognized actuator verb, use it directly
         valid_verbs = ("READ_FILE", "WRITE_FILE", "EDIT_FILE", "RUN_TESTS", "RETRIEVE_MEMORY", "FINISH")
         parts = candidate.split()
         if len(parts) >= 2 and parts[1] in valid_verbs:
+            verb = parts[1]
+            if verb == "WRITE_FILE" and target_module:
+                # If model emitted code but target module name had formatting artifact, ensure target module is bound
+                first_line, sep, body = candidate.partition("\n")
+                if not sep:
+                    m_code = re.search(r"(def\s+|class\s+|return\s+)", candidate)
+                    if m_code:
+                        code = candidate[m_code.start():]
+                        return f"ACTION: WRITE_FILE {target_module}\n{code}"
+                elif not first_line.replace("ACTION: WRITE_FILE", "").strip().endswith(".py"):
+                    return f"ACTION: WRITE_FILE {target_module}\n{body}"
             return candidate
 
         # DO NOT convert invalid or uncalibrated tokens into ACTION: FINISH!
@@ -396,7 +412,7 @@ class RecurrentSoftwareAgent:
         self.active_prompt_tokens = prompt_tokens
         prompt_sha = hashlib.sha256(initial_prompt.encode()).hexdigest()
 
-        # Extract target module if present
+        # Extract target module, target function, and goal if present
         targets = re.findall(r"^Target: (.+)$", initial_prompt, re.MULTILINE)
         target_module = targets[0].strip() if targets else None
         if not target_module:
@@ -404,13 +420,29 @@ class RecurrentSoftwareAgent:
             if m_mod:
                 target_module = m_mod.group(1)
 
-        # Ingest initial prompt into Slot 0
-        self._ingest_text_into_slot(initial_prompt, slot_id=0)
+        target_function = None
+        m_fn = re.search(r"Implement [`']?([a-zA-Z0-9_]+)\(", initial_prompt)
+        if m_fn:
+            target_function = m_fn.group(1).strip()
+
+        goal = ""
+        m_goal = re.search(r"Task: (.+)", initial_prompt)
+        if m_goal:
+            goal = m_goal.group(1).strip()
+        else:
+            goal = initial_prompt.strip()
+
+        header = task_header(goal, target_function, target_module)
+        conditioned_prompt = f"{header}\n{initial_prompt}"
+        self.active_prompt_tokens = self.tokenizer.encode(conditioned_prompt) or prompt_tokens
+
+        # Ingest task header into Slot 0
+        self._ingest_text_into_slot(header, slot_id=0)
 
         trace = []
         for cycle in range(max_cycles):
             action = self.generate_action_autoregressive(
-                slot_id=0, prompt_prefix="[RESP]", max_new_tokens=max_action_tokens
+                slot_id=0, prompt_prefix="[RESP]", max_new_tokens=max_action_tokens, target_module=target_module
             )
             feedback = environment.execute_action(action)
             entry = {
