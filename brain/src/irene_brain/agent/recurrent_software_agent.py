@@ -357,22 +357,20 @@ class RecurrentSoftwareAgent:
             else:
                 executed_text = f"ACTION: UNPARSED {candidate}"
                 transformation = "unparsed_prefix_wrap"
+            candidate_text = executed_text
         else:
             # Raw benchmark: zero heuristic rewriting of verbs or target modules
-            if gen_res.stop_reason == "eos":
-                if raw_text.startswith("ACTION: "):
-                    executed_text = raw_text
-                    transformation = None
-                else:
-                    executed_text = f"ACTION: UNPARSED {raw_text}"
-                    transformation = "unparsed_prefix_wrap"
-            else:
-                # Generation aborted (nonfinite, pad, sep, token_limit, repetition)
-                executed_text = None
+            if raw_text.startswith("ACTION: "):
+                candidate_text = raw_text
                 transformation = None
+            else:
+                candidate_text = f"ACTION: UNPARSED {raw_text}"
+                transformation = "unparsed_prefix_wrap" if gen_res.stop_reason == "eos" else None
+
+            executed_text = candidate_text if gen_res.stop_reason == "eos" else None
 
         return GenerationResult(
-            text=executed_text,
+            text=candidate_text,
             token_ids=gen_res.token_ids,
             stop_reason=gen_res.stop_reason,
             actual_terminal_token_id=gen_res.actual_terminal_token_id,
