@@ -573,3 +573,32 @@ def test_training_deployment_trajectory_equivalence():
     finally:
         shutil.rmtree(tmp1, ignore_errors=True)
         shutil.rmtree(tmp2, ignore_errors=True)
+
+
+def test_nonfinite_logits_safeguard():
+    """Verify that nonfinite logits fail fast with stop_reason='nonfinite_logits' and zero environment execution."""
+    model = make_unified_model("tier1_3m", vocab_size=1000)
+    agent = RecurrentSoftwareAgent(model=model)
+
+    class DummyEnv:
+        def __init__(self):
+            self.executed_actions = []
+        def execute_action(self, a):
+            self.executed_actions.append(a)
+            return EnvironmentObservation("FINISH", True, "done")
+
+    env = DummyEnv()
+    # Force step to return NaN logits when read_language=True
+    orig_step = model.step
+    def nan_step(*args, **kwargs):
+        outputs, state = orig_step(*args, **kwargs)
+        if outputs.get("logits") is not None:
+            outputs["logits"] = torch.full_like(outputs["logits"], float("nan"))
+        return outputs, state
+    model.step = nan_step
+
+    res = agent.execute_episode("Task: do something\nTarget: foo.py\n", env, max_cycles=1)
+    assert res.success is False
+    assert res.stop_reason == "action_nonfinite_logits"
+    assert len(env.executed_actions) == 0, "No action should be executed in environment on nonfinite logits!"
+

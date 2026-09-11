@@ -205,11 +205,11 @@ class RecurrentSoftwareAgent:
                     )
                     last_logits = outputs["logits"][0]
 
-        if last_logits is None:
+        if last_logits is None or not torch.isfinite(last_logits).all():
             return GenerationResult(
                 text="",
-                token_ids=[0],
-                stop_reason="token_limit",
+                token_ids=[],
+                stop_reason="nonfinite_logits" if last_logits is not None else "token_limit",
                 actual_terminal_token_id=None,
                 decoded_raw_text="",
                 executed_text="",
@@ -224,6 +224,11 @@ class RecurrentSoftwareAgent:
         with torch.no_grad():
             for _ in range(max_new_tokens):
                 step_logits = last_logits.clone()
+                if not torch.isfinite(step_logits).all():
+                    stop_reason = "nonfinite_logits"
+                    actual_terminal_token_id = None
+                    break
+
                 # Apply repetition penalty only when sampling with temperature > 0 and only to non-syntax tokens
                 if temperature > 1e-4 and len(gen_tokens) >= 1:
                     for prev_tok in set(gen_tokens[-8:]):
@@ -259,7 +264,15 @@ class RecurrentSoftwareAgent:
                     sensory, self.cognitive_state, thread_id=tid, allow_routing=self.allow_routing, token_id=tok_t,
                     prompt_tokens=prompt_t,
                 )
+                if not torch.isfinite(self.cognitive_state.hierarchical_state.working_thoughts).all():
+                    stop_reason = "nonfinite_state"
+                    actual_terminal_token_id = None
+                    break
                 last_logits = outputs["logits"][0]
+                if not torch.isfinite(last_logits).all():
+                    stop_reason = "nonfinite_logits"
+                    actual_terminal_token_id = None
+                    break
 
                 # Safeguard against periodic attractor looping without prematurely cutting off valid indentation/syntax
                 if len(gen_tokens) >= 8 and gen_tokens[-4:] == gen_tokens[-8:-4]:
@@ -346,12 +359,17 @@ class RecurrentSoftwareAgent:
                 transformation = "unparsed_prefix_wrap"
         else:
             # Raw benchmark: zero heuristic rewriting of verbs or target modules
-            if raw_text.startswith("ACTION: "):
-                executed_text = raw_text
-                transformation = None
+            if gen_res.stop_reason == "eos":
+                if raw_text.startswith("ACTION: "):
+                    executed_text = raw_text
+                    transformation = None
+                else:
+                    executed_text = f"ACTION: UNPARSED {raw_text}"
+                    transformation = "unparsed_prefix_wrap"
             else:
-                executed_text = f"ACTION: UNPARSED {raw_text}"
-                transformation = "unparsed_prefix_wrap"
+                # Generation aborted (nonfinite, pad, sep, token_limit, repetition)
+                executed_text = None
+                transformation = None
 
         return GenerationResult(
             text=executed_text,

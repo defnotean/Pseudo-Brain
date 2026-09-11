@@ -1,5 +1,5 @@
 {
-  "gate_status": "PENDING_ASSERTIONS",
+  "gate_status": "FAILED: ROUTED_AGENT_NOT_COMPLETED",
   "provenance": {
     "model_tier": "tier1_3m",
     "parameters": 1028001,
@@ -9,7 +9,7 @@
     "pointer_copy": false,
     "weights_origin": "trained_from_scratch_on_multi_task_reference_demonstrations",
     "tokenizer_sha256": "356a17fa207dde0b948b1e33e9d629bb2bb2eec95097792a913f52622ccf28d3",
-    "git_commit_sha": "ddca082d7e4f59ee7820163068c89e2ac64414e4",
+    "git_commit_sha": "21202e05d13eb49cde614040c57f1335865a7955",
     "champion_status": "NO. The 34.37M champion model was NOT retrained or reevaluated in this run. Champion standing remains 0/48."
   },
   "evaluator_controls": {
@@ -18,9 +18,103 @@
     "finish_without_validator_rejected": true,
     "write_file_not_verified_completion": true
   },
+  "training_metadata": {
+    "training_membership": [
+      "Task A (add repair)"
+    ],
+    "held_out_tasks": [
+      "Task B (multiply repair)",
+      "Task C (is_even repair)",
+      "Task D (already correct)",
+      "Task E (syntax repair)"
+    ],
+    "longest_differentiable_sequence": 1800,
+    "final_loss": 3.330282211303711,
+    "numerical_validity": {
+      "valid": true,
+      "first_invalid_details": null,
+      "last_finite_epoch": 60
+    }
+  },
+  "action_divergence": {
+    "teacher_forced_eval": [
+      {
+        "cycle": 1,
+        "expected_action": "ACTION: RUN_TESTS test_math.py",
+        "predicted_text": "CCTTNN::IN:TITTTTTTTTTTy",
+        "expected_verb": "RUN_TESTS",
+        "predicted_verb": "",
+        "verb_match": false,
+        "exact_match": false
+      },
+      {
+        "cycle": 2,
+        "expected_action": "ACTION: READ_FILE math_utils.py",
+        "predicted_text": "CCTTNN:::ITINN__TTTITIy",
+        "expected_verb": "READ_FILE",
+        "predicted_verb": "",
+        "verb_match": false,
+        "exact_match": false
+      },
+      {
+        "cycle": 3,
+        "expected_action": "ACTION: WRITE_FILE math_utils.py\ndef add(a: int, b: int) -> int:\n    return a + b\n",
+        "predicted_text": "CCTTNN::NINITTINNT_TTTITIy:IT::I:::::::::::N_I:::",
+        "expected_verb": "WRITE_FILE",
+        "predicted_verb": "",
+        "verb_match": false,
+        "exact_match": false
+      },
+      {
+        "cycle": 4,
+        "expected_action": "ACTION: RUN_TESTS test_math.py",
+        "predicted_text": "CCTTNN::IN:TITTTTT_T_TIy",
+        "expected_verb": "RUN_TESTS",
+        "predicted_verb": "",
+        "verb_match": false,
+        "exact_match": false
+      },
+      {
+        "cycle": 5,
+        "expected_action": "ACTION: FINISH repaired addition operator",
+        "predicted_text": "CCTTNN::IN:NTTTyI:T:I_III",
+        "expected_verb": "FINISH",
+        "predicted_verb": "",
+        "verb_match": false,
+        "exact_match": false
+      }
+    ],
+    "first_teacher_forced_divergence": {
+      "cycle": 1,
+      "expected_action": "ACTION: RUN_TESTS test_math.py",
+      "predicted_text": "CCTTNN::IN:TITTTTTTTTTTy",
+      "expected_verb": "RUN_TESTS",
+      "predicted_verb": "",
+      "verb_match": false,
+      "exact_match": false
+    },
+    "free_running_trace": [
+      {
+        "cycle": 1,
+        "expected_action": "ACTION: RUN_TESTS test_math.py",
+        "generated_text": "CTTTTTTTT",
+        "stop_reason": "repetition_cutoff",
+        "executed": false,
+        "exact_match": false
+      }
+    ],
+    "first_free_running_divergence": {
+      "cycle": 1,
+      "expected_action": "ACTION: RUN_TESTS test_math.py",
+      "generated_text": "CTTTTTTTT",
+      "stop_reason": "repetition_cutoff",
+      "executed": false,
+      "exact_match": false
+    }
+  },
   "task_a_routing_on": {
     "success": false,
-    "stop_reason": "action_pad",
+    "stop_reason": "action_repetition_cutoff",
     "cycles": 1,
     "evidence": {
       "valid": false,
@@ -29,19 +123,41 @@
       "pass_after_mutation_cycle": null,
       "verified_finish_cycle": null
     },
-    "fabricated_tokens": 1,
+    "synthetic_tokens_in_state": 0,
+    "output_text_transformations": 0,
+    "transformed_actions_executed": 0,
     "trace": [
       {
         "cycle": 1,
-        "generated_token_ids": [],
-        "decoded_raw_text": "",
+        "generated_token_ids": [
+          109,
+          126,
+          126,
+          126,
+          126,
+          126,
+          126,
+          126,
+          126
+        ],
+        "decoded_raw_text": "CTTTTTTTT",
         "environment_action_text": null,
         "executed_text": null,
-        "raw_action": "",
-        "transformation_applied": "unparsed_prefix_wrap",
-        "actual_terminal_token_id": 0,
-        "token_ids": [],
-        "generation_stop": "pad",
+        "raw_action": "CTTTTTTTT",
+        "transformation_applied": null,
+        "actual_terminal_token_id": null,
+        "token_ids": [
+          109,
+          126,
+          126,
+          126,
+          126,
+          126,
+          126,
+          126,
+          126
+        ],
+        "generation_stop": "repetition_cutoff",
         "executed": false,
         "state_bytes": 4096,
         "feedback": null
@@ -54,20 +170,40 @@
   },
   "task_a_routing_off": {
     "success": false,
-    "stop_reason": "action_pad",
+    "stop_reason": "action_repetition_cutoff",
     "cycles": 1,
     "trace": [
       {
         "cycle": 1,
-        "generated_token_ids": [],
-        "decoded_raw_text": "",
+        "generated_token_ids": [
+          109,
+          126,
+          126,
+          126,
+          126,
+          126,
+          126,
+          126,
+          126
+        ],
+        "decoded_raw_text": "CTTTTTTTT",
         "environment_action_text": null,
         "executed_text": null,
-        "raw_action": "",
-        "transformation_applied": "unparsed_prefix_wrap",
-        "actual_terminal_token_id": 0,
-        "token_ids": [],
-        "generation_stop": "pad",
+        "raw_action": "CTTTTTTTT",
+        "transformation_applied": null,
+        "actual_terminal_token_id": null,
+        "token_ids": [
+          109,
+          126,
+          126,
+          126,
+          126,
+          126,
+          126,
+          126,
+          126
+        ],
+        "generation_stop": "repetition_cutoff",
         "executed": false,
         "state_bytes": 4096,
         "feedback": null
@@ -79,28 +215,28 @@
     }
   },
   "routing_claim": "For this checkpoint and task, routed success=False, unrouted success=False.",
-  "generalization_suite": {
+  "held_out_evaluation": {
     "Task B (multiply repair)": {
       "success": false,
-      "stop_reason": "action_pad",
+      "stop_reason": "action_repetition_cutoff",
       "cycles": 1,
       "passed": false
     },
     "Task C (is_even repair)": {
       "success": false,
-      "stop_reason": "action_pad",
+      "stop_reason": "action_repetition_cutoff",
       "cycles": 1,
       "passed": false
     },
     "Task D (already correct)": {
       "success": false,
-      "stop_reason": "action_pad",
+      "stop_reason": "action_repetition_cutoff",
       "cycles": 1,
       "passed": false
     },
     "Task E (syntax repair)": {
       "success": false,
-      "stop_reason": "action_pad",
+      "stop_reason": "action_repetition_cutoff",
       "cycles": 1,
       "passed": false
     }
