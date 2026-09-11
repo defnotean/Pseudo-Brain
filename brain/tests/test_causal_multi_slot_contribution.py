@@ -182,3 +182,35 @@ def test_recurrent_software_agent_routing_configuration(cpu_model: UnifiedPseudo
     action = agent.generate_action_autoregressive(slot_id=0, max_new_tokens=8)
     assert isinstance(action, str)
     assert agent.cognitive_state.hierarchical_state.fast_state_bytes() == 4096
+
+def test_recurrent_software_agent_execute_episode(cpu_model: UnifiedPseudoBrain) -> None:
+    """Verify RecurrentSoftwareAgent.execute_episode follows POMDP protocol and conforms to evaluation trace schema."""
+    from dataclasses import dataclass
+
+    @dataclass
+    class MockFeedback:
+        action_type: str
+        success: bool
+        observation_text: str
+        verified_completion: bool = False
+
+    class MockEnv:
+        def __init__(self):
+            self.step = 0
+        def execute_action(self, action):
+            self.step += 1
+            if self.step == 1:
+                return MockFeedback("RUN_TESTS", False, "SyntaxError: invalid syntax")
+            return MockFeedback("FINISH", True, "All tests passed", verified_completion=True)
+
+    agent = RecurrentSoftwareAgent(model=cpu_model, allow_routing=True)
+    result = agent.execute_episode("Task: Implement count\nTarget: count_ops.py", MockEnv(), max_cycles=3)
+
+    assert result.success is True
+    assert result.stop_reason == "verified_completion"
+    assert result.cycles == 2
+    assert result.state_bytes == 4096
+    assert len(result.trace) == 2
+    assert result.trace[0]["executed"] is True
+    assert result.trace[1]["executed"] is True
+

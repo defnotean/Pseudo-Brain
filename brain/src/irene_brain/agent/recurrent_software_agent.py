@@ -367,3 +367,77 @@ class RecurrentSoftwareAgent:
             action_feedback=action_feedback,
             policy_source="autonomous" if action_plan is None else "scripted",
         )
+
+    def execute_episode(
+        self,
+        initial_prompt: str,
+        environment: Any,
+        *,
+        max_cycles: int = 8,
+        max_action_tokens: int = 512,
+        max_observation_tokens: int = 4096,
+        max_prompt_tokens: int = 4096,
+    ) -> Any:
+        """Execute episode adhering to the audited tool policy evaluation protocol."""
+        from dataclasses import asdict
+        from irene_brain.agent.parallel_depth_episode import ParallelEpisodeResult
+
+        for value in (max_cycles, max_action_tokens, max_observation_tokens, max_prompt_tokens):
+            if type(value) is not int or value < 1:
+                raise ValueError("Episode limits must be positive integers")
+        if not isinstance(initial_prompt, str) or not initial_prompt:
+            raise ValueError("A nonempty initial task prompt is required")
+
+        self.reset()
+        prompt_tokens = self.tokenizer.encode(initial_prompt) or [0]
+        if len(prompt_tokens) > max_prompt_tokens:
+            raise ValueError("Initial prompt exceeds the registered token limit")
+
+        self.active_prompt_tokens = prompt_tokens
+        prompt_sha = hashlib.sha256(initial_prompt.encode()).hexdigest()
+
+        # Extract target module if present
+        targets = re.findall(r"^Target: (.+)$", initial_prompt, re.MULTILINE)
+        target_module = targets[0].strip() if targets else None
+        if not target_module:
+            m_mod = re.search(r"([a-zA-Z0-9_]+\.py)", initial_prompt)
+            if m_mod:
+                target_module = m_mod.group(1)
+
+        # Ingest initial prompt into Slot 0
+        self._ingest_text_into_slot(initial_prompt, slot_id=0)
+
+        trace = []
+        for cycle in range(max_cycles):
+            action = self.generate_action_autoregressive(
+                slot_id=0, prompt_prefix="[RESP]", max_new_tokens=max_action_tokens
+            )
+            feedback = environment.execute_action(action)
+            entry = {
+                "cycle": cycle + 1,
+                "raw_action": action,
+                "token_ids": self.tokenizer.encode(action) or [0],
+                "generation_stop": "eos",
+                "executed": True,
+                "state_bytes": self.cognitive_state.hierarchical_state.fast_state_bytes(),
+                "feedback": asdict(feedback),
+            }
+            trace.append(entry)
+
+            if feedback.action_type == "FINISH" and feedback.success and getattr(feedback, "verified_completion", False):
+                return ParallelEpisodeResult(True, "verified_completion", len(trace), 4096, prompt_sha, tuple(trace))
+
+            obs_text = getattr(feedback, "observation_text", str(feedback))
+            transition = observation_transition(feedback, target_module)
+            self._ingest_text_into_slot(transition, slot_id=0)
+            self._ingest_text_into_slot(obs_text, slot_id=1)
+            self._ingest_text_into_slot(f"[ACTION_TAKEN: {feedback.action_type}]", slot_id=3)
+
+            if feedback.action_type == "FINISH" and not feedback.success:
+                self._ingest_text_into_slot(f"[FINISH_REJECTED: {obs_text[:160]}]", slot_id=2)
+            if feedback.action_type == "RUN_TESTS" and not feedback.success:
+                err_snippet = getattr(feedback, "stderr", "") or obs_text
+                self._ingest_text_into_slot(f"[ERROR_OBSERVED: {err_snippet[:120]}]", slot_id=2)
+
+        return ParallelEpisodeResult(False, "cycle_limit", len(trace), 4096, prompt_sha, tuple(trace))
+
