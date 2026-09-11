@@ -40,6 +40,13 @@ from typing import List, Optional
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 
 def is_windows() -> bool:
     return sys.platform == "win32"
@@ -142,7 +149,7 @@ def cmd_exec_file(path: Path, session_name: Optional[str] = None, timeout: int =
         if session_name:
             args.extend(["-s", session_name])
         proc = subprocess.Popen(get_colab_command_prefix() + args, stdout=subprocess.PIPE,
-                                stderr=subprocess.STDOUT, text=True)
+                                stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace")
         remote_status = None
         for line in proc.stdout:
             match = re.fullmatch(re.escape(marker) + r" (-?\d+)\s*", line)
