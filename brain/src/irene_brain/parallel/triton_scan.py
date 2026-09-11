@@ -251,8 +251,9 @@ def _run_triton_scan(
     h0_tensor = h0 if has_h0 else dummy_h0
 
     block_t = max(16, triton.next_power_of_2(T))
-    max_sram_elems = 16384
-    block_d = min(64, max(8, max_sram_elems // block_t))
+    # Two scan operands share SRAM; float64 needs half as many elements.
+    max_sram_elems = 65536 // max(a.element_size(), b.element_size())
+    block_d = min(64, max(1, max_sram_elems // block_t))
     num_blocks_d = (D + block_d - 1) // block_d
 
     grid = (B, num_blocks_d)

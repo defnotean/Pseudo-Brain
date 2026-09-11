@@ -15,6 +15,24 @@ The implementation, experiment configurations, tests, and research records are
 under [brain](./brain/README.md). The Irene desktop/chat project is separate and
 is not a dependency or training-data source for Pseudo-Brain.
 
+## Current evidence (2026-09-11)
+
+Pseudo-Brain is an experimental recurrent architecture. The active POMDP policy
+has 34.37M parameters; its latest unchanged-weight audit completes 1/10 Level A,
+2/10 Level B and 0/10 Level C tasks, with no verified autonomous repairs. The
+current tests do not establish general-purpose or frontier-model competence.
+See the [setup audit](brain/docs/runs/2026-09-11-pomdp-setup-audit.md) for numerical,
+data-overlap and causal-memory findings and the separate training candidate.
+The 4 KB budget describes only the fast working tensor, not total inference memory.
+
+A separate22.39M-parameter parallel recurrent candidate and22.97M-parameter
+transformer completed the same3072-update broad training pilot on Colab. Both
+scored0/32 HumanEval and0/32 GSM8K, with no missing tasks. Lower development loss
+and a completed training run have not produced useful coding/reasoning ability.
+The candidate retains the parallel immutable-prompt copy head and4096-byte state;
+it has not replaced the POMDP champion. See CURRENT_WORK.md for live diagnostics
+and the preserved run evidence.
+
 ## Unified Model Architecture & Scaling Tiers
 
 Pseudo-Brain implements a unified architecture spanning 3 model parameter tiers, all strictly complying with **Law 1 (Working Memory Invariance: $K=16, W=64$, strictly 4,096 bytes)**:
@@ -44,12 +62,11 @@ Pseudo-Brain supports remote execution on Google Colab with background execution
 
 ## Autonomous Lifelong Cognitive Agent & Live Web Research
 
-Pseudo-Brain includes a fully autonomous lifelong learning agent (`AutonomousLifelongAgent`) that solves the "catastrophic forgetting" and "born again" bottlenecks:
+The repository includes an experimental `AutonomousLifelongAgent`, retrieval
+integrations and a conversational CLI. Component demonstrations and persisted
+facts do not establish that catastrophic forgetting, hallucination or open-ended
+reasoning have been solved. Those claims require independent capability tests.
 
-- **Epistemic Humility Gating**: Detects unfamiliar concepts instead of hallucinating answers. Admits lack of knowledge and initiates live autonomous research.
-- **Multi-Tier Autonomous Web Research**: Features live search via Wikipedia REST API, Wikipedia query search, and DuckDuckGo Instant Answer API with zero prompt pre-baking.
-- **Lifelong Episodic Consolidation**: Genuinely learns new facts into persistent hierarchical memory on disk (`agent_cli_state.pt`). Once a topic is consolidated, follow-up queries recall in under **10 ms** with **zero network traffic**.
-- **Natural Human Conversation**: Speaks like a regular person without robotic meta-talk (*no "I remember this from earlier!" or "in my episodic memory"*).
 - **Interactive CLI with Transparent Telemetry**:
   ```bash
   # Ask a novel question and watch real-time web research & consolidation:

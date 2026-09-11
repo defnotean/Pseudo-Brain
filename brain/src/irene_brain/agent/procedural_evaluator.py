@@ -90,6 +90,7 @@ class BenchmarkEvaluationReport:
     mean_cycles: float = 0.0
     mode: str = "zero_shot"  # "zero_shot" or "lifelong"
     task_results: List[Dict[str, Any]] = field(default_factory=list)
+    exact_module_binding_rate: float = 0.0
 
 
 class ProceduralSoftwareBenchmark:
@@ -743,6 +744,10 @@ def make_hidden_task_validator(
         try:
             sub_env = os.environ.copy()
             sub_env["PYTHONPATH"] = str(env.workspace_dir) + os.pathsep + sub_env.get("PYTHONPATH", "")
+            sub_env["PYTHONDONTWRITEBYTECODE"] = "1"
+            # A unique, unwritten cache namespace prevents same-size rapid edits
+            # from reusing old .pyc files and falsely passing/failing repairs.
+            sub_env["PYTHONPYCACHEPREFIX"] = test_file_path + ".cache"
 
             proc = subprocess.run(
                 [python_exe, test_file_path],
@@ -757,7 +762,11 @@ def make_hidden_task_validator(
                 return True, "100% hidden unit tests passed successfully"
             else:
                 err_msg = proc.stderr.strip() or proc.stdout.strip() or f"Exit code {proc.returncode}"
-                return False, f"Hidden unit tests failed: {err_msg[:200]}"
+                # Preserve the exception itself rather than only the start of a
+                # traceback. Normalize ephemeral paths for repeatable trajectories.
+                summary = err_msg.splitlines()[-1]
+                summary = summary.replace(str(env.workspace_dir), "<workspace>").replace(test_file_path, "<hidden_test>")
+                return False, f"Hidden unit tests failed: {summary[:200]}"
         except subprocess.TimeoutExpired:
             return False, "Hidden unit tests timed out (>10s)"
         except Exception as e:
@@ -894,6 +903,44 @@ def evaluate_action_quality(
     )
 
 
+def recovery_kind(failed, repaired) -> str:
+    """Classify proven recovery without upgrading incomplete historical traces."""
+    before = failed.get("target_before") or {}
+    after = repaired.get("target_after") or {}
+    if not after.get("exists") or not after.get("sha256"):
+        return "unclassified_recovery"
+    if failed["action_type"] in ("WRITE_FILE", "EDIT_FILE"):
+        return "rejected_mutation_recovery"
+    if before.get("exists") is False:
+        return "missing_file_recovery"
+    if (before.get("exists") is True and before.get("sha256")
+            and before["sha256"] != after["sha256"]):
+        return "existing_code_repair"
+    return "unclassified_recovery"
+
+
+def verified_repair_evidence(result, validator_present: bool) -> Dict[str, Any]:
+    """Require an observed failure, repair phase, mutation and oracle-approved FINISH."""
+    feedback = result.action_feedback
+    if (not validator_present or not result.success or result.policy_source != "autonomous"
+            or not feedback or feedback[-1]["action_type"] != "FINISH"
+            or not feedback[-1]["success"]):
+        return {}
+    for i, failed in enumerate(feedback[:-1]):
+        if failed["success"] or failed["action_type"] not in ("WRITE_FILE", "EDIT_FILE", "RUN_TESTS", "FINISH"):
+            continue
+        if "[PHASE: REPAIR_" not in failed["transition"]:
+            continue
+        for repaired in feedback[i + 1:-1]:
+            if repaired["success"] and repaired["action_type"] in ("WRITE_FILE", "EDIT_FILE"):
+                return {"failure_cycle": failed["cycle"], "repair_cycle": repaired["cycle"],
+                        "passed_cycle": feedback[-1]["cycle"],
+                        "recovery_kind": recovery_kind(failed, repaired),
+                        "reflection": "environment-derived repair phase ingested into recurrent state",
+                        "validation": "external hidden-test validator"}
+    return {}
+
+
 def evaluate_agent_on_benchmark(
     agent: RecurrentSoftwareAgent,
     tasks: List[ProceduralTask],
@@ -986,17 +1033,23 @@ def evaluate_agent_on_benchmark(
             if len(first_act) >= 2 and first_act[1] in ("READ_FILE", "WRITE_FILE", "RETRIEVE_MEMORY"):
                 useful_first_action_count += 1
 
-        # Track error recovery
-        for i in range(len(res.observations) - 1):
-            if "FAILED" in res.observations[i] or "failed" in res.observations[i].lower():
-                if "PASSED" in res.observations[i + 1] or "Successfully" in res.observations[i + 1]:
-                    error_recoveries += 1
+        # A write after a failure is not evidence of a repaired, passing task.
+        repair_evidence = verified_repair_evidence(res, env.task_validator is not None)
+        error_recoveries += int(bool(repair_evidence))
+        writes = [a.partition("\n")[0].removeprefix("ACTION: WRITE_FILE ").strip()
+                  for a in res.actions_taken if a.startswith("ACTION: WRITE_FILE ")]
+        exact_module_binding = bool(writes and writes[0] == task.target_module)
 
         task_results.append({
             "task_id": task.task_id,
             "success": task_passed,
             "cycles": res.cycles_completed,
             "actions": res.actions_taken,
+            "observations": res.observations,
+            "action_feedback": res.action_feedback,
+            "policy_source": res.policy_source,
+            "verified_repair": repair_evidence,
+            "exact_module_binding": exact_module_binding,
             "final_summary": res.final_summary,
             "slot_0_delta": res.slot_0_delta,
             "slot_1_delta": res.slot_1_delta,
@@ -1040,6 +1093,7 @@ def evaluate_agent_on_benchmark(
         mean_cycles=mean_cycles,
         mode=mode,
         task_results=task_results,
+        exact_module_binding_rate=sum(t["exact_module_binding"] for t in task_results) / total_tasks if total_tasks else 0.0,
     )
 
 
@@ -1084,4 +1138,3 @@ def evaluate_three_tier_benchmark(
         "level_b_domain_transfer": report_b,
         "level_c_sealed_ood": report_c,
     }
-

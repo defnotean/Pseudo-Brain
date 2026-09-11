@@ -22,6 +22,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum
 import gc
+import hashlib
 import json
 import logging
 import math
@@ -81,8 +82,12 @@ class StreamingConfig:
     max_threads: int = 64
     supervised_only_loss: bool = True
     mask_cross_document_boundary: bool = True
+    document_policy: str = "split"
     seed: int = 42
     offline_mode: bool = False
+    allow_synthetic_fallback: bool = True
+    hf_dataset_revisions: Dict[TaskType, str] = field(default_factory=dict)
+    hf_dataset_configs: Dict[TaskType, str] = field(default_factory=dict)
     buffer_size: int = 1000
     hf_dataset_names: Dict[TaskType, str] = field(default_factory=lambda: {
         TaskType.LANGUAGE: "HuggingFaceH4/ultrachat_200k",
@@ -117,6 +122,7 @@ class PackedSequenceBlock:
     thread_ids: torch.Tensor      # [T] long (cognitive thread slot per token)
     task_types: List[str]         # list of tasks contributing to this packed block
     reset_mask: Optional[torch.Tensor] = None  # [T] float32 (1.0 at doc start, 0.0 elsewhere)
+    source_records: List[Dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass
@@ -128,6 +134,7 @@ class StreamingBatch:
     thread_ids: torch.Tensor      # [B, T] long
     task_types: List[List[str]]   # [B] list of task strings
     reset_mask: Optional[torch.Tensor] = None  # [B, T] float32
+    source_records: List[List[Dict[str, Any]]] = field(default_factory=list)
 
     def to(self, device: Union[str, torch.device], non_blocking: bool = True) -> StreamingBatch:
         """Transfer all tensors to the target device."""
@@ -137,6 +144,7 @@ class StreamingBatch:
             loss_mask=self.loss_mask.to(device, non_blocking=non_blocking),
             thread_ids=self.thread_ids.to(device, non_blocking=non_blocking),
             task_types=self.task_types,
+            source_records=self.source_records,
             reset_mask=self.reset_mask.to(device, non_blocking=non_blocking) if self.reset_mask is not None else None,
         )
 
@@ -154,10 +162,12 @@ class StreamingBatch:
             return self.task_types
         elif key == "reset_mask":
             return self.reset_mask
+        elif key == "source_records":
+            return self.source_records
         raise KeyError(f"Key {key} not found in StreamingBatch")
 
     def keys(self) -> List[str]:
-        return ["input_ids", "labels", "loss_mask", "thread_ids", "task_types", "reset_mask"]
+        return ["input_ids", "labels", "loss_mask", "thread_ids", "task_types", "reset_mask", "source_records"]
 
 
 # ==============================================================================
@@ -668,6 +678,9 @@ class HFStreamIterator:
         fallback_stream: Optional[Any] = None,
         offline_mode: bool = False,
         seed: int = 42,
+        allow_synthetic_fallback: bool = True,
+        revision: Optional[str] = None,
+        dataset_config: Optional[str] = None,
     ):
         self.task_type = task_type
         self.dataset_name = dataset_name
@@ -675,6 +688,11 @@ class HFStreamIterator:
         self.fallback_stream = fallback_stream
         self.offline_mode = offline_mode
         self.seed = seed
+        self.allow_synthetic_fallback = allow_synthetic_fallback
+        self.revision = revision
+        self.dataset_config = dataset_config
+        self._fallback_reason = "explicit_offline" if offline_mode else "datasets_unavailable"
+        self._rows_seen = 0
         self._iterator: Optional[Iterator[Dict[str, Any]]] = None
         self._use_fallback = offline_mode or not _HF_DATASETS_AVAILABLE
 
@@ -682,59 +700,84 @@ class HFStreamIterator:
         if self._use_fallback:
             return False
         try:
-            ds = datasets.load_dataset(self.dataset_name, split=self.split, streaming=True)
+            options = {"revision": self.revision} if self.revision is not None else {}
+            if self.dataset_config is not None:
+                options["name"] = self.dataset_config
+            ds = datasets.load_dataset(self.dataset_name, split=self.split, streaming=True, **options)
             self._iterator = iter(ds)
             return True
         except Exception as e:
+            if not self.allow_synthetic_fallback:
+                raise RuntimeError(f"Required source unavailable: {self.dataset_name}") from e
             logger.warning(
                 f"Unable to load HF streaming dataset {self.dataset_name} ({e}). "
                 f"Switching {self.task_type.value} stream to high-density synthetic fallback."
             )
             self._use_fallback = True
+            self._fallback_reason = f"load_error:{type(e).__name__}"
             return False
 
     def next_document(self) -> RawDocument:
-        """Fetch next document from HF stream, or fallback if unavailable/exhausted."""
+        """Fetch source data; restart without inserting a synthetic boundary row."""
         if not self._use_fallback and self._iterator is None:
             if not self._init_hf_stream():
                 self._use_fallback = True
 
-        if not self._use_fallback and self._iterator is not None:
+        restarted = False
+        for _ in range(100):
+            if self._use_fallback or self._iterator is None:
+                break
             try:
                 row = next(self._iterator)
+                self._rows_seen += 1
                 text = self._extract_text(row)
-                if text and len(text.strip()) > 0:
-                    return RawDocument(text=text.strip(), task_type=self.task_type)
+                if text and text.strip():
+                    return RawDocument(text=text.strip(), task_type=self.task_type,
+                        is_dialogue="[RESP]" in text, metadata={
+                            "origin": "huggingface", "dataset": self.dataset_name,
+                            "split": self.split, "revision": self.revision,
+                            "config": self.dataset_config,
+                            "rows_seen": self._rows_seen})
             except StopIteration:
-                # Infinite streaming: restart iterator
+                if restarted:
+                    break
+                restarted = True
                 self._init_hf_stream()
             except Exception as e:
-                logger.warning(f"Error reading from {self.dataset_name}: {e}. Falling back.")
+                if not self.allow_synthetic_fallback:
+                    raise RuntimeError(f"Required source failed: {self.dataset_name}") from e
                 self._use_fallback = True
-
-        # Fallback to high-density generator
+                self._fallback_reason = f"read_error:{type(e).__name__}"
+                break
+        if not self._use_fallback:
+            self._fallback_reason = "no_usable_rows_within_limit"
+        if not self.allow_synthetic_fallback and not self.offline_mode:
+            raise RuntimeError(f"Required source produced no usable rows: {self.dataset_name}")
         if self.fallback_stream is not None:
-            return self.fallback_stream.sample()
+            document = self.fallback_stream.sample()
+            document.metadata = {**document.metadata, "origin": "synthetic",
+                "requested_dataset": self.dataset_name, "revision": self.revision,
+                "config": self.dataset_config,
+                "fallback_reason": self._fallback_reason}
+            return document
 
         raise RuntimeError(f"No stream or fallback available for {self.task_type}")
 
     def _extract_text(self, row: Dict[str, Any]) -> str:
         """Extract clean text or dialogue from various standard dataset schemas."""
-        # 1. Direct text fields
-        for field in ("text", "content", "code", "output"):
-            if field in row and isinstance(row[field], str) and row[field]:
-                return row[field]
-
-        # 2. Multi-turn dialogue messages
+        # Structured supervision takes precedence over standalone output fields.
         if "messages" in row and isinstance(row["messages"], list):
             parts = []
             for msg in row["messages"]:
+                if not isinstance(msg, dict) or not isinstance(msg.get("content"), str):
+                    continue
                 role = msg.get("role", "user")
                 c = msg.get("content", "")
                 if role == "assistant":
                     parts.append(f"[RESP]{c}[EOS]")
                 else:
-                    parts.append(f"User: {c}")
+                    label = {"system": "System", "tool": "Tool"}.get(role, "User")
+                    parts.append(f"{label}: {c}")
             return " ".join(parts)
 
         # 3. Instruction + Input + Output (Alpaca style)
@@ -749,8 +792,19 @@ class HFStreamIterator:
         if "problem" in row and "solution" in row:
             return f"Problem: {row['problem']} [RESP]Solution: {row['solution']}[EOS]"
 
-        # Fallback string representation of row
-        return json.dumps(row)
+        # CodeSearchNet keeps function documentation and source in separate fields.
+        code = row.get("func_code_string")
+        if isinstance(code, str) and code.strip():
+            documentation = row.get("func_documentation_string")
+            if isinstance(documentation, str) and documentation.strip():
+                return f"User: Implement this function: {documentation.strip()} [RESP]{code}[EOS]"
+            return code
+
+        for field in ("text", "content", "code", "output"):
+            if isinstance(row.get(field), str) and row[field].strip():
+                return row[field]
+        # Unknown schemas are not serialized: they may contain labels/metadata.
+        return ""
 
 
 # ==============================================================================
@@ -774,12 +828,19 @@ class SequencePacker:
         max_threads: int = 64,
         supervised_only_loss: bool = False,
         mask_cross_document_boundary: bool = True,
+        document_policy: str = "split",
     ):
+        if document_policy not in {"split", "whole"}:
+            raise ValueError("document_policy must be 'split' or 'whole'")
+        if seq_len < 1:
+            raise ValueError("seq_len must be positive")
         self.tokenizer = tokenizer
         self.seq_len = seq_len
         self.max_threads = max_threads
         self.supervised_only_loss = supervised_only_loss
         self.mask_cross_document_boundary = mask_cross_document_boundary
+        self.document_policy = document_policy
+        self.pad_id = getattr(tokenizer, "pad_id", 0)
 
         self.eos_id = getattr(tokenizer, "eos_id", 2)
         self.resp_id = getattr(tokenizer, "resp_id", 5)
@@ -791,6 +852,7 @@ class SequencePacker:
         self._thread_buffer: List[int] = []
         self._task_buffer: List[str] = []
         self._boundary_buffer: List[float] = []
+        self._source_buffer: List[Dict[str, Any]] = []
 
         self._cur_thread_id: int = 0
         self._in_resp: bool = False
@@ -802,6 +864,7 @@ class SequencePacker:
         self._thread_buffer.clear()
         self._task_buffer.clear()
         self._boundary_buffer.clear()
+        self._source_buffer.clear()
         self._cur_thread_id = 0
         self._in_resp = False
 
@@ -821,6 +884,15 @@ class SequencePacker:
             return
 
         n = len(tokens)
+        if self.document_policy == "whole":
+            if n > self.seq_len:
+                raise ValueError(
+                    f"Whole document has {n} tokens, exceeding seq_len={self.seq_len}; "
+                    "increase the context bound or explicitly record its exclusion before packing"
+                )
+            remainder = len(self._token_buffer) % self.seq_len
+            if remainder and remainder + n > self.seq_len:
+                self._append_padding(self.seq_len - remainder)
         targets: List[int] = [-100] * n
         threads: List[int] = [0] * n
         boundaries: List[float] = [0.0] * n
@@ -866,13 +938,34 @@ class SequencePacker:
         self._thread_buffer.extend(threads)
         self._task_buffer.extend([doc.task_type.value] * n)
         self._boundary_buffer.extend(boundaries)
+        source = {**doc.metadata, "origin": doc.metadata.get("origin", "unspecified"),
+                  "document_sha256": hashlib.sha256(doc.text.encode("utf-8")).hexdigest()}
+        self._source_buffer.extend([source] * n)
 
     def can_emit_block(self) -> bool:
         """Check if buffer has at least seq_len tokens."""
         return len(self._token_buffer) >= self.seq_len
 
+    def _append_padding(self, count: int) -> None:
+        self._token_buffer.extend([self.pad_id] * count)
+        self._target_buffer.extend([-100] * count)
+        self._thread_buffer.extend([0] * count)
+        self._task_buffer.extend([""] * count)
+        self._boundary_buffer.extend([1.0] * count)
+        self._source_buffer.extend([{"origin": "padding"}] * count)
+
+    def finish(self) -> None:
+        """Pad the final partial block of a finite whole-document corpus."""
+        if self.document_policy != "whole":
+            raise ValueError("finish requires document_policy='whole'")
+        remainder = len(self._token_buffer) % self.seq_len
+        if remainder:
+            self._append_padding(self.seq_len - remainder)
+
     def emit_block(self) -> PackedSequenceBlock:
         """Extract a packed block of exact length seq_len."""
+        if not self.can_emit_block():
+            raise ValueError("No complete block available; append more data or finish a whole-document corpus")
         T = self.seq_len
         input_ids = torch.tensor(self._token_buffer[:T], dtype=torch.long)
         labels = torch.tensor(self._target_buffer[:T], dtype=torch.long)
@@ -881,7 +974,13 @@ class SequencePacker:
         reset_mask = torch.tensor(self._boundary_buffer[:T], dtype=torch.float32)
 
         # Unique contributing task types in this block
-        tasks_in_block = list(dict.fromkeys(self._task_buffer[:T]))
+        tasks_in_block = list(dict.fromkeys(task for task in self._task_buffer[:T] if task))
+        sources = {}
+        for source in self._source_buffer[:T]:
+            key = json.dumps(source, sort_keys=True)
+            if key not in sources:
+                sources[key] = {**source, "tokens_in_block": 0}
+            sources[key]["tokens_in_block"] += 1
 
         # Slice remaining tokens
         self._token_buffer = self._token_buffer[T:]
@@ -889,6 +988,7 @@ class SequencePacker:
         self._thread_buffer = self._thread_buffer[T:]
         self._task_buffer = self._task_buffer[T:]
         self._boundary_buffer = self._boundary_buffer[T:]
+        self._source_buffer = self._source_buffer[T:]
 
         return PackedSequenceBlock(
             input_ids=input_ids,
@@ -896,6 +996,7 @@ class SequencePacker:
             loss_mask=loss_mask,
             thread_ids=thread_ids,
             task_types=tasks_in_block,
+            source_records=list(sources.values()),
             reset_mask=reset_mask,
         )
 
@@ -939,6 +1040,9 @@ class MultiTaskMixtureStream:
                 fallback_stream=fallback,
                 offline_mode=offline,
                 seed=seed,
+                allow_synthetic_fallback=config.allow_synthetic_fallback,
+                revision=config.hf_dataset_revisions.get(task_type),
+                dataset_config=config.hf_dataset_configs.get(task_type),
             )
 
         # 3. Normalized weights and cumulative distribution for fast multinomial sampling
@@ -953,6 +1057,7 @@ class MultiTaskMixtureStream:
             max_threads=config.max_threads,
             supervised_only_loss=config.supervised_only_loss,
             mask_cross_document_boundary=config.mask_cross_document_boundary,
+            document_policy=config.document_policy,
         )
 
     def next_packed_block(self) -> PackedSequenceBlock:
@@ -1011,6 +1116,7 @@ def collate_streaming_batch(blocks: List[PackedSequenceBlock]) -> StreamingBatch
         loss_mask=loss_mask,
         thread_ids=thread_ids,
         task_types=task_types,
+        source_records=[block.source_records for block in blocks],
         reset_mask=reset_mask,
     )
 

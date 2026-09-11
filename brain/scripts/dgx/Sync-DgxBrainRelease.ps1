@@ -48,7 +48,10 @@ if ($LASTEXITCODE -ne 0) {
 $denyPattern = '(?i)(?:^|/)(?:\.env(?:$|\.)|\.git(?:/|$)|__pycache__(?:/|$)|\.pytest_cache(?:/|$)|\.venv(?:/|$)|venv(?:/|$)|cache(?:/|$))|(?i)^brain/(?:runs?|logs?|checkpoints?|artifacts?|datasets?)(?:/|$)|(?i)\.(?:pt|pth|ckpt|bin|safetensors|onnx|np[yz]|mp4|mkv|avi|zip|tar|tgz|gz|py[co]|pyd|so|dll|dylib)$'
 $sourceFiles = @($sourceFiles |
     Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
-    Where-Object { $_ -notmatch $denyPattern } |
+      Where-Object { $_ -notmatch $denyPattern } |
+      # The bounded training release has a Python-only import tree; the local
+      # console's static UI is not a training input or executable dependency.
+      Where-Object { $_ -notmatch '^brain/src/irene_brain/console/web(?:/|$)' } |
     Sort-Object -Unique)
 
 if ($sourceFiles.Count -eq 0 -or

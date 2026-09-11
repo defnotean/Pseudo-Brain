@@ -145,11 +145,15 @@ class VectorizedOutcomeModelV2(nn.Module):
             raise ValueError(f"context must have shape [B, {self.config.width}]")
         batch_size = context.shape[0]
         ids = self._normalize_action_ids(action_ids, batch_size, context.device)
+        # Keep numerical kernels in canonical action order. Reordering their
+        # inputs can change vectorized floating-point results by a few ULPs.
+        # Column layout is a presentation operation, applied after all heads.
+        compute_ids = torch.arange(self.config.actions, device=context.device).expand(batch_size, -1)
 
         state = self.state_trunk(context)  # [B, H], computed once
         state = F.layer_norm(state, (state.shape[-1],))
         state = state.unsqueeze(1).expand(-1, self.config.actions, -1)
-        action = self.action_embedding(ids)
+        action = self.action_embedding(compute_ids)
         action = F.layer_norm(action, (action.shape[-1],))
         conditioned = self.outcome_trunk(torch.cat((state, action), dim=-1))
 
@@ -173,7 +177,7 @@ class VectorizedOutcomeModelV2(nn.Module):
                 self.config.actions,
                 -1,
             )
-            hazard_action = self.hazard_action_embedding(ids)
+            hazard_action = self.hazard_action_embedding(compute_ids)
             hazard_action = F.layer_norm(
                 hazard_action,
                 (hazard_action.shape[-1],),
@@ -183,20 +187,25 @@ class VectorizedOutcomeModelV2(nn.Module):
             )
 
         raw_hazard_logits = self.hazard_head(hazard_conditioned)
-        calibration_scale = self.hazard_calibration_scale[ids].unsqueeze(-1)
-        calibration_bias = self.hazard_calibration_bias[ids].unsqueeze(-1)
+        calibration_scale = self.hazard_calibration_scale[compute_ids].unsqueeze(-1)
+        calibration_bias = self.hazard_calibration_bias[compute_ids].unsqueeze(-1)
         calibrated_hazard_logits = (
             raw_hazard_logits * calibration_scale + calibration_bias
         )
 
+        def arrange(value: Tensor | None) -> Tensor | None:
+            if value is None or action_ids is None:
+                return value
+            return value.gather(1, ids.unsqueeze(-1).expand(-1, -1, value.shape[-1]))
+
         return ActionOutcomeTable(
             action_ids=ids,
-            predicted_next_latent=self.next_latent_head(conditioned),
-            predicted_reward=predicted_reward,
-            predicted_reward_logits=reward_logits,
-            predicted_hazard=torch.sigmoid(calibrated_hazard_logits),
-            raw_hazard_logits=raw_hazard_logits,
-            predicted_hazard_logits=calibrated_hazard_logits,
+            predicted_next_latent=arrange(self.next_latent_head(conditioned)),
+            predicted_reward=arrange(predicted_reward),
+            predicted_reward_logits=arrange(reward_logits),
+            predicted_hazard=arrange(torch.sigmoid(calibrated_hazard_logits)),
+            raw_hazard_logits=arrange(raw_hazard_logits),
+            predicted_hazard_logits=arrange(calibrated_hazard_logits),
         )
 
     @torch.no_grad()

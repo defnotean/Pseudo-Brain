@@ -21,10 +21,16 @@ class DgxLaunchContractTests(unittest.TestCase):
         cls.remote = (cls.script_root / "_remote_dispatch.sh").read_text(encoding="utf-8")
 
     def _copy_writable_irene_brain(self, destination: Path) -> None:
+        package = self.brain_root / "src" / "irene_brain"
+        def ignore_release_assets(directory, names):
+            ignored = set(shutil.ignore_patterns("__pycache__", "*.pyc")(directory, names))
+            if Path(directory) == package / "console":
+                ignored.add("web")
+            return ignored
         shutil.copytree(
-            self.brain_root / "src" / "irene_brain",
+            package,
             destination,
-            ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
+            ignore=ignore_release_assets,
         )
         for path in destination.rglob("*"):
             path.chmod(0o700 if path.is_dir() else 0o600)

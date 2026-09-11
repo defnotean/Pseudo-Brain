@@ -316,7 +316,7 @@ class NeuralSoftwareEnvironment:
         )
 
     def _handle_run_tests(self, target_arg: str = "") -> EnvironmentObservation:
-        """Discover and execute test files in the workspace using subprocess."""
+        """Execute pytest/unittest definitions with discovery, or standalone test scripts."""
         test_files: List[Path] = []
         if target_arg:
             specific_test = self._resolve_safe_path(target_arg)
@@ -328,12 +328,20 @@ class NeuralSoftwareEnvironment:
                     stderr="Access Denied: Path Traversal",
                     return_code=1,
                 )
-            if specific_test.exists():
+            if specific_test.is_dir():
+                test_files.extend(sorted(specific_test.rglob("test_*.py")))
+            elif specific_test.is_file():
                 test_files.append(specific_test)
+            else:
+                return EnvironmentObservation(
+                    action_type="RUN_TESTS", success=False,
+                    observation_text=f"[OBSERVATION: RUN_TESTS failed: Test path '{target_arg}' does not exist]",
+                    stderr="Test path does not exist", return_code=1,
+                )
 
-        if not test_files:
+        if not test_files and not target_arg:
             # Auto-discover test files in workspace
-            for p in self.workspace_dir.rglob("test_*.py"):
+            for p in sorted(self.workspace_dir.rglob("test_*.py")):
                 test_files.append(p)
 
         if not test_files:
@@ -347,6 +355,8 @@ class NeuralSoftwareEnvironment:
 
         env = os.environ.copy()
         env["PYTHONPATH"] = str(self.workspace_dir) + os.pathsep + env.get("PYTHONPATH", "")
+        env["PYTHONDONTWRITEBYTECODE"] = "1"
+        env["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] = "1"
 
         test_outputs = []
         overall_success = True
@@ -356,6 +366,18 @@ class NeuralSoftwareEnvironment:
             rel = t_path.relative_to(self.workspace_dir)
             cmd = [self.python_exe, str(t_path.resolve())]
             try:
+                tree = ast.parse(t_path.read_text(encoding="utf-8"))
+                has_test_definitions = any(
+                    isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name.startswith("test_")
+                    or isinstance(node, ast.ClassDef) and (
+                        node.name.startswith("Test") or any(
+                            isinstance(base, ast.Attribute) and base.attr == "TestCase"
+                            or isinstance(base, ast.Name) and base.id == "TestCase"
+                            for base in node.bases))
+                    for node in ast.walk(tree)
+                )
+                if has_test_definitions:
+                    cmd = [self.python_exe, "-m", "pytest", "-q", "-p", "no:cacheprovider", str(t_path.resolve())]
                 proc = subprocess.run(
                     cmd,
                     cwd=str(self.workspace_dir),

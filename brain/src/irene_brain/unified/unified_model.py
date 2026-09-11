@@ -104,6 +104,9 @@ class UnifiedPseudoBrain(nn.Module):
         use_token_skip: bool = False,
         use_gated_token_skip: bool = False,
         use_pointer_copy: bool = False,
+        compensated_state: bool = False,
+        pointer_mode: str = "sequential",
+        retention_profile: str = "legacy",
     ):
         super().__init__()
         self.vocab_size = vocab_size
@@ -336,6 +339,16 @@ class UnifiedPseudoBrain(nn.Module):
 
         # (c) In-Context Pointer-Copy Head
         # Allows recurrent state to attend back to observed prompt spans for verbatim symbolic copying
+        if pointer_mode not in ("sequential", "parallel_predecessor"):
+            raise ValueError(f"Unknown pointer mode: {pointer_mode}")
+        self.pointer_mode = pointer_mode
+        if retention_profile not in ("legacy", "multiscale"):
+            raise ValueError(f"Unknown retention profile: {retention_profile}")
+        self.retention_profile = retention_profile
+        floors = torch.zeros(self.W_fast, dtype=torch.float64)
+        floors[self.W_fast // 2:3 * self.W_fast // 4] = 0.99
+        floors[3 * self.W_fast // 4:] = 0.999
+        self.register_buffer("retention_floors", floors, persistent=False)
         self.use_pointer_copy = use_pointer_copy
         if use_pointer_copy:
             ptr_dim = 64
@@ -385,6 +398,24 @@ class UnifiedPseudoBrain(nn.Module):
             deterministic_thought_identity_codes(thoughtlets=K_episodic, width=W_episodic),
             persistent=False,
         )
+        self.compensated_state = False
+        if compensated_state:
+            self.enable_compensated_state()
+
+    @property
+    def logical_slots(self) -> int:
+        return self.K_fast // 2 if self.compensated_state else self.K_fast
+
+    def enable_compensated_state(self) -> None:
+        """Use paired float32 slots and float64 arithmetic without growing fast state.
+
+        This explicit candidate mode trades half the logical slots for numerical
+        residuals. Weights/temporary arithmetic use double precision, not a KV cache.
+        """
+        if self.K_fast % 2 or self.K_fast < 8:
+            raise ValueError("Compensated state requires an even number of at least eight physical slots")
+        self.compensated_state = True
+        self.double()
 
     def count_parameters(self) -> Dict[str, int]:
         """Count total and trainable parameters."""
@@ -395,6 +426,9 @@ class UnifiedPseudoBrain(nn.Module):
     def init_state(self, batch_size: int, device: torch.device) -> UnifiedCognitiveState:
         """Initialize orthogonal two-tier cognitive state."""
         fast_init = self.slot_identities.unsqueeze(0).expand(batch_size, -1, -1).clone().to(device)
+        if self.compensated_state:
+            fast_init = fast_init.float()
+            fast_init[:, self.logical_slots:] = 0
         ep_init = self.episodic_identities.unsqueeze(0).expand(batch_size, -1, -1).clone().to(device)
 
         h_state = HierarchicalCognitiveState(
@@ -457,19 +491,30 @@ class UnifiedPseudoBrain(nn.Module):
         token_id: Optional[Tensor] = None,
         token_embed: Optional[Tensor] = None,
         prompt_tokens: Optional[Tensor] = None,
+        read_language: bool = True,
     ) -> Tuple[Dict[str, Tensor], UnifiedCognitiveState]:
-        """Single O(1) streaming cognitive update step (<1 ms latency)."""
+        """Streaming update with optional omission of unused language readout.
+
+        Pointer-active steps still compute the readout because the legacy
+        pointer carries attention state. Cost does not grow with generated history.
+        """
         B = sensory_input.shape[0]
         dev = sensory_input.device
 
         if thread_id is not None:
-            active_tid = torch.clamp(thread_id, 0, self.K_fast - 1)
+            if self.compensated_state and bool(((thread_id < 0) | (thread_id >= self.logical_slots)).any()):
+                raise ValueError("Compensated mode has eight logical slots; residual slots cannot be addressed")
+            active_tid = torch.clamp(thread_id, 0, self.logical_slots - 1)
         else:
             active_tid = state.active_thread
 
         working = state.hierarchical_state.working_thoughts.clone()
         batch_idx = torch.arange(B, device=dev)
         active_slot = working[batch_idx, active_tid]
+        if self.compensated_state:
+            if allow_routing:
+                raise ValueError("Compensated-state routing is not implemented")
+            active_slot = active_slot.double() + working[batch_idx, active_tid + self.logical_slots].double()
 
         # 1. Cognitive Input Gating (default salience = 1.0 for active streaming tokens)
         if salience is not None:
@@ -480,12 +525,16 @@ class UnifiedPseudoBrain(nn.Module):
         # 2. Associative Recurrent Step (Exact O(1) Streaming Counterpart of Parallel Scan)
         # Note: sensory_input was already projected through deep_proj in encode_sensory
         u_sensory = self.funnel_down(sensory_input) if (self.use_funnel and self.funnel_down is not None) else sensory_input
-        a_t = torch.sigmoid(self.W_iz_parallel(u_sensory))
+        a_t = self._retention_gates(u_sensory)
         b_t = (1.0 - a_t) * torch.tanh(self.W_in_parallel(u_sensory))
         updated_slot = a_t * active_slot + b_t
 
         gated_slot = (1.0 - g_t) * active_slot + g_t * updated_slot
-        working[batch_idx, active_tid] = gated_slot
+        working[batch_idx, active_tid] = gated_slot.to(working.dtype)
+        if self.compensated_state:
+            working[batch_idx, active_tid + self.logical_slots] = (
+                gated_slot - working[batch_idx, active_tid].double()
+            ).float()
 
         # 3. Sparse Thought Routing
         if self.use_routing and self.router is not None and allow_routing:
@@ -494,23 +543,31 @@ class UnifiedPseudoBrain(nn.Module):
 
         # 4. Cross-Tier Consolidation & Episodic Retrieval
         salience_3d = g_t.unsqueeze(1).expand(-1, self.K_fast, 1)
+        memory_input = working
+        if self.compensated_state:
+            # Episodic operations use reconstructed logical vectors, not residual slots.
+            memory_input = working[:, :self.logical_slots].double() + working[:, self.logical_slots:].double()
+            salience_3d = salience_3d[:, :self.logical_slots].double()
         ep_thoughts, ep_ages, *_ = self.consolidation_gate(
-            working,
+            memory_input,
             state.hierarchical_state.episodic_thoughts,
             state.hierarchical_state.episodic_ages,
             salience=salience_3d,
         )
 
         _, retrieved_ctx, *_ = self.retrieval_module(
-            working[batch_idx, active_tid].unsqueeze(1),
+            memory_input[batch_idx, active_tid].unsqueeze(1),
             ep_thoughts,
         )
         contextualized_slot = working[batch_idx, active_tid]
+        if self.compensated_state:
+            contextualized_slot = contextualized_slot.double() + working[batch_idx, active_tid + self.logical_slots].double()
 
         # 5. Decoupled Readout Predictions
-        language_logits = self.slot_head(self.readout_norm(contextualized_slot))
+        language_logits = (self.slot_head(self.readout_norm(contextualized_slot))
+                           if read_language or prompt_tokens is not None else None)
         skip_beta = None
-        if self.use_token_skip and self.token_skip is not None:
+        if language_logits is not None and self.use_token_skip and self.token_skip is not None:
             if token_embed is None and token_id is not None:
                 token_embed = self.embedding(token_id)
             if token_embed is not None:
@@ -541,7 +598,7 @@ class UnifiedPseudoBrain(nn.Module):
                 scores = scores.masked_fill(pad_mask, -1e9)
 
                 # Sequential shift prior from previous pointer attention
-                if state.ptr_prev_alpha is not None and state.ptr_prev_gamma is not None and self.ptr_seq_boost is not None:
+                if self.pointer_mode == "sequential" and state.ptr_prev_alpha is not None and state.ptr_prev_gamma is not None and self.ptr_seq_boost is not None:
                     prev_a = state.ptr_prev_alpha
                     cur_n = prompt_tokens.shape[1]
                     if prev_a.shape[1] != cur_n:
@@ -559,7 +616,10 @@ class UnifiedPseudoBrain(nn.Module):
                     backward_mask = (pos_indices < prev_max_idx) & (state.ptr_prev_gamma > 0.3)
                     scores = scores.masked_fill(backward_mask, -1e9)
 
-                ptr_attn = torch.softmax(scores, dim=-1)
+                if self.pointer_mode == "parallel_predecessor":
+                    ptr_attn = self._parallel_pointer_attention(scores, token_id, prompt_tokens)
+                else:
+                    ptr_attn = torch.softmax(scores, dim=-1)
                 ptr_boost = ptr_attn * (ptr_gamma * self.ptr_scale)
                 language_logits = language_logits.scatter_add(dim=-1, index=prompt_tokens, src=ptr_boost)
 
@@ -580,8 +640,8 @@ class UnifiedPseudoBrain(nn.Module):
             hierarchical_state=next_hierarchical,
             active_thread=active_tid,
             last_action=action_logits.argmax(dim=-1),
-            ptr_prev_alpha=ptr_attn.detach() if ptr_attn is not None else None,
-            ptr_prev_gamma=ptr_gamma.detach() if ptr_gamma is not None else None,
+            ptr_prev_alpha=ptr_attn.detach() if ptr_attn is not None and self.pointer_mode == "sequential" else None,
+            ptr_prev_gamma=ptr_gamma.detach() if ptr_gamma is not None and self.pointer_mode == "sequential" else None,
         )
 
         outputs = {
@@ -595,6 +655,37 @@ class UnifiedPseudoBrain(nn.Module):
         }
         return outputs, next_state
 
+    def _retention_gates(self, sensory):
+        gates = torch.sigmoid(self.W_iz_parallel(sensory))
+        if self.retention_profile == "multiscale":
+            floors = self.retention_floors.to(dtype=gates.dtype)
+            gates = floors + (1.0 - floors) * gates
+        return gates
+
+    def _parallel_pointer_attention(self, scores, token_ids, prompt_tokens):
+        """Batched copy continuation from the current input and immutable prompt.
+
+        No previous attention or generated-token history is read. Each time row
+        is independent after the recurrent scan. Duplicate predecessors remain
+        alternatives for the content query, rather than receiving an oracle index.
+        """
+        if token_ids is None:
+            raise ValueError("parallel_predecessor requires current token IDs")
+        single_step = scores.ndim == 2
+        scores = scores.unsqueeze(1) if single_step else scores
+        token_ids = token_ids.unsqueeze(1) if single_step else token_ids
+        predecessor = torch.zeros_like(scores, dtype=torch.bool)
+        predecessor[..., 1:] = (
+            token_ids.unsqueeze(-1) == prompt_tokens[:, None, :-1]
+        ) & (prompt_tokens[:, None, :-1] != 0)
+        scores = scores + self.ptr_seq_boost * predecessor.to(scores.dtype)
+        valid = (prompt_tokens != 0).unsqueeze(1)
+        # Finite minimum avoids NaNs for an entirely padded prompt. Multiplying
+        # by valid then makes its pointer contribution exactly zero.
+        attention = torch.softmax(scores.masked_fill(~valid, torch.finfo(scores.dtype).min), dim=-1)
+        attention = attention * valid
+        return attention.squeeze(1) if single_step else attention
+
     def forward_sequence_parallel(
         self,
         token_seq: Optional[Tensor] = None,
@@ -602,6 +693,8 @@ class UnifiedPseudoBrain(nn.Module):
         action_seq: Optional[Tensor] = None,
         reset_mask: Optional[Tensor] = None,
         prompt_tokens: Optional[Tensor] = None,
+        pointer_mask: Optional[Tensor] = None,
+        language_mask: Optional[Tensor] = None,
     ) -> Dict[str, Tensor]:
         """O(log T) Parallel Associative Scan Sequence Evaluation for High-Throughput GPU Training."""
         B = None
@@ -636,7 +729,7 @@ class UnifiedPseudoBrain(nn.Module):
             X_seq = self.deep_proj(X_seq)
 
         u_seq = self.funnel_down(X_seq) if (self.use_funnel and self.funnel_down is not None) else X_seq
-        A_gates = torch.sigmoid(self.W_iz_parallel(u_seq))
+        A_gates = self._retention_gates(u_seq)
         B_cands = (1.0 - A_gates) * torch.tanh(self.W_in_parallel(u_seq))
 
         h_init = self.slot_identities[0].unsqueeze(0).expand(B, -1)
@@ -648,16 +741,20 @@ class UnifiedPseudoBrain(nn.Module):
             B_cands = B_cands + mask_3d * (A_gates * h_init_3d)
             # Sever recurrent state propagation across document boundaries
             A_gates = A_gates * (1.0 - mask_3d)
-            H_scanned = triton_scan(A_gates, B_cands, h_init=None)
+            H_scanned = triton_scan(A_gates, B_cands, h_init=h_init)
         else:
             H_scanned = triton_scan(A_gates, B_cands, h_init=h_init)
 
-        language_logits = self.slot_head(self.readout_norm(H_scanned))
+        # Training can request logits only at supervised positions. Recurrent
+        # transitions still consume the complete trajectory, including failures.
+        readout_h = H_scanned if language_mask is None else H_scanned[language_mask]
+        readout_emb = tok_emb if language_mask is None or tok_emb is None else tok_emb[language_mask]
+        language_logits = self.slot_head(self.readout_norm(readout_h))
         beta = None
         if self.use_token_skip and tok_emb is not None and self.token_skip is not None:
-            skip_logits = self.token_skip(tok_emb)
+            skip_logits = self.token_skip(readout_emb)
             if hasattr(self, "skip_gate") and self.skip_gate is not None:
-                gate_in = torch.cat([H_scanned, tok_emb], dim=-1)
+                gate_in = torch.cat([readout_h, readout_emb], dim=-1)
                 beta = torch.sigmoid(self.skip_gate(gate_in))
                 language_logits = language_logits + beta * skip_logits
             else:
@@ -678,32 +775,48 @@ class UnifiedPseudoBrain(nn.Module):
             pad_mask = (prompt_tokens == 0).unsqueeze(1).expand(-1, content_scores.shape[1], -1)
             content_scores = content_scores.masked_fill(pad_mask, -1e9)
 
-            # Vectorized sequential pointer advancement scan over T
-            alphas = []
-            cur_n = prompt_tokens.shape[1]
-            alpha_prev = torch.zeros(B, cur_n, device=content_scores.device)
-            gamma_prev = torch.zeros(B, 1, device=content_scores.device)
-            pos_indices = torch.arange(cur_n, device=content_scores.device).unsqueeze(0).expand(B, -1)
-            boost = self.ptr_seq_boost if self.ptr_seq_boost is not None else 15.0
-            for t in range(T):
-                shift_prior = torch.zeros_like(alpha_prev)
-                shift_prior[:, 1:] = alpha_prev[:, :-1]
-                s_t = content_scores[:, t] + boost * gamma_prev * shift_prior
+            if self.pointer_mode == "parallel_predecessor":
+                ptr_attn = self._parallel_pointer_attention(content_scores, token_seq, prompt_tokens)
+                if pointer_mask is not None:
+                    ptr_attn = ptr_attn * pointer_mask.unsqueeze(-1)
+            else:
+                # Legacy nonlinear attention recurrence (serial over time).
+                alphas = []
+                cur_n = prompt_tokens.shape[1]
+                alpha_prev = torch.zeros(B, cur_n, device=content_scores.device)
+                gamma_prev = torch.zeros(B, 1, device=content_scores.device)
+                pos_indices = torch.arange(cur_n, device=content_scores.device).unsqueeze(0).expand(B, -1)
+                boost = self.ptr_seq_boost if self.ptr_seq_boost is not None else 15.0
+                for t in range(T):
+                    if pointer_mask is not None:
+                        # Observations are recurrent inputs, never pointer sources or history.
+                        keep = pointer_mask[:, t].unsqueeze(-1)
+                        alpha_prev = alpha_prev * keep
+                        gamma_prev = gamma_prev * keep
+                    shift_prior = torch.zeros_like(alpha_prev)
+                    shift_prior[:, 1:] = alpha_prev[:, :-1]
+                    s_t = content_scores[:, t] + boost * gamma_prev * shift_prior
 
-                # Monotonic Causal Lower-Bound Mask: prevent backward attention jumps during active copying
-                prev_max_idx = alpha_prev.argmax(dim=-1, keepdim=True)
-                backward_mask = (pos_indices < prev_max_idx) & (gamma_prev > 0.3)
-                s_t = s_t.masked_fill(backward_mask, -1e9)
+                    # Monotonic Causal Lower-Bound Mask: prevent backward attention jumps during active copying
+                    prev_max_idx = alpha_prev.argmax(dim=-1, keepdim=True)
+                    backward_mask = (pos_indices < prev_max_idx) & (gamma_prev > 0.3)
+                    s_t = s_t.masked_fill(backward_mask, -1e9)
 
-                alpha_t = torch.softmax(s_t, dim=-1)
-                alphas.append(alpha_t)
-                alpha_prev = alpha_t
-                gamma_prev = ptr_gamma[:, t]
-            ptr_attn = torch.stack(alphas, dim=1)  # [B, T, N]
-
+                    alpha_t = torch.softmax(s_t, dim=-1)
+                    if pointer_mask is not None:
+                        alpha_t = alpha_t * keep
+                    alphas.append(alpha_t)
+                    alpha_prev = alpha_t
+                    gamma_prev = ptr_gamma[:, t]
+                    if pointer_mask is not None:
+                        gamma_prev = gamma_prev * keep
+                ptr_attn = torch.stack(alphas, dim=1)  # [B, T, N]
             ptr_boost = ptr_attn * (ptr_gamma * self.ptr_scale)  # [B, T, N]
             expanded_prompt_tokens = prompt_tokens.unsqueeze(1).expand(-1, T, -1)  # [B, T, N]
-            language_logits = language_logits.scatter_add(dim=2, index=expanded_prompt_tokens, src=ptr_boost)
+            if language_mask is not None:
+                expanded_prompt_tokens = expanded_prompt_tokens[language_mask]
+                ptr_boost = ptr_boost[language_mask]
+            language_logits = language_logits.scatter_add(dim=-1, index=expanded_prompt_tokens, src=ptr_boost)
 
         action_logits = self.action_head(H_scanned)
         values = self.value_head(H_scanned).squeeze(-1)
@@ -727,6 +840,8 @@ class UnifiedPseudoBrain(nn.Module):
         parallel: bool = True,
         reset_mask: Optional[Tensor] = None,
         prompt_tokens: Optional[Tensor] = None,
+        pointer_mask: Optional[Tensor] = None,
+        language_mask: Optional[Tensor] = None,
     ) -> Dict[str, Tensor]:
         """Unified forward pass."""
         if parallel and (token_seq is not None or pixel_seq is not None):
@@ -736,9 +851,13 @@ class UnifiedPseudoBrain(nn.Module):
                 action_seq=action_seq,
                 reset_mask=reset_mask,
                 prompt_tokens=prompt_tokens,
+                pointer_mask=pointer_mask,
+                language_mask=language_mask,
             )
 
         if token_seq is not None:
+            if language_mask is not None:
+                raise ValueError("Selective language readout is supported only by parallel training")
             B, T = token_seq.shape
             dev = token_seq.device
             state = self.init_state(B, dev)
@@ -752,7 +871,30 @@ class UnifiedPseudoBrain(nn.Module):
                     pixels=pixel_seq[:, t] if pixel_seq is not None else None,
                     past_action=action_seq[:, t] if action_seq is not None else None,
                 )
-                outputs, state = self.step(sensory, state)
+                if reset_mask is not None:
+                    reset = reset_mask[:, t].bool()
+                    initial = self.init_state(B, dev)
+                    state.hierarchical_state.working_thoughts = torch.where(
+                        reset[:, None, None], initial.hierarchical_state.working_thoughts,
+                        state.hierarchical_state.working_thoughts,
+                    )
+                if pointer_mask is not None and state.ptr_prev_alpha is not None:
+                    keep = pointer_mask[:, t].unsqueeze(-1)
+                    state.ptr_prev_alpha = state.ptr_prev_alpha * keep
+                    state.ptr_prev_gamma = state.ptr_prev_gamma * keep
+                outputs, state = self.step(
+                    sensory, state, token_id=token_seq[:, t], prompt_tokens=prompt_tokens,
+                )
+                if pointer_mask is not None and outputs["ptr_attn"] is not None:
+                    keep = pointer_mask[:, t].unsqueeze(-1)
+                    # Remove pointer contribution on observation/padding positions.
+                    boost = outputs["ptr_attn"] * (outputs["ptr_gamma"] * self.ptr_scale)
+                    outputs["logits"] = outputs["logits"].scatter_add(
+                        -1, prompt_tokens, -boost * (1 - keep),
+                    )
+                    if state.ptr_prev_alpha is not None:
+                        state.ptr_prev_alpha = state.ptr_prev_alpha * keep
+                        state.ptr_prev_gamma = state.ptr_prev_gamma * keep
                 logits_list.append(outputs["logits"])
                 action_list.append(outputs["action_logits"])
                 values_list.append(outputs["predicted_value"].squeeze(-1))

@@ -29,9 +29,12 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import shutil
 import subprocess
 import sys
+import tempfile
+import uuid
 from pathlib import Path
 from typing import List, Optional
 
@@ -119,13 +122,74 @@ def cmd_stop(session_name: Optional[str] = None) -> int:
     return run_colab_cli(args)
 
 
-def cmd_exec(command_str: str, session_name: Optional[str] = None) -> int:
-    """Executes arbitrary bash command in a running Colab session."""
-    args = ["exec"]
-    if session_name:
-        args.extend(["-s", session_name])
-    args.append(command_str)
-    return run_colab_cli(args, interactive=True)
+def cmd_exec_file(path: Path, session_name: Optional[str] = None, timeout: int = 60) -> int:
+    """Run a Python file and propagate its result even when CLI exec returns zero."""
+    path = path.resolve(strict=True)
+    if not path.is_file():
+        raise ValueError("Remote execution requires a regular local file")
+    if timeout < 1:
+        raise ValueError("timeout must be positive")
+    marker = "PB_REMOTE_RESULT_" + uuid.uuid4().hex
+    wrapper = _result_wrapper(path.read_text(encoding="utf-8"), path.name, marker)
+    with tempfile.TemporaryDirectory(prefix="pb-colab-result-") as directory:
+        wrapped = Path(directory) / "wrapped.py"
+        wrapped.write_text(wrapper, encoding="utf-8")
+        local_path = str(wrapped)
+        if is_windows():
+            local_path = subprocess.run(["wsl", "wslpath", "-a", local_path.replace("\\", "/")],
+                                        capture_output=True, text=True, check=True).stdout.strip()
+        args = ["exec", "--file", local_path, "--timeout", str(timeout)]
+        if session_name:
+            args.extend(["-s", session_name])
+        proc = subprocess.Popen(get_colab_command_prefix() + args, stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT, text=True)
+        remote_status = None
+        for line in proc.stdout:
+            match = re.fullmatch(re.escape(marker) + r" (-?\d+)\s*", line)
+            if match:
+                remote_status = int(match[1])
+            else:
+                print(re.sub(r"([?&]colab-runtime-proxy-token=)[^&\s]+",
+                             r"\1[redacted]", line), end="", flush=True)
+        cli_status = proc.wait()
+    if cli_status:
+        return cli_status
+    if remote_status is None:
+        print("[ERROR] Remote result marker is missing; refusing to report success.")
+        return 1
+    return remote_status
+
+
+def _result_wrapper(source: str, filename: str, marker: str) -> str:
+    return ("import traceback\n"
+            "_pb_status = 0\n"
+            "try:\n"
+            f"    exec(compile({source!r}, {filename!r}, 'exec'), "
+            f"{{'__name__': '__main__', '__file__': {filename!r}}})\n"
+            "except SystemExit as exc:\n"
+            "    _pb_status = 0 if exc.code is None else exc.code if isinstance(exc.code, int) else 1\n"
+            "except BaseException:\n"
+            "    traceback.print_exc()\n"
+            "    _pb_status = 1\n"
+            f"print({marker!r}, _pb_status, flush=True)\n")
+
+
+def cmd_exec(command_str: str, session_name: Optional[str] = None, timeout: int = 60) -> int:
+    """Execute shell code through a Python file; Colab exec has no command argument.
+
+    The wrapper propagates remote failures and refuses missing completion markers.
+    """
+    source = ("import subprocess\n"
+              f"result = subprocess.run(['bash', '-lc', {command_str!r}], "
+              "capture_output=True, text=True)\n"
+              "print(result.stdout, end='', flush=True)\n"
+              "print(result.stderr, end='', flush=True)\n"
+              "print('REMOTE_PROCESS_EXIT', result.returncode, flush=True)\n"
+              "raise SystemExit(result.returncode)\n")
+    with tempfile.TemporaryDirectory(prefix="pb-colab-exec-") as directory:
+        script = Path(directory) / "execute.py"
+        script.write_text(source, encoding="utf-8")
+        return cmd_exec_file(script, session_name, timeout)
 
 
 def cmd_run(
@@ -159,12 +223,14 @@ def cmd_run(
         create_args.extend(["--gpu", gpu])
     ret = run_colab_cli(create_args)
     if ret != 0:
-        print("[WARNING] Could not create new session (it may already exist). Continuing with session...")
+        print("[ERROR] Session creation failed; refusing to execute in an existing or unknown runtime.")
+        return ret
 
     # 2. Setup environment and clone repo
     print("\n[2/4] Setting up remote environment and synchronizing repository...")
     setup_cmd = (
-        "python3 -c 'import torch; print(f\"Remote PyTorch: {torch.__version__} on {torch.cuda.get_device_name(0) if torch.cuda.is_available() else \"CPU\"}\")' && "
+        "python3 -c 'import torch; print(torch.__version__, torch.cuda.get_device_name(0) if torch.cuda.is_available() else \"CPU\")' && "
+        "mountpoint -q /content/drive && "
         "mkdir -p /content/drive/MyDrive/PseudoBrain/runs && "
         "if [ ! -d /content/Pseudo-Brain ]; then "
         "  git clone https://github.com/defnotean/Pseudo-Brain.git /content/Pseudo-Brain; "
@@ -172,9 +238,11 @@ def cmd_run(
         "  cd /content/Pseudo-Brain && git pull; "
         "fi"
     )
-    ret = run_colab_cli(["exec", "-s", sess, setup_cmd])
+    ret = cmd_exec(setup_cmd, sess, timeout=300)
     if ret != 0:
-        print("[ERROR] Remote environment setup failed.")
+        print("[ERROR] Remote setup failed. This legacy recipe requires an actual Google Drive mount.")
+        if not keep:
+            run_colab_cli(["stop", "-s", sess])
         return ret
 
     # 3. Build training command
@@ -197,7 +265,7 @@ def cmd_run(
 
     print(f"\n[3/4] Launching training on remote {gpu} runtime...")
     print(f"Command: {run_cmd}\n")
-    train_ret = run_colab_cli(["exec", "-s", sess, run_cmd], interactive=True)
+    train_ret = cmd_exec(run_cmd, sess, timeout=3600)
 
     # 4. Cleanup if keep is False
     if not keep:
@@ -230,6 +298,11 @@ def main():
     exec_p = subparsers.add_parser("exec", help="Execute command in active session")
     exec_p.add_argument("command", type=str, help="Shell command to execute")
     exec_p.add_argument("--session", "-s", type=str, default=None, help="Target session name")
+    exec_p.add_argument("--timeout", type=int, default=60)
+    file_p = subparsers.add_parser("exec-file", help="Execute a local Python file in Colab")
+    file_p.add_argument("file", type=Path)
+    file_p.add_argument("--session", "-s", required=True)
+    file_p.add_argument("--timeout", type=int, default=60)
 
     # run
     run_p = subparsers.add_parser("run", help="Dispatch full experiment to Google Colab")
@@ -282,7 +355,9 @@ def main():
     elif args.subcommand == "stop":
         sys.exit(cmd_stop(args.session))
     elif args.subcommand == "exec":
-        sys.exit(cmd_exec(args.command, args.session))
+        sys.exit(cmd_exec(args.command, args.session, args.timeout))
+    elif args.subcommand == "exec-file":
+        sys.exit(cmd_exec_file(args.file, args.session, args.timeout))
     elif args.subcommand == "run":
         sys.exit(
             cmd_run(

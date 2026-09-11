@@ -42,7 +42,7 @@ MyDrive/
     └── logs/           # Session output transcripts
 ```
 
-> **Zero Data Loss Guarantee**: All experiment artifacts, checkpoints, and evaluation results are saved directly to Google Drive. If your browser closes or the Colab container resets, your checkpoints and results are preserved.
+> **Persistence requires verification**: Files survive runtime deletion only if they were successfully saved to a real Google Drive mount or downloaded elsewhere. Colab can terminate before a checkpoint finishes writing; there is no zero-data-loss guarantee.
 
 ---
 

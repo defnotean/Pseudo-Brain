@@ -291,7 +291,11 @@ class UnifiedCognitiveAgent:
         max_attempts: int = 4,
         repair_fn: Optional[Callable[[str, ExecutionResult], str]] = None,
     ) -> Tuple[bool, str, List[ExecutionResult]]:
-        """Self-repair Python code using execution feedback and Contextual IOR."""
+        """Exercise the repair harness using a callback or handwritten heuristics.
+
+        The default patch selection does not use language logits and must not
+        be counted as learned autonomous repair capability.
+        """
         state = self.reset_state()
         current_code = buggy_code
         history: List[ExecutionResult] = []
@@ -322,7 +326,7 @@ class UnifiedCognitiveAgent:
             if repair_fn is not None:
                 current_code = repair_fn(current_code, res)
             else:
-                # Heuristic neural patcher: replace common syntax/operator bugs
+                # Handwritten patcher: replace common syntax/operator bugs
                 if "SyntaxError" in (res.error_type or ""):
                     # Fix unclosed parentheses, colons, or indentation
                     lines = current_code.splitlines()

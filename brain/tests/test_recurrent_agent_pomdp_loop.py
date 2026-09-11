@@ -71,7 +71,7 @@ def test_domain_agnostic_environment_primitives():
     obs_run = env.execute_action("ACTION: RUN_TESTS tests/test_math.py")
     assert obs_run.success is True
     assert "RUN_TESTS PASSED" in obs_run.observation_text
-    assert "MATH TEST PASSED" in obs_run.observation_text
+    assert "1 passed" in obs_run.observation_text  # pytest discovers test_add
 
     # 5. ACTION: EDIT_FILE
     edit_act = (
@@ -199,7 +199,8 @@ def test_recurrent_agent_pomdp_episode_rollout():
     # Verify physical file existence and test execution output
     assert (temp_dir / "str_mult.py").exists()
     assert (temp_dir / "tests/test_str.py").exists()
-    assert any("STRING MULTIPLIER TESTS OK" in obs for obs in result.observations)
+    assert any("1 passed" in obs for obs in result.observations)
+    assert result.policy_source == "scripted"
 
 
 def test_recurrent_agent_autonomous_action_generation():

@@ -1,5 +1,12 @@
 # Pseudo-Brain workspace rules
 
+- Current owner instruction (2026-09-11): do not run local tests, training,
+  benchmarks, or model diagnostics while the owner is gaming. Execute all
+  verification on the owner's Google Colab or identified VPS over SSH.
+  Local file edits and lightweight process management remain permitted.
+  This overrides local verification and DGX execution defaults below until
+  the owner changes the instruction.
+
 - This directory is the canonical workspace for the multi-thought
   sensorimotor-model project.
 - Do not edit the sibling `Irene` project unless the user explicitly asks for

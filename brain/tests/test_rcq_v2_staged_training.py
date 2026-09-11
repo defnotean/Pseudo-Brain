@@ -1227,13 +1227,14 @@ class Schema3TorchSystemTests(unittest.TestCase):
                 "base_lrs",
                 "last_epoch",
                 "_step_count",
-                "_is_initial",
+                *( {"_is_initial"} if "_is_initial" in initial_scheduler_state else {"verbose"} ),
                 "_get_lr_called_within_step",
                 "_last_lr",
                 "lr_lambdas",
             },
         )
-        self.assertIs(initial_scheduler_state["_is_initial"], False)
+        if "_is_initial" in initial_scheduler_state:
+            self.assertIs(initial_scheduler_state["_is_initial"], False)
         self.assertEqual(initial_scheduler_state["lr_lambdas"], [{}])
         self.assertEqual(
             system._scheduler_state_keys,
@@ -1672,7 +1673,8 @@ class Schema3TorchSystemTests(unittest.TestCase):
         scheduler_tamper = copy.deepcopy(valid_state)
         scheduler_tamper["scheduler"]["last_epoch"] = 0
         scheduler_missing_static_tamper = copy.deepcopy(valid_state)
-        del scheduler_missing_static_tamper["scheduler"]["_is_initial"]
+        static_key = "_is_initial" if "_is_initial" in valid_state["scheduler"] else "verbose"
+        del scheduler_missing_static_tamper["scheduler"][static_key]
         empty_adam_tamper = copy.deepcopy(valid_state)
         empty_adam_tamper["optimizer"]["state"] = {}
         optimizer_extra_tamper = copy.deepcopy(valid_state)

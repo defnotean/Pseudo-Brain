@@ -691,84 +691,56 @@ def {fn_name}(vals: list[float]):
     # Multi-Turn Trajectory Synthesizer (Failure Reflection & Self-Repair)
     # -------------------------------------------------------------------------
     def generate_multiturn_pomdp_trajectories(self, tasks: List[ProceduralTask]) -> List[str]:
-        """Synthesize multi-turn POMDP episodes covering clean code, syntax repair, test repair, and retrieval."""
+        """Build teacher-forced failures and repairs using real environment feedback.
+
+        Only open training tasks are supplied here; no held-out task is consulted.
+        Deliberate first-action defects are masked by the training batch builder.
+        """
+        import tempfile
+        from pathlib import Path
+        from irene_brain.agent.pomdp_protocol import task_header, observation_transition
+        from irene_brain.agent.software_environment import NeuralSoftwareEnvironment
+        from irene_brain.agent.procedural_evaluator import make_hidden_task_validator
+
         episodes = []
-        for i, t in enumerate(tasks):
-            p_type = i % 4  # 0: clean, 1: syntax_repair, 2: test_repair, 3: retrieval
-
-            header = (
-                f"[GOAL: {t.goal}]\n"
-                f"[TARGET_FUNCTION: {t.target_function}]\n"
-                f"[PHASE: WRITE_CODE]\n"
-                f"[TARGET_MODULE: {t.target_module}]\n"
-            )
-
-            if p_type == 0:
-                # Pattern 1: Direct Clean Implementation (Single-shot success)
-                ep = (
-                    f"{header}"
-                    f"[RESP]ACTION: WRITE_FILE {t.target_module}\n{t.reference_solution}[EOS]\n"
-                    f"[OBSERVATION: Successfully wrote {len(t.reference_solution)} bytes to {t.target_module}]\n"
-                    f"[PHASE: VERIFY_AND_FINISH]\n"
-                    f"[RESP]ACTION: FINISH Verified implementation of {t.target_function}[EOS]"
-                )
-            elif p_type == 1:
-                # Pattern 2: Syntax Error Reflection & Self-Repair
-                # Deliberately omit colon after def line
-                ref_lines = t.reference_solution.splitlines()
-                buggy_lines = []
-                for line in ref_lines:
-                    if line.strip().startswith("def ") and line.endswith(":"):
-                        buggy_lines.append(line[:-1])  # Missing colon syntax bug!
-                    else:
-                        buggy_lines.append(line)
-                buggy_code = "\n".join(buggy_lines)
-
-                ep = (
-                    f"{header}"
-                    f"[RESP]ACTION: WRITE_FILE {t.target_module}\n{buggy_code}[EOS]\n"
-                    f"[OBSERVATION: WRITE_FILE failed: SyntaxError at line 1, col 24: expected ':']\n"
-                    f"[PHASE: REPAIR_SYNTAX]\n"
-                    f"[TARGET_MODULE: {t.target_module}]\n"
-                    f"[RESP]ACTION: WRITE_FILE {t.target_module}\n{t.reference_solution}[EOS]\n"
-                    f"[OBSERVATION: Successfully wrote {len(t.reference_solution)} bytes to {t.target_module}]\n"
-                    f"[PHASE: VERIFY_AND_FINISH]\n"
-                    f"[RESP]ACTION: FINISH Verified implementation of {t.target_function}[EOS]"
-                )
-            elif p_type == 2:
-                # Pattern 3: Test Failure & Logic Self-Repair
-                stub_code = f"def {t.target_function}(*args, **kwargs):\n    return None\n"
-                ep = (
-                    f"{header}"
-                    f"[RESP]ACTION: WRITE_FILE {t.target_module}\n{stub_code}[EOS]\n"
-                    f"[OBSERVATION: Successfully wrote {len(stub_code)} bytes to {t.target_module}]\n"
-                    f"[PHASE: RUN_TESTS]\n"
-                    f"[RESP]ACTION: RUN_TESTS[EOS]\n"
-                    f"[OBSERVATION: Tests failed: AssertionError at line 3: expected non-None result]\n"
-                    f"[PHASE: REPAIR_LOGIC]\n"
-                    f"[TARGET_MODULE: {t.target_module}]\n"
-                    f"[RESP]ACTION: WRITE_FILE {t.target_module}\n{t.reference_solution}[EOS]\n"
-                    f"[OBSERVATION: Successfully wrote {len(t.reference_solution)} bytes to {t.target_module}]\n"
-                    f"[PHASE: VERIFY_AND_FINISH]\n"
-                    f"[RESP]ACTION: FINISH Verified implementation of {t.target_function}[EOS]"
-                )
+        for i, task in enumerate(tasks):
+            pattern = i % 6
+            good = f"ACTION: WRITE_FILE {task.target_module}\n{task.reference_solution}"
+            finish = f"ACTION: FINISH Verified implementation of {task.target_function}"
+            if pattern == 0:
+                actions = [good, finish]
+            elif pattern == 1:
+                lines = task.reference_solution.splitlines()
+                for k, line in enumerate(lines):
+                    if line.rstrip().endswith(":"):
+                        lines[k] = line.rstrip()[:-1]
+                        break
+                actions = [f"ACTION: WRITE_FILE {task.target_module}\n" + "\n".join(lines), good, finish]
+            elif pattern in (2, 4):
+                stub = f"def {task.target_function}(*args, **kwargs):\n    return None"
+                actions = [f"ACTION: WRITE_FILE {task.target_module}\n{stub}",
+                           finish if pattern == 2 else "ACTION: RUN_TESTS", good, finish]
+            elif pattern == 3:
+                wrong = task.reference_solution.replace(task.target_function, task.target_function + "_legacy")
+                actions = [f"ACTION: WRITE_FILE {task.target_module}\n{wrong}", finish, good, finish]
             else:
-                # Pattern 4: Research / Memory Retrieval Assisted Acquisition
-                doc_concept = f"Algorithm specification for {t.target_function}: implement logic for {t.domain}."
-                ep = (
-                    f"{header}"
-                    f"[PHASE: EXPLORE]\n"
-                    f"[RESP]ACTION: RETRIEVE_MEMORY {t.target_function} algorithm[EOS]\n"
-                    f"[OBSERVATION: {doc_concept}]\n"
-                    f"[PHASE: WRITE_CODE]\n"
-                    f"[TARGET_MODULE: {t.target_module}]\n"
-                    f"[RESP]ACTION: WRITE_FILE {t.target_module}\n{t.reference_solution}[EOS]\n"
-                    f"[OBSERVATION: Successfully wrote {len(t.reference_solution)} bytes to {t.target_module}]\n"
-                    f"[PHASE: VERIFY_AND_FINISH]\n"
-                    f"[RESP]ACTION: FINISH Verified implementation of {t.target_function}[EOS]"
-                )
+                actions = [f"ACTION: RETRIEVE_MEMORY {task.target_function} algorithm", good, finish]
 
-            episodes.append(ep)
-
+            with tempfile.TemporaryDirectory(prefix="pomdp_training_") as directory:
+                env = NeuralSoftwareEnvironment(Path(directory), task_validator=make_hidden_task_validator(
+                    task.hidden_tests_code, task.target_module))
+                for name, content in task.initial_files.items():
+                    dest = Path(directory) / name
+                    dest.parent.mkdir(parents=True, exist_ok=True)
+                    dest.write_text(content, encoding="utf-8")
+                ep = task_header(task.goal, task.target_function, task.target_module)
+                for action in actions:
+                    obs = env.execute_action(action)
+                    ep += f"[RESP]{action}[EOS]"
+                    if obs.action_type == "FINISH" and obs.success:
+                        break
+                    ep += observation_transition(obs, task.target_module)
+                if not obs.success or obs.action_type != "FINISH":
+                    raise ValueError(f"Training reference failed for {task.task_id}: {obs.observation_text}")
+                episodes.append(ep)
         return episodes
-

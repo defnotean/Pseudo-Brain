@@ -16,6 +16,7 @@ drives the sequence of decisions through recurrent state transitions.
 from __future__ import annotations
 
 import re
+import hashlib
 import sys
 import time
 from dataclasses import dataclass, field
@@ -28,6 +29,7 @@ from torch import Tensor
 
 from irene_brain.unified.unified_model import UnifiedCognitiveState, UnifiedPseudoBrain, make_unified_model
 from irene_brain.semantic.bpe_tokenizer import BpeSemanticTokenizer
+from irene_brain.agent.pomdp_protocol import task_header, observation_transition
 from irene_brain.agent.software_environment import EnvironmentObservation, NeuralSoftwareEnvironment
 
 
@@ -46,6 +48,8 @@ class AgentPOMDPEpisodeResult:
     slot_1_delta: float = 0.0
     slot_2_delta: float = 0.0
     slot_3_delta: float = 0.0
+    action_feedback: List[Dict[str, Any]] = field(default_factory=list)
+    policy_source: str = "autonomous"
 
 
 class RecurrentSoftwareAgent:
@@ -62,10 +66,12 @@ class RecurrentSoftwareAgent:
         self.device = device or torch.device("cpu")
         self.checkpoint_loaded = False
         self.active_checkpoint: Optional[str] = None
+        tokenizer_json = None
 
         if model is None:
             if checkpoint_path is not None and Path(checkpoint_path).exists():
                 ckpt = torch.load(checkpoint_path, map_location=self.device)
+                tokenizer_json = ckpt.get("tokenizer_json")
                 model_tier = ckpt.get("tier", tier)
                 model_vocab = ckpt.get("vocab_size", vocab_size)
                 use_skip = ckpt.get("use_token_skip", False)
@@ -77,8 +83,11 @@ class RecurrentSoftwareAgent:
                     use_token_skip=use_skip,
                     use_gated_token_skip=use_gated,
                     use_pointer_copy=use_ptr,
+                    compensated_state=ckpt.get("compensated_state", False),
+                    pointer_mode=ckpt.get("pointer_mode", "sequential"),
+                    retention_profile=ckpt.get("retention_profile", "legacy"),
                 )
-                model.load_state_dict(ckpt["model_state_dict"], strict=False)
+                model.load_state_dict(ckpt["model_state_dict"], strict=True)
                 self.checkpoint_loaded = True
                 self.active_checkpoint = str(checkpoint_path)
             else:
@@ -87,7 +96,9 @@ class RecurrentSoftwareAgent:
         self.model = model.to(self.device)
         self.model.eval()
 
-        self.tokenizer = BpeSemanticTokenizer(vocab_size=self.model.vocab_size)
+        self.tokenizer = (BpeSemanticTokenizer.from_str(tokenizer_json, vocab_size=self.model.vocab_size)
+                          if tokenizer_json is not None
+                          else BpeSemanticTokenizer(vocab_size=self.model.vocab_size))
         self.cognitive_state: UnifiedCognitiveState = self.model.init_state(batch_size=1, device=self.device)
         self.active_prompt_tokens: List[int] = []
 
@@ -99,34 +110,35 @@ class RecurrentSoftwareAgent:
     def _ingest_text_into_slot(self, text: str, slot_id: int = 0) -> Optional[Tensor]:
         """Project text sequentially into sensory features and step the designated recurrent slot."""
         tokens = self.tokenizer.encode(text) or [0]
-        self.active_prompt_tokens.extend(tokens)
-        tid = torch.tensor([slot_id % self.model.K_fast], dtype=torch.long, device=self.device)
+        tid = torch.tensor([slot_id % self.model.logical_slots], dtype=torch.long, device=self.device)
         last_logits: Optional[Tensor] = None
 
         with torch.no_grad():
-            for tok in tokens:
+            for token_index, tok in enumerate(tokens):
                 tok_t = torch.tensor([tok], dtype=torch.long, device=self.device)
                 sensory = self.model.encode_sensory(token_ids=tok_t)
                 outputs, self.cognitive_state = self.model.step(
-                    sensory, self.cognitive_state, thread_id=tid, allow_routing=False, token_id=tok_t
+                    sensory, self.cognitive_state, thread_id=tid, allow_routing=False, token_id=tok_t,
+                    read_language=token_index == len(tokens) - 1,
                 )
-                last_logits = outputs["logits"][0]
+                if outputs["logits"] is not None:
+                    last_logits = outputs["logits"][0]
         return last_logits
 
-    def generate_action_autoregressive(
+    def generate_text_autoregressive(
         self,
         slot_id: int = 0,
         prompt_prefix: str = "[RESP]",
         max_new_tokens: int = 256,
         temperature: float = 0.0,
     ) -> str:
-        """Autoregressively generate an action string directly from the recurrent state.
+        """Autoregressively decode raw text directly from the recurrent state.
 
         Steps prompt prefix into the designated slot, then sequentially unrolls single-token
         step transitions from the recurrent core until [EOS] or [PAD], sampling next tokens
         from the vocabulary logits.
         """
-        tid = torch.tensor([slot_id % self.model.K_fast], dtype=torch.long, device=self.device)
+        tid = torch.tensor([slot_id % self.model.logical_slots], dtype=torch.long, device=self.device)
         last_logits: Optional[Tensor] = None
         prompt_t = (
             torch.tensor([self.active_prompt_tokens], dtype=torch.long, device=self.device)
@@ -151,7 +163,7 @@ class RecurrentSoftwareAgent:
                     last_logits = outputs["logits"][0]
 
         if last_logits is None:
-            return "ACTION: FINISH Goal evaluated"
+            return ""
 
         gen_tokens: List[int] = []
         syntax_exempt = set(self.tokenizer.encode(" \n\t_():=,.-'\"[]{}0123456789") or [])
@@ -176,10 +188,6 @@ class RecurrentSoftwareAgent:
 
                 gen_tokens.append(next_tok)
 
-                # Attractor loop safeguard: if same 4-token sequence repeats twice consecutively, break
-                if len(gen_tokens) >= 8 and gen_tokens[-4:] == gen_tokens[-8:-4]:
-                    break
-
                 tok_t = torch.tensor([next_tok], dtype=torch.long, device=self.device)
                 sensory = self.model.encode_sensory(token_ids=tok_t)
                 outputs, self.cognitive_state = self.model.step(
@@ -188,7 +196,28 @@ class RecurrentSoftwareAgent:
                 )
                 last_logits = outputs["logits"][0]
 
+                # The returned token must enter the state even when it triggers
+                # the loop cutoff, before the closing EOS is consumed.
+                if len(gen_tokens) >= 8 and gen_tokens[-4:] == gen_tokens[-8:-4]:
+                    break
+
+        # Every closed action consumes one terminator, including truncated actions.
+        self._ingest_text_into_slot("[EOS]", slot_id=slot_id)
         candidate = self.tokenizer.decode(gen_tokens, skip_special=True).strip()
+        return candidate
+
+    def generate_action_autoregressive(
+        self,
+        slot_id: int = 0,
+        prompt_prefix: str = "[RESP]",
+        max_new_tokens: int = 256,
+        temperature: float = 0.0,
+    ) -> str:
+        """Decode a policy action without converting invalid output into success."""
+        candidate = self.generate_text_autoregressive(
+            slot_id=slot_id, prompt_prefix=prompt_prefix,
+            max_new_tokens=max_new_tokens, temperature=temperature,
+        )
 
         # If generated action starts with a recognized actuator verb, use it directly
         valid_verbs = ("READ_FILE", "WRITE_FILE", "EDIT_FILE", "RUN_TESTS", "RETRIEVE_MEMORY", "FINISH")
@@ -247,18 +276,24 @@ class RecurrentSoftwareAgent:
         slot_3_init = init_slots[0, 3].clone()
 
         # 1. Step 0: Ingest Goal and Target Specification into Slot 0 (Goal Intent)
-        init_prompt = f"[GOAL: {goal}]\n"
-        if target_function:
-            init_prompt += f"[TARGET_FUNCTION: {target_function}]\n"
-        init_prompt += "[PHASE: WRITE_CODE]\n"
-        if target_module:
-            init_prompt += f"[TARGET_MODULE: {target_module}]\n"
+        init_prompt = task_header(goal, target_function, target_module)
+        self.active_prompt_tokens = self.tokenizer.encode(init_prompt) or [0]
         self._ingest_text_into_slot(init_prompt, slot_id=0)
 
         actions_taken: List[str] = []
         observations: List[str] = []
+        action_feedback: List[Dict[str, Any]] = []
         episode_success = False
         final_summary = ""
+
+        def target_snapshot():
+            # Evaluation provenance only; never fed into model inputs or state.
+            path = env._resolve_safe_path(target_module) if target_module else None
+            if path is None:
+                return None
+            if not path.is_file():
+                return {"exists": False}
+            return {"exists": True, "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
 
         for cycle in range(max_cycles):
             if action_plan is not None:
@@ -271,29 +306,21 @@ class RecurrentSoftwareAgent:
             actions_taken.append(current_action)
 
             # 2. Environment executes atomic action deterministically
+            target_before = target_snapshot()
             obs: EnvironmentObservation = env.execute_action(current_action)
             observations.append(obs.observation_text)
+            transition = observation_transition(obs, target_module)
+            action_feedback.append({
+                "cycle": cycle + 1, "action_type": obs.action_type,
+                "success": obs.success, "return_code": obs.return_code,
+                "observation": obs.observation_text, "transition": transition,
+                "target_before": target_before, "target_after": target_snapshot(),
+            })
 
             # 3. Step observation dynamically into Slot 0 (Continuous POMDP trajectory)
-            if not obs.success:
-                if "SyntaxError" in obs.observation_text:
-                    next_phase = f"[PHASE: REPAIR_SYNTAX]\n[TARGET_MODULE: {target_module or ''}]"
-                elif "failed" in obs.observation_text.lower() or "incomplete" in obs.observation_text.lower() or "error" in obs.observation_text.lower():
-                    next_phase = f"[PHASE: REPAIR_LOGIC]\n[TARGET_MODULE: {target_module or ''}]"
-                else:
-                    next_phase = f"[PHASE: WRITE_CODE]\n[TARGET_MODULE: {target_module or ''}]"
-            else:
-                if obs.action_type == "RUN_TESTS":
-                    next_phase = "[PHASE: VERIFY_AND_FINISH]"
-                elif obs.action_type == "RETRIEVE_MEMORY":
-                    next_phase = f"[PHASE: WRITE_CODE]\n[TARGET_MODULE: {target_module or ''}]"
-                else:
-                    next_phase = "[PHASE: VERIFY_AND_FINISH]"
-
-            self._ingest_text_into_slot(
-                f"\n[OBSERVATION: {obs.observation_text}]\n{next_phase}\n", slot_id=0
-            )
-            self._ingest_text_into_slot(obs.observation_text, slot_id=1)
+            obs_text = obs.observation_text.strip()
+            self._ingest_text_into_slot(transition, slot_id=0)
+            self._ingest_text_into_slot(obs_text, slot_id=1)
 
             # 4. Record action execution into Slot 3 (Action History)
             self._ingest_text_into_slot(f"[ACTION_TAKEN: {obs.action_type}]", slot_id=3)
@@ -335,4 +362,6 @@ class RecurrentSoftwareAgent:
             slot_1_delta=slot_1_delta,
             slot_2_delta=slot_2_delta,
             slot_3_delta=slot_3_delta,
+            action_feedback=action_feedback,
+            policy_source="autonomous" if action_plan is None else "scripted",
         )

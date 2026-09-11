@@ -1,6 +1,7 @@
 """Unit tests for Hardware Topology & Device Auto-Resolution Subsystem."""
 
 import unittest
+import os
 import torch
 
 from irene_brain.device import (
@@ -45,8 +46,9 @@ class DeviceResolutionTests(unittest.TestCase):
         orig_threads = torch.get_num_threads()
         try:
             applied = configure_cpu_threading(2)
-            self.assertEqual(applied, 2)
-            self.assertEqual(torch.get_num_threads(), 2)
+            expected = 1 if os.environ.get("PSEUDO_BRAIN_CPU_ONLY") == "1" else 2
+            self.assertEqual(applied, expected)
+            self.assertEqual(torch.get_num_threads(), expected)
         finally:
             configure_cpu_threading(orig_threads)
 

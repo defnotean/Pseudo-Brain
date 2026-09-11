@@ -60,6 +60,8 @@ def probe_system_gpus() -> Dict[str, Any]:
 
 def is_directml_available() -> bool:
     """Check if torch_directml or native DirectML tensor backend is accessible."""
+    if os.environ.get("PSEUDO_BRAIN_CPU_ONLY") == "1":
+        return False
     try:
         import torch_directml  # type: ignore
         if hasattr(torch_directml, "is_available"):
@@ -71,6 +73,8 @@ def is_directml_available() -> bool:
 
 def get_directml_device_count() -> int:
     """Return the number of accessible DirectML devices."""
+    if os.environ.get("PSEUDO_BRAIN_CPU_ONLY") == "1":
+        return 0
     try:
         import torch_directml  # type: ignore
         return int(torch_directml.device_count())
@@ -80,6 +84,8 @@ def get_directml_device_count() -> int:
 
 def get_directml_device_name(device_index: int = 0) -> str:
     """Return friendly name of DirectML device at index."""
+    if os.environ.get("PSEUDO_BRAIN_CPU_ONLY") == "1":
+        return "DirectML disabled by CPU-only policy"
     try:
         import torch_directml  # type: ignore
         return str(torch_directml.device_name(device_index)).strip().replace("\x00", "")
@@ -93,6 +99,8 @@ def get_best_directml_device_index() -> int:
     In multi-GPU environments (e.g. AMD Ryzen APU with integrated Radeon Graphics + dedicated
     AMD Radeon RX 9070 XT), enumerates all DirectML devices and selects the dedicated accelerator.
     """
+    if os.environ.get("PSEUDO_BRAIN_CPU_ONLY") == "1":
+        return 0
     try:
         import torch_directml  # type: ignore
         count = torch_directml.device_count()
@@ -142,6 +150,8 @@ def get_directml_device(device_index: Optional[int] = None) -> Optional[torch.de
                       automatically discovers and selects the optimal accelerator
                       (e.g., dedicated AMD Radeon RX 9070 XT).
     """
+    if os.environ.get("PSEUDO_BRAIN_CPU_ONLY") == "1":
+        return None
     try:
         import torch_directml  # type: ignore
         if device_index is None:
@@ -161,6 +171,9 @@ def resolve_optimal_device(preference: Optional[str] = None) -> Tuple[torch.devi
     3. AMD / Intel DirectML (if torch_directml is installed, selecting optimal discrete GPU)
     4. Multi-threaded CPU (default fallback)
     """
+    if os.environ.get("PSEUDO_BRAIN_CPU_ONLY") == "1":
+        backend = "cpu" if preference is None or preference.lower().strip() == "cpu" else "cpu_fallback"
+        return torch.device("cpu"), backend
     if preference:
         pref = preference.lower().strip()
         if pref.startswith("cuda"):
@@ -202,6 +215,8 @@ def resolve_optimal_device(preference: Optional[str] = None) -> Tuple[torch.devi
 
 def configure_cpu_threading(num_threads: Optional[int] = None) -> int:
     """Configure CPU thread pool for deterministic real-time latency."""
+    if os.environ.get("PSEUDO_BRAIN_CPU_ONLY") == "1":
+        num_threads = 1
     if num_threads is not None and num_threads > 0:
         torch.set_num_threads(num_threads)
     return torch.get_num_threads()

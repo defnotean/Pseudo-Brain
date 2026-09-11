@@ -1,5 +1,18 @@
 # Google Colab Remote Training & Experimentation Guide
 
+## Current POMDP audit workflow (2026-09-11)
+
+The owner selected Colab for the <36M POMDP effort. Use the bounded registration
+`registrations/2026-09-11-pomdp-colab-portability-v1.md` and the current
+`brain/docs/OPERATOR_GUIDE.md`. The new `scripts/colab_dispatch.py exec-file`
+entrypoint executes local Python files in an explicitly named runtime and checks
+a completion marker, because the installed CLI may return zero on kernel errors.
+Large checkpoint uploads require chunks; verify the joined archive and every
+source/tokenizer/checkpoint hash. Download all run artifacts before stopping the
+runtime. A directory named `/content/drive` is not proof that Drive is mounted.
+The legacy `run` recipe below now fails closed when a real Drive mount is absent.
+It does not automatically mount Drive or supply the POMDP calibration runner.
+
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/defnotean/Pseudo-Brain/blob/main/notebooks/pseudobrain_colab_training.ipynb)
 
 This guide details how to run Pseudo-Brain experiments on **Google Colab** using premium GPU compute (NVIDIA A100, V100, L4, T4) with persistent Google Drive storage, unattended background execution, automated remote dispatch via CLI, and live real-time local monitoring.
@@ -42,7 +55,7 @@ MyDrive/
     └── logs/           # Session output transcripts
 ```
 
-> **Zero Data Loss Guarantee**: All experiment artifacts, checkpoints, and evaluation results are saved directly to Google Drive. If your browser closes or the Colab container resets, your checkpoints and results are preserved.
+> **Persistence requires verification**: Files survive runtime deletion only if they were successfully saved to a real Google Drive mount or downloaded elsewhere. Colab can terminate before a checkpoint finishes writing; there is no zero-data-loss guarantee.
 
 ---
 

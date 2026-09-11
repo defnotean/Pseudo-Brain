@@ -1,7 +1,7 @@
-"""Standard Causal Transformer Baseline and Head-to-Head Benchmark for Pseudo-Brain.
+"""Untrained recurrent/transformer systems microbenchmark, not a capability comparison.
 
-Benchmarks Pseudo-Brain against standard open-source Transformer architectures (LLaMA/GPT/Pythia)
-on:
+Both models are randomly initialized; no LLaMA, GPT or Pythia weights are loaded.
+The repair demonstration below uses handwritten heuristics. Measurements cover:
 1. Operational State Memory Footprint: O(1) 4.0 KB Law 1 vs O(N) linear KV-cache growth.
 2. Step Latency vs Sequence Length: Real-time 60 Hz (<16.6 ms) gaming compliance.
 3. Long-Context Factual Retention across 500+ distractor tokens.
@@ -193,7 +193,7 @@ def run_head_to_head_benchmark(
     device = torch.device(device_name)
     torch.manual_seed(42)
 
-    # 1. Instantiate matched parameter models
+    # 1. Instantiate untrained models; report their actual (unmatched) sizes.
     pb_model = make_unified_model(tier="tier2", vocab_size=32000).to(device)
     pb_model.eval()
 
@@ -260,7 +260,7 @@ def run_head_to_head_benchmark(
             _ = tf_model.forward_sequence(past_tokens)
             # Build cache
             caches = None
-            for p in range(min(T, 32)):
+            for p in range(T):
                 _, caches = tf_model.step_with_cache(past_tokens[:, p:p+1], position=p, past_caches=caches)
 
         next_tok = torch.tensor([[42]], device=device)
@@ -343,10 +343,15 @@ def run_head_to_head_benchmark(
         "success": repair_success,
         "iterations_to_pass": len(history),
         "consequence_surprises": agent.consequence_history[:len(history)],
+        "policy_source": "handwritten_heuristic",
+        "neural_repair_verified": False,
     }
 
     # Format Results Report
     report = {
+        "evaluation_kind": "untrained_systems_microbenchmark",
+        "supports_capability_comparison": False,
+        "weights_loaded": False,
         "model_parameters": {
             "pseudo_brain": pb_params,
             "transformer": tf_params,

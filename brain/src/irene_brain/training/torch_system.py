@@ -1331,8 +1331,18 @@ def _validated_stage_state(
 
 
 def _update_tensor_hash(digest: object, name: str, tensor: object) -> None:
-    if not isinstance(digest, type(sha256())) or not isinstance(tensor, Tensor):
-        raise TypeError("tensor hashing requires a SHA-256 digest and Tensor")
+    if not isinstance(digest, type(sha256())):
+        raise TypeError("tensor hashing requires a SHA-256 digest")
+    if tensor is None:
+        # Optional recurrent components must participate in identity checks.
+        # Keep the existing encoding of populated tensors unchanged.
+        name_bytes = name.encode("utf-8")
+        digest.update(len(name_bytes).to_bytes(4, "big"))
+        digest.update(name_bytes)
+        digest.update(b"\x00\x04None")
+        return
+    if not isinstance(tensor, Tensor):
+        raise TypeError("tensor hashing requires a Tensor or None")
     contiguous = tensor.detach().cpu().contiguous()
     name_bytes = name.encode("utf-8")
     dtype_bytes = str(contiguous.dtype).encode("ascii")

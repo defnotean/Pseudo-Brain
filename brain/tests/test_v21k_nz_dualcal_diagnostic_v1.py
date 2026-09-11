@@ -1466,6 +1466,9 @@ def _make_unittest_wrapper(function, parameters: Mapping[str, object] | None = N
 for _name, _function in tuple(globals().items()):
     if not _name.startswith("test_") or not callable(_function):
         continue
+    # The generated unittest methods below already cover every parameter set.
+    # Do not also collect the templates as unparametrized pytest functions.
+    _function.__test__ = False
     _parameterized = getattr(_function, "_unittest_parametrize", None)
     if _parameterized is None:
         setattr(PB21KNZDualCalTests, _name, _make_unittest_wrapper(_function))
