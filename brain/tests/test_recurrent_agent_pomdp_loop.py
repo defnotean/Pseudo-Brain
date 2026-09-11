@@ -93,10 +93,17 @@ def test_domain_agnostic_environment_primitives():
     assert obs_mem.success is True
     assert "binary search" in obs_mem.observation_text.lower()
 
-    # 7. ACTION: FINISH (default behavior without task_validator)
+    # 7. ACTION: FINISH (without task_validator, rejected for completion)
     obs_fin = env.execute_action("ACTION: FINISH All primitives verified successfully")
-    assert obs_fin.success is True
+    assert obs_fin.success is False
+    assert obs_fin.verified_completion is False
     assert obs_fin.action_type == "FINISH"
+
+    # With task_validator, passes verification
+    env.task_validator = lambda e: (True, "validated")
+    obs_fin_val = env.execute_action("ACTION: FINISH All primitives verified successfully")
+    assert obs_fin_val.success is True
+    assert obs_fin_val.verified_completion is True
 
 
 def test_workspace_path_containment_blocks_traversal():
@@ -158,7 +165,11 @@ def test_recurrent_agent_external_task_validation_rejects_premature_finish():
 def test_recurrent_agent_pomdp_episode_rollout():
     """Verify that RecurrentSoftwareAgent drives an end-to-end POMDP episode through recurrent state."""
     temp_dir = Path(tempfile.mkdtemp())
-    env = NeuralSoftwareEnvironment(workspace_dir=temp_dir)
+    def rollout_validator(environment: NeuralSoftwareEnvironment):
+        res = environment._handle_run_tests("tests/test_str.py")
+        return res.success, "string multiplier tests verified"
+
+    env = NeuralSoftwareEnvironment(workspace_dir=temp_dir, task_validator=rollout_validator)
     agent = RecurrentSoftwareAgent()
 
     goal = "Build a self-contained string multiplier with unit tests"

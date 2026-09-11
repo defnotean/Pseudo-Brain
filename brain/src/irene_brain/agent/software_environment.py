@@ -43,6 +43,7 @@ class EnvironmentObservation:
     return_code: int = 0
     elapsed_ms: float = 0.0
     files_created_or_modified: List[str] = field(default_factory=list)
+    verified_completion: bool = False
 
 
 class NeuralSoftwareEnvironment:
@@ -128,6 +129,7 @@ class NeuralSoftwareEnvironment:
                         action_type="FINISH",
                         success=True,
                         observation_text=f"[OBSERVATION: Task verified and passed. Summary: {summary}. {details}]",
+                        verified_completion=True,
                     )
                 else:
                     obs = EnvironmentObservation(
@@ -136,12 +138,16 @@ class NeuralSoftwareEnvironment:
                         observation_text=f"[OBSERVATION: Task incomplete: {details}. Continue working.]",
                         stderr=details,
                         return_code=1,
+                        verified_completion=False,
                     )
             else:
                 obs = EnvironmentObservation(
                     action_type="FINISH",
-                    success=True,
-                    observation_text=f"[OBSERVATION: Model reported completion. Summary: {summary}]",
+                    success=False,
+                    observation_text=f"[OBSERVATION: Task completion requires an external task validator. None configured. Summary: {summary}]",
+                    stderr="No external validator configured",
+                    return_code=1,
+                    verified_completion=False,
                 )
 
         # Unknown / Unparsable Action
@@ -388,6 +394,8 @@ class NeuralSoftwareEnvironment:
                 )
                 out = proc.stdout.strip()
                 err = proc.stderr.strip()
+                out = re.sub(r" in \d+\.\d+s", " in 0.00s", out)
+                err = re.sub(r" in \d+\.\d+s", " in 0.00s", err)
                 if proc.returncode != 0:
                     overall_success = False
                     exit_code = proc.returncode

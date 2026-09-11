@@ -1,0 +1,108 @@
+{
+  "gate_status": "PENDING_ASSERTIONS",
+  "provenance": {
+    "model_tier": "tier1_3m",
+    "parameters": 1028001,
+    "fast_state_bytes": 4096,
+    "logical_slots": 16,
+    "width": 64,
+    "pointer_copy": false,
+    "weights_origin": "trained_from_scratch_on_multi_task_reference_demonstrations",
+    "tokenizer_sha256": "356a17fa207dde0b948b1e33e9d629bb2bb2eec95097792a913f52622ccf28d3",
+    "git_commit_sha": "ddca082d7e4f59ee7820163068c89e2ac64414e4",
+    "champion_status": "NO. The 34.37M champion model was NOT retrained or reevaluated in this run. Champion standing remains 0/48."
+  },
+  "evaluator_controls": {
+    "correct_workspace_and_finish": true,
+    "incorrect_workspace_and_finish_rejected": true,
+    "finish_without_validator_rejected": true,
+    "write_file_not_verified_completion": true
+  },
+  "task_a_routing_on": {
+    "success": false,
+    "stop_reason": "action_pad",
+    "cycles": 1,
+    "evidence": {
+      "valid": false,
+      "first_failure_cycle": null,
+      "mutation_cycle": null,
+      "pass_after_mutation_cycle": null,
+      "verified_finish_cycle": null
+    },
+    "fabricated_tokens": 1,
+    "trace": [
+      {
+        "cycle": 1,
+        "generated_token_ids": [],
+        "decoded_raw_text": "",
+        "environment_action_text": null,
+        "executed_text": null,
+        "raw_action": "",
+        "transformation_applied": "unparsed_prefix_wrap",
+        "actual_terminal_token_id": 0,
+        "token_ids": [],
+        "generation_stop": "pad",
+        "executed": false,
+        "state_bytes": 4096,
+        "feedback": null
+      }
+    ],
+    "final_files": {
+      "math_utils.py": "def add(a: int, b: int) -> int:\n    return a - b  # Bug\n",
+      "test_math.py": "from math_utils import add\ndef test_add():\n    assert add(2, 3) == 5\n    assert add(-2, 3) == 1\n    assert add(0, 0) == 0\n"
+    }
+  },
+  "task_a_routing_off": {
+    "success": false,
+    "stop_reason": "action_pad",
+    "cycles": 1,
+    "trace": [
+      {
+        "cycle": 1,
+        "generated_token_ids": [],
+        "decoded_raw_text": "",
+        "environment_action_text": null,
+        "executed_text": null,
+        "raw_action": "",
+        "transformation_applied": "unparsed_prefix_wrap",
+        "actual_terminal_token_id": 0,
+        "token_ids": [],
+        "generation_stop": "pad",
+        "executed": false,
+        "state_bytes": 4096,
+        "feedback": null
+      }
+    ],
+    "final_files": {
+      "math_utils.py": "def add(a: int, b: int) -> int:\n    return a - b  # Bug\n",
+      "test_math.py": "from math_utils import add\ndef test_add():\n    assert add(2, 3) == 5\n    assert add(-2, 3) == 1\n    assert add(0, 0) == 0\n"
+    }
+  },
+  "routing_claim": "For this checkpoint and task, routed success=False, unrouted success=False.",
+  "generalization_suite": {
+    "Task B (multiply repair)": {
+      "success": false,
+      "stop_reason": "action_pad",
+      "cycles": 1,
+      "passed": false
+    },
+    "Task C (is_even repair)": {
+      "success": false,
+      "stop_reason": "action_pad",
+      "cycles": 1,
+      "passed": false
+    },
+    "Task D (already correct)": {
+      "success": false,
+      "stop_reason": "action_pad",
+      "cycles": 1,
+      "passed": false
+    },
+    "Task E (syntax repair)": {
+      "success": false,
+      "stop_reason": "action_pad",
+      "cycles": 1,
+      "passed": false
+    }
+  }
+}
