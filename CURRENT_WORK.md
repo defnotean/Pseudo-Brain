@@ -1,59 +1,47 @@
 # CURRENT_WORK — ACTIVE FRONTIER
 
-## Latest remote outcome: broader matched training v2 COMPLETE; TOOL EVALUATION LIVE
+### Latest remote outcome: broad matched training v2 AND full autonomous evaluation COMPLETE
 
-NEWEST OBSERVATION: Both models completed 7896/7896 updates on Colab A100.
-- Recurrent: 7896 updates in 507.47s, final checkpoint `checkpoint-7896-trained.pt`
-  SHA256 `fdd8e2f9c69ddc0ceb13e0b01a2c04680224466b5448ac5ce7b466f49cd64439`.
-  Parity errors across lengths 31/257/2049: 3.997e-14 / 4.263e-14 / 7.105e-14, state 4096B.
-  Dev NLL: policy 0.909->0.738, reasoning 3.120->2.854, code 2.739->2.562, language 4.726->4.618.
-- Transformer: 7896 updates in 283.97s, final checkpoint `checkpoint-7896-trained.pt`
-  SHA256 `104364668c3a090859097a21c9cfb1aa0f31a38fe88d0f197838b7fef137b18a`.
-  Dev NLL: policy 0.810->0.663, reasoning 3.067->2.808, code 2.673->2.526, language 4.700->4.601.
-- Training audit: `training-audit.json` PASSED, zero updates during audit, all checks complete.
-- Training evidence archive: `/content/pb-broad-policy-training-v2-r0/training-evidence.zip`
-  (517,485,101 bytes, SHA256 `828571510aa0404e588d440b01c381e37570b1689ac7b3e400d5a63cd0198ce1`).
-- Eligible checkpoint binding: PASSED on CPU, `eligible-checkpoint-binding.json` written.
-- LIVE HANDLE `_broad_policy_tool_evaluation_process`, PID 173052 running `run_broad_tool_policy_pair_v2.py`
-  evaluating 48 cases/model at `/content/pb-broad-policy-evaluation-v2-r0/tool-evaluation`.
+ALL EVALUATIONS TERMINAL 0 ON COLAB A100. Durable evidence downloaded, hash-verified, and extracted locally.
 
-Evaluation preparation now COMPLETE on Colab at
-`/content/pb-broad-policy-evaluation-v2-r0`. No generation yet. New resolver/tool
-wrapper/controllers registered in broad_policy_v2_evaluation_registration.md.
-Original tool rollout src and retention-v1-r1 brain tree copied byte-for-byte;
-CPU scope assertions prove controller differences limited to resolver/manifest,
-wrapper command and tool trainseed1987. All3CLIimports passed; resolver rejected
-actual old completed policy-r2 run and actual new native-preflight run. Eligible
-positive binding waits for BOTH full training actors to finish, never partial.
-Eval source1881c08707ee9bdc23a161e06bd2eabd3f2915d19fe94356c1254a86d5f38f40.
-CPUpreflight report9d498bca3a570ce0d0cf20edeb7a59b6c1b22825dbf727b1c757b75ed06c9884.
-Archive1769582B/397files SHA
-3a0a6fd9312e6ac7c3b5c5ccd346de43a8b421c661c6c1c675059b676b7da51c,
-downloaded/hashverified/extracted under
-brain/runs/broad-policy-evaluation-20260911-v2/r0-preflight/source-and-preflight.
-Outputs broad-policy-evaluation-preflight.json.
+### 1. Training & Parity Audit Summary (7,896 updates / model)
+- **Recurrent Arm** (`fdd8e2f9c69ddc0ceb13e0b01a2c04680224466b5448ac5ce7b466f49cd64439`):
+  - Completed all 7,896 updates in 507.47s.
+  - Parity errors: 31 tokens = 3.997e-14, 257 tokens = 4.263e-14, 2049 tokens = 7.105e-14.
+  - Recurrent state footprint: strictly 4,096 bytes (Law 1 preserved).
+  - Dev NLL: policy 0.909 -> 0.738, reasoning 3.120 -> 2.854, code 2.739 -> 2.562, language 4.726 -> 4.618.
+- **Transformer Arm** (`104364668c3a090859097a21c9cfb1aa0f31a38fe88d0f197838b7fef137b18a`):
+  - Completed all 7,896 updates in 283.97s.
+  - Dev NLL: policy 0.810 -> 0.663, reasoning 3.067 -> 2.808, code 2.673 -> 2.526, language 4.700 -> 4.601.
+- **Evidence Archive**: `/content/pb-broad-policy-training-v2-r0/training-evidence.zip`
+  (517,485,101 bytes, SHA256 `828571510aa0404e588d440b01c381e37570b1689ac7b3e400d5a63cd0198ce1`). Receipts downloaded locally.
 
-NEW helper ready sequence after training terminal:
-1. work/colab_audit_broad_policy_training_v2.py (needs complete pair; not run yet).
-   audit_broad_policy_training_v2.py already uploaded/content; no model updates.
-   Audits all7896actual update logs/model against exact schedule, full counts,
-   finite losses/gradients/LR, exact initialdev vs priorfinal, all24+1536finaldev
-   identities/counts/NLL. Saves training/training-audit.json and includes auditor.
-2. work/colab_archive_broad_policy_training_v2.py (terminal complete/incomplete,
-   not run yet) preserves every actual3948/7896checkpoint plus allsources/logs;
-   zip /content/pb-broad-policy-training-v2-r0/training-evidence.zip. Download and
-   hashverify receipt afterward. For incomplete training archive, no evaluation.
-3. work/colab_launch_broad_tool_evaluation_v2.py (CREATE-ONLY NOTRUN) verifiesboth
-   final bindings onCPU then launches `_broad_policy_tool_evaluation_process` at
-   evalroot/tool-evaluation.48cases/model, unchanged fullrun/scoring.
-4. Once toolhandle terminal, work/colab_launch_broad_retention_v2.py (NOTRUN)
-   launches `_broad_policy_retention_process`, evalroot/retention, original
-   32HumanEval/32GSM8Kperactor, request-only generation then separate scoring.
-Status helper work/colab_broad_policy_evaluation_status.py, checks actualhandles.
-work/colab_archive_broad_evaluation_preflight_v2.py alreadyran, safe-rechecks.
-work/colab_prepare_broad_policy_evaluation_v2.py CREATE-ONLY ALREADYRAN.
-No training/evaluation source mutations after freezing. Resolver now imports
-digest from evaluate_tool_policy, avoiding unnecessary training dependencies.
+### 2. Autonomous Broad Tool Policy Evaluation (48 tasks / model)
+- **Recurrent Model** (367.46s):
+  - 48/48 recorded (0 missing).
+  - 384 actions executed, 374 recognized verbs (97.4%: 156 READ_FILE, 68 WRITE_FILE, 103 RUN_TESTS, 47 EDIT_FILE, 10 UNKNOWN).
+  - 183 successful environment actions.
+  - 0/48 completions (cycle_limit reached on 48/48; 0 observed repairs).
+- **Transformer Model** (597.80s):
+  - 48/48 recorded (0 missing).
+  - 315 actions executed, 296 recognized verbs (94.0%: 122 READ_FILE, 63 WRITE_FILE, 73 RUN_TESTS, 38 EDIT_FILE, 19 UNKNOWN).
+  - 178 successful environment actions.
+  - 0/48 completions (29 cycle_limit, 19 action_token_limit; 0 observed repairs).
+- **Evidence Archive**: `tool-evaluation-evidence.zip` (2,011,554 bytes, SHA256 `5ad5fc2a1ce3b98ee176ef9cda8991d48cc63a31c3365830a7b87e937e130b4c`), extracted under `brain/runs/broad-policy-evaluation-20260911-v2/tool-evaluation-evidence`.
+
+### 3. Foundation Retention Benchmark (64 tasks / model)
+- **Recurrent Model** (289.56s gen, 4.57s score):
+  - HumanEval (Pass@1): 0/32 correct (0 missing).
+  - GSM8K (Reasoning): **1/32 correct** (0 missing; matches V4 reference foundation baseline: 1/32).
+- **Transformer Model** (213.18s gen, 4.62s score):
+  - HumanEval (Pass@1): 0/32 correct (0 missing).
+  - GSM8K (Reasoning): 0/32 correct (0 missing; matches V4 reference foundation baseline: 0/32).
+- **Evidence Archive**: `retention-evidence.zip` (1,791,160 bytes, SHA256 `03079608232a2dcebc3055a04c7d1135afcff2a3aae120f9e8ff8e20abc69206`), extracted under `brain/runs/broad-policy-evaluation-20260911-v2/retention-evidence`.
+
+### 4. Key Architectural Diagnosis & Next Frontier
+- The broad policy mixture successfully improved dev NLL across all domains (policy, reasoning, code, language) and maintained high tool verb validity (>94%), but end-to-end task completion remained 0/48.
+- Causal analysis confirms that `allow_routing=False` was hardcoded in `recurrent_software_agent.py`, isolating Slot 0 as the sole driver of text decoding while thought slots 1-15 and episodic retrieval are completely discarded.
+- Immediate next frontier: re-enable and calibrate multi-slot routing and episodic memory integration in the recurrent agent without destabilizing autoregressive generation, and capture natural failure -> repair trajectories.
 
 Read-only initial identity check already passed for recurrent: parsed full24policy
 and1536foundation initial score JSON equals previous policy-r2 final values,
