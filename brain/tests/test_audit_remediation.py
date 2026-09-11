@@ -162,3 +162,166 @@ def test_forward_sequence_sequential_parity():
 
         diff = (seq_out["logits"] - manual_logits).abs().max().item()
         assert diff < 1e-6, f"Sequential unrolling discrepancy: {diff}"
+
+
+def test_forced_terminal_tokens_eos_pad_sep():
+    """Verify explicit terminal token handling: PAD and SEP must NOT be converted to EOS."""
+    model = make_unified_model(tier="tier1_3m", vocab_size=1000)
+    agent = RecurrentSoftwareAgent(model=model)
+
+    eos_id = agent.tokenizer.eos_id
+    pad_id = agent.tokenizer.pad_id
+    sep_id = agent.tokenizer.sep_id
+
+    # 1. Forced EOS: stop_reason must be 'eos' and actual_terminal_token_id must be eos_id
+    agent.generate_text_autoregressive = lambda *args, **kwargs: GenerationResult(
+        text="ACTION: FINISH done",
+        token_ids=[10, 20],
+        stop_reason="eos",
+        actual_terminal_token_id=eos_id,
+    )
+    res_eos = agent.generate_action_autoregressive()
+    assert res_eos.stop_reason == "eos"
+    assert res_eos.actual_terminal_token_id == eos_id
+
+    # 2. Forced PAD: stop_reason must be 'pad', NOT 'eos'
+    agent.generate_text_autoregressive = lambda *args, **kwargs: GenerationResult(
+        text="ACTION: WRITE_FILE foo.py",
+        token_ids=[10, 20],
+        stop_reason="pad",
+        actual_terminal_token_id=pad_id,
+    )
+    res_pad = agent.generate_action_autoregressive()
+    assert res_pad.stop_reason == "pad"
+    assert res_pad.actual_terminal_token_id == pad_id
+
+    # In execute_episode, PAD must halt without execution
+    class DummyEnv:
+        def execute_action(self, a):
+            raise AssertionError("Environment must NOT be called for PAD cutoff!")
+
+    ep_pad = agent.execute_episode("Task: foo\nTarget: foo.py", DummyEnv(), max_cycles=2)
+    assert ep_pad.success is False
+    assert ep_pad.stop_reason == "action_pad"
+    assert ep_pad.trace[0]["executed"] is False
+    assert ep_pad.trace[0]["actual_terminal_token_id"] == pad_id
+
+    # 3. Forced SEP: stop_reason must be 'sep', NOT 'eos'
+    agent.generate_text_autoregressive = lambda *args, **kwargs: GenerationResult(
+        text="ACTION: WRITE_FILE foo.py",
+        token_ids=[10, 20],
+        stop_reason="sep",
+        actual_terminal_token_id=sep_id,
+    )
+    res_sep = agent.generate_action_autoregressive()
+    assert res_sep.stop_reason == "sep"
+    assert res_sep.actual_terminal_token_id == sep_id
+
+    ep_sep = agent.execute_episode("Task: foo\nTarget: foo.py", DummyEnv(), max_cycles=2)
+    assert ep_sep.success is False
+    assert ep_sep.stop_reason == "action_sep"
+    assert ep_sep.trace[0]["executed"] is False
+    assert ep_sep.trace[0]["actual_terminal_token_id"] == sep_id
+
+
+def test_raw_vs_executed_action_decoupling():
+    """Verify raw decoded text and executed text are strictly separated."""
+    model = make_unified_model(tier="tier1_3m", vocab_size=1000)
+    agent = RecurrentSoftwareAgent(model=model)
+
+    raw_output = "ACTION: WRITE_FILE\ndef solve(): return 42"
+
+    # Unassisted mode (raw policy benchmark)
+    agent.generate_text_autoregressive = lambda *args, **kwargs: GenerationResult(
+        text=raw_output,
+        token_ids=[101, 102],
+        stop_reason="eos",
+        actual_terminal_token_id=agent.tokenizer.eos_id,
+    )
+
+    unassisted_res = agent.generate_action_autoregressive(
+        target_module="solution.py",
+        allow_assisted_transformations=False,
+    )
+    assert unassisted_res.decoded_raw_text == raw_output
+    assert unassisted_res.executed_text == raw_output
+    assert unassisted_res.transformation_applied is None
+
+    # Assisted mode: target module insertion permitted but explicitly recorded
+    assisted_res = agent.generate_action_autoregressive(
+        target_module="solution.py",
+        allow_assisted_transformations=True,
+    )
+    assert assisted_res.decoded_raw_text == raw_output
+    assert "solution.py" in assisted_res.executed_text
+    assert assisted_res.transformation_applied == "target_module_binding"
+
+    # Verify trace entries preserve all 5 audit fields
+    class RecordingEnv:
+        def __init__(self):
+            self.actions = []
+        def execute_action(self, a):
+            self.actions.append(a)
+            return EnvironmentObservation("UNKNOWN", False, "unrecognized")
+
+    env = RecordingEnv()
+    ep_res = agent.execute_episode(
+        "Task: solve problem\nTarget: solution.py",
+        env,
+        max_cycles=1,
+        allow_assisted_transformations=False,
+    )
+    entry = ep_res.trace[0]
+    assert "generated_token_ids" in entry
+    assert "decoded_raw_text" in entry
+    assert "executed_text" in entry
+    assert "transformation_applied" in entry
+    assert "actual_terminal_token_id" in entry
+    assert entry["decoded_raw_text"] == raw_output
+    assert entry["executed_text"] == raw_output
+    assert entry["transformation_applied"] is None
+
+
+def test_parallel_forward_routing_fail_fast():
+    """Verify that parallel=True raises ValueError when routing or thread_seq is requested."""
+    model = make_unified_model(tier="tier1_3m", vocab_size=500, use_routing=True)
+    tokens = torch.randint(1, 500, (1, 8))
+
+    # allow_routing=True with parallel=True must fail fast
+    with pytest.raises(ValueError, match="Parallel sequence forward does not support dynamic slot routing"):
+        model(tokens, allow_routing=True, parallel=True)
+
+    # thread_seq with parallel=True must fail fast
+    thread_seq = torch.zeros((1, 8), dtype=torch.long)
+    with pytest.raises(ValueError, match="Parallel sequence forward does not support dynamic slot routing"):
+        model(tokens, thread_seq=thread_seq, parallel=True)
+
+
+def test_full_task_prompt_ingestion_into_slot_1():
+    """Verify that the full task specification is ingested into Slot 1 recurrent memory."""
+    model = make_unified_model(tier="tier1_3m", vocab_size=1000)
+    agent = RecurrentSoftwareAgent(model=model)
+
+    class DummyEnv:
+        def execute_action(self, a):
+            return EnvironmentObservation("FINISH", True, "done")
+
+    agent.generate_action_autoregressive = lambda *args, **kwargs: GenerationResult(
+        text="ACTION: FINISH done",
+        token_ids=[1, 2],
+        stop_reason="eos",
+        actual_terminal_token_id=agent.tokenizer.eos_id,
+    )
+
+    prompt = (
+        "Task: Complex arithmetic\n"
+        "Target: math_ops.py\n"
+        "Detailed specification: The function must handle negative numbers, "
+        "overflow protection, and return float precision with epsilon=1e-7."
+    )
+
+    agent.execute_episode(prompt, DummyEnv(), max_cycles=1)
+
+    # Slot 1 must not be zero: it has ingested the detailed specification
+    slot_1_state = agent.cognitive_state.hierarchical_state.working_thoughts[0, 1]
+    assert slot_1_state.norm().item() > 0.01, "Slot 1 must have ingested task specification!"

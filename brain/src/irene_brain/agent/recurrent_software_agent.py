@@ -56,17 +56,35 @@ class GenerationResult(str):
     """Structured outcome of autoregressive recurrent generation.
 
     Subclasses str for 100% backward compatibility with string operations
-    while preserving authentic emitted token IDs and verified stop reason.
+    while preserving authentic emitted token IDs, actual terminal token ID,
+    decoded raw text, executed text, transformation provenance, and verified stop reason.
     """
     text: str
     token_ids: List[int]
     stop_reason: str
+    actual_terminal_token_id: Optional[int]
+    decoded_raw_text: str
+    executed_text: str
+    transformation_applied: Optional[str]
 
-    def __new__(cls, text: str, token_ids: List[int], stop_reason: str):
+    def __new__(
+        cls,
+        text: str,
+        token_ids: List[int],
+        stop_reason: str,
+        actual_terminal_token_id: Optional[int] = None,
+        decoded_raw_text: Optional[str] = None,
+        executed_text: Optional[str] = None,
+        transformation_applied: Optional[str] = None,
+    ):
         obj = str.__new__(cls, text)
         obj.text = text
         obj.token_ids = list(token_ids)
         obj.stop_reason = stop_reason
+        obj.actual_terminal_token_id = actual_terminal_token_id
+        obj.decoded_raw_text = text if decoded_raw_text is None else decoded_raw_text
+        obj.executed_text = text if executed_text is None else executed_text
+        obj.transformation_applied = transformation_applied
         return obj
 
 
@@ -81,9 +99,11 @@ class RecurrentSoftwareAgent:
         vocab_size: int = 32000,
         device: Optional[torch.device] = None,
         allow_routing: bool = True,
+        allow_assisted_transformations: bool = False,
     ):
         self.device = device or torch.device("cpu")
         self.allow_routing = allow_routing
+        self.allow_assisted_transformations = allow_assisted_transformations
         self.checkpoint_loaded = False
         self.active_checkpoint: Optional[str] = None
         tokenizer_json = None
@@ -186,11 +206,20 @@ class RecurrentSoftwareAgent:
                     last_logits = outputs["logits"][0]
 
         if last_logits is None:
-            return GenerationResult("", [0], "token_limit")
+            return GenerationResult(
+                text="",
+                token_ids=[0],
+                stop_reason="token_limit",
+                actual_terminal_token_id=None,
+                decoded_raw_text="",
+                executed_text="",
+                transformation_applied=None,
+            )
 
         gen_tokens: List[int] = []
         syntax_exempt = set(self.tokenizer.encode(" \n\t_():=,.-'\"[]{}0123456789") or [])
         stop_reason = "token_limit"
+        actual_terminal_token_id: Optional[int] = None
 
         with torch.no_grad():
             for _ in range(max_new_tokens):
@@ -208,8 +237,18 @@ class RecurrentSoftwareAgent:
                     probs = torch.softmax(step_logits / temperature, dim=-1)
                     next_tok = int(torch.multinomial(probs, num_samples=1).item())
 
-                if next_tok in (self.tokenizer.eos_id, self.tokenizer.pad_id, self.tokenizer.sep_id):
+                # Explicit handling of terminal tokens: never conflate PAD or SEP with EOS!
+                if next_tok == self.tokenizer.eos_id:
                     stop_reason = "eos"
+                    actual_terminal_token_id = next_tok
+                    break
+                elif next_tok == self.tokenizer.pad_id:
+                    stop_reason = "pad"
+                    actual_terminal_token_id = next_tok
+                    break
+                elif next_tok == self.tokenizer.sep_id:
+                    stop_reason = "sep"
+                    actual_terminal_token_id = next_tok
                     break
 
                 gen_tokens.append(next_tok)
@@ -229,11 +268,20 @@ class RecurrentSoftwareAgent:
                     break
 
         # ONLY ingest [EOS] if the generation stopped due to natural [EOS]!
+        # Do NOT ingest [EOS] on PAD, SEP, token_limit, or repetition_cutoff!
         if stop_reason == "eos":
             self._ingest_text_into_slot("[EOS]", slot_id=slot_id)
 
         candidate = self.tokenizer.decode(gen_tokens, skip_special=True).strip()
-        return GenerationResult(candidate, gen_tokens, stop_reason)
+        return GenerationResult(
+            text=candidate,
+            token_ids=gen_tokens,
+            stop_reason=stop_reason,
+            actual_terminal_token_id=actual_terminal_token_id,
+            decoded_raw_text=candidate,
+            executed_text=candidate,
+            transformation_applied=None,
+        )
 
     def generate_action_autoregressive(
         self,
@@ -242,39 +290,75 @@ class RecurrentSoftwareAgent:
         max_new_tokens: int = 256,
         temperature: float = 0.0,
         target_module: Optional[str] = None,
+        allow_assisted_transformations: bool = False,
     ) -> GenerationResult:
-        """Decode a policy action without converting invalid output into success."""
+        """Decode a policy action without converting invalid output into success.
+
+        When allow_assisted_transformations is False (raw policy benchmark mode):
+            Zero assistance is applied. No module name insertion, no regex patching.
+            The raw text and executed text are strictly identical.
+
+        When allow_assisted_transformations is True:
+            Formatting adaptation may be applied, and transformation_applied records
+            the exact assistance applied.
+        """
         gen_res = self.generate_text_autoregressive(
             slot_id=slot_id, prompt_prefix=prompt_prefix,
             max_new_tokens=max_new_tokens, temperature=temperature,
         )
-        candidate = gen_res.text
-        # Normalize minor tokenization boundary artifacts (e.g. WRITE_:FILE -> WRITE_FILE)
-        candidate = candidate.replace("WRITE_:FILE", "WRITE_FILE ")
-        candidate = re.sub(r"^ACTION:\s*([A-Z_]+)", r"ACTION: \1", candidate)
+        raw_text = gen_res.text
+        transformation: Optional[str] = None
+        executed_text = raw_text
 
-        # If generated action starts with a recognized actuator verb, use it directly
-        valid_verbs = ("READ_FILE", "WRITE_FILE", "EDIT_FILE", "RUN_TESTS", "RETRIEVE_MEMORY", "FINISH")
-        parts = candidate.split()
-        if len(parts) >= 2 and parts[1] in valid_verbs:
-            verb = parts[1]
-            if verb == "WRITE_FILE" and target_module:
-                # If model emitted code but target module name had formatting artifact, ensure target module is bound
-                first_line, sep, body = candidate.partition("\n")
-                if not sep:
-                    m_code = re.search(r"(def\s+|class\s+|return\s+)", candidate)
-                    if m_code:
-                        code = candidate[m_code.start():]
-                        candidate = f"ACTION: WRITE_FILE {target_module}\n{code}"
-                elif not first_line.replace("ACTION: WRITE_FILE", "").strip().endswith(".py"):
-                    candidate = f"ACTION: WRITE_FILE {target_module}\n{body}"
-            action_text = candidate
-        elif candidate.startswith("ACTION: "):
-            action_text = candidate
+        if allow_assisted_transformations:
+            candidate = raw_text
+            if "WRITE_:FILE" in candidate:
+                candidate = candidate.replace("WRITE_:FILE", "WRITE_FILE ")
+                transformation = "colon_typo_fix"
+
+            candidate = re.sub(r"^ACTION:\s*([A-Z_]+)", r"ACTION: \1", candidate)
+
+            # If generated action starts with a recognized actuator verb, use it directly
+            valid_verbs = ("READ_FILE", "WRITE_FILE", "EDIT_FILE", "RUN_TESTS", "RETRIEVE_MEMORY", "FINISH")
+            parts = candidate.split()
+            if len(parts) >= 2 and parts[1] in valid_verbs:
+                verb = parts[1]
+                if verb == "WRITE_FILE" and target_module:
+                    # If model emitted code but target module name had formatting artifact, ensure target module is bound
+                    first_line, sep, body = candidate.partition("\n")
+                    if not sep:
+                        m_code = re.search(r"(def\s+|class\s+|return\s+)", candidate)
+                        if m_code:
+                            code = candidate[m_code.start():]
+                            candidate = f"ACTION: WRITE_FILE {target_module}\n{code}"
+                            transformation = "target_module_reconstruction"
+                    elif not first_line.replace("ACTION: WRITE_FILE", "").strip().endswith(".py"):
+                        candidate = f"ACTION: WRITE_FILE {target_module}\n{body}"
+                        transformation = "target_module_binding"
+                executed_text = candidate
+            elif candidate.startswith("ACTION: "):
+                executed_text = candidate
+            else:
+                executed_text = f"ACTION: UNPARSED {candidate}"
+                transformation = "unparsed_prefix_wrap"
         else:
-            action_text = f"ACTION: UNPARSED {candidate}"
+            # Raw benchmark: zero heuristic rewriting of verbs or target modules
+            if raw_text.startswith("ACTION: "):
+                executed_text = raw_text
+                transformation = None
+            else:
+                executed_text = f"ACTION: UNPARSED {raw_text}"
+                transformation = "unparsed_prefix_wrap"
 
-        return GenerationResult(action_text, gen_res.token_ids, gen_res.stop_reason)
+        return GenerationResult(
+            text=executed_text,
+            token_ids=gen_res.token_ids,
+            stop_reason=gen_res.stop_reason,
+            actual_terminal_token_id=gen_res.actual_terminal_token_id,
+            decoded_raw_text=raw_text,
+            executed_text=executed_text,
+            transformation_applied=transformation,
+        )
 
     def execute_pomdp_episode(
         self,
@@ -421,10 +505,14 @@ class RecurrentSoftwareAgent:
         max_action_tokens: int = 512,
         max_observation_tokens: int = 4096,
         max_prompt_tokens: int = 4096,
+        allow_assisted_transformations: Optional[bool] = None,
     ) -> Any:
         """Execute episode adhering to the audited tool policy evaluation protocol."""
         from dataclasses import asdict
         from irene_brain.agent.parallel_depth_episode import ParallelEpisodeResult
+
+        if allow_assisted_transformations is None:
+            allow_assisted_transformations = getattr(self, "allow_assisted_transformations", False)
 
         for value in (max_cycles, max_action_tokens, max_observation_tokens, max_prompt_tokens):
             if type(value) is not int or value < 1:
@@ -433,12 +521,6 @@ class RecurrentSoftwareAgent:
             raise ValueError("A nonempty initial task prompt is required")
 
         self.reset()
-        prompt_tokens = self.tokenizer.encode(initial_prompt) or [0]
-        if len(prompt_tokens) > max_prompt_tokens:
-            raise ValueError("Initial prompt exceeds the registered token limit")
-
-        self.active_prompt_tokens = prompt_tokens
-        prompt_sha = hashlib.sha256(initial_prompt.encode()).hexdigest()
 
         # Extract target module, target function, and goal if present
         targets = re.findall(r"^Target: (.+)$", initial_prompt, re.MULTILINE)
@@ -462,24 +544,44 @@ class RecurrentSoftwareAgent:
 
         header = task_header(goal, target_function, target_module)
         conditioned_prompt = f"{header}\n{initial_prompt}"
-        self.active_prompt_tokens = self.tokenizer.encode(conditioned_prompt) or prompt_tokens
 
-        # Ingest task header into Slot 0
+        # Enforce prompt limit against the actual full conditioned prompt
+        conditioned_tokens = self.tokenizer.encode(conditioned_prompt) or [0]
+        if len(conditioned_tokens) > max_prompt_tokens:
+            raise ValueError("Conditioned prompt exceeds the registered token limit")
+
+        self.active_prompt_tokens = conditioned_tokens
+        prompt_sha = hashlib.sha256(conditioned_prompt.encode()).hexdigest()
+
+        # Ingest goal header into Slot 0 (Goal Intent)
         self._ingest_text_into_slot(header, slot_id=0)
+
+        # Ingest full task specification into Slot 1 (Perception/World Model)
+        # Ensures recurrent core receives every constraint and instruction needed to solve the task!
+        self._ingest_text_into_slot(initial_prompt, slot_id=1)
 
         trace = []
         for cycle in range(max_cycles):
             action_res = self.generate_action_autoregressive(
-                slot_id=0, prompt_prefix="[RESP]", max_new_tokens=max_action_tokens, target_module=target_module
+                slot_id=0,
+                prompt_prefix="[RESP]",
+                max_new_tokens=max_action_tokens,
+                target_module=target_module,
+                allow_assisted_transformations=allow_assisted_transformations,
             )
             state_bytes = self.cognitive_state.hierarchical_state.fast_state_bytes()
 
             if action_res.stop_reason != "eos":
-                # Incomplete action generated (token limit or repetition cutoff).
+                # Incomplete action generated (token limit, repetition cutoff, pad, or sep).
                 # Reject action: DO NOT execute in the environment! DO NOT fabricate EOS!
                 entry = {
                     "cycle": cycle + 1,
-                    "raw_action": action_res.text,
+                    "generated_token_ids": action_res.token_ids,
+                    "decoded_raw_text": action_res.decoded_raw_text,
+                    "executed_text": None,
+                    "raw_action": action_res.decoded_raw_text,
+                    "transformation_applied": action_res.transformation_applied,
+                    "actual_terminal_token_id": action_res.actual_terminal_token_id,
                     "token_ids": action_res.token_ids,
                     "generation_stop": action_res.stop_reason,
                     "executed": False,
@@ -490,11 +592,16 @@ class RecurrentSoftwareAgent:
                 stop_reason = f"action_{action_res.stop_reason}"
                 return ParallelEpisodeResult(False, stop_reason, len(trace), state_bytes, prompt_sha, tuple(trace))
 
-            action = action_res.text
+            action = action_res.executed_text
             feedback = environment.execute_action(action)
             entry = {
                 "cycle": cycle + 1,
+                "generated_token_ids": action_res.token_ids,
+                "decoded_raw_text": action_res.decoded_raw_text,
+                "executed_text": action,
                 "raw_action": action,
+                "transformation_applied": action_res.transformation_applied,
+                "actual_terminal_token_id": action_res.actual_terminal_token_id,
                 "token_ids": action_res.token_ids,
                 "generation_stop": "eos",
                 "executed": True,
@@ -507,11 +614,12 @@ class RecurrentSoftwareAgent:
                 return ParallelEpisodeResult(True, "verified_completion", len(trace), state_bytes, prompt_sha, tuple(trace))
 
             obs_text = getattr(feedback, "observation_text", str(feedback))
+            transition = observation_transition(feedback, target_module)
             obs_tokens = self.tokenizer.encode(obs_text) or [0]
-            if len(obs_tokens) > max_observation_tokens:
+            trans_tokens = self.tokenizer.encode(transition) or [0]
+            if len(obs_tokens) > max_observation_tokens or len(trans_tokens) > max_observation_tokens:
                 return ParallelEpisodeResult(False, "observation_token_limit", len(trace), state_bytes, prompt_sha, tuple(trace))
 
-            transition = observation_transition(feedback, target_module)
             self._ingest_text_into_slot(transition, slot_id=0)
             self._ingest_text_into_slot(obs_text, slot_id=1)
             self._ingest_text_into_slot(f"[ACTION_TAKEN: {feedback.action_type}]", slot_id=3)

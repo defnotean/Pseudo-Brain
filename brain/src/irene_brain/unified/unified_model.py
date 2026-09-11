@@ -984,6 +984,13 @@ class UnifiedPseudoBrain(nn.Module):
         thread_seq: Optional[Tensor] = None,
     ) -> Dict[str, Tensor]:
         """Unified forward pass."""
+        if (allow_routing or thread_seq is not None) and parallel:
+            raise ValueError(
+                "Parallel sequence forward does not support dynamic slot routing (allow_routing=True) "
+                "or per-token thread sequences (thread_seq is not None). Incompatible request: "
+                "specify parallel=False (forward_sequence_sequential) for routed execution."
+            )
+
         if parallel and (token_seq is not None or pixel_seq is not None):
             return self.forward_sequence_parallel(
                 token_seq=token_seq,

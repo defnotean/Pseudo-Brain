@@ -56,6 +56,9 @@ def aggregate(plan: list, results: list) -> dict:
     stop_reasons = Counter(row["episode"]["stop_reason"] for row in results)
     stop_reasons["missing"] = len(keys) - len(results)
     events = [event for row in results for event in row["events"]]
+    trace_entries = [entry for row in results for entry in row.get("episode", {}).get("trace", [])]
+    unexecuted = sum(1 for entry in trace_entries if not entry.get("executed", True))
+    assisted_count = sum(1 for entry in trace_entries if entry.get("transformation_applied"))
 
     return {
         "planned_tasks": len(keys),
@@ -65,10 +68,13 @@ def aggregate(plan: list, results: list) -> dict:
         "observed_repairs": sum(row["observed_repair"] for row in results),
         "completion_rate": sum(row["success"] for row in results) / len(keys) if keys else 0.0,
         "repair_rate": sum(row["observed_repair"] for row in results) / len(keys) if keys else 0.0,
-        "stop_reasons": dict(stop_reasons),
+        "total_generated_attempts": len(trace_entries),
+        "rejected_unexecuted_attempts": unexecuted,
         "executed_actions": len(events),
         "recognized_action_verbs": sum(event["action_type"] in VERBS for event in events),
         "successful_environment_actions": sum(event["success"] for event in events),
+        "assisted_transformations_count": assisted_count,
+        "stop_reasons": dict(stop_reasons),
         "action_types": dict(Counter(event["action_type"] for event in events)),
         "conditions": {
             mode: {
@@ -89,6 +95,7 @@ def main():
     parser.add_argument("--output", type=Path, required=True, help="Output directory for results")
     parser.add_argument("--allow-routing", action="store_true", default=True, help="Enable multi-slot routing and episodic fusion")
     parser.add_argument("--no-routing", dest="allow_routing", action="store_false", help="Disable routing (ablation baseline)")
+    parser.add_argument("--assisted", action="store_true", default=False, help="Enable assisted action transformations (formatting adaptation and target binding)")
     parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--max-tasks", type=int, default=None, help="Limit number of tasks (for quick testing)")
     args = parser.parse_args()
@@ -105,8 +112,16 @@ def main():
     if tok_digest != TOKENIZER_HASH:
         raise ValueError(f"Tokenizer digest mismatch: {tok_digest} != {TOKENIZER_HASH}")
 
+    # Resolve git commit
+    try:
+        import subprocess
+        git_commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=Path(__file__).resolve().parent).decode().strip()
+    except Exception:
+        git_commit = "unknown"
+
     device = torch.device(args.device)
-    print(f"Loading checkpoint {args.checkpoint} onto {device}...")
+    ckpt_digest = digest(args.checkpoint)
+    print(f"Loading checkpoint {args.checkpoint} (SHA256: {ckpt_digest[:16]}...) onto {device}...")
     ckpt = torch.load(args.checkpoint, map_location=device)
 
     tier = ckpt.get("tier", "tier2")
@@ -114,6 +129,19 @@ def main():
     use_skip = ckpt.get("use_token_skip", True)
     use_gated = ckpt.get("use_gated_token_skip", True)
     use_ptr = ckpt.get("use_pointer_copy", True)
+
+    resolved_config = {
+        "tier": tier,
+        "vocab_size": vocab_size,
+        "use_token_skip": use_skip,
+        "use_gated_token_skip": use_gated,
+        "use_pointer_copy": use_ptr,
+        "compensated_state": ckpt.get("compensated_state", False),
+        "pointer_mode": ckpt.get("pointer_mode", "sequential"),
+        "retention_profile": ckpt.get("retention_profile", "legacy"),
+        "allow_routing": args.allow_routing,
+        "allow_assisted_transformations": args.assisted,
+    }
 
     model = make_unified_model(
         tier=tier,
@@ -138,6 +166,7 @@ def main():
         vocab_size=vocab_size,
         device=device,
         allow_routing=args.allow_routing,
+        allow_assisted_transformations=args.assisted,
     )
     agent.tokenizer = tokenizer
 
@@ -154,11 +183,16 @@ def main():
         "status": "running",
         "agent": "RecurrentSoftwareAgent",
         "allow_routing": args.allow_routing,
+        "assisted": args.assisted,
         "parameter_count": param_count,
         "working_memory_bytes": 4096,
         "planned_tasks": len(plan),
         "device": str(device),
         "checkpoint": args.checkpoint.name,
+        "checkpoint_sha256": ckpt_digest,
+        "tokenizer_sha256": tok_digest,
+        "git_commit": git_commit,
+        "resolved_config": resolved_config,
     }
     write_json(args.output / "report.json", report)
 
@@ -230,8 +264,12 @@ def main():
     scores = report["scores"]
     print(f"Completed Tasks: {scores['completed_tasks']}/{scores['planned_tasks']} ({scores['completion_rate']:.2%})")
     print(f"Observed Repairs: {scores['observed_repairs']}/{scores['planned_tasks']} ({scores['repair_rate']:.2%})")
+    print(f"Total Generated Attempts: {scores['total_generated_attempts']}")
+    print(f"Rejected / Unexecuted Attempts: {scores['rejected_unexecuted_attempts']}")
+    print(f"Executed Environment Actions: {scores['executed_actions']}")
     print(f"Recognized Verbs: {scores['recognized_action_verbs']}/{scores['executed_actions']}")
     print(f"Successful Actions: {scores['successful_environment_actions']}/{scores['executed_actions']}")
+    print(f"Assisted Transformations Applied: {scores['assisted_transformations_count']}")
     print(f"Stop Reasons: {scores['stop_reasons']}")
     print(f"Total Elapsed Time: {report['elapsed_seconds']}s")
     print("=" * 70)
