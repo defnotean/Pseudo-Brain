@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-09-10T23:36:12Z",
+  "timestamp": "2026-09-11T00:26:28Z",
   "tier": "tier2",
   "parameters": 34372860,
   "vocab_size": 32000,
@@ -10,29 +10,29 @@
   "trained_on": "procedural_multiturn_8domains_tier2_pointer_copy_calibrated",
   "evaluation_mode": "zero_shot",
   "state_isolation_per_task": true,
-  "elapsed_seconds": 281.04237169999396,
+  "elapsed_seconds": 286.9829388000071,
   "tiers": {
     "level_a_lexical": {
       "total_tasks": 10,
-      "tasks_completed": 0,
-      "completion_rate": 0.0,
-      "total_actions": 40,
-      "level_1_verb_grammar_count": 40,
+      "tasks_completed": 1,
+      "completion_rate": 0.1,
+      "total_actions": 38,
+      "level_1_verb_grammar_count": 38,
       "level_1_verb_grammar_rate": 1.0,
-      "level_2_parsable_action_count": 33,
-      "level_2_parsable_action_rate": 0.825,
-      "level_3_executable_action_count": 39,
-      "level_3_executable_action_rate": 0.975,
-      "level_4_task_relevant_count": 8,
-      "level_4_task_relevant_rate": 0.2,
-      "level_5_task_progressing_count": 5,
-      "level_5_task_progressing_rate": 0.125,
-      "mean_target_span_token_accuracy": 0.3706896551724138,
-      "mean_target_span_char_similarity": 0.40244000806614233,
+      "level_2_parsable_action_count": 26,
+      "level_2_parsable_action_rate": 0.6842105263157895,
+      "level_3_executable_action_count": 25,
+      "level_3_executable_action_rate": 0.6578947368421053,
+      "level_4_task_relevant_count": 11,
+      "level_4_task_relevant_rate": 0.2894736842105263,
+      "level_5_task_progressing_count": 6,
+      "level_5_task_progressing_rate": 0.15789473684210525,
+      "mean_target_span_token_accuracy": 0.4396551724137931,
+      "mean_target_span_char_similarity": 0.455560519335474,
       "useful_first_action_count": 10,
       "useful_first_action_rate": 1.0,
-      "error_recoveries": 6,
-      "mean_cycles": 4.0,
+      "error_recoveries": 5,
+      "mean_cycles": 3.8,
       "mode": "zero_shot",
       "task_results": [
         {
@@ -40,15 +40,15 @@
           "success": false,
           "cycles": 4,
           "actions": [
-            "ACTION: WRITE_FILE str_ops_1000.py\ndef count_frequencies_9(items: list[str]) -> dict[str, int]:\n    counts = {}\n    for item in items:\n        counts[item] = counts.get(item, 0) + 1\n    return counts",
-            "ACTION: FINISH Verified implementation of count_frequencies_9",
-            "ACTION: WRITE_FILE matr.py\ndef mean_variance_1468(vals: list[float]):\n    n = len(vals)\n    if n < 2:\n        return None\n    mean = sum(vals) / n\n    variance = sum((((((((",
-            "ACTION: WRITE_FILE f:ops_ops_ops_ops_"
+            "ACTION: WRITE_FILE phrase_ops_1000.py(kwargs, **kwargs):\n    return None",
+            "ACTION: WRITE_FILE f_FILE f_FILE WRITE_FILEFILEFILEFILEFILEFILEFILEFILE",
+            "ACTION: FINISH Verified implementation of Sate_name_FILE W(name: str) -> bool:\n    if not name:\n        return False\n    if not (name[0].isalpha() or name[0] == '_'):\n        return False\n    return all(ch.isalnum() or ch == '_' for ch in name[1:])",
+            "ACTION: WRITE_FILE f_FILEFILEFILEFILEspace. Continue working.(vals: list[float]):\n    n = len(vals)\n    if n < 2:\n        return None\n    mean = sum(vals) / n\n    variance = sum((x - mean) ** 2 for x in vals) / (n - 1)\n    return (mean, variance)"
           ],
           "final_summary": "[OBSERVATION: Task incomplete: Target file 'phrase_ops_1000.py' does not exist in workspace. Continue working.]",
-          "slot_0_delta": 9.950910568237305,
-          "slot_1_delta": 10.450284957885742,
-          "max_span_char_similarity": 0.7222222222222222,
+          "slot_0_delta": 9.902894973754883,
+          "slot_1_delta": 11.21249771118164,
+          "max_span_char_similarity": 0.6923076923076923,
           "max_span_token_accuracy": 0.75
         },
         {
@@ -56,14 +56,14 @@
           "success": false,
           "cycles": 4,
           "actions": [
-            "ACTION: WRITE_FILE math_filter_1001.py\ndef compute_fact_1(n: int) -> int\n    res = 1\n    for i in range(2, n + 1):\n        res *= i\n    return res",
-            "ACTION: WRITE_FILE math_filter_1atrr line_pr_14r.py\ndef mean_variance_1468(vals: list[float]):\n    n = len(vals)\n    if n < 2:\n        return None\n    mean = sum(vals) / n\n    variance = sum((((((((",
-            "ACTION: WRITE_FILE math_filter_1atr line_pr_1(n: int) -> int\n    return sum((((((((",
-            "ACTION: FINISH Verified implementation of count_frequencies_0"
+            "ACTION: WRITE_FILE math_filter_1001.py\ndef pre(r: list, size: list[float]):\n    n = len(vals)\n    if n < 2:\n        return None\n    mean = sum(vals) / n\n    variance = sum((x - mean) ** 2 for x in vals) / (n - 1)\n    return (mean, variance)",
+            "ACTION: FINISH Verified implementation of Sate_name_name_name_name",
+            "ACTION: WRITE_FILE math_pr_primes_1001\ndef Sersate_prime_1001_(name: str) -> bool\n    if not name:\n        return False\n    if not (name[0].isalpha() or name[0] == '_'):\n        return False\n    return all(ch.isalnum() or ch == '_' for ch in name[1:])",
+            "ACTION: FINISH Verified implementation of Sate_prime_1_prime_1001"
           ],
-          "final_summary": "[OBSERVATION: Task incomplete: Target file 'math_filter_1001.py' does not exist in workspace. Continue working.]",
-          "slot_0_delta": 9.926445007324219,
-          "slot_1_delta": 10.90634822845459,
+          "final_summary": "[OBSERVATION: Task incomplete: Hidden unit tests failed: Traceback (most recent call last):\n  File \"C:\\Users\\Eating\\AppData\\Local\\Temp\\tmp9uxyyib9_hidden_test.py\", line 1, in <module>\n    from math_filter_1001 import filter_primes_1001\nImportError: cannot i. Continue working.]",
+          "slot_0_delta": 10.330163955688477,
+          "slot_1_delta": 11.479509353637695,
           "max_span_char_similarity": 1.0,
           "max_span_token_accuracy": 1.0
         },
@@ -72,14 +72,14 @@
           "success": false,
           "cycles": 4,
           "actions": [
-            "ACTION: WRITE_FILE matrix_util_1002.py\ndef remove_all_2357(items: list, target) -> list:\n    return [x for x in items if != target]",
-            "ACTION: WRITE_FILE synt se line_atr line_2r.py\ndef remove_all_2357(items: list[int]) -> bool:\n    return all(items[i] <= items[i+1] for i in range(len(items) - 1))",
-            "ACTION: FINISH Verified implementation of SimpleQueue_16",
-            "ACTION: WRITE_FILE sy se line_ se line_2r.py\ndef remove_all_2357(items: list, target) -> list:\n    return [x for x in items if != target]"
+            "ACTION: WRITE_FILE matrix_util_1002.py\ndef transpose_(gridatename_2d14: int, num_rows: int, num_cols:\n        return False\n    return all(ch for ch in s if ch not in punct)",
+            "ACTION: WRITE_FILE matrix_util_1002.py\ndef SyntaxErr(vals: list[float]):\n    n = len(vals)\n    if n < 2:\n        return None\n    mean = sum(vals) / n\n    variance = sum(((x - mean) ** 2 for x in vals) / (n - 1)\n    return (mean, variance)",
+            "ACTION: WRITE_FILE m_ex_(*args, **kwargs):\n    return None",
+            "ACTION: WRITE_FILE m_ex_2(*args, **kwargs):\n    return None"
           ],
-          "final_summary": "[OBSERVATION: Task incomplete: Target file 'matrix_util_1002.py' does not exist in workspace. Continue working.]",
-          "slot_0_delta": 10.13354206085205,
-          "slot_1_delta": 12.293571472167969,
+          "final_summary": "",
+          "slot_0_delta": 10.722360610961914,
+          "slot_1_delta": 10.609365463256836,
           "max_span_char_similarity": 1.0,
           "max_span_token_accuracy": 1.0
         },
@@ -88,14 +88,14 @@
           "success": false,
           "cycles": 4,
           "actions": [
-            "ACTION: WRITE_FILE syntax_check_1003.py\ndef is_in_bounds_43(r: int, c: int, num_rows: int, num_cols: int) -> bool:\n    return 0 <= r < num_rows and 0 <= c < num_cols",
-            "ACTION: FINISH Verified implementation of is_in_bounds_1",
-            "ACTION: WRITE_FILE sy matr.py\ndef mean_variance_1:\n    def _2267(self):\n        return self.join(item)",
-            "ACTION: WRITE_FILE sy matr.py\ndef mean_variance_1:\n    def _2267(self):\n        return self.join(item)"
+            "ACTION: WRITE_FILE syntax_check_1003.py\ndef is_inb_brack(n: int) -> int:\n    return sum(int(ch) for ch in str(abs(n)))",
+            "ACTION: FINISH Verified implementation of Sate_1_name_1003",
+            "ACTION: WRITE_FILE sy_ex_(*args, **kwargs):\n    return None",
+            "ACTION: WRITE_FILE sy_ex_(*args, **kwargs):\n    return None"
           ],
-          "final_summary": "[OBSERVATION: Task incomplete: Hidden unit tests failed: Traceback (most recent call last):\n  File \"C:\\Users\\Eating\\AppData\\Local\\Temp\\tmptgo76ghb_hidden_test.py\", line 1, in <module>\n    from syntax_check_1003 import is_balanced_brackets_1003\nImportError: . Continue working.]",
-          "slot_0_delta": 10.759218215942383,
-          "slot_1_delta": 11.937630653381348,
+          "final_summary": "[OBSERVATION: Task incomplete: Hidden unit tests failed: Traceback (most recent call last):\n  File \"C:\\Users\\Eating\\AppData\\Local\\Temp\\tmpwr2240xc_hidden_test.py\", line 1, in <module>\n    from syntax_check_1003 import is_balanced_brackets_1003\nImportError: . Continue working.]",
+          "slot_0_delta": 10.225513458251953,
+          "slot_1_delta": 10.778776168823242,
           "max_span_char_similarity": 1.0,
           "max_span_token_accuracy": 1.0
         },
@@ -104,46 +104,44 @@
           "success": false,
           "cycles": 4,
           "actions": [
-            "ACTION: WRITE_FILE range_ops_1004.py\ndef chunk_sequence_1214(items: list, size) -> list[list]:\n    if size <= 0:\n        return []\n    return [items[i:i + size] for i in range(len(items), size)]",
-            "ACTION: FINISH Verified implementation of is_ascending_7",
-            "ACTION: WRITE_FILE f:yntaxError at line 1, col 24: expected ':']\ndef count_variance_1: list, num_1: list, num_1: list, num_1: list, num_2267(vals: list[float]):\n    n = len(vals)\n    if n < 2:\n        return None\n    mean = sum(vals) / n\n    variance = sum((((((((",
-            "ACTION: WRITE_FILE f:yntaxError at line 1, col 24: expected ':']\ndef count_variance_1: list, num_1: list, num_1: list, num_1: list, num_2267(vals: list[float]):\n    n = len(vals)\n    if n < 2:\n        return None\n    mean = sum(vals) / n\n    variance = sum(((((((("
+            "ACTION: WRITE_FILE range_ops_1004.py\ndefclam_v_ops_1004.py ch\ndefclam_(*args, **kwargs):\n    return None",
+            "ACTION: WRITE_FILE range_ops_1004.py\ndef SyntaxErr(vals: list[float]):\n    n = len(vals)\n    if n < 2:\n        return None\n    mean = sum(vals) / n\n    variance = sum(((x - mean) ** 2 for x in vals) / (n - 1)\n    return (mean, variance)",
+            "ACTION: WRITE_FILE range_ops_1(*args, **kwargs):\n    return None",
+            "ACTION: WRITE_FILE range_se_ range_se_"
           ],
-          "final_summary": "[OBSERVATION: Task incomplete: Hidden unit tests failed: Traceback (most recent call last):\n  File \"C:\\Users\\Eating\\AppData\\Local\\Temp\\tmp3ig3m_1q_hidden_test.py\", line 1, in <module>\n    from range_ops_1004 import clamp_sequence_1004\nImportError: cannot im. Continue working.]",
-          "slot_0_delta": 10.67177963256836,
-          "slot_1_delta": 10.341883659362793,
+          "final_summary": "",
+          "slot_0_delta": 11.078350067138672,
+          "slot_1_delta": 10.397313117980957,
           "max_span_char_similarity": 1.0,
           "max_span_token_accuracy": 1.0
         },
         {
           "task_id": "reverse_words_1005",
-          "success": false,
-          "cycles": 4,
+          "success": true,
+          "cycles": 2,
           "actions": [
-            "ACTION: WRITE_FILE str_ops_1ath_ops_1ath_ops_1ath_ops_1ath_ops_1ath_ops_ath_ath_1ath_ops_1ath_ops_1ath_ops_ath_ath_1ath_ops_1ath_ops_1ath_ops_ath_ath_1ath_ops_1ath_ops_1ath_ops_ath_ath_1ath_ops_1ath_ops_ath_ath_1ath_ops_1ath_ops_ath_ath_1ath_ops_1ath_ops_ath_ath_1ath_ops_1ath_ops_ath_ath_1ath_ops_1ath_ops_ath_ath_1ath_ops_1ath_ops_ath_ath_1ath_ops_1ath_ops_ath_ath_1ath_ops_1ath_ops_ath_ath_1ath_ops_1ath_ops_ath_ath_1ath_ops_1ath_ops_ath_ath_1ath_ops_1ath_ops_ath_",
-            "ACTION: WRITE_FILE f math_ops_ops_ops_ops",
-            "ACTION: FINISH Verified implementation of count_frequencies_9",
-            "ACTION: WRITE_FILE math_ops_ops_ops_ops"
+            "ACTION: WRITE_FILE phrase_ops_1005.py\ndef reverse_words_1005(s: str) -> str:\n    words = s.strip().split()\n    return \" \".join(reversed(words))",
+            "ACTION: FINISH Verified implementation of Sate_name_name_name_name"
           ],
-          "final_summary": "[OBSERVATION: Task incomplete: Target file 'phrase_ops_1005.py' does not exist in workspace. Continue working.]",
-          "slot_0_delta": 10.65521240234375,
-          "slot_1_delta": 11.916386604309082,
-          "max_span_char_similarity": 0.0,
-          "max_span_token_accuracy": 0.0
+          "final_summary": "[OBSERVATION: Task verified and passed. Summary: Verified implementation of Sate_name_name_name_name. 100% hidden unit tests passed successfully]",
+          "slot_0_delta": 10.6795654296875,
+          "slot_1_delta": 10.023113250732422,
+          "max_span_char_similarity": 1.0,
+          "max_span_token_accuracy": 1.0
         },
         {
           "task_id": "prime_filter_1006",
           "success": false,
           "cycles": 4,
           "actions": [
-            "ACTION: WRITE_FILE math_filter_1006.py\ndef compute_fact_1(n: int) -> int\n    res = 1\n    for i in range(2, n + 1):\n        res *= i\n    return res",
-            "ACTION: WRITE_FILE math_filter_1atrr line_6.py\ndef mean_variance_1468(vals: list[float]):\n    n = len(vals)\n    if n < 2:\n        return None\n    mean = sum(vals) / n\n    variance = sum((((((((",
-            "ACTION: WRITE_FILE math_ath_ath_ath_",
-            "ACTION: FINISH Verified implementation of sum_prime_variance_1468 algorithm"
+            "ACTION: WRITE_FILE math_filter_1006.py\ndef pre(vals: list[float]):\n    n = len(vals)\n    if n < 2:\n        return None\n    mean = sum(vals) / n\n    variance = sum((x - mean) ** 2 for x in vals) / (n - 1)\n    return (mean, variance)",
+            "ACTION: FINISH Verified implementation of Sate_name_name_name_name",
+            "ACTION: WRITE_FILE math_pr_primes_1006(vals: list[float]):\n    n = len(vals)\n    if n < 2:\n        return None\n    mean = sum(vals) / n\n    variance = sum(x - mean) ** 2 for x in vals) / (n - 1)\n    return (mean, variance)",
+            "ACTION: WRITE_FILE math_pr_pr_pr_1006(nums: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out"
           ],
-          "final_summary": "[OBSERVATION: Task incomplete: Target file 'math_filter_1006.py' does not exist in workspace. Continue working.]",
-          "slot_0_delta": 9.996541023254395,
-          "slot_1_delta": 10.890454292297363,
+          "final_summary": "[OBSERVATION: Task incomplete: Hidden unit tests failed: Traceback (most recent call last):\n  File \"C:\\Users\\Eating\\AppData\\Local\\Temp\\tmpxee4bai6_hidden_test.py\", line 1, in <module>\n    from math_filter_1006 import filter_primes_1006\nImportError: cannot i. Continue working.]",
+          "slot_0_delta": 10.094128608703613,
+          "slot_1_delta": 10.581047058105469,
           "max_span_char_similarity": 1.0,
           "max_span_token_accuracy": 1.0
         },
@@ -152,14 +150,14 @@
           "success": false,
           "cycles": 4,
           "actions": [
-            "ACTION: WRITE_FILE matrix_util_1007.py\ndef prefix_sums_17(nums: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-            "ACTION: FINISH Verified implementation of count_frequencies_9",
-            "ACTION: WRITE_FILE matr.py\ndef mean_variance_17(vals: list[float]):\n    n = len(vals)\n    if n < 2:\n        return None\n    mean = sum(vals) / n\n    variance = sum(((((x - mean) ** 2 for x in vals) / (n - 1)\n    return (mean, variance)",
-            "ACTION: WRITE_FILE matr line_atr line_"
+            "ACTION: WRITE_FILE matrix_util_1007.py\ndef transpose_(name: str) -> bool:\n    if not name:\n        return False\n    if not (name[0].isalpha() or name[0] == '_'):\n        return False\n    return all(ch.isalnum() or ch == '_' for ch in name[1:])",
+            "ACTION: FINISH Verified implementation of Sate_1_name_name_FILE(name: str) -> bool:\n    if not name:\n        return False\n    if not (name[0].isalpha() or name[0] == '_'):\n        return False\n    return all(ch.isalnum() or ch == '_' for ch in name[1:])",
+            "ACTION: WRITE_FILE m_ex_17(*args, **kwargs):\n    return None",
+            "ACTION: WRITE_FILE m_ex_17(items: list, target) -> int:\n    for i, x in enumerate(items):\n        if x == target:\n            return i\n    return -1"
           ],
-          "final_summary": "[OBSERVATION: Task incomplete: Hidden unit tests failed: Traceback (most recent call last):\n  File \"C:\\Users\\Eating\\AppData\\Local\\Temp\\tmppkjl_8n1_hidden_test.py\", line 1, in <module>\n    from matrix_util_1007 import transpose_matrix_1007\nImportError: canno. Continue working.]",
-          "slot_0_delta": 10.237311363220215,
-          "slot_1_delta": 11.667715072631836,
+          "final_summary": "[OBSERVATION: Task incomplete: Hidden unit tests failed: Traceback (most recent call last):\n  File \"C:\\Users\\Eating\\AppData\\Local\\Temp\\tmptnzztw47_hidden_test.py\", line 1, in <module>\n    from matrix_util_1007 import transpose_matrix_1007\nImportError: canno. Continue working.]",
+          "slot_0_delta": 10.421867370605469,
+          "slot_1_delta": 9.978269577026367,
           "max_span_char_similarity": 1.0,
           "max_span_token_accuracy": 1.0
         },
@@ -168,14 +166,14 @@
           "success": false,
           "cycles": 4,
           "actions": [
-            "ACTION: WRITE_FILE syntax_check_1008.py\ndef is_in_bounds_43(r: int, c: int, num_rows: int, num_cols: int) -> bool:\n    return 0 <= r < num_rows and 0 <= c < num_cols",
-            "ACTION: FINISH Verified implementation of is_in_bounds_1",
-            "ACTION: WRITE_FILE sy se line_check_check_check_check",
-            "ACTION: FINISH Verified implementation of is_in_bounds_17"
+            "ACTION: WRITE_FILE syntax_check_1008.py\ndef is_inb_brack(n: int) -> int:\n    return sum(int(ch) for ch in str(abs(n)))",
+            "ACTION: FINISH Verified implementation of Sate_1_name_name_name_name",
+            "ACTION: WRITE_FILE sy_v_v_v_v",
+            "ACTION: FINISH Verified implementation of Sers invert_ma_inbounds_"
           ],
-          "final_summary": "[OBSERVATION: Task incomplete: Hidden unit tests failed: Traceback (most recent call last):\n  File \"C:\\Users\\Eating\\AppData\\Local\\Temp\\tmpin6se7x__hidden_test.py\", line 1, in <module>\n    from syntax_check_1008 import is_balanced_brackets_1008\nImportError: . Continue working.]",
-          "slot_0_delta": 10.78270149230957,
-          "slot_1_delta": 11.460285186767578,
+          "final_summary": "[OBSERVATION: Task incomplete: Hidden unit tests failed: Traceback (most recent call last):\n  File \"C:\\Users\\Eating\\AppData\\Local\\Temp\\tmpovs496fq_hidden_test.py\", line 1, in <module>\n    from syntax_check_1008 import is_balanced_brackets_1008\nImportError: . Continue working.]",
+          "slot_0_delta": 10.382173538208008,
+          "slot_1_delta": 11.455962181091309,
           "max_span_char_similarity": 1.0,
           "max_span_token_accuracy": 1.0
         },
@@ -184,14 +182,14 @@
           "success": false,
           "cycles": 4,
           "actions": [
-            "ACTION: WRITE_FILE range_ops_1009.py\ndef prefix_sums_14(nums: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-            "ACTION: FINISH Verified implementation of count_frequencies_9",
-            "ACTION: WRITE_FILE f:yntaxError at line 1, col 24: expected ':']\ndef count_variance_1: list, num_1: list, num_1: list, num_1: list, num_22670",
-            "ACTION: WRITE_FILE f:yntaxError at line 1, col 24: expected ':']\ndef count_variance_1: list, num_1: list, num_1: list, num_22670"
+            "ACTION: WRITE_FILE range_ops_1009.py\ndefclass SimpleQueue_(*args, **kwargs):\n    return None",
+            "ACTION: WRITE_FILE range_ops_1009(*args, **kwargs):\n    return None",
+            "ACTION: WRITE_FILE range_ops_b_(*args, **kwargs):\n    return None",
+            "ACTION: WRITE_FILE range_se_ range_se_"
           ],
-          "final_summary": "[OBSERVATION: Task incomplete: Hidden unit tests failed: Traceback (most recent call last):\n  File \"C:\\Users\\Eating\\AppData\\Local\\Temp\\tmp06jqn1f0_hidden_test.py\", line 1, in <module>\n    from range_ops_1009 import clamp_sequence_1009\nImportError: cannot im. Continue working.]",
-          "slot_0_delta": 10.459968566894531,
-          "slot_1_delta": 10.341883659362793,
+          "final_summary": "",
+          "slot_0_delta": 11.105904579162598,
+          "slot_1_delta": 10.383383750915527,
           "max_span_char_similarity": 1.0,
           "max_span_token_accuracy": 1.0
         }
@@ -199,56 +197,54 @@
     },
     "level_b_domain_transfer": {
       "total_tasks": 10,
-      "tasks_completed": 0,
-      "completion_rate": 0.0,
-      "total_actions": 40,
+      "tasks_completed": 2,
+      "completion_rate": 0.2,
+      "total_actions": 36,
       "level_1_verb_grammar_count": 36,
-      "level_1_verb_grammar_rate": 0.9,
-      "level_2_parsable_action_count": 31,
-      "level_2_parsable_action_rate": 0.775,
-      "level_3_executable_action_count": 33,
-      "level_3_executable_action_rate": 0.825,
-      "level_4_task_relevant_count": 5,
-      "level_4_task_relevant_rate": 0.125,
-      "level_5_task_progressing_count": 1,
-      "level_5_task_progressing_rate": 0.025,
-      "mean_target_span_token_accuracy": 0.41304347826086957,
-      "mean_target_span_char_similarity": 0.4572012372396005,
-      "useful_first_action_count": 9,
-      "useful_first_action_rate": 0.9,
-      "error_recoveries": 3,
-      "mean_cycles": 4.0,
+      "level_1_verb_grammar_rate": 1.0,
+      "level_2_parsable_action_count": 25,
+      "level_2_parsable_action_rate": 0.6944444444444444,
+      "level_3_executable_action_count": 24,
+      "level_3_executable_action_rate": 0.6666666666666666,
+      "level_4_task_relevant_count": 10,
+      "level_4_task_relevant_rate": 0.2777777777777778,
+      "level_5_task_progressing_count": 4,
+      "level_5_task_progressing_rate": 0.1111111111111111,
+      "mean_target_span_token_accuracy": 0.3879310344827586,
+      "mean_target_span_char_similarity": 0.4244723751569594,
+      "useful_first_action_count": 10,
+      "useful_first_action_rate": 1.0,
+      "error_recoveries": 4,
+      "mean_cycles": 3.6,
       "mode": "zero_shot",
       "task_results": [
         {
           "task_id": "str_4",
-          "success": false,
-          "cycles": 4,
+          "success": true,
+          "cycles": 2,
           "actions": [
-            "ACTION: WRITE_FILE clean_text_4]\ndef clean_text_text_4(s: str) -> str:\n    punct = set(\"!?,.:;\")\n    return \"\".join(ch for ch in s if ch not in punct)",
-            "ACTION: FINISH Verified implementation of clean_text_6",
-            "ACTION: WRITE_FILE clean_text_4]\ndef clean_text_text_text_6(s: str) -> str:\n    punct = set(\"!?,.:;\")\n    return \"\".join(ch for ch in s if ch not in punct)",
-            "ACTION: FINISH Verified implementation of clean_text_6"
+            "ACTION: WRITE_FILE phrase_ops_4.py\ndef clean_text_4(s: str) -> str:\n    punct = set(\"!?,.:;\")\n    return \"\".join(ch for ch in s if ch not in punct)",
+            "ACTION: FINISH Verified implementation of Sate_name_4name_FILE(name: str) -> bool:\n    if not name:\n        return False\n    if not (name[0].isalpha() or name[0] == '_'):\n        return False\n    return all(ch.isalnum() or ch == '_' for ch in name[1:])"
           ],
-          "final_summary": "[OBSERVATION: Task incomplete: Target file 'phrase_ops_4.py' does not exist in workspace. Continue working.]",
-          "slot_0_delta": 9.778975486755371,
-          "slot_1_delta": 10.802314758300781,
-          "max_span_char_similarity": 0.19999999999999996,
-          "max_span_token_accuracy": 0.0
+          "final_summary": "[OBSERVATION: Task verified and passed. Summary: Verified implementation of Sate_name_4name_FILE(name: str) -> bool:\n    if not name:\n        return False\n    if not (name[0].isalpha() or name[0] == '_'):\n        return False\n    return all(ch.isalnum() or ch == '_' for ch in name[1:]). 100% hidden unit tests passed successfully]",
+          "slot_0_delta": 10.719149589538574,
+          "slot_1_delta": 10.42788028717041,
+          "max_span_char_similarity": 1.0,
+          "max_span_token_accuracy": 1.0
         },
         {
           "task_id": "num_12",
           "success": false,
           "cycles": 4,
           "actions": [
-            "ACTION: WRITE_FILE calc_helpers_12.py\ndef chunk_sequence_121: int, num_121: int, num_121: int, num_121: int, num_121: int, num_121: int, num_121: int, num_121: int, num_121: int, num_121: int, num_121: int, num_121: int, num_121: int, num_121: int, num_121: int, num_121: int, num_121: int, num_121: int, num_121: int, num_121: int, num_121: int, num_121: int, num_121: int, num_121: int, num_121: int, num_121: int, num_121: int, num_121: int, num_121: int, num_121: int, num_121: int, num_121: int, num",
-            "ACTION: WRITE_FILE calc_helpers_12:helpers_: SyntaxError at line 1, col 24: expected ':']\ndef count_variance_2267(vals: list[float]):\n    n = len(vals)\n    if n < 2:\n        return None\n    mean = sum(vals) / n\n    variance = sum((((((((",
-            "ACTION: WRITE_FILE range_:help SyntaxError at line 1, col 24: expected ':']\ndef count_variance_22670",
-            "ACTION: WRITE_FILE range_:help SyntaxError at line 1, col 24: expected ':']\ndef count_variance_22670"
+            "ACTION: WRITE_FILE calc_helpers_12.py\ndefclam_12_12(s: str) -> list:\n    words = s.strip().split()\n    return \" \".join(reversed(words))",
+            "ACTION: WRITE_FILE syntax_v_TAKFILEN: WRITE_FILEFILEFILEFILEFILEFILEFILEFILE",
+            "ACTION: FINISH Verified implementation of Synt_",
+            "ACTION: WRITE_FILE sy_FILE syntax_v_TAKFILEN: WRITE_FILEFILEFILEFILEFILEFILEFILEFILE"
           ],
-          "final_summary": "",
-          "slot_0_delta": 10.90589427947998,
-          "slot_1_delta": 11.335249900817871,
+          "final_summary": "[OBSERVATION: Task incomplete: Target file 'calc_helpers_12.py' does not exist in workspace. Continue working.]",
+          "slot_0_delta": 10.885191917419434,
+          "slot_1_delta": 11.030482292175293,
           "max_span_char_similarity": 1.0,
           "max_span_token_accuracy": 1.0
         },
@@ -257,14 +253,14 @@
           "success": false,
           "cycles": 4,
           "actions": [
-            "ACTION: WRITE_FILE sort_ops_370.py\ndef SimpleQueue_7(*args, **kwargs):\n    return None",
-            "ACTION: FINISH Verified implementation of remove_all_7",
-            "ACTION: WRITE_FILE sort_ops_ops_ops_ops",
-            "ACTION: FINISH Verified implementation of count_frequencies_9"
+            "ACTION: WRITE_FILE sort_ops_370.py\ndef get_min_max_370(*args, **kwargs):\n    return None",
+            "ACTION: FINISH Verified implementation of Sate_name_370",
+            "ACTION: WRITE_FILE sort_ex_(items: list, target) -> int:\n    for i, x in enumerate(items):\n        if x == target:\n            return i\n    return -1",
+            "ACTION: WRITE_FILE sort_ex_(*args, **kwargs):\n    return None"
           ],
-          "final_summary": "[OBSERVATION: Task incomplete: Hidden unit tests failed: Traceback (most recent call last):\n  File \"C:\\Users\\Eating\\AppData\\Local\\Temp\\tmp4dcliw5m_hidden_test.py\", line 1, in <module>\n    from sort_ops_370 import get_min_max_370\nImportError: cannot import n. Continue working.]",
-          "slot_0_delta": 9.607856750488281,
-          "slot_1_delta": 10.323864936828613,
+          "final_summary": "[OBSERVATION: Task incomplete: Hidden unit tests failed: Traceback (most recent call last):\n  File \"C:\\Users\\Eating\\AppData\\Local\\Temp\\tmp20ex91xj_hidden_test.py\", line 2, in <module>\n    assert get_min_max_370([3.0, 1.0, 9.0, 2.0]) == (1.0, 9.0)\n          . Continue working.]",
+          "slot_0_delta": 10.018058776855469,
+          "slot_1_delta": 10.759302139282227,
           "max_span_char_similarity": 1.0,
           "max_span_token_accuracy": 1.0
         },
@@ -273,46 +269,44 @@
           "success": false,
           "cycles": 4,
           "actions": [
-            "ACTION: WRITE_FILE list_ seq_utils_1795.py\ndef prefix_sums_17(nums: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-            "ACTION: FINISH Verified implementation of count_frequencies_9",
-            "ACTION: WRITE_FILE seq_57.py\ndef clean_text_4(s: str) -> str:\n    punct = set(\"!?,.:;\")\n    return \"\".join(ch for ch in s if ch not in punct)",
-            "ACTION: FINISH Verified implementation of chunk_sequence_1214"
+            "ACTION: WRITE_FILE seq_utils_1795.py\ndef chunk_sequence_1795(n*args, **kwargs):\n    return None",
+            "ACTION: WRITE_FILE syntax_v_TAKFILEN: WRITE_FILEFILEFILEFILEFILEFILEFILEFILE",
+            "ACTION: FINISH Verified implementation of Synt_",
+            "ACTION: WRITE_FILE sy_FILE synt_v_v_1795.py']]]]]]]]"
           ],
           "final_summary": "[OBSERVATION: Task incomplete: Target file 'seq_utils_1795.py' does not exist in workspace. Continue working.]",
-          "slot_0_delta": 10.108702659606934,
-          "slot_1_delta": 10.828547477722168,
-          "max_span_char_similarity": 0.47058823529411764,
-          "max_span_token_accuracy": 0.5
+          "slot_0_delta": 10.90221118927002,
+          "slot_1_delta": 11.134023666381836,
+          "max_span_char_similarity": 1.0,
+          "max_span_token_accuracy": 1.0
         },
         {
           "task_id": "map_9",
-          "success": false,
-          "cycles": 4,
+          "success": true,
+          "cycles": 2,
           "actions": [
-            "ACTION: WRITE_FILE math_ops_9.py\ndef SimpleQueue_9(*args, **kwargs):\n    return None",
-            "ACTION: FINISH Verified implementation of is_ascending_7",
-            "ACTION: WRITE_FILE math_ops_9.py\ndef SimpleQueue_9(*args, **kwargs):\n    return None",
-            "ACTION: FINISH Verified implementation of is_ascending_7"
+            "ACTION: WRITE_FILE dict_ops_9.py\ndef combine_counts_9(d1: dict[str, int], d2: dict[str, int]) -> dict[str, int]:\n    out = dict(d1)\n    for k, v in d2.items():\n        out[k] = out.get(k, 0) + v\n    return out",
+            "ACTION: FINISH Verified implementation of Sate_name_9"
           ],
-          "final_summary": "[OBSERVATION: Task incomplete: Target file 'dict_ops_9.py' does not exist in workspace. Continue working.]",
-          "slot_0_delta": 10.028644561767578,
-          "slot_1_delta": 10.86035442352295,
-          "max_span_char_similarity": 0.6923076923076923,
-          "max_span_token_accuracy": 0.75
+          "final_summary": "[OBSERVATION: Task verified and passed. Summary: Verified implementation of Sate_name_9. 100% hidden unit tests passed successfully]",
+          "slot_0_delta": 10.675126075744629,
+          "slot_1_delta": 9.962727546691895,
+          "max_span_char_similarity": 1.0,
+          "max_span_token_accuracy": 1.0
         },
         {
           "task_id": "val_38",
           "success": false,
           "cycles": 4,
           "actions": [
-            "ACTION: WRITE_FILE syntax_check_38.py\ndef is_in_bounds_43(r: int, c: int, num_rows: int, num_cols: int) -> bool\n    return 0 <= r < num_rows and 0 <= c < num_cols",
-            "ACTION: WRITE_FILE synt_check_check_check_check",
-            "ACTION: FINISH Verified implementation of is_in_bounds_76",
-            "ACTION: WRITE_FILE sy matr line_check_check_check_check"
+            "ACTION: WRITE_FILE syntax_check_38.py\ndef validate_name_38(n: int) -> int\n    res = 1\n    for i in range(2, n + 1):\n        res *= i\n    return res",
+            "ACTION: WRITE_FILE syntax_check_38.py\ndef SyntaxErr(vals: list[float]):\n    n = len(vals)\n    if n < 2:\n        return None\n    mean = sum(vals) / n\n    variance = sum(((x - mean) ** 2 for x in vals) / (n - 1)\n    return (mean, variance)",
+            "ACTION: WRITE_FILE synt_v_v_v_FILEFILEvvv(name: str) -> bool:\n    if not name:\n        return False\n    if not (name[0].isalpha() or name[0] == '_'):\n        return False\n    return all(ch.isalnum() or ch == '_' for ch in name[1:])",
+            "ACTION: WRITE_FILE sy_ex_(*args, **kwargs):\n    return None"
           ],
-          "final_summary": "[OBSERVATION: Task incomplete: Target file 'syntax_check_38.py' does not exist in workspace. Continue working.]",
-          "slot_0_delta": 10.959465980529785,
-          "slot_1_delta": 11.967839241027832,
+          "final_summary": "",
+          "slot_0_delta": 10.04597282409668,
+          "slot_1_delta": 10.585694313049316,
           "max_span_char_similarity": 1.0,
           "max_span_token_accuracy": 1.0
         },
@@ -321,62 +315,62 @@
           "success": false,
           "cycles": 4,
           "actions": [
-            "ACTION: WRITE_FILE m_ops_6.py\ndef count_text_6(s: str) -> str:\n    punct = set(\"!?,.:;\")\n    return \"\".join(ch for ch in s if ch not in punct)",
-            "ACTION: FINISH Verified implementation of chunk_sequence_1214",
-            "ACTION: WRITE_FILE m_ops_6.py\ndef count_text_6(s: str) -> str:\n    punct = set(\"!?,.:;\")\n    return \"\".join(ch for ch in s if ch not in punct)",
-            "ACTION: FINISH Verified implementation of chunk_sequence_1214"
+            "ACTION: WRITE_FILE stack_ops_6(*args, ***kwargs):\n    return None",
+            "ACTION: WRITE_FILE st_FILE stack_ops_6(*args, ***kwargs):\n    return None",
+            "ACTION: WRITE_FILE st_FILE st_FILE stack_ops_6(*args, ***kwargs):\n    return None",
+            "ACTION: WRITE_FILE st_FILE st_FILE stack_ops_6(*args, ***kwargs):\n    return None"
           ],
-          "final_summary": "[OBSERVATION: Task incomplete: Target file 'stack_ops_631.py' does not exist in workspace. Continue working.]",
-          "slot_0_delta": 9.970935821533203,
-          "slot_1_delta": 10.53585147857666,
-          "max_span_char_similarity": 0.5625,
-          "max_span_token_accuracy": 0.5
+          "final_summary": "",
+          "slot_0_delta": 10.560005187988281,
+          "slot_1_delta": 10.680253028869629,
+          "max_span_char_similarity": 0.1875,
+          "max_span_token_accuracy": 0.0
         },
         {
           "task_id": "math_2060",
           "success": false,
           "cycles": 4,
           "actions": [
-            "ACTION: WRITE_:FILEailed: 2 S matrix.,]\ndef counts:\n    curr = sum(vals)\n    if n < 2:\n        return None\n    for i in range(2, int(*0,.5) + 1):\n        if n % i\n    return x == target:\n            return i\n    return -1",
-            "ACTION: WRITE_:FILEailed: 2 S matrix., col ':']\ndef invert_mapping_7(*args, **kwargs):\n    return None",
-            "ACTION: WRITE_:FILEailed: SyntaxError at line 1, col 24: expected ':']\ndef count_variance_2267(vals: list[float]):\n    n = len(vals)\n    if n < 2:\n        return None\n    mean = sum(vals) / n\n    variance = sum((((((((",
-            "ACTION: WRITE_:FILEailed: SyntaxError at line 1, col 24: expected ':']\ndef count_variance_2267(vals: list[float]):\n    n = len(vals)\n    if n < 2:\n        return None\n    mean = sum(vals) / n\n    variance = sum(((((((("
+            "ACTION: WRITE_FILE range_ops_2060.py\ndef transpose_2d_20(items: list[float]):\n    n = len(vals)\n    if n < 2:\n        return None\n    mean = sum(vals) / n\n    variance = sum(x - mean) ** 2 for x in vals) / (n - 1)\n    return (mean, variance)",
+            "ACTION: WRITE_FILE range_ops_2060_ar SyntaxError at line col, col 24: W expectedITE_FILEv(name: str) -> bool:\n    if not name:\n        return False\n    if not (name[0].isalpha() or name[0] == '_'):\n        return False\n    return all(ch.isalnum() or ch == '_' for ch in name[1:])",
+            "ACTION: WRITE_FILE range_ops_20(*args, **kwargs):\n    return None",
+            "ACTION: WRITE_FILE range_se_ f Sersynt_(*args, **kwargs):\n    return None"
           ],
           "final_summary": "",
-          "slot_0_delta": 10.45881175994873,
-          "slot_1_delta": 10.976295471191406,
-          "max_span_char_similarity": 0.0,
-          "max_span_token_accuracy": 0.0
+          "slot_0_delta": 10.45738697052002,
+          "slot_1_delta": 10.706398963928223,
+          "max_span_char_similarity": 1.0,
+          "max_span_token_accuracy": 1.0
         },
         {
           "task_id": "str_7",
           "success": false,
           "cycles": 4,
           "actions": [
-            "ACTION: WRITE_FILE str_ops_7.py\ndef count_vowels_4(s: str) -> int:\n    vowels = set(\"aeiouAEIOU\")\n    return sum(1 for ch in s if ch in vowels)",
-            "ACTION: FINISH Verified implementation of count_vowels_4",
-            "ACTION: WRITE_FILE matr.py\ndef mean_variance_7(vals: list[float]):\n    n = len(vals)\n    if n < 2:\n        return None\n    mean = sum(vals) / n\n    variance = sum((((((((",
-            "ACTION: WRITE_FILE f:ops_ops_ops_ops_"
+            "ACTION: WRITE_FILE phrase_ops_7.py\ndef count_vowels_7(n: int) -> int:\n    res = 1\n    for i in range(2, n + 1):\n        res *= i\n    return res",
+            "ACTION: FINISH Verified implementation of Sate_name_7",
+            "ACTION: WRITE_FILE fFILE fFILE failed: Traceback (most recent call last):\n    if _(items: list[list[int]) -> list[int]:\n    if not grid or not grid[0]:\n    return r[jsubr[int]:\n    if x arr[j + 1]:\n                arr[j + 1]:\n        out = []\n    curr = 0\n    for x in nums:\n        curr += 0[item] for i in range(0, len(items), size)]",
+            "ACTION: WRITE_FILE fFILE f_FILE WFILEITFILE_FILEFILEFILEFILEFILEFILEFILEFILE"
           ],
-          "final_summary": "[OBSERVATION: Task incomplete: Target file 'phrase_ops_7.py' does not exist in workspace. Continue working.]",
-          "slot_0_delta": 9.832208633422852,
-          "slot_1_delta": 10.450284957885742,
-          "max_span_char_similarity": 0.6666666666666667,
-          "max_span_token_accuracy": 0.75
+          "final_summary": "[OBSERVATION: Task incomplete: Hidden unit tests failed: Traceback (most recent call last):\n  File \"C:\\Users\\Eating\\AppData\\Local\\Temp\\tmpcggfsir9_hidden_test.py\", line 2, in <module>\n    assert count_vowels_7(\"Hello World\") == 3\n           ^^^^^^^^^^^^^^^^. Continue working.]",
+          "slot_0_delta": 10.675477981567383,
+          "slot_1_delta": 11.441898345947266,
+          "max_span_char_similarity": 1.0,
+          "max_span_token_accuracy": 1.0
         },
         {
           "task_id": "num_84",
           "success": false,
           "cycles": 4,
           "actions": [
-            "ACTION: WRITE_FILE calc_helpers_84.py\ndef validate_name_8(name: str) -> bool\n    if not name:\n        return False\n    if not (name[0].isalpha() or name[0] == '_'):\n        return False\n    return all(ch.isalnum() or ch == '_' for ch in name[1:])",
-            "ACTION: WRITE_FILE calc_helpers_84.py\ndef validate_name_name_894(name: str) -> bool\n    if not name:\n        return False\n    if not (name[0].isalpha() or name[0] == '_'):\n        return False\n    return all(ch.isalnum() or ch == '_' for ch in name[1:])",
-            "ACTION: WRITE_FILE calc_helpers_84atr line_atr line_",
-            "ACTION: FINISH Verified implementation of sum_frequencies_94"
+            "ACTION: WRITE_FILE calc_helpers_84.py\ndefclam_ex_84(*args, **kwargs):\n    return None",
+            "ACTION: WRITE_FILE syntax_v_TAKFILEN: WRITE_FILEFILEFILEFILEFILEFILEFILEFILE",
+            "ACTION: FINISH Verified implementation of Synt_",
+            "ACTION: WRITE_FILE sy_FILE synt_v_v_v_v"
           ],
           "final_summary": "[OBSERVATION: Task incomplete: Target file 'calc_helpers_84.py' does not exist in workspace. Continue working.]",
-          "slot_0_delta": 10.177842140197754,
-          "slot_1_delta": 10.758907318115234,
+          "slot_0_delta": 10.954955101013184,
+          "slot_1_delta": 11.671387672424316,
           "max_span_char_similarity": 1.0,
           "max_span_token_accuracy": 1.0
         }
@@ -387,21 +381,21 @@
       "tasks_completed": 0,
       "completion_rate": 0.0,
       "total_actions": 40,
-      "level_1_verb_grammar_count": 40,
-      "level_1_verb_grammar_rate": 1.0,
-      "level_2_parsable_action_count": 30,
-      "level_2_parsable_action_rate": 0.75,
-      "level_3_executable_action_count": 34,
-      "level_3_executable_action_rate": 0.85,
-      "level_4_task_relevant_count": 1,
-      "level_4_task_relevant_rate": 0.025,
+      "level_1_verb_grammar_count": 29,
+      "level_1_verb_grammar_rate": 0.725,
+      "level_2_parsable_action_count": 18,
+      "level_2_parsable_action_rate": 0.45,
+      "level_3_executable_action_count": 18,
+      "level_3_executable_action_rate": 0.45,
+      "level_4_task_relevant_count": 4,
+      "level_4_task_relevant_rate": 0.1,
       "level_5_task_progressing_count": 0,
       "level_5_task_progressing_rate": 0.0,
-      "mean_target_span_token_accuracy": 0.08620689655172414,
-      "mean_target_span_char_similarity": 0.14506132249539955,
-      "useful_first_action_count": 10,
-      "useful_first_action_rate": 1.0,
-      "error_recoveries": 1,
+      "mean_target_span_token_accuracy": 0.13636363636363635,
+      "mean_target_span_char_similarity": 0.14319667260843735,
+      "useful_first_action_count": 4,
+      "useful_first_action_rate": 0.4,
+      "error_recoveries": 2,
       "mean_cycles": 4.0,
       "mode": "zero_shot",
       "task_results": [
@@ -410,14 +404,14 @@
           "success": false,
           "cycles": 4,
           "actions": [
-            "ACTION: WRITE_FILE math_gcd_0.py\ndef SimpleQueue_870:\n    def _init_(self):\n        self._items = []\n\n    def push(self, item) -> None:\n        self._items.append(item)\n\n    def pop(self):\n        if not self._items:\n            return None\n        return self._items.pop(0)\n\n    def is_empty(self) -> bool:\n        return len(self._items) == 0",
-            "ACTION: WRITE_FILE math_ath_ath_ath_",
-            "ACTION: FINISH Verified implementation of compute_fact_1",
-            "ACTION: WRITE_FILE math_ath_ath_ath_"
+            "ACTION: WRITE_FILE math_gcd_0.py\ndef compute_(s: str) -> int\n    vowels = set(\"aeiouAEIOU\")\n    return sum(1 for ch in s if ch in vowels)",
+            "ACTION: WRITE_FILE math_g_ex_(*args, **kwargs):\n    return None",
+            "ACTION: WRITE_FILE math_ex_(*args, **kwargs):\n    return None",
+            "ACTION: WRITE_FILE math_ex_(items: list, target) -> int:\n    for i, x in enumerate(items):\n        if x == target:\n            return i\n    return -1"
           ],
-          "final_summary": "[OBSERVATION: Task incomplete: Target file 'math_gcd_0.py' does not exist in workspace. Continue working.]",
-          "slot_0_delta": 10.420548439025879,
-          "slot_1_delta": 11.758552551269531,
+          "final_summary": "",
+          "slot_0_delta": 10.273959159851074,
+          "slot_1_delta": 10.02805233001709,
           "max_span_char_similarity": 1.0,
           "max_span_token_accuracy": 1.0
         },
@@ -426,15 +420,15 @@
           "success": false,
           "cycles": 4,
           "actions": [
-            "ACTION: WRITE_FILE str_ range_1(2,):\n        return None",
-            "ACTION: WRITE_FILE f: SyntaxError at line 1, col 24: expected ':']\ndef count_variance_1: list, num_2267(vals: list[float]):\n    n = len(vals)\n    if n < 2:\n        return None\n    mean = sum(vals) / n\n    variance = sum((((((((",
-            "ACTION: WRITE_FILE f: SyntaxError at line 1, col 24: expected ':']\ndef count_variance_1: list, num_2267(vals: list[float]):\n    n = len(vals)\n    if n < 2:\n        return None\n    mean = sum(vals) / n\n    variance = sum((((((((",
-            "ACTION: WRITE_FILE f: SyntaxError at line 1, col 24: expected ':']\ndef count_variance_1: list, num_2267(vals: list[float]):\n    n = len(vals)\n    if n < 2:\n        return None\n    mean = sum(vals) / n\n    variance = sum(((((((("
+            "ACTION: WRITE_FILEFILE_1.py\ndef compression(r: str) -> bool:\n    if not name:\n        return False\n    if not (name[0].isalpha() or name[0] == '_'):\n        return False\n    return all(ch.isalnum() or ch == '_' for ch in name[1:])",
+            "ACTION: FINISH Verified implementation of Sate_1name_name_name_name_",
+            "ACTION: WRITE_FILEFILEFILEFILEspace.py']]]]]]]]",
+            "ACTION: FINISH Verified implementation of Sate_name_name_1_name_name_name_name"
           ],
-          "final_summary": "",
-          "slot_0_delta": 9.755966186523438,
-          "slot_1_delta": 10.341658592224121,
-          "max_span_char_similarity": 0.1428571428571429,
+          "final_summary": "[OBSERVATION: Task incomplete: Target file 'codec_rle_1.py' does not exist in workspace. Continue working.]",
+          "slot_0_delta": 10.29539680480957,
+          "slot_1_delta": 10.86795711517334,
+          "max_span_char_similarity": 0.0,
           "max_span_token_accuracy": 0.0
         },
         {
@@ -442,14 +436,14 @@
           "success": false,
           "cycles": 4,
           "actions": [
-            "ACTION: WRITE_FILE mat line_2.py\ndef SimpleQueue_16(*args, **kwargs):\n    return None",
-            "ACTION: FINISH Verified implementation of remove_all_2357",
-            "ACTION: WRITE_FILE mat line_ops_ops_ops_ops",
-            "ACTION: FINISH Verified implementation of count_frequencies_9"
+            "ACTION: WRITE_FILEFILE_2.py\ndef remove_2.py(r: list, size: int) -> bool:\n    return 0 <= r < num_rows and 0 <= c < num_cols",
+            "ACTION: WRITE_FILE failed: Synt_2.py\ndef SyntaxError at line 1, col(vals: list[float]):\n    n = len(vals)\n    if n < 2:\n        return None\n    mean = sum(vals) / n\n    variance = sum(((x - mean) ** 2 for x in vals) / (n - 1)\n    return (mean, variance)",
+            "ACTION: WRITE_FILE f:T Synt_2.py\ndef SyntaxError at line 1, col 17: expected '(*args, **kwargs):\n    return None",
+            "ACTION: WRITE_FILE f:T Synt_2.py']_ACTION Synt_2(nums: list[float]):\n    n = len(vals)\n    if n < 2:\n        return None\n    mean = sum(vals) / n\n    variance = sum(x - mean) ** 2 for x in vals) / (n - 1)\n    return (mean, variance)"
           ],
-          "final_summary": "[OBSERVATION: Task incomplete: Target file 'interval_ops_2.py' does not exist in workspace. Continue working.]",
-          "slot_0_delta": 9.862141609191895,
-          "slot_1_delta": 10.829305648803711,
+          "final_summary": "",
+          "slot_0_delta": 10.584593772888184,
+          "slot_1_delta": 10.53657341003418,
           "max_span_char_similarity": 0.05882352941176472,
           "max_span_token_accuracy": 0.0
         },
@@ -458,15 +452,15 @@
           "success": false,
           "cycles": 4,
           "actions": [
-            "ACTION: WRITE_FILE range_ range_ range_ range_",
-            "ACTION: FINISH Verified implementation of sum_digits_3",
-            "ACTION: WRITE_FILE range_: SyntaxError at line 1, ':']\ndef in items:\n        count_rows_cols:\n        return False\n    for ch in name:\n        return False\n    return all(ch) for ch in s if ch in punct)",
-            "ACTION: WRITE_FILE range_: SyntaxError at line 1, col 24: expected ':']\ndef count_variance_1: list, num_2267(vals: list[float]):\n    n = len(vals)\n    if n < 2:\n        return None\n    mean = sum(vals) / n\n    variance = sum(((((((("
+            "ACTION: WRITE_FILEFILE_de_th_3.py\ndef computing(s: str) -> bool:\n    if not name:\n        return False\n    if not (name[0].isalpha() or name[0] == '_'):\n        return False\n    return all(ch.isalnum() or ch == '_' for ch in name[1:])",
+            "ACTION: FINISH Verified implementation of Sate_name_3",
+            "ACTION: WRITE_FILEFILEFILEFILEspace.py']]]]]]]]",
+            "ACTION: FINISH Verified implementation of Sate_name_name_name_name"
           ],
           "final_summary": "[OBSERVATION: Task incomplete: Target file 'tree_depth_3.py' does not exist in workspace. Continue working.]",
-          "slot_0_delta": 10.137049674987793,
-          "slot_1_delta": 11.280402183532715,
-          "max_span_char_similarity": 0.19999999999999996,
+          "slot_0_delta": 10.491958618164062,
+          "slot_1_delta": 10.724150657653809,
+          "max_span_char_similarity": 0.0,
           "max_span_token_accuracy": 0.0
         },
         {
@@ -474,63 +468,63 @@
           "success": false,
           "cycles": 4,
           "actions": [
-            "ACTION: WRITE_FILE math_ath_ath_ath_",
-            "ACTION: FINISH Verified implementation of prefix_sums_2300",
-            "ACTION: WRITE_FILE math_ath_ath_ath_",
-            "ACTION: FINISH Verified implementation of sum_frequencies_94"
+            "ACTION: WRITE_FILE list_dedup_4.py\ndef pre(r: list, size: list[float]):\n    n = len(vals)\n    if n < 2:\n        return None\n    mean = sum(vals) / n\n    variance = sum(((x - mean) ** 2 for x in vals) / (n - 1)\n    return (mean, variance)",
+            "ACTION: WRITE_FILE list_FILE f_FILE failed: SyntaxError at line(vals: list[float]):\n    n = len(vals)\n    if n < 2:\n        return None\n    mean = sum(vals) / n\n    variance = sum((x - mean) ** 2 for x in vals) / (n - 1)\n    return (mean, variance)",
+            "ACTION: WRITE_FILE f:FILE list_FILE fFILEFILEFILEFILEFILEFILEFILEFILE",
+            "ACTION: WRITE_FILE list_FILE f:FILE list_FILE list_FILEFILEFILEFILEFILEFILEFILEFILE"
           ],
-          "final_summary": "[OBSERVATION: Task incomplete: Target file 'list_dedup_4.py' does not exist in workspace. Continue working.]",
-          "slot_0_delta": 9.393966674804688,
-          "slot_1_delta": 10.680139541625977,
-          "max_span_char_similarity": 0.0,
-          "max_span_token_accuracy": 0.0
+          "final_summary": "",
+          "slot_0_delta": 10.845841407775879,
+          "slot_1_delta": 11.753707885742188,
+          "max_span_char_similarity": 1.0,
+          "max_span_token_accuracy": 1.0
         },
         {
           "task_id": "moving_average_5",
           "success": false,
           "cycles": 4,
           "actions": [
-            "ACTION: WRITE_FILE range_stats_5.py\ndef transpose_2d_1880(grid: list[list[int]) -> list[list[int]]:\n    if not grid or not grid[0]:\n        return []\n    return [[grid[r][c] for r in range(len(grid)))] for c in range(len(grid[0])",
-            "ACTION: WRITE_FILE f:yntaxError at line 1, col 24: expected ':']\ndef count_variance_2267(vals: list[float]):\n    n = len(vals)\n    if n < 2:\n        return None\n    mean = sum(vals) / n\n    variance = sum((((((((",
-            "ACTION: WRITE_FILE f:yntaxError at line 1, col 24: expected ':']\ndef count_variance_2267(vals: list[float]):\n    n = len(vals)\n    if n < 2:\n        return None\n    mean = sum(vals) / n\n    variance = sum((((((((",
-            "ACTION: WRITE_FILE f:yntaxError at line 1, col 24: expected ':']\ndef count_variance_2267(vals: list[float]):\n    n = len(vals)\n    if n < 2:\n        return None\n    mean = sum(vals) / n\n    variance = sum(((((((("
+            "ACTION: WRITE_FILE rolling_stats_5.py\ndef computing sliding window simple",
+            "ACTION: WRITE_FILE fFILE failed: SyntaxError at line 1, col 15: expected '(*args, **kwargs):\n    return None",
+            "ACTION: WRITE_FILE fFILEFILE\"]_FILEar(vals: list, x == target:\n            return i\n    return -1",
+            "ACTION: WRITE_FILEFILEFILEFILEFILEFILEFILEFILE"
           ],
           "final_summary": "",
-          "slot_0_delta": 9.724760055541992,
-          "slot_1_delta": 10.341883659362793,
-          "max_span_char_similarity": 0.7222222222222222,
-          "max_span_token_accuracy": 0.75
+          "slot_0_delta": 10.741768836975098,
+          "slot_1_delta": 11.160677909851074,
+          "max_span_char_similarity": 1.0,
+          "max_span_token_accuracy": 1.0
         },
         {
           "task_id": "roman_numeral_6",
           "success": false,
           "cycles": 4,
           "actions": [
-            "ACTION: WRITE_FILE se line str_6.py\ndef validate_name_name_name_2267(d1: list[int]) -> list[int]:\n    out = []\n    curr = 0\n    for x in nums:\n        curr += x\n        out.append(curr)\n    return out",
-            "ACTION: FINISH Verified implementation of sum_digits_3",
-            "ACTION: WRITE_FILE se6.py\ndef invert_4(d: list, size: int, size: int",
-            "ACTION: WRITE_FILE f:yntaxError at line 1, col 24: expected ':']\ndef count_variance_2267(vals: list[float]):\n    n = len(vals)\n    if n < 2:\n        return None\n    mean = sum(vals) / n\n    variance = sum(((((((("
+            "ACTION: WRITE_FILE roman_calc_6.py\ndef in, L, C,_, M)",
+            "ACTION: WRITE_FILE fFILE failed: SyntaxError at line 1, col 24: expectedmatched ')'_inACTION_TACTS",
+            "ACTION: WRITE_FILE fFILEFILE\"]_FILEex(*args, **kwargs):\n    return None",
+            "ACTION: WRITE_FILE fFILEFILE\"]_FILEex_FILEex(vals: list[float]):\n    n = len(vals)\n    if n < 2:\n        return None\n    mean = sum(vals) / n\n    variance = sum(x - mean) ** 2 for x in vals) / (n - 1)\n    return (mean, variance)"
           ],
-          "final_summary": "[OBSERVATION: Task incomplete: Target file 'roman_calc_6.py' does not exist in workspace. Continue working.]",
-          "slot_0_delta": 9.932710647583008,
-          "slot_1_delta": 10.342101097106934,
-          "max_span_char_similarity": 0.2666666666666667,
-          "max_span_token_accuracy": 0.25
+          "final_summary": "",
+          "slot_0_delta": 10.302934646606445,
+          "slot_1_delta": 11.207982063293457,
+          "max_span_char_similarity": 1.0,
+          "max_span_token_accuracy": 1.0
         },
         {
           "task_id": "lru_cache_7",
           "success": false,
           "cycles": 4,
           "actions": [
-            "ACTION: WRITE_FILE key_ mat line_7.py\ndef validate_name_7(name: str) -> bool:\n    if not name:\n        return False\n    if not (name[0].isalpha() or name[0] == '_'):\n        return False\n    return all(ch.isalnum() or ch == '_' for ch in name[1:])",
-            "ACTION: FINISH Verified implementation of sum_digits_37",
-            "ACTION: WRITE_FILE mat line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st",
-            "ACTION: WRITE_FILE matr line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_st line_"
+            "ACTION: WRITE_FILEFILEFILE_store_7.py\ndef in_(vals: list[float]):\n    n = len(vals)\n    if n < 2:\n        return None\n    mean = sum(vals) / n\n    variance = sum(((x - mean) ** 2 for x in vals) / (n - 1)\n    return (mean, variance)",
+            "ACTION: WRITE_FILE fFILE failed: SyntaxError at line col, col 24: '(vals: list[float]):\n    n = len(vals)\n    if n < 2:\n        return None\n    mean = sum(vals) / n\n    variance = sum(x - mean) ** 2 for x in vals) / (n - 1)\n    return (mean, variance)",
+            "ACTION: WRITE_FILE fFILEFILE\"]_FILEex(*args, **kwargs):\n    return None",
+            "ACTION: WRITE_FILEFILEFILEFILEFILE\"]_FILEex(vals: list[float]):\n    n = len(vals)\n    if n < 2:\n        return None\n    mean = sum(vals) / n\n    variance = sum(x - mean) ** 2 for x in vals) / (n - 1)\n    return (mean, variance)"
           ],
-          "final_summary": "[OBSERVATION: Task incomplete: Target file 'cache_store_7.py' does not exist in workspace. Continue working.]",
-          "slot_0_delta": 9.771684646606445,
-          "slot_1_delta": 10.669039726257324,
-          "max_span_char_similarity": 0.125,
+          "final_summary": "",
+          "slot_0_delta": 10.302803039550781,
+          "slot_1_delta": 11.25542163848877,
+          "max_span_char_similarity": 0.0,
           "max_span_token_accuracy": 0.0
         },
         {
@@ -538,14 +532,14 @@
           "success": false,
           "cycles": 4,
           "actions": [
-            "ACTION: WRITE_FILE str_ath_ath_ath_ath",
-            "ACTION: FINISH Verified implementation of sum_frequencies_9",
-            "ACTION: WRITE_FILE math_ath_ath_ath_",
-            "ACTION: FINISH Verified implementation of sum_frequencies_9"
+            "ACTION: WRITE_FILEFILE\nFILE list_FILEFILEed_ed_aph.py\ndef\ndef\ndef\ndef",
+            "ACTION: FINISH Verified implementation of Sate_name_name_FILE(name: str) -> bool:\n    if not name:\n        return False\n    if not (name[0].isalpha() or name[0] == '_'):\n        return False\n    return all(ch.isalnum() or ch == '_' for ch in name[1:])",
+            "ACTION: WRITE_FILEFILEFILEFILEFILEFILEspace. Continue working.]]]]]]]]",
+            "ACTION: FINISH Verified implementation of Sate_name_name_name_name"
           ],
           "final_summary": "[OBSERVATION: Task incomplete: Target file 'graph_path_8.py' does not exist in workspace. Continue working.]",
-          "slot_0_delta": 9.83395004272461,
-          "slot_1_delta": 10.77690315246582,
+          "slot_0_delta": 10.02673053741455,
+          "slot_1_delta": 10.855840682983398,
           "max_span_char_similarity": 0.0,
           "max_span_token_accuracy": 0.0
         },
@@ -554,16 +548,16 @@
           "success": false,
           "cycles": 4,
           "actions": [
-            "ACTION: WRITE_FILE str_:util_9.py\ndef is_ascending_89(items: list[int]) -> bool:\n    return all(items[i] <= items[i+1] for i in range(len(items) - 1))",
-            "ACTION: FINISH Verified implementation of is_ascending_7",
-            "ACTION: WRITE_FILE se range_variance_r.py\n_1(items: list[float]):\n    n = len(vals)\n    if n < 2:\n        return None\n    mean = sum(vals) / n\n    variance = sum((((((((",
-            "ACTION: WRITE_FILE synt:yntaxError at line 1, col 24: expected ':']\ndef count_variance_2267(vals: list[float]):\n    n = len(vals)\n    if n < 2:\n        return None\n    mean = sum(vals) / n\n    variance = sum(((((((("
+            "ACTION: WRITE_FILEFILEv_util_9.py\ndef(s: str) -> bool:\n    if not name:\n        return False\n    if not (name[0].isalpha() or name[0] == '_'):\n        return False\n    return all(ch.isalnum() or ch == '_' for ch in name[1:])",
+            "ACTION: WRITE_FILE syntax_v_TAKFILEN: WRITE_FILEFILEFILEFILEFILEFILEFILEFILE",
+            "ACTION: FINISH Verified implementation of Synt_",
+            "ACTION: WRITE_FILE sy_FILE syntax_v_TAKFILEN: WRITE_FILEFILEFILEFILEFILEFILEFILEFILE"
           ],
           "final_summary": "[OBSERVATION: Task incomplete: Target file 'csv_util_9.py' does not exist in workspace. Continue working.]",
-          "slot_0_delta": 10.201188087463379,
-          "slot_1_delta": 11.252907752990723,
-          "max_span_char_similarity": 0.7142857142857143,
-          "max_span_token_accuracy": 0.5
+          "slot_0_delta": 10.8870210647583,
+          "slot_1_delta": 11.030485153198242,
+          "max_span_char_similarity": 0.0,
+          "max_span_token_accuracy": 0.0
         }
       ]
     }

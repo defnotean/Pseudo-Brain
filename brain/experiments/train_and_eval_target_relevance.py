@@ -48,7 +48,8 @@ def build_pomdp_batches_calibrated(
     resp_id = tokenizer.resp_id
     eos_id = tokenizer.eos_id
     file_tok = 4036  # token id for 'FILE'
-    nl_id = 273     # token id for '\n'
+    def_tok = 951   # token id for 'def'
+    of_tok = 367    # token id for ' of'
 
     batches = []
     for i in range(0, len(encoded_list), batch_size):
@@ -85,10 +86,19 @@ def build_pomdp_batches_calibrated(
             # Find exact span of target module in p_toks
             mod_toks = tokenizer.encode(f" {t_obj.target_module}")
             L_mod = len(mod_toks)
-            p_start = -1
+            p_mod_start = -1
             for p_idx in range(len(p_toks) - L_mod, -1, -1):
                 if p_toks[p_idx : p_idx + L_mod] == mod_toks:
-                    p_start = p_idx
+                    p_mod_start = p_idx
+                    break
+
+            # Find exact span of target function in p_toks
+            fn_toks = tokenizer.encode(f" {t_obj.target_function}")
+            L_fn = len(fn_toks)
+            p_fn_start = -1
+            for p_idx in range(len(p_toks) - L_fn, -1, -1):
+                if p_toks[p_idx : p_idx + L_fn] == fn_toks:
+                    p_fn_start = p_idx
                     break
 
             mask = [0.0] * len(seq)
@@ -106,24 +116,54 @@ def build_pomdp_batches_calibrated(
                 elif in_resp:
                     mask[idx] = 1.0
 
-            # Target module tokens in response (immediately following FILE up to \n)
+            # Tag target spans only within agent response segments [RESP ... EOS]
             curr = 0
             while True:
                 try:
-                    f_pos = seq.index(file_tok, curr)
+                    r_start = seq.index(resp_id, curr)
                 except ValueError:
                     break
                 try:
-                    nl_pos = seq.index(nl_id, f_pos)
+                    r_end = seq.index(eos_id, r_start)
                 except ValueError:
-                    nl_pos = len(seq) - 1
+                    r_end = len(seq)
 
-                for offset, p in enumerate(range(f_pos, min(nl_pos, len(seq)))):
-                    if p < len(tmask):
-                        tmask[p] = 1.0
-                        if p_start >= 0 and offset < L_mod:
-                            ptarg[p] = p_start + offset
-                curr = nl_pos + 1
+                resp_slice = seq[r_start : r_end]
+
+                # 1. Module name after FILE
+                if file_tok in resp_slice:
+                    f_local = resp_slice.index(file_tok)
+                    f_pos = r_start + f_local
+                    for offset in range(L_mod):
+                        p = f_pos + offset
+                        if p < len(seq):
+                            tmask[p] = 1.0
+                            if p_mod_start >= 0:
+                                ptarg[p] = p_mod_start + offset
+
+                # 2. Function name after def
+                if def_tok in resp_slice:
+                    d_local = resp_slice.index(def_tok)
+                    d_pos = r_start + d_local
+                    for offset in range(L_fn):
+                        p = d_pos + offset
+                        if p < len(seq):
+                            tmask[p] = 1.0
+                            if p_fn_start >= 0:
+                                ptarg[p] = p_fn_start + offset
+
+                # 3. Function name after ' of'
+                if of_tok in resp_slice:
+                    o_local = resp_slice.index(of_tok)
+                    o_pos = r_start + o_local
+                    for offset in range(L_fn):
+                        p = o_pos + offset
+                        if p < len(seq):
+                            tmask[p] = 1.0
+                            if p_fn_start >= 0:
+                                ptarg[p] = p_fn_start + offset
+
+                curr = r_end + 1
 
             loss_masks.append(mask)
             target_masks.append(tmask)
@@ -184,7 +224,7 @@ def train_calibrated_pomdp_policy(
         B, T, V = logits.shape
 
         # 1. Weighted Token Loss
-        weights = M + (target_weight - 1.0) * target_masks
+        weights = 1.5 * M + (target_weight - 1.5) * target_masks
         loss_raw = F.cross_entropy(logits.view(-1, V), Y.view(-1), reduction="none")
         L_token = (loss_raw * weights.view(-1)).sum() / (weights.sum() + 1e-6)
 
@@ -283,7 +323,7 @@ def report_to_dict(r: BenchmarkEvaluationReport) -> Dict[str, Any]:
 def main():
     print("=== Pseudo-Brain POMDP Policy: Target-Pointing Calibration ===")
     gen = ProceduralTrainingGenerator(seed=1337)
-    training_tasks = gen.generate_training_tasks(count=40, diversify_indices=True)
+    training_tasks = gen.generate_training_tasks(count=80, diversify_indices=True)
     print(f"Generated {len(training_tasks)} training tasks across 8 open domains.")
 
     tokenizer = BpeSemanticTokenizer(vocab_size=32000)
@@ -311,7 +351,7 @@ def main():
     train_calibrated_pomdp_policy(
         model,
         batches,
-        steps=250,
+        steps=300,
         lr=1.5e-3,
         target_loss=0.010,
         target_weight=8.0,

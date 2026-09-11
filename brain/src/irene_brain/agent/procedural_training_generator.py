@@ -756,8 +756,7 @@ def {fn_name}(vals: list[float]):
                 # Pattern 4: Research / Memory Retrieval Assisted Acquisition
                 doc_concept = f"Algorithm specification for {t.target_function}: implement logic for {t.domain}."
                 ep = (
-                    f"[GOAL: {t.goal}]\n"
-                    f"[TARGET_FUNCTION: {t.target_function}]\n"
+                    f"{header}"
                     f"[PHASE: EXPLORE]\n"
                     f"[RESP]ACTION: RETRIEVE_MEMORY {t.target_function} algorithm[EOS]\n"
                     f"[OBSERVATION: {doc_concept}]\n"

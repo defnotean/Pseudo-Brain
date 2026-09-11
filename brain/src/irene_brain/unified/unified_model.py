@@ -553,6 +553,12 @@ class UnifiedPseudoBrain(nn.Module):
                     shift_prior[:, 1:] = prev_a[:, :-1]
                     scores = scores + self.ptr_seq_boost * state.ptr_prev_gamma * shift_prior
 
+                    # Monotonic Causal Lower-Bound Mask: prevent backward attention jumps during active copying
+                    prev_max_idx = prev_a.argmax(dim=-1, keepdim=True)
+                    pos_indices = torch.arange(cur_n, device=dev).unsqueeze(0).expand(B, -1)
+                    backward_mask = (pos_indices < prev_max_idx) & (state.ptr_prev_gamma > 0.3)
+                    scores = scores.masked_fill(backward_mask, -1e9)
+
                 ptr_attn = torch.softmax(scores, dim=-1)
                 ptr_boost = ptr_attn * (ptr_gamma * self.ptr_scale)
                 language_logits = language_logits.scatter_add(dim=-1, index=prompt_tokens, src=ptr_boost)
@@ -674,13 +680,21 @@ class UnifiedPseudoBrain(nn.Module):
 
             # Vectorized sequential pointer advancement scan over T
             alphas = []
-            alpha_prev = torch.zeros(B, prompt_tokens.shape[1], device=content_scores.device)
+            cur_n = prompt_tokens.shape[1]
+            alpha_prev = torch.zeros(B, cur_n, device=content_scores.device)
             gamma_prev = torch.zeros(B, 1, device=content_scores.device)
+            pos_indices = torch.arange(cur_n, device=content_scores.device).unsqueeze(0).expand(B, -1)
             boost = self.ptr_seq_boost if self.ptr_seq_boost is not None else 15.0
             for t in range(T):
                 shift_prior = torch.zeros_like(alpha_prev)
                 shift_prior[:, 1:] = alpha_prev[:, :-1]
                 s_t = content_scores[:, t] + boost * gamma_prev * shift_prior
+
+                # Monotonic Causal Lower-Bound Mask: prevent backward attention jumps during active copying
+                prev_max_idx = alpha_prev.argmax(dim=-1, keepdim=True)
+                backward_mask = (pos_indices < prev_max_idx) & (gamma_prev > 0.3)
+                s_t = s_t.masked_fill(backward_mask, -1e9)
+
                 alpha_t = torch.softmax(s_t, dim=-1)
                 alphas.append(alpha_t)
                 alpha_prev = alpha_t
