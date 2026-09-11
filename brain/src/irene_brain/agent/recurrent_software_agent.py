@@ -248,10 +248,6 @@ class RecurrentSoftwareAgent:
             slot_id=slot_id, prompt_prefix=prompt_prefix,
             max_new_tokens=max_new_tokens, temperature=temperature,
         )
-        if gen_res.stop_reason != "eos":
-            # If generation was cut off (token limit or repetition cutoff), do not rewrite or pretend it's a valid action
-            return gen_res
-
         candidate = gen_res.text
         # Normalize minor tokenization boundary artifacts (e.g. WRITE_:FILE -> WRITE_FILE)
         candidate = candidate.replace("WRITE_:FILE", "WRITE_FILE ")
@@ -272,12 +268,13 @@ class RecurrentSoftwareAgent:
                         candidate = f"ACTION: WRITE_FILE {target_module}\n{code}"
                 elif not first_line.replace("ACTION: WRITE_FILE", "").strip().endswith(".py"):
                     candidate = f"ACTION: WRITE_FILE {target_module}\n{body}"
-            return GenerationResult(candidate, gen_res.token_ids, "eos")
+            action_text = candidate
+        elif candidate.startswith("ACTION: "):
+            action_text = candidate
+        else:
+            action_text = f"ACTION: UNPARSED {candidate}"
 
-        # DO NOT convert invalid or uncalibrated tokens into ACTION: FINISH!
-        if candidate.startswith("ACTION: "):
-            return GenerationResult(candidate, gen_res.token_ids, "eos")
-        return GenerationResult(f"ACTION: UNPARSED {candidate}", gen_res.token_ids, "eos")
+        return GenerationResult(action_text, gen_res.token_ids, gen_res.stop_reason)
 
     def execute_pomdp_episode(
         self,

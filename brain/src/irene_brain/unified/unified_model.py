@@ -1014,6 +1014,12 @@ def make_unified_model(
     **kwargs: Any,
 ) -> UnifiedPseudoBrain:
     """Factory function for Unified Pseudo-Brain architecture across tiers."""
+    if kwargs.get("compensated_state", False):
+        if "use_routing" not in kwargs:
+            kwargs["use_routing"] = False
+        elif kwargs["use_routing"]:
+            raise ValueError("compensated_state=True cannot be combined with use_routing=True")
+
     tier_norm = tier.lower().replace("-", "_")
     if tier_norm in ("tier0", "micro", "131k"):
         return UnifiedPseudoBrain(

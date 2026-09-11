@@ -183,9 +183,10 @@ def test_recurrent_software_agent_routing_configuration(cpu_model: UnifiedPseudo
     assert isinstance(action, str)
     assert agent.cognitive_state.hierarchical_state.fast_state_bytes() == 4096
 
-def test_recurrent_software_agent_execute_episode(cpu_model: UnifiedPseudoBrain) -> None:
+def test_recurrent_software_agent_execute_episode(cpu_model: UnifiedPseudoBrain, monkeypatch: pytest.MonkeyPatch) -> None:
     """Verify RecurrentSoftwareAgent.execute_episode follows POMDP protocol and conforms to evaluation trace schema."""
     from dataclasses import dataclass
+    from irene_brain.agent.recurrent_software_agent import GenerationResult
 
     @dataclass
     class MockFeedback:
@@ -204,6 +205,10 @@ def test_recurrent_software_agent_execute_episode(cpu_model: UnifiedPseudoBrain)
             return MockFeedback("FINISH", True, "All tests passed", verified_completion=True)
 
     agent = RecurrentSoftwareAgent(model=cpu_model, allow_routing=True)
+    monkeypatch.setattr(
+        agent, "generate_action_autoregressive",
+        lambda *a, **kw: GenerationResult("ACTION: RUN_TESTS test_count.py", [1, 2], "eos")
+    )
     result = agent.execute_episode("Task: Implement count\nTarget: count_ops.py", MockEnv(), max_cycles=3)
 
     assert result.success is True
