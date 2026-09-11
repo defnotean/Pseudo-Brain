@@ -211,6 +211,8 @@ class HierarchicalCognitiveState:
             P_t=self.P_t.clone() if self.P_t is not None else None,
             prev_working=self.prev_working.clone() if self.prev_working is not None else None,
             active_thread=self.active_thread.clone() if self.active_thread is not None else None,
+            working_salience=self.working_salience.clone() if self.working_salience is not None else None,
+            config=self.config,
         )
 
     def detach(self) -> HierarchicalCognitiveState:
@@ -222,6 +224,8 @@ class HierarchicalCognitiveState:
             P_t=self.P_t.detach() if self.P_t is not None else None,
             prev_working=self.prev_working.detach() if self.prev_working is not None else None,
             active_thread=self.active_thread.detach() if self.active_thread is not None else None,
+            working_salience=self.working_salience.detach() if self.working_salience is not None else None,
+            config=self.config,
         )
 
     def to(self, device: Optional[torch.device] = None, dtype: Optional[torch.dtype] = None) -> HierarchicalCognitiveState:
@@ -233,6 +237,8 @@ class HierarchicalCognitiveState:
             P_t=self.P_t.to(device=device, dtype=dtype) if self.P_t is not None else None,
             prev_working=self.prev_working.to(device=device, dtype=dtype) if self.prev_working is not None else None,
             active_thread=self.active_thread.to(device=device) if self.active_thread is not None else None,
+            working_salience=self.working_salience.to(device=device, dtype=dtype) if self.working_salience is not None else None,
+            config=self.config,
         )
 
     def fast_state_bytes(self) -> int:
@@ -254,6 +260,7 @@ class HierarchicalCognitiveState:
             "P_t": self.P_t.detach().cpu() if self.P_t is not None else None,
             "prev_working": self.prev_working.detach().cpu() if self.prev_working is not None else None,
             "active_thread": self.active_thread.detach().cpu() if self.active_thread is not None else None,
+            "working_salience": self.working_salience.detach().cpu() if self.working_salience is not None else None,
         }
 
     @classmethod
@@ -268,6 +275,7 @@ class HierarchicalCognitiveState:
             P_t=data["P_t"].to(dev) if data.get("P_t") is not None else None,
             prev_working=data["prev_working"].to(dev) if data.get("prev_working") is not None else None,
             active_thread=data["active_thread"].to(dev) if data.get("active_thread") is not None else None,
+            working_salience=data["working_salience"].to(dev) if data.get("working_salience") is not None else None,
         )
 
     def to_bytes(self) -> bytes:

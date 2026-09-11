@@ -52,6 +52,24 @@ class AgentPOMDPEpisodeResult:
     policy_source: str = "autonomous"
 
 
+class GenerationResult(str):
+    """Structured outcome of autoregressive recurrent generation.
+
+    Subclasses str for 100% backward compatibility with string operations
+    while preserving authentic emitted token IDs and verified stop reason.
+    """
+    text: str
+    token_ids: List[int]
+    stop_reason: str
+
+    def __new__(cls, text: str, token_ids: List[int], stop_reason: str):
+        obj = str.__new__(cls, text)
+        obj.text = text
+        obj.token_ids = list(token_ids)
+        obj.stop_reason = stop_reason
+        return obj
+
+
 class RecurrentSoftwareAgent:
     """Persistent recurrent cognitive agent driving software tasks via POMDP actions."""
 
@@ -71,7 +89,10 @@ class RecurrentSoftwareAgent:
         tokenizer_json = None
 
         if model is None:
-            if checkpoint_path is not None and Path(checkpoint_path).exists():
+            if checkpoint_path is not None:
+                ckpt_p = Path(checkpoint_path)
+                if not ckpt_p.is_file():
+                    raise FileNotFoundError(f"Checkpoint file does not exist: {checkpoint_path}")
                 ckpt = torch.load(checkpoint_path, map_location=self.device)
                 tokenizer_json = ckpt.get("tokenizer_json")
                 model_tier = ckpt.get("tier", tier)
@@ -133,7 +154,7 @@ class RecurrentSoftwareAgent:
         prompt_prefix: str = "[RESP]",
         max_new_tokens: int = 256,
         temperature: float = 0.0,
-    ) -> str:
+    ) -> GenerationResult:
         """Autoregressively decode raw text directly from the recurrent state.
 
         Steps prompt prefix into the designated slot, then sequentially unrolls single-token
@@ -165,10 +186,12 @@ class RecurrentSoftwareAgent:
                     last_logits = outputs["logits"][0]
 
         if last_logits is None:
-            return ""
+            return GenerationResult("", [0], "token_limit")
 
         gen_tokens: List[int] = []
         syntax_exempt = set(self.tokenizer.encode(" \n\t_():=,.-'\"[]{}0123456789") or [])
+        stop_reason = "token_limit"
+
         with torch.no_grad():
             for _ in range(max_new_tokens):
                 step_logits = last_logits.clone()
@@ -186,6 +209,7 @@ class RecurrentSoftwareAgent:
                     next_tok = int(torch.multinomial(probs, num_samples=1).item())
 
                 if next_tok in (self.tokenizer.eos_id, self.tokenizer.pad_id, self.tokenizer.sep_id):
+                    stop_reason = "eos"
                     break
 
                 gen_tokens.append(next_tok)
@@ -201,12 +225,15 @@ class RecurrentSoftwareAgent:
                 # The returned token must enter the state even when it triggers
                 # the loop cutoff, before the closing EOS is consumed.
                 if len(gen_tokens) >= 8 and gen_tokens[-4:] == gen_tokens[-8:-4]:
+                    stop_reason = "repetition_cutoff"
                     break
 
-        # Every closed action consumes one terminator, including truncated actions.
-        self._ingest_text_into_slot("[EOS]", slot_id=slot_id)
+        # ONLY ingest [EOS] if the generation stopped due to natural [EOS]!
+        if stop_reason == "eos":
+            self._ingest_text_into_slot("[EOS]", slot_id=slot_id)
+
         candidate = self.tokenizer.decode(gen_tokens, skip_special=True).strip()
-        return candidate
+        return GenerationResult(candidate, gen_tokens, stop_reason)
 
     def generate_action_autoregressive(
         self,
@@ -215,13 +242,17 @@ class RecurrentSoftwareAgent:
         max_new_tokens: int = 256,
         temperature: float = 0.0,
         target_module: Optional[str] = None,
-    ) -> str:
+    ) -> GenerationResult:
         """Decode a policy action without converting invalid output into success."""
-        candidate = self.generate_text_autoregressive(
+        gen_res = self.generate_text_autoregressive(
             slot_id=slot_id, prompt_prefix=prompt_prefix,
             max_new_tokens=max_new_tokens, temperature=temperature,
         )
+        if gen_res.stop_reason != "eos":
+            # If generation was cut off (token limit or repetition cutoff), do not rewrite or pretend it's a valid action
+            return gen_res
 
+        candidate = gen_res.text
         # Normalize minor tokenization boundary artifacts (e.g. WRITE_:FILE -> WRITE_FILE)
         candidate = candidate.replace("WRITE_:FILE", "WRITE_FILE ")
         candidate = re.sub(r"^ACTION:\s*([A-Z_]+)", r"ACTION: \1", candidate)
@@ -238,15 +269,15 @@ class RecurrentSoftwareAgent:
                     m_code = re.search(r"(def\s+|class\s+|return\s+)", candidate)
                     if m_code:
                         code = candidate[m_code.start():]
-                        return f"ACTION: WRITE_FILE {target_module}\n{code}"
+                        candidate = f"ACTION: WRITE_FILE {target_module}\n{code}"
                 elif not first_line.replace("ACTION: WRITE_FILE", "").strip().endswith(".py"):
-                    return f"ACTION: WRITE_FILE {target_module}\n{body}"
-            return candidate
+                    candidate = f"ACTION: WRITE_FILE {target_module}\n{body}"
+            return GenerationResult(candidate, gen_res.token_ids, "eos")
 
         # DO NOT convert invalid or uncalibrated tokens into ACTION: FINISH!
         if candidate.startswith("ACTION: "):
-            return candidate
-        return f"ACTION: UNPARSED {candidate}"
+            return GenerationResult(candidate, gen_res.token_ids, "eos")
+        return GenerationResult(f"ACTION: UNPARSED {candidate}", gen_res.token_ids, "eos")
 
     def execute_pomdp_episode(
         self,
@@ -441,25 +472,48 @@ class RecurrentSoftwareAgent:
 
         trace = []
         for cycle in range(max_cycles):
-            action = self.generate_action_autoregressive(
+            action_res = self.generate_action_autoregressive(
                 slot_id=0, prompt_prefix="[RESP]", max_new_tokens=max_action_tokens, target_module=target_module
             )
+            state_bytes = self.cognitive_state.hierarchical_state.fast_state_bytes()
+
+            if action_res.stop_reason != "eos":
+                # Incomplete action generated (token limit or repetition cutoff).
+                # Reject action: DO NOT execute in the environment! DO NOT fabricate EOS!
+                entry = {
+                    "cycle": cycle + 1,
+                    "raw_action": action_res.text,
+                    "token_ids": action_res.token_ids,
+                    "generation_stop": action_res.stop_reason,
+                    "executed": False,
+                    "state_bytes": state_bytes,
+                    "feedback": None,
+                }
+                trace.append(entry)
+                stop_reason = f"action_{action_res.stop_reason}"
+                return ParallelEpisodeResult(False, stop_reason, len(trace), state_bytes, prompt_sha, tuple(trace))
+
+            action = action_res.text
             feedback = environment.execute_action(action)
             entry = {
                 "cycle": cycle + 1,
                 "raw_action": action,
-                "token_ids": self.tokenizer.encode(action) or [0],
+                "token_ids": action_res.token_ids,
                 "generation_stop": "eos",
                 "executed": True,
-                "state_bytes": self.cognitive_state.hierarchical_state.fast_state_bytes(),
+                "state_bytes": state_bytes,
                 "feedback": asdict(feedback),
             }
             trace.append(entry)
 
             if feedback.action_type == "FINISH" and feedback.success and getattr(feedback, "verified_completion", False):
-                return ParallelEpisodeResult(True, "verified_completion", len(trace), 4096, prompt_sha, tuple(trace))
+                return ParallelEpisodeResult(True, "verified_completion", len(trace), state_bytes, prompt_sha, tuple(trace))
 
             obs_text = getattr(feedback, "observation_text", str(feedback))
+            obs_tokens = self.tokenizer.encode(obs_text) or [0]
+            if len(obs_tokens) > max_observation_tokens:
+                return ParallelEpisodeResult(False, "observation_token_limit", len(trace), state_bytes, prompt_sha, tuple(trace))
+
             transition = observation_transition(feedback, target_module)
             self._ingest_text_into_slot(transition, slot_id=0)
             self._ingest_text_into_slot(obs_text, slot_id=1)
@@ -471,5 +525,6 @@ class RecurrentSoftwareAgent:
                 err_snippet = getattr(feedback, "stderr", "") or obs_text
                 self._ingest_text_into_slot(f"[ERROR_OBSERVED: {err_snippet[:120]}]", slot_id=2)
 
-        return ParallelEpisodeResult(False, "cycle_limit", len(trace), 4096, prompt_sha, tuple(trace))
+        state_bytes = self.cognitive_state.hierarchical_state.fast_state_bytes()
+        return ParallelEpisodeResult(False, "cycle_limit", len(trace), state_bytes, prompt_sha, tuple(trace))
 

@@ -109,6 +109,8 @@ class UnifiedPseudoBrain(nn.Module):
         retention_profile: str = "legacy",
     ):
         super().__init__()
+        if compensated_state and use_routing:
+            raise ValueError("compensated_state=True cannot be combined with use_routing=True")
         self.vocab_size = vocab_size
         self.tier = tier
 
@@ -436,6 +438,9 @@ class UnifiedPseudoBrain(nn.Module):
             episodic_thoughts=ep_init,
             working_prev=fast_init.clone(),
             episodic_ages=torch.full((batch_size, self.K_episodic), 100.0, device=device),
+            step_count=torch.zeros(batch_size, dtype=torch.long, device=device),
+            P_t=None,
+            active_thread=torch.zeros(batch_size, dtype=torch.long, device=device),
             working_salience=torch.ones(batch_size, self.K_fast, device=device),
             config=self.memory_cfg,
         )
@@ -443,6 +448,7 @@ class UnifiedPseudoBrain(nn.Module):
         return UnifiedCognitiveState(
             hierarchical_state=h_state,
             active_thread=active_thread,
+            P_t=None,
             last_action=torch.zeros(batch_size, dtype=torch.long, device=device),
             ptr_prev_alpha=None,
             ptr_prev_gamma=None,
@@ -640,11 +646,17 @@ class UnifiedPseudoBrain(nn.Module):
         predicted_value = self.value_head(contextualized_slot)
         tool_call_prob = self.tool_gate(contextualized_slot)
 
+        next_step_count = state.hierarchical_state.step_count + 1
+        p_t = state.P_t if state.P_t is not None else state.hierarchical_state.P_t
+
         next_hierarchical = HierarchicalCognitiveState(
             working_thoughts=working,
             episodic_thoughts=ep_thoughts,
             working_prev=state.hierarchical_state.working_thoughts.clone(),
             episodic_ages=ep_ages,
+            step_count=next_step_count,
+            P_t=p_t,
+            active_thread=active_tid,
             working_salience=g_t.expand(-1, self.K_fast),
             config=self.memory_cfg,
         )
@@ -652,6 +664,7 @@ class UnifiedPseudoBrain(nn.Module):
         next_state = UnifiedCognitiveState(
             hierarchical_state=next_hierarchical,
             active_thread=active_tid,
+            P_t=p_t,
             last_action=action_logits.argmax(dim=-1),
             ptr_prev_alpha=ptr_attn.detach() if ptr_attn is not None and self.pointer_mode == "sequential" else None,
             ptr_prev_gamma=ptr_gamma.detach() if ptr_gamma is not None and self.pointer_mode == "sequential" else None,
@@ -845,6 +858,118 @@ class UnifiedPseudoBrain(nn.Module):
             "ptr_attn": ptr_attn,
         }
 
+    def forward_sequence_sequential(
+        self,
+        token_seq: Optional[Tensor] = None,
+        pixel_seq: Optional[Tensor] = None,
+        action_seq: Optional[Tensor] = None,
+        reset_mask: Optional[Tensor] = None,
+        prompt_tokens: Optional[Tensor] = None,
+        pointer_mask: Optional[Tensor] = None,
+        language_mask: Optional[Tensor] = None,
+        allow_routing: bool = False,
+        thread_seq: Optional[Tensor] = None,
+    ) -> Dict[str, Tensor]:
+        """Exact sequential unrolled reference training and evaluation path.
+
+        Executes the exact same step-by-step state transitions, slot routing (when
+        allow_routing=True), cross-tier episodic retrieval, and pointer mechanics
+        as streaming inference model.step().
+        """
+        B = None
+        T = None
+        dev = None
+
+        if token_seq is not None:
+            B, T = token_seq.shape
+            dev = token_seq.device
+        elif pixel_seq is not None:
+            B, T = pixel_seq.shape[:2]
+            dev = pixel_seq.device
+        elif action_seq is not None:
+            B, T = action_seq.shape
+            dev = action_seq.device
+        else:
+            raise ValueError("Must provide at least one of token_seq, pixel_seq, or action_seq.")
+
+        state = self.init_state(B, dev)
+        logits_list = []
+        action_list = []
+        values_list = []
+
+        for t in range(T):
+            sensory = self.encode_sensory(
+                token_ids=token_seq[:, t] if token_seq is not None else None,
+                pixels=pixel_seq[:, t] if pixel_seq is not None else None,
+                past_action=action_seq[:, t] if action_seq is not None else None,
+            )
+            if reset_mask is not None:
+                reset = reset_mask[:, t].bool()
+                if reset.any():
+                    initial = self.init_state(B, dev)
+                    reset_3d = reset[:, None, None]
+                    reset_2d = reset[:, None]
+                    state.hierarchical_state.working_thoughts = torch.where(
+                        reset_3d, initial.hierarchical_state.working_thoughts,
+                        state.hierarchical_state.working_thoughts,
+                    )
+                    state.hierarchical_state.episodic_thoughts = torch.where(
+                        reset_3d, initial.hierarchical_state.episodic_thoughts,
+                        state.hierarchical_state.episodic_thoughts,
+                    )
+                    state.hierarchical_state.episodic_ages = torch.where(
+                        reset_2d, initial.hierarchical_state.episodic_ages,
+                        state.hierarchical_state.episodic_ages,
+                    )
+                    state.hierarchical_state.step_count = torch.where(
+                        reset, initial.hierarchical_state.step_count,
+                        state.hierarchical_state.step_count,
+                    )
+                    if state.ptr_prev_alpha is not None:
+                        state.ptr_prev_alpha = torch.where(reset_2d, torch.zeros_like(state.ptr_prev_alpha), state.ptr_prev_alpha)
+                        state.ptr_prev_gamma = torch.where(reset_2d, torch.zeros_like(state.ptr_prev_gamma), state.ptr_prev_gamma)
+
+            if pointer_mask is not None and state.ptr_prev_alpha is not None:
+                keep = pointer_mask[:, t].unsqueeze(-1)
+                state.ptr_prev_alpha = state.ptr_prev_alpha * keep
+                state.ptr_prev_gamma = state.ptr_prev_gamma * keep
+
+            tid = thread_seq[:, t] if thread_seq is not None else None
+            tok_t = token_seq[:, t] if token_seq is not None else None
+
+            outputs, state = self.step(
+                sensory,
+                state,
+                thread_id=tid,
+                allow_routing=allow_routing,
+                token_id=tok_t,
+                prompt_tokens=prompt_tokens,
+            )
+
+            if pointer_mask is not None and outputs["ptr_attn"] is not None and prompt_tokens is not None:
+                keep = pointer_mask[:, t].unsqueeze(-1)
+                # Remove pointer contribution on observation/padding positions.
+                boost = outputs["ptr_attn"] * (outputs["ptr_gamma"] * self.ptr_scale)
+                outputs["logits"] = outputs["logits"].scatter_add(
+                    -1, prompt_tokens, -boost * (1 - keep),
+                )
+                if state.ptr_prev_alpha is not None:
+                    state.ptr_prev_alpha = state.ptr_prev_alpha * keep
+                    state.ptr_prev_gamma = state.ptr_prev_gamma * keep
+
+            logits_list.append(outputs["logits"])
+            action_list.append(outputs["action_logits"])
+            values_list.append(outputs["predicted_value"].squeeze(-1))
+
+        stacked_logits = torch.stack(logits_list, dim=1)
+        readout_logits = stacked_logits if language_mask is None else stacked_logits[language_mask]
+
+        return {
+            "logits": readout_logits,
+            "action_logits": torch.stack(action_list, dim=1),
+            "values": torch.stack(values_list, dim=1),
+        }
+
     def forward(
         self,
         token_seq: Optional[Tensor] = None,
@@ -855,6 +980,8 @@ class UnifiedPseudoBrain(nn.Module):
         prompt_tokens: Optional[Tensor] = None,
         pointer_mask: Optional[Tensor] = None,
         language_mask: Optional[Tensor] = None,
+        allow_routing: bool = False,
+        thread_seq: Optional[Tensor] = None,
     ) -> Dict[str, Tensor]:
         """Unified forward pass."""
         if parallel and (token_seq is not None or pixel_seq is not None):
@@ -868,56 +995,17 @@ class UnifiedPseudoBrain(nn.Module):
                 language_mask=language_mask,
             )
 
-        if token_seq is not None:
-            if language_mask is not None:
-                raise ValueError("Selective language readout is supported only by parallel training")
-            B, T = token_seq.shape
-            dev = token_seq.device
-            state = self.init_state(B, dev)
-            logits_list = []
-            action_list = []
-            values_list = []
-
-            for t in range(T):
-                sensory = self.encode_sensory(
-                    token_ids=token_seq[:, t] if token_seq is not None else None,
-                    pixels=pixel_seq[:, t] if pixel_seq is not None else None,
-                    past_action=action_seq[:, t] if action_seq is not None else None,
-                )
-                if reset_mask is not None:
-                    reset = reset_mask[:, t].bool()
-                    initial = self.init_state(B, dev)
-                    state.hierarchical_state.working_thoughts = torch.where(
-                        reset[:, None, None], initial.hierarchical_state.working_thoughts,
-                        state.hierarchical_state.working_thoughts,
-                    )
-                if pointer_mask is not None and state.ptr_prev_alpha is not None:
-                    keep = pointer_mask[:, t].unsqueeze(-1)
-                    state.ptr_prev_alpha = state.ptr_prev_alpha * keep
-                    state.ptr_prev_gamma = state.ptr_prev_gamma * keep
-                outputs, state = self.step(
-                    sensory, state, token_id=token_seq[:, t], prompt_tokens=prompt_tokens,
-                )
-                if pointer_mask is not None and outputs["ptr_attn"] is not None:
-                    keep = pointer_mask[:, t].unsqueeze(-1)
-                    # Remove pointer contribution on observation/padding positions.
-                    boost = outputs["ptr_attn"] * (outputs["ptr_gamma"] * self.ptr_scale)
-                    outputs["logits"] = outputs["logits"].scatter_add(
-                        -1, prompt_tokens, -boost * (1 - keep),
-                    )
-                    if state.ptr_prev_alpha is not None:
-                        state.ptr_prev_alpha = state.ptr_prev_alpha * keep
-                        state.ptr_prev_gamma = state.ptr_prev_gamma * keep
-                logits_list.append(outputs["logits"])
-                action_list.append(outputs["action_logits"])
-                values_list.append(outputs["predicted_value"].squeeze(-1))
-
-            return {
-                "logits": torch.stack(logits_list, dim=1),
-                "action_logits": torch.stack(action_list, dim=1),
-                "values": torch.stack(values_list, dim=1),
-            }
-        raise ValueError("Must provide token_seq or pixel_seq.")
+        return self.forward_sequence_sequential(
+            token_seq=token_seq,
+            pixel_seq=pixel_seq,
+            action_seq=action_seq,
+            reset_mask=reset_mask,
+            prompt_tokens=prompt_tokens,
+            pointer_mask=pointer_mask,
+            language_mask=language_mask,
+            allow_routing=allow_routing,
+            thread_seq=thread_seq,
+        )
 
 
 def make_unified_model(
@@ -941,7 +1029,7 @@ def make_unified_model(
             num_deep_layers=2,
             **kwargs,
         )
-    elif tier_norm in ("tier1", "embedded", "10m"):
+    elif tier_norm in ("tier1", "embedded", "10m", "tier1_3m", "3m"):
         return UnifiedPseudoBrain(
             vocab_size=vocab_size,
             tier="tier1",
@@ -1004,4 +1092,5 @@ def make_unified_model(
             **kwargs,
         )
     else:
-        return UnifiedPseudoBrain(vocab_size=vocab_size, tier=tier, **kwargs)
+        valid_presets = ["tier0", "tier1", "tier2", "tier2_35m", "tier3", "tier3_1b"]
+        raise ValueError(f"Unknown tier: '{tier}'. Declared presets are: {valid_presets}")

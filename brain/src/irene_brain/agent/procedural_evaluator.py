@@ -803,16 +803,24 @@ def compute_span_similarities(generated_str: str, target_str: str) -> Tuple[floa
     edit_dist = dp[m][n]
     char_sim = max(0.0, 1.0 - edit_dist / max(m, n, 1))
 
-    # Token/subword overlap similarity (split on '_' and '.')
-    gen_parts = [p for p in generated_str.replace('.', '_').split('_') if p]
-    tgt_parts = [p for p in target_str.replace('.', '_').split('_') if p]
-    if tgt_parts:
-        common = sum(1 for p in gen_parts if p in tgt_parts)
-        tok_acc = common / len(tgt_parts)
+    # Token/subword overlap similarity with multiset intersection, strictly bounded in [0.0, 1.0]
+    if generated_str == target_str:
+        tok_acc = 1.0
     else:
-        tok_acc = 1.0 if not gen_parts else 0.0
+        from collections import Counter
+        gen_parts = [p for p in generated_str.replace('.', '_').split('_') if p]
+        tgt_parts = [p for p in target_str.replace('.', '_').split('_') if p]
+        if tgt_parts and gen_parts:
+            gen_counts = Counter(gen_parts)
+            tgt_counts = Counter(tgt_parts)
+            intersection = sum(min(count, tgt_counts[token]) for token, count in gen_counts.items())
+            tok_acc = min(1.0, max(0.0, intersection / max(len(tgt_parts), len(gen_parts))))
+        elif not tgt_parts and not gen_parts:
+            tok_acc = 1.0
+        else:
+            tok_acc = 0.0
 
-    return tok_acc, char_sim
+    return min(1.0, max(0.0, tok_acc)), min(1.0, max(0.0, char_sim))
 
 
 def evaluate_action_quality(

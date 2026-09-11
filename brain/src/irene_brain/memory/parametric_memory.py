@@ -187,23 +187,24 @@ class ParametricStaticKnowledgeCore(nn.Module):
 
         # Knowledge item registry directly mapped to parametric weight rows
         self.knowledge_items: List[StaticKnowledgeItem] = []
-        self.key_embeddings: Optional[Tensor] = None  # [N, embed_dim]
+        self.register_buffer("key_embeddings", None, persistent=False)
 
         # Ingest and bake the default foundational corpus
         self.bake_knowledge_corpus(DEFAULT_STATIC_CORPUS)
 
     def _text_to_embedding(self, text: str) -> Tensor:
         """Compute a deterministic neural semantic embedding for a text query."""
+        dev = self.key_proj.weight.device
         words = re.findall(r"\b\w+\b", text.lower())
-        vec = torch.zeros(self.embed_dim, dtype=torch.float32, device=self.device)
+        vec = torch.zeros(self.embed_dim, dtype=torch.float32, device=dev)
 
         if not words:
-            return F.normalize(torch.randn(self.embed_dim, device=self.device), dim=0)
+            return F.normalize(torch.randn(self.embed_dim, device=dev), dim=0)
 
         for w in words:
             w_seed = sum((i + 1) * ord(c) for i, c in enumerate(w)) % (2**31 - 1)
             g = torch.Generator(device="cpu").manual_seed(w_seed)
-            w_vec = torch.randn(self.embed_dim, generator=g, device=self.device)
+            w_vec = torch.randn(self.embed_dim, generator=g, device="cpu").to(dev)
             vec = vec + w_vec
 
         return F.normalize(vec, dim=0)
@@ -222,13 +223,14 @@ class ParametricStaticKnowledgeCore(nn.Module):
             key_list.append(emb)
 
         K = torch.stack(key_list, dim=0)  # [N, embed_dim]
-        self.key_embeddings = K
+        self.register_buffer("key_embeddings", K, persistent=False)
 
+        dev = self.key_proj.weight.device
         with torch.no_grad():
             H = F.gelu(self.key_proj(K))  # [N, hidden_dim]
 
             HtH = torch.matmul(H.T, H)  # [hidden_dim, hidden_dim]
-            reg = reg_lambda * torch.eye(self.hidden_dim, device=self.device)
+            reg = reg_lambda * torch.eye(self.hidden_dim, device=dev)
             inv = torch.linalg.pinv(HtH + reg)  # [hidden_dim, hidden_dim]
             W_val_T = torch.matmul(torch.matmul(inv, H.T), K)  # [hidden_dim, embed_dim]
 
@@ -264,7 +266,7 @@ class ParametricStaticKnowledgeCore(nn.Module):
 
         best_item = self.knowledge_items[best_idx]
         if effective_score >= self.confidence_threshold:
-            confidence_val = min(1.0, max(raw_sim, 0.88))
+            confidence_val = min(1.0, max(raw_sim, 0.0))
             return StaticRecallResult(
                 topic=best_item.topic,
                 category=best_item.category,
