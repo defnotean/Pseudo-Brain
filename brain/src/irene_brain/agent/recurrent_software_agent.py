@@ -261,11 +261,14 @@ class RecurrentSoftwareAgent:
                 )
                 last_logits = outputs["logits"][0]
 
-                # The returned token must enter the state even when it triggers
-                # the loop cutoff, before the closing EOS is consumed.
+                # Safeguard against periodic attractor looping without prematurely cutting off valid indentation/syntax
                 if len(gen_tokens) >= 8 and gen_tokens[-4:] == gen_tokens[-8:-4]:
-                    stop_reason = "repetition_cutoff"
-                    break
+                    if not set(gen_tokens[-4:]).issubset(syntax_exempt):
+                        stop_reason = "repetition_cutoff"
+                        break
+                    elif len(gen_tokens) >= 16 and gen_tokens[-8:] == gen_tokens[-16:-8]:
+                        stop_reason = "repetition_cutoff"
+                        break
 
         # ONLY ingest [EOS] if the generation stopped due to natural [EOS]!
         # Do NOT ingest [EOS] on PAD, SEP, token_limit, or repetition_cutoff!
