@@ -28,7 +28,7 @@ We scaled Pseudo-Brain from the 3.09M Champion tier to the **36.7M Parameter Tie
 
 ## 3. Rigorous Prompt Verification (Local & Remote Parity)
 
-Both on Google Colab A100 and locally on CPU via [`scratch/inspect_35m_champion.py`](../scripts/inspect_35m_champion.py), the 36.7M model generates:
+Both on Google Colab A100 and locally on CPU via [`scripts/inspect_35m_champion.py`](../scripts/inspect_35m_champion.py), the 36.7M model generates:
 
 ```
 User: Hello!
@@ -82,7 +82,7 @@ We successfully calibrated and mathematically verified the **1.02 Billion Parame
 | **Associative Parity** | Parallel Scan vs. Streaming `step()` | **Max Abs Diff $< 10^{-5}$** |
 | **Weights Footprint (bf16)** | A100 VRAM Allocation | **2.05 GB (Over 37 GB free VRAM headroom)** |
 
-All 6 test cases in [`tests/test_1b_architecture.py`](../tests/test_1b_architecture.py) passed.
+All 6 test cases in [`tests/test_1b_architecture.py`](../brain/tests/test_1b_architecture.py) passed.
 
 ---
 
@@ -93,7 +93,7 @@ To ensure that Pseudo-Brain 1B is genuinely smarter than off-the-shelf feed-forw
 2. **Latent Mental Rollouts**: When token ambiguity or logical branching occurs, clones the compact 4.0 KB working state (taking only $\sim 16$ KB RAM without transformer KV-caches) and simulates $B$ candidate trajectories forward $H$ steps in recurrent state space.
 3. **Value-Guided Branch Selection**: Scores candidate thought branches using `model.value_head` and cumulative log-probabilities to select the optimal cognitive trajectory before committing tokens to the user.
 
-All 4 test cases in [`tests/test_mental_lookahead.py`](../tests/test_mental_lookahead.py) passed.
+All 4 test cases in [`tests/test_mental_lookahead.py`](../brain/tests/test_mental_lookahead.py) passed.
 
 ---
 
@@ -142,7 +142,7 @@ We engineered a dedicated real-time interaction and telemetry dashboard:
   - **16-Slot Working Memory Heatmap**: Live SVG/CSS grid monitoring all $K=16$ working thought slots ($4,096\text{ bytes}$, Law 1 invariant), showing slot energies and activations.
   - **Mental Lookahead Tree Explorer**: Visualizes speculative counterfactual reasoning branches, branch probabilities, and value evaluations.
   - **Dual-Mode Inference**: Toggle between *Instant Reflex Mode* (60 Hz, <10 ms) and *Deep Deliberation Mode* (System 2 lookahead).
-- **Test Suite**: [`brain/tests/test_console_server.py`](../tests/test_console_server.py) passing 5/5 tests in 2.27s.
+- **Test Suite**: [`brain/tests/test_console_server.py`](../brain/tests/test_console_server.py) passing 5/5 tests in 2.27s.
 
 ---
 
@@ -178,7 +178,7 @@ We engineered a dedicated real-time interaction and telemetry dashboard:
   - **16-Slot Working Memory Heatmap**: Live SVG/CSS grid monitoring all $K=16$ working thought slots ($4,096\text{ bytes}$, Law 1 invariant), showing slot energies and activations.
   - **Mental Lookahead Tree Explorer**: Visualizes speculative counterfactual reasoning branches, branch probabilities, and value evaluations.
   - **Dual-Mode Inference**: Toggle between *Instant Reflex Mode* (60 Hz, <10 ms) and *Deep Deliberation Mode* (System 2 lookahead).
-- **Test Suite**: [`brain/tests/test_console_server.py`](../tests/test_console_server.py) passing 5/5 tests in 2.27s.
+- **Test Suite**: [`brain/tests/test_console_server.py`](../brain/tests/test_console_server.py) passing 5/5 tests in 2.27s.
 
 ---
 
